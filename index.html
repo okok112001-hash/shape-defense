@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0e1c3a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="도형 방어선">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>도형 방어선</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* 설계도 콘셉트: 짙은 청색 도면 위에 선으로 그린 도형. 세로 4단(상태, 전장, 무기 5칸, 인벤토리) */
+  color-scheme: dark;
+  --bg: #0e1c3a;
+  --panel: #13264d;
+  --panel-2: #1a3263;
+  --line: rgba(150, 190, 255, .18);
+  --ink: #e9f0ff;
+  --dim: #93a8cf;
+  --accent: #ffd166;
+  --danger: #ff5d5d;
+  --ok: #7af0c1;
+  --g0: #aab6cc;
+  --g1: #5cb8ff;
+  --g2: #c48bff;
+  --g3: #ffa63d;
+  --font-display: 'Do Hyeon', 'IBM Plex Sans KR', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --slot-h: 76px;
+  --cell-h: 46px;
+}
+@media (min-height: 760px) { :root { --slot-h: 88px; --cell-h: 54px; } }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: #081226; color: var(--ink);
+  font: 400 13px/1.35 var(--font-body);
+  overflow: hidden; overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+b { font-weight: 600; }
+.g0 { color: var(--g0); } .g1 { color: var(--g1); } .g2 { color: var(--g2); } .g3 { color: var(--g3); }
+
+#app {
+  position: relative; height: 100%; max-width: 480px; margin: 0 auto;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto;
+  background: var(--bg);
+}
+
+/* 상태 표시 */
+#hud {
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.hp { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hp-bar { flex: 1; height: 10px; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); border-radius: 2px; overflow: hidden; }
+.hp-bar i { display: block; height: 100%; width: 100%; background: var(--ok); transition: width .15s; }
+.hp-bar i.low { background: var(--danger); }
+#hpTxt { font: 16px var(--font-display); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+.stat small { font-size: 10px; color: var(--dim); }
+.stat b { font: 16px var(--font-display); font-variant-numeric: tabular-nums; }
+.stat.gold b { color: var(--accent); }
+#pauseBtn, #speedBtn { width: 38px; height: 34px; border: 1px solid var(--line); border-radius: 4px; font-size: 13px; color: var(--dim); }
+#speedBtn.on { color: #1c1503; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+/* 전장 */
+#fieldWrap { position: relative; min-height: 0; }
+#field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* 무기 5칸: 전장의 5개 레인과 세로로 정렬 */
+#weapons {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: var(--panel); border-top: 2px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.slot {
+  position: relative; height: var(--slot-h); margin: 4px 3px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1.5px solid var(--line); border-radius: 6px; background: rgba(0, 0, 0, .18);
+}
+.slot.empty { border-style: dashed; }
+.slot .plus { font: 22px var(--font-display); color: var(--dim); opacity: .5; }
+.slot .lv { font: 15px var(--font-display); line-height: 1; }
+.slot.sel { border-color: var(--accent); background: rgba(255, 209, 102, .1); }
+.slot.tg { border-color: var(--ok); border-style: dashed; animation: blink .8s linear infinite; }
+@keyframes blink { 50% { background: rgba(122, 240, 193, .16); } }
+.pips { display: flex; gap: 3px; height: 6px; }
+.pips i { width: 8px; height: 6px; border: 1px solid rgba(150, 190, 255, .35); }
+.pips i.pa { width: 6px; border-radius: 50%; }
+.slot .pop {
+  position: absolute; left: 50%; top: -4px; transform: translate(-50%, 0); white-space: nowrap; pointer-events: none;
+  font: 15px var(--font-display); animation: rise .7s ease-out forwards; z-index: 2;
+  text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, .8);
+}
+.slot .pop.ok { color: var(--ok); } .slot .pop.no { color: var(--danger); }
+@keyframes rise { to { transform: translate(-50%, -26px); opacity: 0; } }
+.slot.flash-ok { border-color: var(--ok); } .slot.flash-no { border-color: var(--danger); }
+
+/* 하단: 인벤토리 또는 무기 상세 */
+#bottom { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+.info { height: 34px; font-size: 12px; line-height: 17px; color: var(--dim); overflow: hidden; }
+.info b { color: var(--ink); }
+.info .g0 { color: var(--g0); } .info .g1 { color: var(--g1); } .info .g2 { color: var(--g2); } .info .g3 { color: var(--g3); }
+.info.warn { color: var(--accent); }
+.inv { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.cell {
+  position: relative; height: var(--cell-h);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  border: 1.5px solid var(--line); border-radius: 5px; background: var(--panel); line-height: 1.05;
+}
+.cell.empty { background: rgba(0, 0, 0, .15); border-style: dashed; }
+.cell b { font: 13px var(--font-display); font-variant-numeric: tabular-nums; }
+.cell small { font-size: 9px; color: var(--dim); }
+.cell .ab { font: 16px var(--font-display); }
+.cell.kp.g0 { border-color: var(--g0); color: var(--g0); }
+.cell.kp.g1 { border-color: var(--g1); color: var(--g1); background: rgba(92, 184, 255, .1); }
+.cell.kp.g2 { border-color: var(--g2); color: var(--g2); background: rgba(196, 139, 255, .12); }
+.cell.kp.g3 { border-color: var(--g3); color: var(--g3); background: rgba(255, 166, 61, .14); }
+.cell.ks b { color: var(--accent); }
+.cell.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cell.new { animation: got .5s ease-out; }
+@keyframes got { from { transform: scale(1.18); box-shadow: 0 0 0 3px rgba(255, 209, 102, .5); } }
+
+.acts { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.slot, .cell { touch-action: none; -webkit-touch-callout: none; }
+.ghost {
+  position: fixed; z-index: 20; pointer-events: none; transform: translate(-50%, -85%) scale(1.12);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.05;
+  border: 2px solid var(--accent); border-radius: 6px; background: var(--panel-2); box-shadow: 0 8px 20px rgba(0, 0, 0, .55);
+}
+.ghost b { font: 14px var(--font-display); } .ghost small { font-size: 9px; } .ghost .ab { font: 16px var(--font-display); }
+.ghost .pips, .ghost .pop { display: none; }
+#app.dragging .slot, #app.dragging .cell { border-style: dashed; }
+#app.dragging .over { border-color: var(--accent); border-style: solid; background: rgba(255, 209, 102, .2); }
+.dragsrc { opacity: .3; }
+.btn {
+  height: 42px; border-radius: 5px; border: 1.5px solid var(--line); background: var(--panel-2);
+  font: 600 14px var(--font-body); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 6px;
+}
+.btn small { font-weight: 400; font-size: 11px; color: var(--dim); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #1c1503; }
+.btn.primary small { color: #5c4a12; }
+.btn.primary b { font: 16px var(--font-display); }
+.btn.off { opacity: .42; }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+.btn:active { transform: translateY(1px); }
+
+/* 무기 창 */
+.d-acts { display: grid; grid-template-columns: 1.7fr 1fr; gap: 6px; }
+.wm { gap: 8px; }
+.wm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.wm-head .nm { display: block; font: 24px/1.1 var(--font-display); }
+.wm-head .st { font-size: 11.5px; color: var(--dim); }
+.wm-head .x { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; font-size: 13px; color: var(--ink); flex: none; }
+.schem {
+  position: relative; height: 178px; flex: none; border: 1px solid var(--line); border-radius: 6px;
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 18px 18px; background-position: -1px -1px;
+}
+.schem .lab { position: absolute; left: 8px; top: 6px; font-size: 11px; color: var(--dim); }
+.schem .wires { position: absolute; inset: 0; width: 100%; height: 100%; }
+.schem .core {
+  position: absolute; left: 50%; top: 54%; width: 86px; height: 86px; transform: translate(-50%, -50%);
+  border: 2px solid; border-radius: 50%; background: var(--panel);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.schem .core b { font: 15px var(--font-display); }
+.schem .pop {
+  position: absolute; left: calc(100% + 40px); top: 34px; transform: translate(-50%, 0); white-space: nowrap; pointer-events: none;
+  font: 18px var(--font-display); animation: rise .7s ease-out forwards; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, .8);
+}
+.schem .pop.ok { color: var(--ok); } .schem .pop.no { color: var(--danger); }
+.pt {
+  position: absolute; width: 78px; height: 44px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05;
+  border: 1.5px solid var(--line); border-radius: 5px; background: var(--panel);
+}
+.pt b { font: 17px var(--font-display); }
+.pt small { font-size: 10px; }
+.pt.p0 { left: 50%; top: 5px; } .pt.p1 { left: 17%; bottom: 7px; } .pt.p2 { left: 83%; bottom: 7px; }
+.pt.empty { border-style: dashed; color: var(--dim); font-size: 11px; background: var(--bg); }
+.pt.g0 { border-color: var(--g0); color: var(--g0); }
+.pt.g1 { border-color: var(--g1); color: var(--g1); background: #142c55; }
+.pt.g2 { border-color: var(--g2); color: var(--g2); background: #23285a; }
+.pt.g3 { border-color: var(--g3); color: var(--g3); background: #2e2a3c; }
+.pt.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wm-info { min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; line-height: 17px; color: var(--dim); }
+.wm-info b { color: var(--ink); }
+.wm-info .g0 { color: var(--g0); } .wm-info .g1 { color: var(--g1); } .wm-info .g2 { color: var(--g2); } .wm-info .g3 { color: var(--g3); }
+.wm-info .warn { color: var(--accent); }
+.btn.sm { height: 32px; padding: 0 14px; font-size: 13px; flex: none; }
+.wm-sec { font-size: 11px; color: var(--dim); margin-bottom: -4px; }
+.wm-augs { display: flex; flex-direction: column; gap: 5px; }
+.arow {
+  display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 2px; align-items: center;
+  padding: 6px 12px; border: 1.5px solid var(--line); border-radius: 18px; background: var(--panel-2);
+}
+.arow .chip { font-size: 10.5px; font-weight: 600; padding: 0 7px; border-radius: 999px; border: 1px solid currentColor; }
+.arow b { font: 16px var(--font-display); color: var(--ink); }
+.arow .ds { grid-column: 1 / -1; font-size: 12px; color: var(--ink); }
+.arow.empty { display: block; border-style: dashed; background: none; color: var(--dim); font-size: 11.5px; padding: 5px 14px; }
+.arow.g0 { border-color: var(--g0); } .arow.g1 { border-color: var(--g1); } .arow.g2 { border-color: var(--g2); } .arow.g3 { border-color: var(--g3); }
+@media (max-height: 640px) { .schem { height: 150px; } .schem .core { width: 72px; height: 72px; } .pt { height: 38px; } .modal.wm { padding: 12px; gap: 6px; } }
+
+/* 겹침 창 */
+#overlay {
+  position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(6, 13, 30, .82);
+}
+#overlay[hidden] { display: none; }
+.modal {
+  width: 100%; max-width: 380px; max-height: 100%; overflow-y: auto;
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 8px; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.modal h1 { margin: 0; font: 40px/1 var(--font-display); letter-spacing: 1px; text-wrap: balance; }
+.modal h1 span { color: var(--accent); }
+.modal h2 { margin: 0; font: 24px/1.1 var(--font-display); }
+.modal p { margin: 0; color: var(--dim); }
+.modal ol { margin: 0; padding-left: 18px; color: var(--ink); display: flex; flex-direction: column; gap: 4px; }
+.rec { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.rec div { border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; }
+.rec small { display: block; font-size: 10px; color: var(--dim); }
+.rec b { font: 20px var(--font-display); font-variant-numeric: tabular-nums; }
+.newrec { color: var(--accent); font-weight: 600; }
+.aug {
+  text-align: left; width: 100%; padding: 10px 12px; border-radius: 6px; border: 1.5px solid var(--line); background: var(--panel-2);
+  display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 3px; align-items: center;
+}
+.aug .chip { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.aug .nm { font: 18px var(--font-display); }
+.aug .ds { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink); }
+.aug .tag { grid-column: 1 / -1; font-size: 11px; color: var(--ok); }
+.aug.g0 { border-color: var(--g0); } .aug.g1 { border-color: var(--g1); } .aug.g2 { border-color: var(--g2); } .aug.g3 { border-color: var(--g3); }
+.aug.g3 { background: rgba(255, 166, 61, .12); } .aug.g2 { background: rgba(196, 139, 255, .1); }
+.cur { font-size: 11.5px; color: var(--dim); }
+
+@media (prefers-reduced-motion: reduce) {
+  .slot.tg, .cell.new, .slot .pop { animation: none; }
+  .slot .pop { opacity: 0; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hp" aria-label="방어선 체력">
+      <div class="hp-bar"><i id="hpFill"></i></div>
+      <span id="hpTxt">100</span>
+    </div>
+    <div class="stat"><small>시간</small><b id="tTxt">0:00</b></div>
+    <div class="stat"><small>처치</small><b id="kTxt">0</b></div>
+    <div class="stat gold"><small>재화</small><b id="gTxt">0</b></div>
+    <button id="speedBtn" type="button" aria-label="게임 속도">1배</button>
+    <button id="pauseBtn" type="button" aria-label="일시정지">II</button>
+  </header>
+  <div id="fieldWrap"><canvas id="field"></canvas></div>
+  <div id="weapons"></div>
+  <div id="bottom"></div>
+  <div id="overlay" hidden></div>
+</div>
+<script>
+/* 도형 방어선: 게임 로직 (화면과 분리되어 있어 단독 실행 가능) */
+(function (root) {
+'use strict';
+
+const LANES = 5, LW = 100, W = LANES * LW;
+let H = 520;
+const GRADES = ['일반', '희귀', '영웅', '전설'];
+const CFG = {
+  invSize: 10,        // 인벤토리 칸 수 (답답하면 여기만 바꾸면 됨)
+  shardStack: 1000,   // 강화 조각 한 칸 최대
+  maxLv: 100,
+  baseHp: 100,
+  startGold: 80,
+  bossEvery: 60,
+  augEvery: 5,
+  extraShotMul: 0.6,
+};
+
+const rnd = Math.random;
+function pick(a) { return a[Math.floor(rnd() * a.length)]; }
+function wpick(ws) {
+  let t = 0; for (const w of ws) t += w;
+  let r = rnd() * t;
+  for (let i = 0; i < ws.length; i++) { r -= ws[i]; if (r < 0) return i; }
+  return ws.length - 1;
+}
+
+/* ---------- 밸런스 수치 ---------- */
+const BAL = {
+  // L강에 도전할 때의 성공률 (1강 100% → 100강 10%, 초반에 더 빨리 감소)
+  success(L) {
+    if (L <= 1) return 1;
+    const x = (L - 1) / 99;
+    return 0.10 + 0.90 * Math.pow(1 - x, 1.1);
+  },
+  lvMul(L) { return Math.pow(1.05, L); },
+  hpMul(t) { // 처음 2분은 완만, 15분까지 빠르게, 25분 이후 다시 가속
+    let ln;
+    if (t <= 120) ln = 0.0025 * t;
+    else if (t <= 900) ln = 0.3 + 0.0038 * (t - 120);
+    else ln = 3.264 + 0.0030 * (t - 900);
+    if (t > 1500) ln += 6e-6 * (t - 1500) * (t - 1500);
+    return Math.exp(ln);
+  },
+  bossMul(n) { return Math.min(1, 0.4 + 0.12 * n); }, // 초반 보스는 약하게
+  spawnRate(t) { return Math.min(6, 0.5 + t / 85); },
+  goldMul(t) { return 1 + t / 80; },
+  genCost(n) { return Math.round(10 * Math.pow(1 + 0.2 * n, 1.25)); },
+  bundle(t) { return Math.max(3, Math.round((3 + rnd() * 3) * Math.pow(1 + t / 40, 1.5))); },
+};
+
+/* ---------- 무기 ---------- */
+const WEAPONS = {
+  blaster: { name: '블래스터', dmg: 10, cd: 0.45, range: 0.75, lanes: 0, color: '#6ee7ff',
+    desc: '정면 1레인의 가장 가까운 적에게 탄환 발사' },
+  shotgun: { name: '산탄포', dmg: 7, cd: 0.8, range: 0.45, lanes: 1, color: '#ffc857',
+    desc: '정면과 양옆 3레인에 산탄 발사. 사거리가 짧음' },
+  laser: { name: '레이저', dmg: 15, cd: 1.25, range: 0.9, lanes: 0, color: '#ff7ad9',
+    desc: '정면 1레인의 모든 적을 한 번에 관통' },
+  pulse: { name: '펄스', dmg: 10, cd: 0.9, range: 0, lanes: 0, radius: 150, color: '#7af0c1',
+    desc: '무기 주변 원형 범위의 모든 적 타격' },
+  mortar: { name: '박격포', dmg: 20, cd: 2.2, range: 1, lanes: 5, blast: 62, color: '#ff9f5a',
+    desc: '모든 레인 대상. 방어선에 가장 가까운 적에게 폭발탄' },
+  tesla: { name: '전격기', dmg: 8, cd: 0.7, range: 0.55, lanes: 1, chain: 2, color: '#b9a2ff',
+    desc: '3레인 안의 가까운 적을 공격하고 주변 2명에게 연쇄' },
+};
+const WEAPON_IDS = Object.keys(WEAPONS);
+
+/* ---------- 파츠 (어느 무기에나 장착, 수치 보정) ---------- */
+const pct = (k) => (s, v) => { s[k] += v / 100; };
+const PARTS = {
+  dmg:   { name: '강화 탄두',   abbr: '공격', min: 0, v: [15, 30, 50, 80],    ap: pct('dmgPct'),   d: v => `공격력 +${v}%` },
+  rate:  { name: '가속 장치',   abbr: '속도', min: 0, v: [10, 20, 32, 48],    ap: pct('ratePct'),  d: v => `공격 속도 +${v}%` },
+  crit:  { name: '조준경',      abbr: '치확', min: 0, v: [6, 12, 18, 26],     ap: pct('crit'),     d: v => `치명타 확률 +${v}%` },
+  critd: { name: '예리한 날',   abbr: '치피', min: 0, v: [30, 60, 100, 150],  ap: pct('critDmg'),  d: v => `치명타 피해 +${v}%` },
+  range: { name: '확장 모듈',   abbr: '범위', min: 0, v: [10, 18, 28, 40],    ap: pct('rangePct'), d: v => `사거리와 공격 범위 +${v}%` },
+  boss:  { name: '약점 분석기', abbr: '보스', min: 0, v: [20, 40, 65, 100],   ap: pct('bossPct'),  d: v => `보스에게 주는 피해 +${v}%` },
+  gold:  { name: '채굴 칩',     abbr: '재화', min: 0, v: [10, 20, 35, 55],    ap: pct('goldPct'),  d: v => `이 무기로 처치 시 재화 +${v}%` },
+  exec:  { name: '처형 모듈',   abbr: '처형', min: 0, v: [25, 50, 80, 120],   ap: pct('execPct'),  d: v => `체력 30% 이하인 적에게 피해 +${v}%` },
+  first: { name: '선제 타격기', abbr: '선제', min: 0, v: [25, 50, 80, 120],   ap: pct('firstPct'), d: v => `체력 80% 이상인 적에게 피해 +${v}%` },
+  heal:  { name: '수리 장치',   abbr: '수리', min: 1, v: [0, 2, 3, 5],        ap: pct('heal'),     d: v => `이 무기로 처치 시 ${v}% 확률로 방어선 체력 1 회복` },
+  luck:  { name: '행운 부적',   abbr: '행운', min: 1, v: [0, 3, 6, 10],       ap: pct('luck'),     d: v => `이 무기의 강화 성공률 +${v}%p` },
+  save:  { name: '절약 회로',   abbr: '절약', min: 1, v: [0, 12, 22, 35],     ap: pct('save'),     d: v => `강화 시 ${v}% 확률로 조각을 소모하지 않음` },
+  dbl:   { name: '이중 장전기', abbr: '연사', min: 2, v: [0, 0, 25, 45],      ap: pct('dbl'),      d: v => `공격 시 ${v}% 확률로 즉시 한 번 더 공격` },
+  core:  { name: '코어 증폭기', abbr: '코어', min: 3, v: [0, 0, 0, 60],
+    ap: (s) => { s.dmgPct += 0.6; s.ratePct += 0.3; }, d: () => '공격력 +60%, 공격 속도 +30%' },
+};
+const PART_IDS = Object.keys(PARTS);
+
+/* ---------- 증강 (무기 고유, 5강마다 3택) ---------- */
+const add = (k) => (s, v) => { s[k] += v; };
+const mx = (k) => (s, v) => { s[k] = Math.max(s[k], v / 100); };
+const laneText = (n) => n >= 4 ? '모든 레인의 적을 조준' : `조준 범위가 양옆 ${n}레인으로 확대`;
+const AUGS = {
+  // 공용 수치형
+  a_dmg:  { name: '고출력',   abbr: '출력', min: 0, for: 'all', v: [20, 40, 70, 110], ap: pct('dmgPct'),  d: v => `공격력 +${v}%` },
+  a_rate: { name: '속사',     abbr: '속사', min: 0, for: 'all', v: [15, 28, 45, 70],  ap: pct('ratePct'), d: v => `공격 속도 +${v}%` },
+  a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, for: 'all', v: [8, 15, 24, 35],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
+  // 블래스터
+  b_pierce: { name: '관통탄', abbr: '관통', min: 0, for: 'blaster', v: [1, 2, 3, 5], ap: add('pierce'), d: v => `탄환이 적 ${v}명을 추가로 관통` },
+  b_multi:  { name: '연발',   abbr: '연발', min: 1, for: 'blaster', v: [0, 1, 2, 3], ap: add('shots'),  d: v => `탄환 ${v}발 추가 발사 (추가 탄 피해 60%)` },
+  b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 40, 75], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
+  b_seek:   { name: '유도탄', abbr: '유도', min: 0, for: 'blaster', v: [1, 1, 2, 4], ap: add('lanes'),  d: v => laneText(v) },
+  b_frost:  { name: '냉각탄', abbr: '냉각', min: 0, for: 'blaster', v: [20, 30, 40, 55], ap: mx('slow'), d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
+  // 산탄포
+  s_wide:   { name: '광각 산탄', abbr: '광각', min: 2, for: 'shotgun', v: [0, 0, 1, 3], ap: add('lanes'), d: v => v >= 3 ? '모든 레인에 산탄 발사' : '양옆 2레인까지 산탄 발사' },
+  s_pellet: { name: '추가 산탄', abbr: '산탄', min: 1, for: 'shotgun', v: [0, 1, 2, 3], ap: add('shots'), d: v => `레인마다 산탄 ${v}발 추가 (추가 탄 피해 60%)` },
+  s_knock:  { name: '충격탄',   abbr: '충격', min: 0, for: 'shotgun', v: [8, 13, 19, 28], ap: add('knock'), d: v => `적중한 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
+  s_close:  { name: '근접 사격', abbr: '근접', min: 0, for: 'shotgun', v: [30, 60, 100, 150], ap: pct('closePct'), d: v => `방어선 가까이 온 적에게 피해 +${v}%` },
+  s_pierce: { name: '철갑 산탄', abbr: '철갑', min: 1, for: 'shotgun', v: [0, 1, 2, 4], ap: add('pierce'), d: v => `산탄이 적 ${v}명을 추가로 관통` },
+  // 레이저
+  l_burn:   { name: '잔열',     abbr: '잔열', min: 0, for: 'laser', v: [12, 22, 35, 55], ap: mx('burn'), d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
+  l_wide:   { name: '광폭 빔',  abbr: '광폭', min: 2, for: 'laser', v: [0, 0, 50, 85], ap: pct('sideBeam'), d: v => `양옆 레인의 적에게도 ${v}% 피해` },
+  l_charge: { name: '과충전',   abbr: '충전', min: 0, for: 'laser', v: [50, 100, 160, 250], ap: pct('third'), d: v => `3번째 발사마다 피해 +${v}%` },
+  l_exec:   { name: '소멸 광선', abbr: '소멸', min: 2, for: 'laser', v: [0, 0, 12, 20], ap: mx('instakill'), d: v => `체력이 ${v}% 이하로 떨어진 일반 적을 즉시 처치` },
+  // 펄스
+  p_area:   { name: '범위 증폭', abbr: '증폭', min: 0, for: 'pulse', v: [15, 30, 45, 70], ap: pct('areaPct'), d: v => `파동 범위 +${v}%` },
+  p_knock:  { name: '충격파',   abbr: '충격', min: 0, for: 'pulse', v: [10, 16, 24, 34], ap: add('knock'), d: v => `범위 안의 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
+  p_frost:  { name: '빙결장',   abbr: '빙결', min: 0, for: 'pulse', v: [15, 25, 35, 50], ap: mx('slow'), d: v => `범위 안의 적을 1.5초간 ${v}% 둔화` },
+  p_echo:   { name: '이중 파동', abbr: '이중', min: 2, for: 'pulse', v: [0, 0, 35, 60], ap: pct('echo'), d: v => `${v}% 확률로 파동이 한 번 더 발생` },
+  // 박격포
+  m_big:     { name: '대형 포탄', abbr: '대형', min: 0, for: 'mortar', v: [20, 35, 55, 80], ap: pct('areaPct'), d: v => `폭발 범위 +${v}%` },
+  m_cluster: { name: '집속탄',   abbr: '집속', min: 2, for: 'mortar', v: [0, 0, 2, 4], ap: add('cluster'), d: v => `폭발 후 주변에 소형 폭발 ${v}개 추가 (피해 40%)` },
+  m_fire:    { name: '화염 지대', abbr: '화염', min: 0, for: 'mortar', v: [12, 22, 35, 55], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
+  m_boss:    { name: '정밀 포격', abbr: '포격', min: 0, for: 'mortar', v: [30, 60, 100, 160], ap: pct('bossPct'), d: v => `보스에게 주는 피해 +${v}%` },
+  // 전격기
+  t_chain: { name: '연쇄 증폭', abbr: '연쇄', min: 0, for: 'tesla', v: [1, 2, 3, 5], ap: add('chain'), d: v => `연쇄 횟수 +${v}` },
+  t_stun:  { name: '감전',     abbr: '감전', min: 0, for: 'tesla', v: [8, 13, 19, 27], ap: mx('stun'), d: v => `적중 시 ${v}% 확률로 0.8초 기절 (보스 제외)` },
+  t_grow:  { name: '과부하',   abbr: '과부', min: 2, for: 'tesla', v: [0, 0, 15, 30], ap: mx('chainGrow'), d: v => `연쇄할 때마다 피해가 줄지 않고 ${v}%씩 증가` },
+  t_wide:  { name: '광역 방전', abbr: '광역', min: 1, for: 'tesla', v: [0, 1, 2, 4], ap: add('lanes'), d: v => laneText(v + 1) },
+};
+const AUG_POOL = {};
+for (const wid of WEAPON_IDS) AUG_POOL[wid] = Object.keys(AUGS).filter(id => AUGS[id].for === 'all' || AUGS[id].for === wid);
+
+function partDesc(p) { return PARTS[p.id].d(PARTS[p.id].v[p.g]); }
+function augDesc(a) { return AUGS[a.id].d(AUGS[a.id].v[a.g]); }
+
+/* ---------- 적 ---------- */
+const ENEMIES = {
+  basic:  { hp: 20,  speed: 0.068, r: 19, leak: 3,  gold: 2 },
+  runner: { hp: 11,  speed: 0.128, r: 15, leak: 2,  gold: 2 },
+  swarm:  { hp: 6,   speed: 0.088, r: 10, leak: 1,  gold: 1 },
+  heavy:  { hp: 75,  speed: 0.04,  r: 27, leak: 6,  gold: 7 },
+  giant:  { hp: 450, speed: 0.024, r: 60, leak: 25, gold: 60, boss: true, name: '거대체' },
+  split:  { hp: 300, speed: 0.029, r: 52, leak: 15, gold: 45, boss: true, name: '분열체' },
+};
+
+/* ---------- 상태 ---------- */
+let S = null;
+
+function newWeapon(type) {
+  return { kind: 'w', type, lv: 0, parts: [null, null, null], augs: [null, null, null], cd: 0.3, n: 0, kills: 0, dealt: 0 };
+}
+
+function newGame(h) {
+  if (h) H = h;
+  S = {
+    v: 1, t: 0, hp: CFG.baseHp, maxHp: CFG.baseHp, gold: CFG.startGold, kills: 0, dealt: 0, bossKills: 0, gen: 0,
+    slots: [null, null, null, null, null],
+    inv: new Array(CFG.invSize).fill(null),
+    enemies: [], bullets: [], shells: [], pools: [], fx: [], snd: [], drops: [],
+    spawnAcc: 0, nextBoss: CFG.bossEvery, bossN: 0,
+    pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
+  };
+  S.slots[2] = newWeapon('blaster');
+  return S;
+}
+function setState(s) { S = s; }
+function setH(h) {
+  if (!h || h === H) return;
+  if (S) { const k = h / H; for (const e of S.enemies) e.y *= k; }
+  H = h;
+}
+
+/* ---------- 능력치 계산 ---------- */
+function stats(w) {
+  if (w._s) return w._s;
+  const d = WEAPONS[w.type];
+  const s = {
+    dmgPct: 0, ratePct: 0, crit: 0.05, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, goldPct: 0,
+    execPct: 0, firstPct: 0, heal: 0, luck: 0, save: 0, dbl: 0,
+    pierce: 0, shots: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes: d.lanes,
+    chain: d.chain || 0, chainGrow: 0, closePct: 0, third: 0, instakill: 0, cluster: 0, pool: 0, echo: 0, sideBeam: 0,
+  };
+  for (const p of w.parts) if (p) PARTS[p.id].ap(s, PARTS[p.id].v[p.g]);
+  for (const a of w.augs) if (a) AUGS[a.id].ap(s, AUGS[a.id].v[a.g]);
+  s.dmg = d.dmg * BAL.lvMul(w.lv) * (1 + s.dmgPct);
+  s.cd = d.cd / (1 + s.ratePct);
+  s.range = Math.min(1, d.range * (1 + s.rangePct));
+  s.lanes = Math.min(5, s.lanes);
+  s.radius = (d.radius || 0) * (1 + s.rangePct + s.areaPct);
+  s.blast = (d.blast || 0) * (1 + s.rangePct + s.areaPct);
+  s.jump = 140 * (1 + s.rangePct);
+  s.crit = Math.min(1, s.crit);
+  s.color = d.color;
+  s.type = w.type;
+  s.w = w;
+  Object.defineProperty(w, '_s', { value: s, writable: true, configurable: true, enumerable: false });
+  return s;
+}
+function dirty(w) { if (w) w._s = null; }
+
+/* ---------- 인벤토리 ---------- */
+function freeSlot() { return S.inv.indexOf(null); }
+function shardCount() { let n = 0; for (const it of S.inv) if (it && it.kind === 's') n += it.n; return n; }
+function addShards(n) {
+  for (const it of S.inv) {
+    if (n <= 0) break;
+    if (it && it.kind === 's' && it.n < CFG.shardStack) { const a = Math.min(n, CFG.shardStack - it.n); it.n += a; n -= a; }
+  }
+  while (n > 0) {
+    const i = freeSlot(); if (i < 0) break;
+    const a = Math.min(n, CFG.shardStack); S.inv[i] = { kind: 's', n: a }; n -= a;
+  }
+  return n; // 담지 못한 수량
+}
+function takeShards(n) {
+  const stacks = S.inv.map((it, i) => ({ it, i })).filter(o => o.it && o.it.kind === 's').sort((a, b) => a.it.n - b.it.n);
+  for (const o of stacks) {
+    if (n <= 0) break;
+    const a = Math.min(n, o.it.n); o.it.n -= a; n -= a;
+    if (o.it.n <= 0) S.inv[o.i] = null;
+  }
+}
+function addItem(item) {
+  if (item.kind === 's') { const before = item.n; return addShards(item.n) < before ? 0 : -1; }
+  const i = freeSlot(); if (i < 0) return -1;
+  S.inv[i] = item; return i;
+}
+function weaponCount() {
+  let n = 0;
+  for (const w of S.slots) if (w) n++;
+  for (const it of S.inv) if (it && it.kind === 'w') n++;
+  return n;
+}
+function ownedTypes() {
+  const o = {};
+  for (const w of S.slots) if (w) o[w.type] = 1;
+  for (const it of S.inv) if (it && it.kind === 'w') o[it.type] = 1;
+  return o;
+}
+
+/* ---------- 생성 ---------- */
+function genCost() { return BAL.genCost(S.gen); }
+function rollPartGrade(boost) {
+  const f = Math.min(1, S.t / 900);
+  const ws = [70 - 55 * f, 24 + 8 * f, 5 + 27 * f, 1 + 20 * f];
+  let g = wpick(ws);
+  if (boost) g = Math.max(1, g, wpick(ws));
+  return g;
+}
+function newPart(boost) {
+  const g = rollPartGrade(boost);
+  const ids = PART_IDS.filter(id => PARTS[id].min <= g);
+  return { kind: 'p', id: pick(ids), g };
+}
+function randomWeapon(preferNew) {
+  let ids = WEAPON_IDS;
+  if (preferNew) { const o = ownedTypes(); const f = ids.filter(id => !o[id]); if (f.length) ids = f; }
+  return newWeapon(pick(ids));
+}
+function generate() {
+  if (!S || S.over || S.pendingAug) return { ok: false, reason: 'busy' };
+  const c = genCost();
+  if (S.gold < c) return { ok: false, reason: 'gold' };
+  if (freeSlot() < 0) return { ok: false, reason: 'full' };
+  S.gold -= c; S.gen++;
+  const nW = weaponCount();
+  const pw = S.gen <= 2 ? 1 : nW < 3 ? 0.45 : nW < 5 ? 0.28 : 0.06;
+  const r = rnd();
+  let item;
+  if (r < pw) item = randomWeapon(nW < 4);
+  else if (r < pw + (1 - pw) * 0.3) item = newPart(false);
+  else item = { kind: 's', n: BAL.bundle(S.t) };
+  const got = item.kind === 's' ? { kind: 's', n: item.n } : item;
+  addItem(item);
+  return { ok: true, item: got };
+}
+function bossDrop() {
+  const nW = weaponCount();
+  if (rnd() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true);
+  return newPart(true);
+}
+
+/* ---------- 장착과 해제 ---------- */
+function discard(i) { if (S.inv[i]) { S.inv[i] = null; return true; } return false; }
+function moveInv(a, b) { // 인벤토리 안에서 자리 바꾸기. 강화 조각끼리는 합친다
+  if (a === b) return false;
+  const x = S.inv[a], y = S.inv[b]; if (!x) return false;
+  if (y && x.kind === 's' && y.kind === 's') {
+    const m = Math.min(x.n, CFG.shardStack - y.n);
+    y.n += m; x.n -= m; if (x.n <= 0) S.inv[a] = null;
+    return true;
+  }
+  S.inv[a] = y; S.inv[b] = x; return true;
+}
+function equipWeapon(invIdx, slot) {
+  const it = S.inv[invIdx];
+  if (!it || it.kind !== 'w') return false;
+  const old = S.slots[slot];
+  S.slots[slot] = it; it.cd = 0.2;
+  S.inv[invIdx] = old || null;
+  return true;
+}
+function unequipWeapon(slot, idx) {
+  const w = S.slots[slot]; if (!w) return false;
+  const i = idx != null && S.inv[idx] === null ? idx : freeSlot(); if (i < 0) return false;
+  S.inv[i] = w; S.slots[slot] = null; return true;
+}
+function swapSlots(a, b) {
+  const t = S.slots[a]; S.slots[a] = S.slots[b]; S.slots[b] = t;
+  for (const w of [S.slots[a], S.slots[b]]) if (w) w.cd = Math.max(w.cd, 0.2);
+  return true;
+}
+function attachPart(invIdx, slot) {
+  const it = S.inv[invIdx], w = S.slots[slot];
+  if (!it || it.kind !== 'p' || !w) return { ok: false, reason: 'none' };
+  const k = w.parts.indexOf(null);
+  if (k < 0) return { ok: false, reason: 'full' };
+  w.parts[k] = { id: it.id, g: it.g }; S.inv[invIdx] = null; dirty(w);
+  return { ok: true };
+}
+function detachPart(slot, k) {
+  const w = S.slots[slot]; if (!w || !w.parts[k]) return false;
+  const i = freeSlot(); if (i < 0) return false;
+  S.inv[i] = { kind: 'p', id: w.parts[k].id, g: w.parts[k].g }; w.parts[k] = null; dirty(w);
+  return true;
+}
+
+/* ---------- 강화와 증강 ---------- */
+function upgradeInfo(w) {
+  const next = w.lv + 1;
+  return { cost: next, rate: Math.min(1, BAL.success(next) + stats(w).luck), have: shardCount(), max: w.lv >= CFG.maxLv };
+}
+function upgrade(slot) {
+  const w = S.slots[slot];
+  if (!w || S.over || S.pendingAug) return { ok: false, reason: 'busy' };
+  const info = upgradeInfo(w);
+  if (info.max) return { ok: false, reason: 'max' };
+  if (info.have < info.cost) return { ok: false, reason: 'shards' };
+  const st = stats(w);
+  const saved = st.save > 0 && rnd() < st.save;
+  if (!saved) takeShards(info.cost);
+  const success = rnd() < info.rate;
+  if (success) {
+    w.lv++; dirty(w);
+    if (w.lv > S.maxLv) S.maxLv = w.lv;
+    if (w.lv % CFG.augEvery === 0) S.pendingAug = { slot, lv: w.lv, options: rollAugs(w) };
+  }
+  return { ok: true, success, saved, lv: w.lv };
+}
+function rollAugs(w) {
+  const f = w.lv / CFG.maxLv;
+  const ws = [60 - 55 * f, 30 - 5 * f, 9 + 29 * f, 1 + 31 * f];
+  const pool = AUG_POOL[w.type];
+  const out = [];
+  for (let k = 0; k < 3; k++) {
+    let g = wpick(ws), cand = [];
+    for (let tries = 0; tries < 4 && !cand.length; tries++) {
+      cand = pool.filter(id => AUGS[id].min <= g && !out.some(o => o.id === id) &&
+        !w.augs.some(a => a && a.id === id && a.g >= g));
+      if (!cand.length) g = Math.min(3, g + 1);
+    }
+    if (!cand.length) cand = pool.filter(id => !out.some(o => o.id === id));
+    const id = pick(cand);
+    out.push({ id, g: Math.max(g, AUGS[id].min) });
+  }
+  return out;
+}
+// 반환: {ok} 또는 {ok:false, need:'replace'} (칸이 가득 차서 교체할 칸을 골라야 함)
+function chooseAug(i, replaceIdx) {
+  const pa = S.pendingAug; if (!pa) return { ok: false };
+  const w = S.slots[pa.slot], opt = pa.options[i];
+  if (!w || !opt) { S.pendingAug = null; return { ok: false }; }
+  let k = w.augs.findIndex(a => a && a.id === opt.id);
+  if (k < 0) k = w.augs.indexOf(null);
+  if (k < 0) {
+    if (replaceIdx == null || replaceIdx < 0 || replaceIdx > 2) return { ok: false, need: 'replace' };
+    k = replaceIdx;
+  }
+  w.augs[k] = { id: opt.id, g: opt.g }; dirty(w);
+  S.pendingAug = null;
+  return { ok: true };
+}
+function skipAug() { S.pendingAug = null; }
+
+/* ---------- 효과 표시용 ---------- */
+function snd(name) { if (S.snd && S.snd.length < 24) S.snd.push(name); }
+function fx(o) { if (S.fx.length < 160) { o.t = o.d; S.fx.push(o); } }
+
+/* ---------- 적 생성 ---------- */
+function spawn(type, lane, x, y) {
+  const d = ENEMIES[type];
+  const m = BAL.hpMul(S.t) * (d.boss ? BAL.bossMul(S.bossN) : 1);
+  const cx = (lane + 0.5) * LW;
+  const e = {
+    type, lane, x: x != null ? x : cx + (d.boss ? 0 : (rnd() - 0.5) * 30), y: y != null ? y : -d.r,
+    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed, leak: d.leak, gold: d.gold * BAL.goldMul(S.t),
+    boss: !!d.boss, slowT: 0, slowPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
+  };
+  e.x = Math.max(e.r * 0.7, Math.min(W - e.r * 0.7, e.x));
+  S.enemies.push(e);
+  return e;
+}
+function spawnWave() {
+  const t = S.t;
+  const ws = [5, t > 20 ? 2 + Math.min(2, t / 200) : 0, t > 45 ? 1.4 : 0, t > 75 ? 1 + Math.min(3, t / 150) : 0];
+  const type = ['basic', 'runner', 'swarm', 'heavy'][wpick(ws)];
+  const lane = Math.floor(rnd() * LANES);
+  if (type === 'swarm') {
+    for (let k = 0; k < 4; k++) spawn('swarm', lane, (lane + 0.5) * LW + (rnd() - 0.5) * 56, -10 - k * 24);
+  } else spawn(type, lane);
+}
+function spawnBoss() {
+  const type = S.bossN % 2 === 0 ? 'giant' : 'split';
+  const lane = 1 + Math.floor(rnd() * 3);
+  spawn(type, lane);
+  S.bossN++;
+  fx({ k: 'warn', d: 2.2, text: `보스 접근: ${ENEMIES[type].name}` });
+  snd('warn');
+}
+
+/* ---------- 피해 처리 ---------- */
+function kill(e, st) {
+  if (e.dead) return;
+  e.dead = true; S.kills++;
+  if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
+  S.gold += e.gold * (1 + (st ? st.goldPct : 0));
+  if (st && st.heal && S.hp < S.maxHp && rnd() < st.heal) S.hp = Math.min(S.maxHp, S.hp + 1);
+  fx({ k: 'pop', d: 0.25, x: e.x, y: e.y, r: e.r, boss: e.boss });
+  snd(e.boss ? 'bosskill' : 'kill');
+  if (e.boss) {
+    S.bossKills++;
+    S.drops.push(bossDrop());
+    if (e.type === 'split') for (let k = 0; k < 3; k++) spawn('heavy', e.lane, e.x + (k - 1) * 46, e.y - k * 14);
+  }
+}
+function credit(st, amt, e) {
+  const real = Math.max(0, Math.min(amt, e.hp));
+  S.dealt = (S.dealt || 0) + real;
+  if (st && st.w) st.w.dealt = (st.w.dealt || 0) + real;
+}
+function dot(e, amt, st) { if (e.dead) return; credit(st, amt, e); e.hp -= amt; if (e.hp <= 0) kill(e, st); }
+function hit(e, amt, st, noSplash) {
+  if (e.dead) return;
+  let d = amt, crit = false;
+  if (rnd() < st.crit) { d *= 1.5 + st.critDmg; crit = true; }
+  if (e.boss) d *= 1 + st.bossPct;
+  const f = e.hp / e.maxHp;
+  if (st.execPct && f <= 0.3) d *= 1 + st.execPct;
+  if (st.firstPct && f >= 0.8) d *= 1 + st.firstPct;
+  if (st.closePct && e.y > H * 0.65) d *= 1 + st.closePct;
+  if (st.instakill && !e.boss && (e.hp - d) / e.maxHp <= st.instakill) d = e.hp;
+  credit(st, d, e);
+  e.hp -= d; e.flash = 0.08;
+  if (st.slow) { e.slowT = 1.5; e.slowPct = Math.max(e.slowPct, e.boss ? st.slow * 0.5 : st.slow); }
+  if (st.burn) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, amt * st.burn); e.burnSt = st; }
+  if (st.knock && !e.boss) e.y = Math.max(-e.r, e.y - st.knock);
+  if (st.stun && !e.boss && rnd() < st.stun) e.stunT = Math.max(e.stunT, 0.8);
+  if (crit) fx({ k: 'crit', d: 0.35, x: e.x, y: e.y - e.r });
+  const ex = e.x, ey = e.y;
+  if (e.hp <= 0) kill(e, st);
+  if (st.splash && !noSplash) {
+    const R = 62 * (1 + st.areaPct);
+    fx({ k: 'boom', d: 0.22, x: ex, y: ey, r: R, c: st.color });
+    for (let i = 0, n = S.enemies.length; i < n; i++) {
+      const o = S.enemies[i];
+      if (o !== e && !o.dead && Math.hypot(o.x - ex, o.y - ey) <= R + o.r * 0.5) hit(o, amt * st.splash, st, true);
+    }
+  }
+}
+function explode(x, y, R, dmg, st) {
+  snd('boom');
+  fx({ k: 'boom', d: 0.28, x, y, r: R, c: st.color });
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const o = S.enemies[i];
+    if (!o.dead && Math.hypot(o.x - x, o.y - y) <= R + o.r * 0.5) hit(o, dmg, st, true);
+  }
+}
+
+/* ---------- 무기 발사 ---------- */
+function inReach(e, wx, st) {
+  return !e.dead && e.y + e.r > 0 &&
+    Math.abs(e.x - wx) <= (st.lanes + 0.5) * LW + e.r * 0.4 &&
+    (H - e.y) <= st.range * H + e.r;
+}
+function nearest(wx, st) {
+  let best = null;
+  for (const e of S.enemies) if (inReach(e, wx, st) && (!best || e.y > best.y)) best = e;
+  return best;
+}
+function bullet(x, y, ang, dmg, st, dist) {
+  const sp = 900;
+  S.bullets.push({ x, y, vx: Math.sin(ang) * sp, vy: -Math.cos(ang) * sp, dmg, st, pierce: st.pierce, hit: [], left: dist, c: st.color });
+}
+function fire(w, slot, st) {
+  const wx = (slot + 0.5) * LW, wy = H - 2;
+  switch (w.type) {
+    case 'blaster': {
+      const t = nearest(wx, st); if (!t) return false;
+      const ang = Math.atan2(t.x - wx, wy - t.y);
+      const n = 1 + st.shots, dist = st.range * H + 50;
+      for (let i = 0; i < n; i++) {
+        const off = i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.09;
+        bullet(wx, wy, ang + off, st.dmg * (i === 0 ? 1 : CFG.extraShotMul), st, dist);
+      }
+      return true;
+    }
+    case 'shotgun': {
+      if (!nearest(wx, st)) return false;
+      const dist = st.range * H + 30, n = 1 + st.shots;
+      const one = { lanes: 0, range: st.range };
+      for (let j = Math.max(0, slot - st.lanes); j <= Math.min(LANES - 1, slot + st.lanes); j++) {
+        const cx = (j + 0.5) * LW;
+        const t = nearest(cx, one);
+        const tx = t ? t.x : cx, ty = t ? t.y : H - st.range * H * 0.8;
+        const ang = Math.atan2(tx - wx, wy - ty);
+        for (let i = 0; i < n; i++) bullet(wx, wy, ang + (i === 0 ? 0 : (rnd() - 0.5) * 0.16), st.dmg * (i === 0 ? 1 : CFG.extraShotMul), st, dist);
+      }
+      return true;
+    }
+    case 'laser': {
+      let any = false; const list = [];
+      for (const e of S.enemies) if (inReach(e, wx, st)) { list.push(e); any = true; }
+      if (!any) return false;
+      w.n++;
+      const m = st.third && w.n % 3 === 0 ? 1 + st.third : 1;
+      for (const e of list) hit(e, st.dmg * m, st);
+      fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9), c: st.color });
+      if (st.sideBeam) {
+        const wide = { lanes: st.lanes + 1, range: st.range };
+        for (const e of S.enemies) if (inReach(e, wx, wide) && list.indexOf(e) < 0) hit(e, st.dmg * m * st.sideBeam, st);
+        for (const sx of [wx - (st.lanes + 1) * LW, wx + (st.lanes + 1) * LW]) {
+          if (sx > 0 && sx < W) fx({ k: 'beam', d: 0.16, x: sx, y0: H - st.range * H, y1: H, w: 5, c: st.color });
+        }
+      }
+      return true;
+    }
+    case 'pulse': {
+      const R = st.radius; const list = [];
+      for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && Math.hypot(e.x - wx, e.y - H) <= R + e.r * 0.5) list.push(e);
+      if (!list.length) return false;
+      const times = st.echo && rnd() < st.echo ? 2 : 1;
+      for (let k = 0; k < times; k++) {
+        for (const e of list) hit(e, st.dmg, st);
+        fx({ k: 'ring', d: 0.3 + k * 0.12, x: wx, y: H, r: R, c: st.color });
+      }
+      return true;
+    }
+    case 'mortar': {
+      let t = null;
+      for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && (!t || e.y > t.y)) t = e;
+      if (!t) return false;
+      const dur = 0.55;
+      S.shells.push({ x0: wx, y0: wy, tx: t.x, ty: Math.min(H - 6, t.y + t.speed * H * dur), p: 0, dur, st, dmg: st.dmg });
+      return true;
+    }
+    case 'tesla': {
+      let cur = nearest(wx, st); if (!cur) return false;
+      const done = [cur]; let dmg = st.dmg, px = wx, py = wy;
+      const pts = [[px, py]];
+      for (let j = 0; j <= st.chain && cur; j++) {
+        pts.push([cur.x, cur.y]);
+        hit(cur, dmg, st);
+        dmg *= st.chainGrow ? 1 + st.chainGrow : 0.8;
+        px = cur.x; py = cur.y;
+        let nx = null, bd = st.jump;
+        for (const e of S.enemies) {
+          if (e.dead || e.y + e.r <= 0 || done.indexOf(e) >= 0) continue;
+          const dd = Math.hypot(e.x - px, e.y - py) - e.r * 0.5;
+          if (dd <= bd) { bd = dd; nx = e; }
+        }
+        cur = nx; if (cur) done.push(cur);
+      }
+      fx({ k: 'bolt', d: 0.14, pts, c: st.color });
+      return true;
+    }
+  }
+  return false;
+}
+
+/* ---------- 한 프레임 진행 ---------- */
+function step(dt) {
+  if (!S || S.over || S.pendingAug) return;
+  S.t += dt;
+  if (S.hitFlash > 0) S.hitFlash -= dt;
+
+  // 적 등장
+  S.spawnAcc += BAL.spawnRate(S.t) * dt;
+  while (S.spawnAcc >= 1) { S.spawnAcc -= 1; spawnWave(); }
+  if (S.t >= S.nextBoss) { S.nextBoss += CFG.bossEvery; spawnBoss(); }
+
+  // 무기
+  for (let i = 0; i < LANES; i++) {
+    const w = S.slots[i]; if (!w) continue;
+    w.cd -= dt;
+    if (w.cd <= 0) {
+      const st = stats(w);
+      if (fire(w, i, st)) { snd(w.type); w.cd = st.dbl && rnd() < st.dbl ? Math.min(0.1, st.cd) : st.cd; }
+      else w.cd = 0.05;
+    }
+  }
+
+  // 탄환
+  for (const b of S.bullets) {
+    const mvx = b.vx * dt, mvy = b.vy * dt;
+    b.x += mvx; b.y += mvy; b.left -= Math.hypot(mvx, mvy);
+    if (b.left <= 0 || b.y < -20 || b.x < -20 || b.x > W + 20) { b.dead = true; continue; }
+    for (let i = 0, n = S.enemies.length; i < n; i++) {
+      const e = S.enemies[i];
+      if (e.dead || b.hit.indexOf(e) >= 0) continue;
+      if (Math.hypot(e.x - b.x, e.y - b.y) <= e.r + 5) {
+        b.hit.push(e);
+        hit(e, b.dmg, b.st);
+        if (b.pierce-- <= 0) { b.dead = true; break; }
+      }
+    }
+  }
+
+  // 포탄
+  for (const s of S.shells) {
+    s.p += dt / s.dur;
+    if (s.p >= 1) {
+      s.dead = true;
+      const st = s.st;
+      explode(s.tx, s.ty, st.blast, s.dmg, st);
+      for (let k = 0; k < st.cluster; k++) {
+        const a = rnd() * Math.PI * 2, rr = st.blast * (0.6 + rnd() * 0.7);
+        explode(s.tx + Math.cos(a) * rr, s.ty + Math.sin(a) * rr, st.blast * 0.6, s.dmg * 0.4, st);
+      }
+      if (st.pool) S.pools.push({ x: s.tx, y: s.ty, r: st.blast, dps: s.dmg * st.pool, t: 3, st });
+    }
+  }
+
+  // 화염 지대
+  for (const p of S.pools) {
+    p.t -= dt;
+    for (let i = 0, n = S.enemies.length; i < n; i++) {
+      const e = S.enemies[i];
+      if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) <= p.r + e.r * 0.5) dot(e, p.dps * dt, p.st);
+    }
+  }
+
+  // 적 이동
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const e = S.enemies[i]; if (e.dead) continue;
+    if (e.flash > 0) e.flash -= dt;
+    if (e.burnT > 0) { e.burnT -= dt; dot(e, e.burnDps * dt, e.burnSt); if (e.dead) continue; if (e.burnT <= 0) e.burnDps = 0; }
+    if (e.stunT > 0) { e.stunT -= dt; continue; }
+    let sp = e.speed;
+    if (e.slowT > 0) { e.slowT -= dt; sp *= 1 - e.slowPct; if (e.slowT <= 0) e.slowPct = 0; }
+    e.y += sp * H * dt;
+    if (e.y + e.r * 0.3 >= H) {
+      e.dead = true;
+      S.hp -= e.leak; S.hitFlash = 0.3;
+      fx({ k: 'leak', d: 0.4, x: e.x, n: e.leak });
+      snd('leak');
+    }
+  }
+
+  // 정리
+  if (S.enemies.some(e => e.dead)) S.enemies = S.enemies.filter(e => !e.dead);
+  if (S.bullets.some(b => b.dead)) S.bullets = S.bullets.filter(b => !b.dead);
+  if (S.shells.some(s => s.dead)) S.shells = S.shells.filter(s => !s.dead);
+  if (S.pools.some(p => p.t <= 0)) S.pools = S.pools.filter(p => p.t > 0);
+  for (const f of S.fx) f.t -= dt;
+  if (S.fx.some(f => f.t <= 0)) S.fx = S.fx.filter(f => f.t > 0);
+
+  // 보스 보상은 빈 칸이 생길 때 들어온다
+  while (S.drops.length && freeSlot() >= 0) { S.inv[freeSlot()] = S.drops.shift(); S.newDrop = true; }
+
+  if (S.hp <= 0) { S.hp = 0; S.over = true; }
+}
+
+const Core = {
+  LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
+  get S() { return S; }, get H() { return H; },
+  newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots,
+  attachPart, detachPart, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, freeSlot,
+  partDesc, augDesc, newWeapon,
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = Core;
+else root.Core = Core;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 도형 방어선: 화면과 조작 */
+(function () {
+'use strict';
+const C = window.Core;
+const $ = (s) => document.querySelector(s);
+const cv = $('#field'), ctx = cv.getContext('2d'), wrap = $('#fieldWrap');
+const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
+const GR = C.GRADES;
+const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];
+const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d' };
+const BEST_KEY = 'shape-defense-best';
+
+let mode = 'start';            // start | play | pause | over
+let sel = null;                // 고른 것: {from:'inv', i} 또는 {from:'slot', k}
+let wmodal = -1;               // 무기 창이 열린 칸
+let msel = -1;                 // 무기 창에서 고른 파츠
+let lastUp = null;             // 무기 창 안의 강화 결과 표시
+let confirmDrop = false;
+let msg = '', msgWarn = false, msgUntil = 0, newCell = -1;
+let augPick = -1, augOpenAt = 0, shownAug = null, lastRec = null, newRec = false;
+let speed = 1;
+let drag = null, suppressClick = 0, needRender = false;   // 끌어서 옮기기
+let best = loadBest();
+let sc = 1, dpr = 1;
+
+/* ---------- 소리 (파일 없이 합성) ---------- */
+const MUTE_KEY = 'shape-defense-mute';
+const Snd = (function () {
+  let ac = null, master = null, noise = null, muted = false;
+  try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
+  const lastAt = {};
+  function ensure() {            // 브라우저 정책상 누르는 동작 안에서만 소리를 켤 수 있다
+    try {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+        ac = new AC(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(ac.destination);
+        const len = Math.floor(ac.sampleRate * 0.5); noise = ac.createBuffer(1, len, ac.sampleRate);
+        const d = noise.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ac.state === 'suspended') { const p = ac.resume(); if (p && p.catch) p.catch(() => {}); }
+    } catch (e) { ac = null; }
+  }
+  function tone(type, f0, f1, dur, vol, delay) {
+    const t = ac.currentTime + (delay || 0), o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t);
+    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.03);
+  }
+  function hiss(dur, vol, freq, q, type, delay) {
+    const t = ac.currentTime + (delay || 0), src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noise; f.type = type || 'lowpass'; f.frequency.value = freq; f.Q.value = q || 0.7;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t + dur + 0.03);
+  }
+  const seq = (type, notes, dur, vol, gap) => notes.forEach((f, i) => tone(type, f, f, dur, vol, gap * i));
+  // [최소 간격(ms), 재생 함수]
+  const DEF = {
+    blaster: [70, () => tone('square', 880, 420, 0.06, 0.045)],
+    shotgun: [110, () => { hiss(0.09, 0.13, 1800); tone('sine', 160, 70, 0.08, 0.1); }],
+    laser: [120, () => tone('sawtooth', 1400, 300, 0.16, 0.045)],
+    pulse: [140, () => tone('sine', 260, 70, 0.2, 0.13)],
+    mortar: [120, () => tone('sine', 140, 55, 0.14, 0.15)],
+    tesla: [100, () => { hiss(0.07, 0.09, 3500, 3, 'bandpass'); tone('square', 1700, 900, 0.05, 0.025); }],
+    boom: [90, () => { hiss(0.28, 0.2, 500, 0.6); tone('sine', 90, 40, 0.25, 0.17); }],
+    kill: [70, () => tone('triangle', 520, 880, 0.05, 0.05)],
+    bosskill: [300, () => { hiss(0.5, 0.28, 400, 0.6); seq('triangle', [392, 523, 659, 784], 0.16, 0.12, 0.08); }],
+    leak: [150, () => { tone('square', 120, 60, 0.25, 0.13); hiss(0.2, 0.12, 300); }],
+    warn: [500, () => { for (let i = 0; i < 3; i++) { tone('square', 440, 440, 0.14, 0.07, i * 0.32); tone('square', 330, 330, 0.14, 0.07, i * 0.32 + 0.16); } }],
+    gen: [40, () => seq('triangle', [988, 1319], 0.1, 0.1, 0.07)],
+    ok: [30, () => seq('triangle', [523, 659, 784], 0.1, 0.12, 0.06)],
+    fail: [30, () => tone('sawtooth', 220, 110, 0.22, 0.07)],
+    aug: [200, () => seq('sine', [523, 659, 784, 1047], 0.5, 0.08, 0.05)],
+    pick: [40, () => seq('triangle', [784, 1175], 0.14, 0.1, 0.08)],
+    equip: [40, () => tone('triangle', 330, 520, 0.07, 0.1)],
+    tap: [30, () => tone('triangle', 660, 660, 0.03, 0.05)],
+    drop: [40, () => tone('triangle', 300, 150, 0.1, 0.08)],
+    over: [500, () => seq('triangle', [392, 330, 262, 196], 0.3, 0.14, 0.22)],
+  };
+  function play(name) {
+    if (!ac || muted || ac.state !== 'running') return;
+    const d = DEF[name]; if (!d) return;
+    const now = performance.now();
+    if (lastAt[name] && now - lastAt[name] < d[0]) return;
+    lastAt[name] = now;
+    try { d[1](); } catch (e) { /* 소리 실패는 무시 */ }
+  }
+  return {
+    ensure, play,
+    get muted() { return muted; },
+    toggle() {
+      muted = !muted;
+      try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) { /* 무시 */ }
+      if (master) master.gain.value = muted ? 0 : 0.5;
+    },
+  };
+})();
+
+/* ---------- 도우미 ---------- */
+function loadBest() {
+  try { const o = JSON.parse(localStorage.getItem(BEST_KEY) || 'null'); if (o && typeof o.t === 'number') return o; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
+  return null;
+}
+function saveBest(o) { best = o; try { localStorage.setItem(BEST_KEY, JSON.stringify(o)); } catch (e) { /* 무시 */ } }
+function fmtTime(t) { const s = Math.floor(t); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function fmt(n) {
+  if (n >= 1e8) return (n / 1e8).toFixed(1) + '억';
+  if (n >= 1e4) return (n / 1e4).toFixed(1) + '만';
+  if (n >= 100) return String(Math.round(n));
+  return n.toFixed(1);
+}
+function fmtInt(n) { n = Math.floor(n); return n >= 1e5 ? fmt(n) : String(n); }
+const rgbaCache = {};
+function rgba(hex, a) {
+  const k = hex + a;
+  if (rgbaCache[k]) return rgbaCache[k];
+  const n = parseInt(hex.slice(1), 16);
+  return (rgbaCache[k] = `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`);
+}
+function say(text, warn) { msg = text; msgWarn = !!warn; msgUntil = performance.now() + 2400; updateInfo(); }
+
+function icon(type, size) {
+  const c = C.WEAPONS[type].color;
+  const a = `fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"`;
+  let p = '';
+  switch (type) {
+    case 'blaster': p = `<polygon points="12,3 21,21 3,21" ${a}/>`; break;
+    case 'shotgun': p = `<polygon points="3,5 21,5 15,21 9,21" ${a}/><path d="M8.5 5l1.8 16M15.5 5l-1.8 16" stroke="${c}" stroke-width="1.2"/>`; break;
+    case 'laser': p = `<rect x="9" y="2" width="6" height="20" rx="1" ${a}/><path d="M12 5.5v13" stroke="${c}" stroke-width="1.6"/>`; break;
+    case 'pulse': p = `<circle cx="12" cy="12" r="9.5" ${a}/><circle cx="12" cy="12" r="4" fill="${c}"/>`; break;
+    case 'mortar': p = `<path d="M3 21a9 9 0 0 1 18 0z" ${a}/><circle cx="12" cy="6" r="3.4" fill="${c}"/>`; break;
+    case 'tesla': p = `<polygon points="14,2 5,13.5 11,13.5 9,22 19,9.5 13,9.5" ${a}/>`; break;
+  }
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${p}</svg>`;
+}
+const SHARD = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><polygon points="12,2 21,7.5 21,16.5 12,22 3,16.5 3,7.5" fill="#ffd166" fill-opacity=".25" stroke="#ffd166" stroke-width="1.8"/></svg>';
+
+/* ---------- 무기 칸 ---------- */
+function renderWeapons() {
+  const S = C.S; if (!S) return;
+  if (drag) { needRender = true; return; }
+  const picked = sel && sel.from === 'inv' ? S.inv[sel.i] : null;
+  let h = '';
+  for (let k = 0; k < C.LANES; k++) {
+    const w = S.slots[k];
+    const mine = sel && sel.from === 'slot' && sel.k === k;
+    const cls = 'slot' + (w ? '' : ' empty') + (mine ? ' sel' : '') + (picked && (picked.kind === 'w' || w) ? ' tg' : '');
+    h += `<button type="button" class="${cls}" data-slot="${k}" aria-label="무기 칸 ${k + 1}">`;
+    if (w) {
+      h += icon(w.type, 26) + `<b class="lv">+${w.lv}</b><span class="pips">` +
+        w.parts.map(p => `<i class="pp"${p ? ` style="background:${GHEX[p.g]};border-color:${GHEX[p.g]}"` : ''}></i>`).join('') +
+        '</span><span class="pips">' +
+        w.augs.map(a => `<i class="pa"${a ? ` style="background:${GHEX[a.g]};border-color:${GHEX[a.g]}"` : ''}></i>`).join('') + '</span>';
+    } else h += '<span class="plus">+</span>';
+    h += '</button>';
+  }
+  elW.innerHTML = h;
+}
+function popOnSlot(k, text, ok) {
+  const el = elW.querySelector(`[data-slot="${k}"]`); if (!el) return;
+  el.classList.add(ok ? 'flash-ok' : 'flash-no');
+  const s = document.createElement('span');
+  s.className = 'pop ' + (ok ? 'ok' : 'no'); s.textContent = text;
+  el.appendChild(s);
+  setTimeout(() => { s.remove(); el.classList.remove('flash-ok', 'flash-no'); }, 700);
+}
+
+/* ---------- 하단 인벤토리 ---------- */
+function itemInfo(it) {
+  if (it.kind === 'w') { const d = C.WEAPONS[it.type]; return `<b style="color:${d.color}">${d.name} +${it.lv}</b> ${d.desc}`; }
+  if (it.kind === 'p') { const d = C.PARTS[it.id]; return `<b class="g${it.g}">[${GR[it.g]}] ${d.name}</b> ${C.partDesc(it)}`; }
+  return `<b>강화 조각 ${it.n}개</b> 무기 칸을 누를 때마다 한 번씩 강화합니다.`;
+}
+function infoHtml() {
+  const S = C.S;
+  if (msg) return msg;
+  if (sel && sel.from === 'inv' && S.inv[sel.i]) return itemInfo(S.inv[sel.i]);
+  if (sel && sel.from === 'slot' && S.slots[sel.k]) {
+    const w = S.slots[sel.k], d = C.WEAPONS[w.type];
+    return `<b style="color:${d.color}">${d.name} +${w.lv}</b> 한 번 더 누르면 무기 창이 열립니다. 자리를 옮기려면 끌어다 놓으세요.`;
+  }
+  if (S.drops.length) return `보스 보상 ${S.drops.length}개가 기다리는 중입니다. 인벤토리를 비우면 들어옵니다.`;
+  return '<b>생성</b>으로 무기, 파츠, 강화 조각을 얻으세요. 물건을 누른 다음 무기 칸을 누르거나 끌어다 놓으면 적용됩니다.';
+}
+function updateInfo() {
+  const el = elB.querySelector('.info'); if (!el) return;
+  el.innerHTML = infoHtml();
+  el.classList.toggle('warn', !!msg && msgWarn);
+}
+function cellHtml(it, i) {
+  let inner = '', cls = 'cell';
+  if (!it) cls += ' empty';
+  else if (it.kind === 'w') { inner = icon(it.type, 22) + `<b>+${it.lv}</b>`; cls += ' kw'; }
+  else if (it.kind === 'p') { inner = `<span class="ab">${C.PARTS[it.id].abbr}</span><small>파츠</small>`; cls += ' kp g' + it.g; }
+  else { inner = SHARD + `<b>${it.n}</b>`; cls += ' ks'; }
+  if (sel && sel.from === 'inv' && sel.i === i) cls += ' sel';
+  if (i === newCell) cls += ' new';
+  return `<button type="button" class="${cls}" data-inv="${i}" aria-label="인벤토리 ${i + 1}번 칸">${inner}</button>`;
+}
+function invHtml() {
+  const S = C.S;
+  let acts;
+  if (!sel) {
+    const canGen = S.gold >= C.genCost() && C.freeSlot() >= 0;
+    acts = `<button type="button" class="btn primary${canGen ? '' : ' off'}" id="genBtn" data-act="gen">생성 <b id="genCost">◆ ${C.genCost()}</b></button>`;
+  } else if (sel.from === 'inv') {
+    acts = `<button type="button" class="btn${confirmDrop ? ' danger' : ''}" data-act="drop">${confirmDrop ? '정말 버리기' : '버리기'}</button>`;
+  } else {
+    acts = '<button type="button" class="btn" data-act="wopen">무기 창 열기</button>';
+  }
+  return `<div class="info"></div>
+    <div class="inv">${S.inv.map(cellHtml).join('')}</div>
+    <div class="acts">${acts}</div>`;
+}
+function upText(w) {
+  const u = C.upgradeInfo(w);
+  return u.max ? '최대 강화' : `필요 ${u.cost} · 보유 ${fmtInt(u.have)} · 성공 ${Math.round(u.rate * 100)}%`;
+}
+function renderBottom() {
+  const S = C.S; if (!S) return;
+  if (drag) { needRender = true; return; }
+  if (sel && sel.from === 'slot' && !S.slots[sel.k]) sel = null;
+  if (sel && sel.from === 'inv' && !S.inv[sel.i]) sel = null;
+  elB.innerHTML = invHtml();
+  updateInfo();
+}
+function renderAll() { renderWeapons(); renderBottom(); renderOverlay(); }
+// 0.25초마다 가벼운 갱신 (버튼 상태와 안내 문구만)
+function lightUpdate() {
+  const S = C.S; if (!S) return;
+  if (msg && performance.now() > msgUntil) { msg = ''; updateInfo(); updateWInfo(); }
+  const g = $('#genBtn');
+  if (g) {
+    g.classList.toggle('off', !(S.gold >= C.genCost() && C.freeSlot() >= 0));
+    const c = $('#genCost'), t = '◆ ' + C.genCost(); if (c.textContent !== t) c.textContent = t;
+  }
+}
+
+/* ---------- 무기 창 ---------- */
+function wInfoHtml(w) {
+  if (msg) return `<span class="${msgWarn ? 'warn' : ''}">${msg}</span>`;
+  const p = msel >= 0 ? w.parts[msel] : null;
+  if (p) return `<span><b class="g${p.g}">[${GR[p.g]}] ${C.PARTS[p.id].name}</b> ${C.partDesc(p)}</span><button type="button" class="btn sm" data-act="wdetach">해제</button>`;
+  return `<span>${C.WEAPONS[w.type].desc}. 파츠를 누르면 설명과 해제 버튼이 나옵니다.</span>`;
+}
+function updateWInfo() {
+  const el = $('#wmInfo'), S = C.S;
+  if (el && S && wmodal >= 0 && S.slots[wmodal]) el.innerHTML = wInfoHtml(S.slots[wmodal]);
+}
+function wmHtml(w) {
+  const S = C.S, st = C.stats(w), d = C.WEAPONS[w.type], u = C.upgradeInfo(w);
+  const dealt = w.dealt || 0, share = S.dealt > 0 ? Math.round(dealt / S.dealt * 100) : 0;
+  const pop = lastUp && performance.now() - lastUp.at < 700 ? `<span class="pop ${lastUp.ok ? 'ok' : 'no'}">${lastUp.text}</span>` : '';
+  const parts = w.parts.map((p, k) => p
+    ? `<button type="button" class="pt p${k} g${p.g}${msel === k ? ' sel' : ''}" data-wpart="${k}"><b>${C.PARTS[p.id].abbr}</b><small>${GR[p.g]}</small></button>`
+    : `<span class="pt p${k} empty">파츠</span>`).join('');
+  const augs = w.augs.map(a => a
+    ? `<div class="arow g${a.g}"><span class="chip g${a.g}">${GR[a.g]}</span><b>${C.AUGS[a.id].name}</b><span class="ds">${C.augDesc(a)}</span></div>`
+    : '<div class="arow empty">증강</div>').join('');
+  return `<div class="modal wm">
+    <div class="wm-head">
+      <div><span class="nm" style="color:${d.color}">${d.name} +${w.lv}</span>
+      <span class="st">공격력 ${fmt(st.dmg)} · 간격 ${st.cd.toFixed(2)}초 · 치명 ${Math.round(st.crit * 100)}%</span></div>
+      <button type="button" class="x" data-act="wclose">닫기</button>
+    </div>
+    <div class="schem">
+      <span class="lab">파츠</span>
+      <svg class="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M50 54L50 16M50 54L17 84M50 54L83 84" fill="none" stroke="${d.color}" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <div class="core" style="border-color:${d.color}">${icon(w.type, 46)}<b>+${w.lv}</b>${pop}</div>
+      ${parts}
+    </div>
+    <div class="wm-info" id="wmInfo">${wInfoHtml(w)}</div>
+    <div class="wm-sec">증강</div>
+    <div class="wm-augs">${augs}</div>
+    <div class="rec"><div><small>처치</small><b>${fmtInt(w.kills || 0)}</b></div><div><small>누적 피해</small><b>${fmt(dealt)}</b></div><div><small>전체 피해 중</small><b>${share}%</b></div></div>
+    <div class="d-acts">
+      <button type="button" class="btn primary${!u.max && u.have >= u.cost ? '' : ' off'}" data-act="wup">강화 <small>${upText(w)}</small></button>
+      <button type="button" class="btn" data-act="wunequip">장착 해제</button>
+    </div></div>`;
+}
+
+/* ---------- 겹침 창 ---------- */
+function recHtml(r) {
+  return `<div class="rec"><div><small>생존 시간</small><b>${fmtTime(r.t)}</b></div><div><small>처치</small><b>${r.kills}</b></div></div>`;
+}
+function augCard(a, key, i, tag) {
+  const d = C.AUGS[a.id];
+  return `<button type="button" class="aug g${a.g}" data-${key}="${i}"><span class="chip g${a.g}">${GR[a.g]}</span><span class="nm">${d.name}</span><span class="ds">${C.augDesc(a)}</span>${tag ? `<span class="tag">${tag}</span>` : ''}</button>`;
+}
+function augHtml() {
+  const S = C.S, pa = S.pendingAug, w = S.slots[pa.slot], d = C.WEAPONS[w.type];
+  const full = w.augs.every(Boolean);
+  if (augPick >= 0) {
+    const o = pa.options[augPick];
+    return `<div class="modal"><h2>교체할 증강 선택</h2>
+      <p>새 증강은 <b class="g${o.g}">[${GR[o.g]}] ${C.AUGS[o.id].name}</b>입니다. 고른 증강은 사라집니다.</p>
+      ${w.augs.map((a, k) => augCard(a, 'rep', k)).join('')}
+      <button type="button" class="btn" data-act="augBack">뒤로</button></div>`;
+  }
+  const cur = w.augs.filter(Boolean).map(a => `<b class="g${a.g}">[${GR[a.g]}] ${C.AUGS[a.id].name}</b>`).join(', ');
+  return `<div class="modal"><h2>증강 선택</h2>
+    <p><b style="color:${d.color}">${d.name} +${pa.lv}</b> 달성. 하나를 고르세요. 고르는 동안 게임은 멈춥니다.</p>
+    ${pa.options.map((o, i) => {
+      const same = w.augs.find(a => a && a.id === o.id);
+      const tag = same ? `장착 중인 같은 증강([${GR[same.g]}])을 대체합니다` : full ? '칸이 가득 차서 기존 증강 하나와 교체합니다' : '';
+      return augCard(o, 'aug', i, tag);
+    }).join('')}
+    <p class="cur">장착 중: ${cur || '없음'}</p>
+    <button type="button" class="btn" data-act="skipAug">건너뛰기</button></div>`;
+}
+function renderOverlay() {
+  const S = C.S;
+  let h = '';
+  if (mode === 'start') {
+    h = `<div class="modal"><p>도형으로 막는 무한 방어</p><h1>도형 <span>방어선</span></h1>
+      <ol><li><b>생성</b>을 눌러 무기, 파츠, 강화 조각을 얻습니다.</li>
+      <li>물건을 누른 다음 <b>무기 칸</b>을 누르면 장착하거나 강화합니다. 끌어다 놓아도 됩니다.</li>
+      <li>장착한 무기의 자리는 <b>끌어서</b> 바꿉니다. 무기를 두 번 누르면 <b>무기 창</b>이 열립니다.</li>
+      <li>적이 방어선에 닿으면 체력이 줄어듭니다. 0이 되면 끝납니다.</li></ol>
+      ${best ? '<p>최고 기록</p>' + recHtml(best) : '<p>아직 기록이 없습니다.</p>'}
+      <button type="button" class="btn primary" data-act="start">시작</button>
+      <button type="button" class="btn" data-act="mute">소리: ${Snd.muted ? '꺼짐' : '켜짐'}</button></div>`;
+  } else if (mode === 'pause') {
+    h = `<div class="modal"><h2>일시정지</h2>${S ? recHtml({ t: S.t, kills: S.kills }) : ''}
+      <button type="button" class="btn primary" data-act="resume">계속하기</button>
+      <button type="button" class="btn" data-act="mute">소리: ${Snd.muted ? '꺼짐' : '켜짐'}</button>
+      <button type="button" class="btn" data-act="restart">처음부터 다시</button></div>`;
+  } else if (mode === 'over') {
+    h = `<div class="modal"><h2>방어선이 무너졌습니다</h2>
+      ${newRec ? '<p class="newrec">최고 기록을 새로 썼습니다.</p>' : '<p>이번 기록</p>'}${recHtml(lastRec)}
+      ${best && !newRec ? '<p>최고 기록</p>' + recHtml(best) : ''}
+      <button type="button" class="btn primary" data-act="restart">다시 하기</button></div>`;
+  } else if (S && S.pendingAug) {
+    if (!S.slots[S.pendingAug.slot]) C.skipAug();
+    else {
+      if (shownAug !== S.pendingAug) { shownAug = S.pendingAug; augOpenAt = performance.now(); Snd.play('aug'); }
+      h = augHtml();
+    }
+  }
+  if (!h && mode === 'play' && S && wmodal >= 0) {
+    if (S.slots[wmodal]) h = wmHtml(S.slots[wmodal]); else wmodal = -1;
+  }
+  if (h) { elO.innerHTML = h; elO.hidden = false; }
+  else { elO.hidden = true; elO.innerHTML = ''; }
+}
+
+/* ---------- 조작 ---------- */
+function resetUi() { sel = null; wmodal = -1; msel = -1; lastUp = null; confirmDrop = false; msg = ''; augPick = -1; newCell = -1; }
+function startGame() { C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
+function pause() { if (mode === 'play') { mode = 'pause'; renderOverlay(); } }
+function gameOver() {
+  const S = C.S;
+  lastRec = { t: S.t, kills: S.kills, lv: S.maxLv };
+  newRec = !best || lastRec.t > best.t;
+  if (newRec) saveBest(lastRec);
+  mode = 'over'; resetUi(); renderAll(); Snd.play('over');
+}
+function openW(k) { wmodal = k; msel = -1; lastUp = null; msg = ''; sel = null; confirmDrop = false; renderAll(); }
+function closeW() { wmodal = -1; msel = -1; msg = ''; last = 0; renderAll(); }
+function doUpgrade(k) {
+  const S = C.S, w = S.slots[k]; if (!w) return;
+  const r = C.upgrade(k);
+  if (!r.ok) {
+    if (r.reason === 'shards') say(`강화 조각이 부족합니다. ${w.lv + 1}개가 필요합니다.`, true);
+    else if (r.reason === 'max') say('이미 최대 강화입니다.', true);
+    updateWInfo();
+    return;
+  }
+  if (sel && sel.from === 'inv' && !S.inv[sel.i]) {
+    const j = S.inv.findIndex(x => x && x.kind === 's');
+    sel = j >= 0 ? { from: 'inv', i: j } : null;
+  }
+  const text = r.success ? '+' + r.lv : (r.saved ? '실패 (조각 보존)' : '실패');
+  Snd.play(r.success ? 'ok' : 'fail');
+  msg = '';
+  renderWeapons(); renderBottom();
+  if (wmodal >= 0) lastUp = { text, ok: r.success, at: performance.now() };
+  else popOnSlot(k, text, r.success);
+  if (S.pendingAug) augPick = -1;
+  renderOverlay();
+}
+const FULL_PARTS = '이 무기의 파츠 칸이 가득 찼습니다. 무기 창에서 파츠를 해제하세요.';
+const NO_WEAPON = '무기가 없는 칸입니다. 무기가 있는 칸을 누르세요.';
+function tapInv(i) {                      // 누르면 고르기만 한다. 다른 것을 누르면 이전 선택은 풀린다
+  const S = C.S, it = S.inv[i];
+  confirmDrop = false; msg = '';
+  sel = !it || (sel && sel.from === 'inv' && sel.i === i) ? null : { from: 'inv', i };
+  if (sel) Snd.play('tap');
+  renderWeapons(); renderBottom();
+}
+function tapSlot(k) {
+  const S = C.S, w = S.slots[k];
+  confirmDrop = false; msg = '';
+  const it = sel && sel.from === 'inv' ? S.inv[sel.i] : null;
+  if (it) {                                // 인벤토리에서 고른 물건을 이 칸에 바로 적용
+    if (it.kind === 'w') { C.equipWeapon(sel.i, k); sel = null; Snd.play('equip'); }
+    else if (!w) return say(NO_WEAPON, true);
+    else if (it.kind === 'p') {
+      if (!C.attachPart(sel.i, k).ok) return say(FULL_PARTS, true);
+      sel = null; Snd.play('equip');
+    } else return doUpgrade(k);
+    renderWeapons(); renderBottom(); return;
+  }
+  if (sel && sel.from === 'slot' && sel.k === k) return openW(k);
+  if (!w) {
+    sel = null; renderWeapons(); renderBottom();
+    return say('빈 칸입니다. 인벤토리에서 무기를 고른 다음 이 칸을 누르세요.');
+  }
+  sel = { from: 'slot', k };               // 무기 칸끼리는 눌러서 옮기지 않는다 (끌기만)
+  Snd.play('tap');
+  renderWeapons(); renderBottom();
+}
+
+/* ---------- 끌어서 옮기기 ---------- */
+function dragSource(el) {
+  const b = el.closest && el.closest('[data-inv],[data-slot]'); if (!b) return null;
+  const S = C.S;
+  if (b.dataset.inv != null) { const i = +b.dataset.inv; return S.inv[i] ? { from: 'inv', i, el: b } : null; }
+  const k = +b.dataset.slot; return S.slots[k] ? { from: 'slot', k, el: b } : null;
+}
+function dropTarget(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const b = el && el.closest && el.closest('[data-inv],[data-slot]'); if (!b) return null;
+  return b.dataset.inv != null ? { from: 'inv', i: +b.dataset.inv, el: b } : { from: 'slot', k: +b.dataset.slot, el: b };
+}
+function sameSpot(a, b) { return a && b && a.from === b.from && (a.from === 'inv' ? a.i === b.i : a.k === b.k); }
+function applyDrop(src, t) {               // 반환값: 실제로 옮겼는지
+  const S = C.S;
+  if (src.from === 'inv') {
+    const it = S.inv[src.i]; if (!it) return false;
+    if (t.from === 'inv') return C.moveInv(src.i, t.i);
+    const w = S.slots[t.k];
+    if (it.kind === 'w') return C.equipWeapon(src.i, t.k);
+    if (!w) { say(NO_WEAPON, true); return false; }
+    if (it.kind === 'p') { if (C.attachPart(src.i, t.k).ok) return true; say(FULL_PARTS, true); return false; }
+    doUpgrade(t.k); return false;
+  }
+  if (!S.slots[src.k]) return false;
+  if (t.from === 'slot') return C.swapSlots(src.k, t.k);
+  const it = S.inv[t.i];
+  if (!it) return C.unequipWeapon(src.k, t.i);
+  if (it.kind === 'w') return C.equipWeapon(t.i, src.k);
+  if (C.unequipWeapon(src.k)) return true;
+  say('인벤토리에 빈 칸이 없습니다.', true); return false;
+}
+function endDrag(apply, x, y) {
+  const d = drag; drag = null;
+  if (!d) return;
+  if (d.ghost) d.ghost.remove();
+  if (d.over) d.over.classList.remove('over');
+  if (d.src.el) d.src.el.classList.remove('dragsrc');
+  $('#app').classList.remove('dragging');
+  if (d.active) {
+    suppressClick = performance.now() + 400;
+    const t = apply ? dropTarget(x, y) : null;
+    if (t && !sameSpot(d.src, t) && applyDrop(d.src, t)) Snd.play('equip');
+    needRender = false; renderWeapons(); renderBottom();
+  } else if (needRender) {                 // 누르는 사이에 밀린 화면 갱신
+    setTimeout(() => { if (!drag && needRender) { needRender = false; renderWeapons(); renderBottom(); } }, 60);
+  }
+}
+$('#app').addEventListener('pointerdown', (ev) => {
+  if (drag) endDrag(false);                // 이전 끌기가 비정상적으로 끝났다면 정리
+  if (mode !== 'play' || !C.S || C.S.pendingAug || wmodal >= 0) return;
+  if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+  const src = dragSource(ev.target); if (!src) return;
+  drag = { src, id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, active: false, ghost: null, over: null, at: performance.now() };
+});
+window.addEventListener('pointermove', (ev) => {
+  if (!drag || ev.pointerId !== drag.id) return;
+  drag.at = performance.now();
+  if (!drag.active) {
+    if (Math.hypot(ev.clientX - drag.x0, ev.clientY - drag.y0) < 10) return;
+    // 끄는 동안에는 화면 요소를 새로 만들지 않는다. 손가락이 닿은 요소가 사라지면
+    // 일부 기기에서 이후 터치 신호가 끊겨 끌기가 멈추기 때문이다.
+    sel = null; confirmDrop = false; msg = '';
+    document.querySelectorAll('#weapons .sel, #weapons .tg, #bottom .sel').forEach(e => e.classList.remove('sel', 'tg'));
+    const el = drag.src.el, r = el.getBoundingClientRect();
+    const g = document.createElement('div');
+    g.className = 'ghost';
+    g.style.width = r.width + 'px'; g.style.height = r.height + 'px';
+    g.innerHTML = el.innerHTML; el.classList.add('dragsrc');
+    $('#app').appendChild(g); $('#app').classList.add('dragging');
+    drag.ghost = g; drag.active = true;
+  }
+  drag.ghost.style.left = ev.clientX + 'px'; drag.ghost.style.top = ev.clientY + 'px';
+  const t = dropTarget(ev.clientX, ev.clientY);
+  const over = t && !sameSpot(drag.src, t) ? t.el : null;
+  if (over !== drag.over) {
+    if (drag.over) drag.over.classList.remove('over');
+    if (over) over.classList.add('over');
+    drag.over = over;
+  }
+  if (ev.cancelable) ev.preventDefault();
+}, { passive: false });
+window.addEventListener('pointerup', (ev) => { if (drag && ev.pointerId === drag.id) endDrag(true, ev.clientX, ev.clientY); });
+window.addEventListener('pointercancel', (ev) => { if (drag && ev.pointerId === drag.id) endDrag(false); });
+document.addEventListener('touchmove', (ev) => { if (drag && drag.active && ev.cancelable) ev.preventDefault(); }, { passive: false });
+
+function act(name) {
+  const S = C.S;
+  switch (name) {
+    case 'start': case 'restart': startGame(); Snd.play('pick'); return;
+    case 'mute': Snd.toggle(); renderOverlay(); return;
+    case 'resume': mode = 'play'; last = 0; renderOverlay(); return;
+    case 'skipAug':
+      if (performance.now() - augOpenAt < 400) return;
+      C.skipAug(); augPick = -1; renderAll(); return;
+    case 'augBack': augPick = -1; renderOverlay(); return;
+  }
+  if (mode !== 'play' || S.pendingAug) return;
+  switch (name) {
+    case 'gen': {
+      const pre = S.inv.map(x => x ? (x.kind === 's' ? x.n : -1) : null);
+      const r = C.generate();
+      if (!r.ok) {
+        if (r.reason === 'gold') say(`재화가 부족합니다. ◆ ${C.genCost()}이 필요합니다.`, true);
+        else if (r.reason === 'full') say('인벤토리가 가득 찼습니다. 장착하거나 버려서 칸을 비우세요.', true);
+        return;
+      }
+      const it = r.item;
+      Snd.play('gen');
+      newCell = S.inv.findIndex((x, i) => (x ? (x.kind === 's' ? x.n : -1) : null) !== pre[i]);
+      const nc = newCell; setTimeout(() => { if (newCell === nc) newCell = -1; }, 500);
+      renderBottom();
+      if (it.kind === 'w') say(`획득: <b style="color:${C.WEAPONS[it.type].color}">${C.WEAPONS[it.type].name}</b> (무기)`);
+      else if (it.kind === 'p') say(`획득: <b class="g${it.g}">[${GR[it.g]}] ${C.PARTS[it.id].name}</b> ${C.partDesc(it)}`);
+      else say(`획득: <b>강화 조각 ${it.n}개</b>`);
+      return;
+    }
+    case 'drop': {
+      if (!sel || sel.from !== 'inv') return;
+      const it = S.inv[sel.i]; if (!it) return;
+      const valuable = (it.kind === 'w' && (it.lv > 0 || it.parts.some(Boolean) || it.augs.some(Boolean))) ||
+        (it.kind === 'p' && it.g >= 2) || (it.kind === 's' && it.n >= 50);
+      if (valuable && !confirmDrop) { confirmDrop = true; renderBottom(); return; }
+      C.discard(sel.i); sel = null; confirmDrop = false; msg = ''; Snd.play('drop');
+      renderWeapons(); renderBottom(); return;
+    }
+    case 'wopen': if (sel && sel.from === 'slot') openW(sel.k); return;
+    case 'wclose': closeW(); return;
+    case 'wup': if (wmodal >= 0) doUpgrade(wmodal); return;
+    case 'wunequip': {
+      if (wmodal < 0) return;
+      if (!C.unequipWeapon(wmodal)) { say('인벤토리에 빈 칸이 없습니다.', true); updateWInfo(); return; }
+      closeW(); return;
+    }
+    case 'wdetach': {
+      if (wmodal < 0 || msel < 0) return;
+      if (!C.detachPart(wmodal, msel)) { say('인벤토리에 빈 칸이 없습니다.', true); updateWInfo(); return; }
+      msel = -1; renderAll(); return;
+    }
+  }
+}
+$('#app').addEventListener('click', (ev) => {
+  const b = ev.target.closest('button'); if (!b) return;
+  Snd.ensure();
+  if (performance.now() < suppressClick) return;   // 끌기가 끝난 직후의 누름은 무시
+  if (b.id === 'pauseBtn') { pause(); return; }
+  if (b.id === 'speedBtn') { speed = speed === 1 ? 2 : 1; b.textContent = speed + '배'; b.classList.toggle('on', speed === 2); return; }
+  const ds = b.dataset, S = C.S;
+  if (ds.act) { act(ds.act); return; }
+  if (ds.aug != null || ds.rep != null) {
+    if (!S || !S.pendingAug || performance.now() - augOpenAt < 400) return; // 연타 중 잘못 누르는 것 방지
+    if (ds.aug != null) {
+      const i = +ds.aug, r = C.chooseAug(i);
+      if (r.need) { augPick = i; renderOverlay(); return; }
+    } else C.chooseAug(augPick, +ds.rep);
+    augPick = -1; Snd.play('pick'); renderAll(); return;
+  }
+  if (mode !== 'play' || !S || S.pendingAug) return;
+  if (ds.wpart != null) { const k = +ds.wpart; msel = msel === k ? -1 : k; msg = ''; renderOverlay(); return; }
+  if (wmodal >= 0) return;
+  if (ds.inv != null) return tapInv(+ds.inv);
+  if (ds.slot != null) return tapSlot(+ds.slot);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+
+/* ---------- 전장 그리기 ---------- */
+function resize() {
+  const r = wrap.getBoundingClientRect();
+  if (r.width < 10 || r.height < 10) return;
+  dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  sc = r.width / C.W;
+  C.setH(r.height / sc);
+}
+function ngon(x, y, r, n, rot) {
+  for (let i = 0; i < n; i++) {
+    const a = rot + i * 2 * Math.PI / n;
+    if (i) ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); else ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+  }
+  ctx.closePath();
+}
+function enemyPath(e) {
+  const x = e.x, y = e.y, r = e.r;
+  ctx.beginPath();
+  switch (e.type) {
+    case 'basic': ctx.rect(x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7); break;
+    case 'runner': ctx.moveTo(x, y + r); ctx.lineTo(x - r * 0.9, y - r * 0.8); ctx.lineTo(x + r * 0.9, y - r * 0.8); ctx.closePath(); break;
+    case 'swarm': ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); break;
+    case 'heavy': ngon(x, y, r, 6, 0); break;
+    case 'giant': ngon(x, y, r, 8, Math.PI / 8); break;
+    default: ctx.arc(x, y, r, 0, Math.PI * 2);
+  }
+}
+function drawEnemy(e) {
+  const col = ECOL[e.type];
+  enemyPath(e);
+  ctx.fillStyle = e.flash > 0 ? 'rgba(255,255,255,.8)' : rgba(col, e.boss ? 0.28 : 0.2);
+  ctx.fill();
+  ctx.lineWidth = e.boss ? 4 : 2.5; ctx.strokeStyle = e.stunT > 0 ? '#fff3a0' : e.slowT > 0 ? '#8fe3ff' : col; ctx.stroke();
+  if (e.type === 'giant') { ctx.beginPath(); ngon(e.x, e.y, e.r * 0.55, 8, Math.PI / 8); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke(); }
+  if (e.type === 'split') {
+    ctx.lineWidth = 2; ctx.strokeStyle = col;
+    for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 3; ctx.beginPath(); ngon(e.x + Math.cos(a) * e.r * 0.45, e.y + Math.sin(a) * e.r * 0.45, e.r * 0.26, 6, 0); ctx.stroke(); }
+  }
+  if (e.burnT > 0) { ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.arc(e.x + e.r * 0.6, e.y - e.r * 0.8, 4, 0, 7); ctx.fill(); }
+  if (e.hp < e.maxHp) {
+    const w = e.r * 1.8, h = e.boss ? 6 : 4, x = e.x - w / 2, y = e.y - e.r - (e.boss ? 14 : 9);
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = col; ctx.fillRect(x, y, w * Math.max(0, e.hp / e.maxHp), h);
+  }
+}
+function drawFx(f, H) {
+  const p = Math.max(0, f.t / f.d);
+  switch (f.k) {
+    case 'beam':
+      ctx.fillStyle = rgba(f.c, 0.75 * p); ctx.fillRect(f.x - f.w * p / 2, f.y0, f.w * p, f.y1 - f.y0);
+      ctx.fillStyle = `rgba(255,255,255,${0.8 * p})`; ctx.fillRect(f.x - 1.5, f.y0, 3, f.y1 - f.y0);
+      break;
+    case 'ring':
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - p * 0.65), Math.PI, Math.PI * 2);
+      ctx.lineWidth = 5 * p + 1; ctx.strokeStyle = rgba(f.c, 0.9 * p); ctx.stroke();
+      break;
+    case 'boom':
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - p * 0.3), 0, Math.PI * 2);
+      ctx.fillStyle = rgba(f.c, 0.3 * p); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = rgba(f.c, 0.9 * p); ctx.stroke();
+      break;
+    case 'bolt': {
+      ctx.beginPath();
+      for (let i = 0; i < f.pts.length; i++) {
+        const q = f.pts[i];
+        if (!i) { ctx.moveTo(q[0], q[1]); continue; }
+        const o = f.pts[i - 1];
+        ctx.lineTo((o[0] + q[0]) / 2 + (Math.random() - 0.5) * 22, (o[1] + q[1]) / 2 + (Math.random() - 0.5) * 22);
+        ctx.lineTo(q[0], q[1]);
+      }
+      ctx.lineWidth = 3; ctx.strokeStyle = rgba(f.c, p); ctx.stroke();
+      ctx.lineWidth = 1; ctx.strokeStyle = `rgba(255,255,255,${p})`; ctx.stroke();
+      break;
+    }
+    case 'pop':
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.7 - p * 0.7), 0, Math.PI * 2);
+      ctx.lineWidth = f.boss ? 5 : 2; ctx.strokeStyle = `rgba(255,150,150,${p})`; ctx.stroke();
+      break;
+    case 'crit':
+      ctx.strokeStyle = `rgba(255,220,110,${p})`; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.moveTo(f.x - 8, f.y); ctx.lineTo(f.x + 8, f.y); ctx.moveTo(f.x, f.y - 8); ctx.lineTo(f.x, f.y + 8); ctx.stroke();
+      break;
+    case 'leak':
+      ctx.fillStyle = `rgba(255,93,93,${p})`; ctx.font = '22px "Do Hyeon", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('-' + f.n, f.x, H - 12 - (1 - p) * 24);
+      break;
+    case 'warn':
+      ctx.fillStyle = `rgba(255,93,93,${Math.min(1, p * 3)})`; ctx.font = '26px "Do Hyeon", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(f.text, C.W / 2, 44);
+      break;
+  }
+}
+function draw() {
+  const S = C.S, H = C.H, W = C.W;
+  ctx.setTransform(dpr * sc, 0, 0, dpr * sc, 0, 0);
+  ctx.fillStyle = '#0e1c3a'; ctx.fillRect(0, 0, W, H);
+  // 모눈
+  ctx.strokeStyle = 'rgba(150,190,255,.06)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let x = 25; x < W; x += 25) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = H % 25; y < H; y += 25) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  // 레인 구분선
+  ctx.strokeStyle = 'rgba(150,190,255,.22)'; ctx.setLineDash([6, 8]); ctx.beginPath();
+  for (let k = 1; k < C.LANES; k++) { ctx.moveTo(k * C.LW, 0); ctx.lineTo(k * C.LW, H); }
+  ctx.stroke(); ctx.setLineDash([]);
+  if (!S) return;
+
+  // 고른 무기의 공격 범위
+  const rk = sel && sel.from === 'slot' ? sel.k : -1;
+  if (rk >= 0 && S.slots[rk]) {
+    const w = S.slots[rk], st = C.stats(w), wx = (rk + 0.5) * C.LW;
+    ctx.fillStyle = rgba(st.color, 0.08); ctx.strokeStyle = rgba(st.color, 0.55); ctx.lineWidth = 1.5;
+    if (w.type === 'pulse') { ctx.beginPath(); ctx.arc(wx, H, st.radius, Math.PI, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    else {
+      const x0 = Math.max(0, wx - (st.lanes + 0.5) * C.LW), x1 = Math.min(W, wx + (st.lanes + 0.5) * C.LW), y0 = H - st.range * H;
+      ctx.fillRect(x0, y0, x1 - x0, H - y0); ctx.strokeRect(x0 + 1, y0 + 1, x1 - x0 - 2, H - y0 + 4);
+    }
+  }
+  for (const p of S.pools) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,140,60,${0.1 + 0.12 * Math.min(1, p.t)})`; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,160,80,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  for (const e of S.enemies) drawEnemy(e);
+  for (const b of S.bullets) {
+    ctx.strokeStyle = b.c; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath();
+    ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.018, b.y - b.vy * 0.018); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  for (const s of S.shells) {
+    const x = s.x0 + (s.tx - s.x0) * s.p, y = s.y0 + (s.ty - s.y0) * s.p - Math.sin(s.p * Math.PI) * 70;
+    ctx.beginPath(); ctx.arc(s.tx, s.ty, 10, 0, Math.PI * 2); ctx.strokeStyle = rgba(s.st.color, 0.5); ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fillStyle = s.st.color; ctx.fill();
+  }
+  for (const f of S.fx) drawFx(f, H);
+  // 방어선과 포구
+  ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : 'rgba(122,240,193,.75)';
+  ctx.fillRect(0, H - 3, W, 3);
+  for (let k = 0; k < C.LANES; k++) {
+    const w = S.slots[k]; if (!w) continue;
+    const x = (k + 0.5) * C.LW;
+    ctx.fillStyle = C.WEAPONS[w.type].color; ctx.beginPath();
+    ctx.moveTo(x, H - 13); ctx.lineTo(x + 9, H - 3); ctx.lineTo(x - 9, H - 3); ctx.closePath(); ctx.fill();
+  }
+}
+
+/* ---------- 상태 표시 ---------- */
+const hudEl = { hp: $('#hpTxt'), fill: $('#hpFill'), t: $('#tTxt'), k: $('#kTxt'), g: $('#gTxt') };
+const hudPrev = {};
+function setText(key, v) { if (hudPrev[key] !== v) { hudPrev[key] = v; hudEl[key].textContent = v; } }
+function hud() {
+  const S = C.S; if (!S) return;
+  setText('hp', String(Math.ceil(S.hp)));
+  setText('t', fmtTime(S.t)); setText('k', String(S.kills)); setText('g', fmtInt(S.gold));
+  const w = Math.max(0, S.hp / S.maxHp * 100).toFixed(0) + '%';
+  if (hudPrev.w !== w) { hudPrev.w = w; hudEl.fill.style.width = w; hudEl.fill.classList.toggle('low', S.hp / S.maxHp < 0.3); }
+}
+
+/* ---------- 진행 ---------- */
+let last = 0, acc = 0, lightAt = 0;
+function frame(ts) {
+  const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
+  const S = C.S;
+  if (mode === 'play' && S && !S.pendingAug && wmodal < 0) {
+    acc += dt * speed; let n = 0;
+    while (acc >= 1 / 60 && n < 12) { C.step(1 / 60); acc -= 1 / 60; n++; }
+    if (n === 12) acc = 0;
+    if (S.snd && S.snd.length) { for (const n of S.snd) Snd.play(n); S.snd.length = 0; }
+    if (S.newDrop) { S.newDrop = false; renderBottom(); say('보스 보상이 인벤토리에 들어왔습니다.'); }
+    if (S.over) gameOver();
+  }
+  if (drag && performance.now() - drag.at > 6000) endDrag(false);   // 신호가 끊긴 끌기 정리
+  draw(); hud();
+  if (ts - lightAt > 250) { lightAt = ts; lightUpdate(); }
+  requestAnimationFrame(frame);
+}
+
+function snapshot() {
+  const S = C.S;
+  if (!S || (mode !== 'play' && mode !== 'pause') || S.over) return {};
+  const copy = Object.assign({}, S, {
+    bullets: [], shells: [], pools: [], fx: [], snd: [], pendingAug: S.pendingAug,
+    enemies: S.enemies.map(e => Object.assign({}, e, { burnSt: null, burnT: 0, burnDps: 0 })),
+  });
+  return { S: JSON.parse(JSON.stringify(copy)) };
+}
+function start(data) {
+  try {
+    const s = data && data.S;
+    if (s && s.v === 1 && Array.isArray(s.slots) && Array.isArray(s.inv) && !s.over) { C.setState(s); mode = 'pause'; }
+  } catch (e) { /* 이어하기 실패 시 새로 시작 */ }
+  if (!C.S) C.newGame();
+  resize();
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(wrap); else window.addEventListener('resize', resize);
+  renderAll();
+  requestAnimationFrame(frame);
+}
+const hot = window.claude && window.claude.hot;
+if (hot && hot.snapshot) { try { hot.snapshot(snapshot); } catch (e) { /* 무시 */ } }
+if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+
+// 점검용
+window.__game = { start: startGame, get mode() { return mode; } };
+})();
+
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
