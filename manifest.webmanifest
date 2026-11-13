@@ -1,7 +1,7 @@
 {
- "name": "도형 방어선",
- "short_name": "도형 방어선",
- "description": "도형으로 막는 무한 방어",
+ "name": "도형 디펜스",
+ "short_name": "도형 디펜스",
+ "description": "도형으로 막는 무한 디펜스",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",

@@ -7,11 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="도형 방어선">
+<meta name="apple-mobile-web-app-title" content="도형 디펜스">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>도형 방어선</title>
+<title>도형 디펜스</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap" rel="stylesheet">
@@ -345,12 +345,55 @@ b { font-weight: 600; }
   .upfx .ring, .upfx s { display: none; }
 }
 
+/* ---- 기지, 알림, 생성 버튼 ---- */
+#toast {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 3; pointer-events: none;
+  padding: 6px 10px; border-radius: 6px; background: rgba(8, 18, 38, .88); border: 1px solid var(--line);
+  font-size: 12px; line-height: 17px; color: var(--dim); opacity: 0; transition: opacity .15s;
+}
+#toast.show { opacity: 1; }
+#toast b { color: var(--ink); } #toast.warn { color: var(--accent); border-color: rgba(255, 209, 102, .5); }
+#toast .g0 { color: var(--g0); } #toast .g1 { color: var(--g1); } #toast .g2 { color: var(--g2); } #toast .g3 { color: var(--g3); }
+.info.bar { display: grid; grid-template-columns: 1fr 1.35fr; gap: 6px; overflow: visible; }
+.bbtn {
+  height: 34px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 0 6px;
+  border: 1.5px solid rgba(122, 240, 193, .55); border-radius: 5px 5px 12px 12px; background: rgba(122, 240, 193, .08);
+  font: 600 13px var(--font-body); color: var(--ok); white-space: nowrap;
+}
+.bbtn b { font: 15px var(--font-display); color: var(--ink); }
+.bbtn small { font-weight: 400; font-size: 10.5px; color: var(--dim); }
+.bbtn.up.off { opacity: .5; }
+.bbtn:active { transform: translateY(1px); }
+.bcol, .info .bcol { color: var(--ok); }
+.btag, .info b.btag, #toast b.btag { color: var(--ok); border: 1px solid currentColor; border-radius: 3px 3px 7px 7px; padding: 0 4px; font-size: 10.5px; }
+.acts.three { grid-template-columns: 1.25fr 1.1fr .7fr; }
+.btn.gen { justify-content: space-between; padding: 0 14px; }
+.btn.gen > span:first-child { font-size: 16px; }
+.gc { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+.gc b { font: 17px var(--font-display); }
+.gc small { font-size: 10.5px; }
+/* 기지 파츠: 방패 모양 칸과 빗금으로 무기 파츠와 구분 */
+.cell.kb { border-radius: 5px 5px 16px 16px; background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, .07) 0 3px, transparent 3px 7px); }
+.pic.bp { border-radius: 6px 6px 16px 16px; background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, .07) 0 3px, transparent 3px 7px); }
+.schem.base .core { top: 50%; border-color: var(--ok); color: var(--ok); border-radius: 12px 12px 40px 40px; }
+.schem.base .core b { color: var(--ink); }
+.pt.b0 { left: 20%; top: 6px; } .pt.b1 { left: 80%; top: 6px; } .pt.b2 { left: 20%; bottom: 7px; } .pt.b3 { left: 80%; bottom: 7px; }
+.schem.base .pt { border-radius: 5px 5px 14px 14px; }
+.d-acts.one { grid-template-columns: 1fr; }
+.d-acts.one small { font-size: 10.5px; }
+/* 강화 연출: 글자는 강화 단계만, 처음부터 위로 올라간다 */
+.upfx b { font-size: 22px; animation: uprise .9s ease-out forwards; }
+@keyframes uprise { from { transform: translate(var(--tx), 0); opacity: 1; } to { transform: translate(var(--tx), -36px); opacity: 0; } }
+.upfx u { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px; text-decoration: none; animation: upfade .8s ease-out forwards; }
+.upfx u::before, .upfx u::after { content: ''; position: absolute; left: 50%; top: 0; width: 4px; height: 100%; margin-left: -2px; border-radius: 2px; background: var(--danger); box-shadow: 0 0 8px rgba(255, 93, 93, .9); }
+.upfx u::before { transform: rotate(45deg); } .upfx u::after { transform: rotate(-45deg); }
+
 </style>
 </head>
 <body>
 <div id="app">
   <header id="hud">
-    <div class="hp" aria-label="방어선 체력">
+    <div class="hp" aria-label="기지 체력">
       <div class="hp-bar"><i id="hpFill"></i></div>
       <span id="hpTxt">100</span>
     </div>
@@ -366,7 +409,7 @@ b { font-weight: 600; }
   <div id="overlay" hidden></div>
 </div>
 <script>
-/* 도형 방어선: 게임 로직 (화면과 분리되어 있어 단독 실행 가능) */
+/* 도형 디펜스: 게임 로직 (화면과 분리되어 있어 단독 실행 가능) */
 (function (root) {
 'use strict';
 
@@ -385,6 +428,9 @@ const CFG = {
   meltPts: [2, 5, 12, 30],   // 용해로: 등급별로 파츠를 녹여 얻는 게이지
   craftCost: 10,             // 제조 1회에 드는 게이지
   craftW: [0, 62, 30, 8],    // 제조한 파츠의 등급 비율 (희귀 이상만)
+  baseSlots: 4,              // 기지 파츠 칸 수
+  baseHpPerLv: 4,            // 기지 강화 1단계마다 최대 체력
+  basePartShare: 0.25,       // 파츠가 나올 때 기지 파츠일 확률
 };
 
 const rnd = Math.random;
@@ -405,18 +451,12 @@ const BAL = {
     return 0.10 + 0.90 * Math.pow(1 - x, 1.1);
   },
   lvMul(L) { return Math.pow(1.05, L); },
-  hpMul(t) { // 처음 2분은 완만, 15분까지 빠르게, 25분 이후 다시 가속
-    let ln;
-    if (t <= 120) ln = 0.0025 * t;
-    else if (t <= 900) ln = 0.3 + 0.0041 * (t - 120);
-    else ln = 3.498 + 0.0033 * (t - 900);
-    if (t > 1500) ln += 6e-6 * (t - 1500) * (t - 1500);
-    return Math.exp(ln);
-  },
-  bossMul(n) { return Math.min(1, 0.4 + 0.12 * n); }, // 초반 보스는 약하게
-  spawnRate(t) { return Math.min(6, 0.5 + t / 85); },
-  // 처음 3분에 걸쳐 서서히 30% 줄어든다 (초반 무기 확보 속도는 유지)
-  goldMul(t) { return (1 + t / 80) * (1 - 0.3 * Math.min(1, t / 180)); },
+  // 적 체력 배수: 끊김 없는 식 하나. 초반에는 거의 오르지 않고, 이후 꾸준히 오르며 끝없이 계속된다
+  hpMul(t) { return Math.pow(1 + Math.pow(t / 260, 3.1), 0.9) * Math.exp(0.0012 * t); },
+  bossMul(n) { return 1 - 0.6 * Math.exp(-n / 2.5); }, // 초반 보스는 약하게
+  spawnRate(t) { return 0.5 + 5.5 * (1 - Math.exp(-t / 340)); },
+  // 초반에는 넉넉하고(시작 +35%) 시간이 갈수록 완만하게 줄어든다
+  goldMul(t) { return (1 + t / 80) * (0.63 + 0.72 * Math.exp(-t / 200)); },
   genCost(n) { return Math.round(10 * Math.pow(1 + 0.2 * n, 1.25)); },
   // 강화 조각 수는 낸 비용을 따라가되 비용보다 느리게 늘어난다 (비용이 10배면 조각은 약 8배)
   bundleExp: 0.9,
@@ -434,7 +474,7 @@ const WEAPONS = {
   pulse: { name: '펄스', dmg: 10, cd: 0.9, range: 0, lanes: 0, radius: 150, color: '#7af0c1',
     desc: '무기 주변 원형 범위의 모든 적 타격' },
   mortar: { name: '박격포', dmg: 20, cd: 2.2, range: 1, lanes: 5, blast: 62, color: '#ff9f5a',
-    desc: '모든 레인 대상. 방어선에 가장 가까운 적에게 폭발탄' },
+    desc: '모든 레인 대상. 기지에 가장 가까운 적에게 폭발탄' },
   tesla: { name: '전격기', dmg: 8, cd: 0.7, range: 0.55, lanes: 1, chain: 2, color: '#b9a2ff',
     desc: '3레인 안의 가까운 적을 공격하고 주변 2명에게 연쇄' },
 };
@@ -454,9 +494,6 @@ const PARTS = {
   gold:  { name: '채굴 칩',     abbr: '재화', min: 0, v: [10, 20, 35, 55],    ap: pct('goldPct'),  d: v => `이 무기로 처치 시 재화 +${v}%` },
   exec:  { name: '처형 모듈',   abbr: '처형', min: 0, v: [25, 50, 80, 120],   ap: pct('execPct'),  d: v => `체력 30% 이하인 적에게 피해 +${v}%` },
   first: { name: '선제 타격기', abbr: '선제', min: 0, v: [25, 50, 80, 120],   ap: pct('firstPct'), d: v => `체력 80% 이상인 적에게 피해 +${v}%` },
-  heal:  { name: '수리 장치',   abbr: '수리', min: 1, v: [0, 2, 3, 5],        ap: pct('heal'),     d: v => `이 무기로 처치 시 ${v}% 확률로 방어선 체력 1 회복` },
-  luck:  { name: '행운 부적',   abbr: '행운', min: 1, v: [0, 3, 6, 10],       ap: pct('luck'),     d: v => `이 무기의 강화 성공률 +${v}%p` },
-  save:  { name: '절약 회로',   abbr: '절약', min: 1, v: [0, 12, 22, 35],     ap: pct('save'),     d: v => `강화 시 ${v}% 확률로 조각을 소모하지 않음` },
   dbl:   { name: '이중 장전기', abbr: '연사', min: 2, v: [0, 0, 25, 45],      ap: pct('dbl'),      d: v => `공격 시 ${v}% 확률로 즉시 한 번 더 공격` },
   core:  { name: '코어 증폭기', abbr: '코어', min: 3, v: [0, 0, 0, 60],
     ap: (s) => { s.dmgPct += 0.6; s.ratePct += 0.3; }, d: () => '공격력 +60%, 공격 속도 +30%' },
@@ -469,10 +506,23 @@ const PARTS = {
   big:    { name: '대구경 포신',     min: 1, v: [0, 20, 35, 50],   ap: (s, v) => { s.rangePct += v / 100; s.dmgPct += v / 200; }, d: v => `사거리와 범위 +${v}%, 공격력 +${v / 2}%` },
   ember:  { name: '발화 장치',       min: 1, v: [0, 10, 18, 28],   ap: mx('burn'),    d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
   gamble: { name: '도박사의 주사위', min: 1, v: [0, 200, 270, 350], ap: mx('gamble'), d: v => `공격할 때마다 피해가 50%~${v}% 사이에서 무작위로 결정` },
-  shield: { name: '방패 발생기',     min: 1, v: [0, 10, 16, 25],   ap: pct('shield'), d: v => `방어선이 받는 피해 -${v}% (여러 개면 합산, 최대 60%)` },
-  magnet: { name: '자석 코어',       min: 1, v: [0, 3, 5, 8],      ap: pct('magnet'), d: v => `이 무기로 처치 시 ${v}% 확률로 강화 조각 획득` },
   ramp:   { name: '과열 엔진',       min: 2, v: [0, 0, 40, 70],    ap: mx('ramp'),    d: v => `쉬지 않고 공격하면 공격 속도가 점점 올라 최대 +${v}%` },
+  // 기지 전용 파츠 (기지 파츠 칸에만 장착, 효과는 전체에 적용)
+  shield:  { base: true, name: '방패 발생기', min: 0, v: [6, 10, 16, 25],     ap: pct('shield'),   d: v => `기지가 받는 피해 -${v}% (합산, 최대 60%)` },
+  armor:   { base: true, name: '장갑판',     min: 0, v: [15, 30, 50, 80],    ap: add('hpAdd'),    d: v => `기지 최대 체력 +${v}` },
+  drone:   { base: true, name: '수리 드론',   min: 0, v: [8, 6, 4, 3],        ap: (s, v) => { s.regen += 1 / v; }, d: v => `${v}초마다 기지 체력 1 회복` },
+  heal:    { base: true, name: '수리 장치',   min: 0, v: [0.4, 0.7, 1.1, 1.8], ap: pct('heal'),    d: v => `적을 처치할 때 ${v}% 확률로 기지 체력 1 회복` },
+  wire:    { base: true, name: '감속 철조망', min: 0, v: [12, 18, 26, 36],    ap: mx('nearSlow'),  d: v => `기지 가까이 온 적(전장 아래 4분의 1)을 ${v}% 둔화` },
+  luck:    { base: true, name: '행운 부적',   min: 0, v: [2, 3, 6, 10],       ap: pct('luck'),     d: v => `모든 강화의 성공률 +${v}%p` },
+  save:    { base: true, name: '절약 회로',   min: 0, v: [6, 12, 22, 35],     ap: pct('save'),     d: v => `강화할 때 ${v}% 확률로 조각을 소모하지 않음` },
+  magnet:  { base: true, name: '자석 코어',   min: 0, v: [1, 2, 3, 5],        ap: pct('magnet'),   d: v => `적을 처치할 때 ${v}% 확률로 강화 조각 획득` },
+  depot:   { base: true, name: '보급 창고',   min: 0, v: [8, 14, 22, 34],     ap: pct('goldAll'),  d: v => `재화 획득 +${v}%` },
+  command: { base: true, name: '지휘 통신기', min: 0, v: [5, 9, 14, 22],      ap: pct('dmgAll'),   d: v => `모든 무기의 공격력 +${v}%` },
+  radar:   { base: true, name: '레이더',     min: 0, v: [4, 7, 11, 16],      ap: pct('rangeAll'), d: v => `모든 무기의 사거리와 범위 +${v}%` },
+  barrier: { base: true, name: '비상 방벽',   min: 2, v: [0, 0, 30, 60],      ap: mx('revive'),    d: v => `기지가 파괴될 피해를 한 번 막고 체력을 ${v}% 회복. 발동하면 이 파츠는 사라짐` },
 };
+const BASE_PART_IDS = Object.keys(PARTS).filter(id => PARTS[id].base);
+const WEAPON_PART_IDS = Object.keys(PARTS).filter(id => !PARTS[id].base);
 const PART_IDS = Object.keys(PARTS);
 
 /* ---------- 증강 (무기 고유, 5강마다 3택) ---------- */
@@ -484,15 +534,15 @@ const AUGS = {
   a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, for: 'all', v: [8, 15, 24, 35],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
   // 블래스터
   b_pierce: { name: '관통탄', abbr: '관통', min: 0, for: 'blaster', v: [1, 2, 3, 5], ap: add('pierce'), d: v => `탄환이 적 ${v}명을 추가로 관통` },
-  b_multi:  { name: '연발',   abbr: '연발', min: 1, for: 'blaster', v: [0, 1, 2, 3], ap: add('shots'),  d: v => `탄환 ${v}발 추가 발사 (추가 탄 피해 60%)` },
+  b_multi:  { name: '연발',   abbr: '연발', min: 2, for: 'blaster', v: [0, 0, 2, 3], ap: add('shots'),  d: v => `탄환 ${v}발 추가 발사 (추가 탄 피해 60%)` },
   b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 40, 75], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
-  b_seek:   { name: '유도탄', abbr: '유도', min: 0, for: 'blaster', v: [1, 1, 2, 4], ap: add('lanes'),  d: v => laneText(v) },
+  b_seek:   { name: '유도탄', abbr: '유도', min: 2, for: 'blaster', v: [0, 0, 2, 4], ap: add('lanes'),  d: v => laneText(v) },
   b_frost:  { name: '냉각탄', abbr: '냉각', min: 0, for: 'blaster', v: [20, 30, 40, 55], ap: mx('slow'), d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
   // 산탄포
   s_wide:   { name: '광각 산탄', abbr: '광각', min: 2, for: 'shotgun', v: [0, 0, 1, 3], ap: add('lanes'), d: v => v >= 3 ? '모든 레인에 산탄 발사' : '양옆 2레인까지 산탄 발사' },
-  s_pellet: { name: '추가 산탄', abbr: '산탄', min: 1, for: 'shotgun', v: [0, 1, 2, 3], ap: add('shots'), d: v => `레인마다 산탄 ${v}발 추가 (추가 탄 피해 60%)` },
+  s_pellet: { name: '추가 산탄', abbr: '산탄', min: 2, for: 'shotgun', v: [0, 0, 2, 3], ap: add('shots'), d: v => `레인마다 산탄 ${v}발 추가 (추가 탄 피해 60%)` },
   s_knock:  { name: '충격탄',   abbr: '충격', min: 0, for: 'shotgun', v: [8, 13, 19, 28], ap: add('knock'), d: v => `적중한 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
-  s_close:  { name: '근접 사격', abbr: '근접', min: 0, for: 'shotgun', v: [30, 60, 100, 150], ap: pct('closePct'), d: v => `방어선 가까이 온 적에게 피해 +${v}%` },
+  s_close:  { name: '근접 사격', abbr: '근접', min: 0, for: 'shotgun', v: [30, 60, 100, 150], ap: pct('closePct'), d: v => `기지 가까이 온 적에게 피해 +${v}%` },
   s_pierce: { name: '철갑 산탄', abbr: '철갑', min: 1, for: 'shotgun', v: [0, 1, 2, 4], ap: add('pierce'), d: v => `산탄이 적 ${v}명을 추가로 관통` },
   // 레이저
   l_burn:   { name: '잔열',     abbr: '잔열', min: 0, for: 'laser', v: [12, 22, 35, 55], ap: mx('burn'), d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
@@ -507,36 +557,47 @@ const AUGS = {
   // 박격포
   m_big:     { name: '대형 포탄', abbr: '대형', min: 0, for: 'mortar', v: [20, 35, 55, 80], ap: pct('areaPct'), d: v => `폭발 범위 +${v}%` },
   m_cluster: { name: '집속탄',   abbr: '집속', min: 2, for: 'mortar', v: [0, 0, 2, 4], ap: add('cluster'), d: v => `폭발 후 주변에 소형 폭발 ${v}개 추가 (피해 40%)` },
-  m_fire:    { name: '화염 지대', abbr: '화염', min: 0, for: 'mortar', v: [12, 22, 35, 55], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
+  m_fire:    { name: '화염 지대', abbr: '화염', min: 2, for: 'mortar', v: [0, 0, 35, 55], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
   m_boss:    { name: '정밀 포격', abbr: '포격', min: 0, for: 'mortar', v: [30, 60, 100, 160], ap: pct('bossPct'), d: v => `보스에게 주는 피해 +${v}%` },
   // 전격기
   t_chain: { name: '연쇄 증폭', abbr: '연쇄', min: 0, for: 'tesla', v: [1, 2, 3, 5], ap: add('chain'), d: v => `연쇄 횟수 +${v}` },
   t_stun:  { name: '감전',     abbr: '감전', min: 0, for: 'tesla', v: [8, 13, 19, 27], ap: mx('stun'), d: v => `적중 시 ${v}% 확률로 0.8초 기절 (보스 제외)` },
   t_grow:  { name: '과부하',   abbr: '과부', min: 2, for: 'tesla', v: [0, 0, 15, 30], ap: mx('chainGrow'), d: v => `연쇄할 때마다 피해가 줄지 않고 ${v}%씩 증가` },
-  t_wide:  { name: '광역 방전', abbr: '광역', min: 1, for: 'tesla', v: [0, 1, 2, 4], ap: add('lanes'), d: v => laneText(v + 1) },
+  t_wide:  { name: '광역 방전', abbr: '광역', min: 2, for: 'tesla', v: [0, 0, 2, 4], ap: add('lanes'), d: v => laneText(v + 1) },
   // 눈에 보이는 변화가 큰 증강 (대부분 영웅 이상)
   a_boom:    { name: '연쇄 폭발', min: 2, for: 'all',     v: [0, 0, 80, 150],   ap: mx('deathBoom'), d: v => `이 무기로 처치한 적이 폭발해 주변에 공격력의 ${v}% 피해` },
-  b_rico:    { name: '도탄',     min: 1, for: 'blaster', v: [0, 1, 2, 3],      ap: add('rico'),   d: v => `탄환이 적중 후 가까운 다른 적에게 ${v}번 튕김 (튕길 때마다 피해 -20%)` },
+  b_rico:    { name: '도탄',     min: 2, for: 'blaster', v: [0, 0, 2, 3],      ap: add('rico'),   d: v => `탄환이 적중 후 가까운 다른 적에게 ${v}번 튕김 (튕길 때마다 피해 -20%)` },
   b_split:   { name: '분열탄',   min: 2, for: 'blaster', v: [0, 0, 2, 3],      ap: add('split'),  d: v => `탄환이 적중하면 작은 탄 ${v}개로 갈라져 날아감 (피해 50%)` },
   b_giant:   { name: '거대탄',   min: 3, for: 'blaster', v: [0, 0, 0, 5],      ap: add('giant'),  d: v => `5번째 발사마다 거대탄: 피해 ${v}배, 모든 적 관통` },
-  s_double:  { name: '2연발',    min: 1, for: 'shotgun', v: [0, 50, 75, 100],  ap: mx('again'),   d: v => `발사 직후 한 번 더 발사 (피해 ${v}%)` },
+  s_double:  { name: '2연발',    min: 2, for: 'shotgun', v: [0, 0, 75, 100],  ap: mx('again'),   d: v => `발사 직후 한 번 더 발사 (피해 ${v}%)` },
   s_blast:   { name: '폭렬 산탄', min: 2, for: 'shotgun', v: [0, 0, 35, 60],    ap: pct('splash'), d: v => `산탄이 적중하면 폭발해 주변에 피해의 ${v}%` },
   s_slug:    { name: '슬러그탄', min: 3, for: 'shotgun', v: [0, 0, 0, 3],      ap: add('slug'),   d: v => `발사할 때마다 정면에 대형 탄 추가: 피해 ${v}배, 모든 적 관통, 강하게 밀어냄` },
-  l_freeze:  { name: '냉동 광선', min: 1, for: 'laser',   v: [0, 0.4, 0.6, 0.9], ap: (s, v) => { s.freeze = Math.max(s.freeze, v); }, d: v => `적중한 적을 ${v}초간 얼림 (보스는 둔화)` },
+  l_freeze:  { name: '냉동 광선', min: 2, for: 'laser',   v: [0, 0, 0.6, 0.9], ap: (s, v) => { s.freeze = Math.max(s.freeze, v); }, d: v => `적중한 적을 ${v}초간 얼림 (보스는 둔화)` },
   l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 70, 110],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
   l_hold:    { name: '지속 빔',  min: 3, for: 'laser',   v: [0, 0, 0, 40],     ap: mx('hold'),    d: v => `빔이 0.6초간 유지되며 0.1초마다 ${v}% 피해` },
   p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 10, 16, 24],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
   p_orbs:    { name: '위성 구체', min: 2, for: 'pulse',   v: [0, 0, 2, 3],      ap: add('orbs'),   d: v => `범위 가장자리를 오가는 구체 ${v}개가 닿는 적에게 지속 피해` },
   p_nova:    { name: '초신성',   min: 3, for: 'pulse',   v: [0, 0, 0, 2],      ap: add('nova'),   d: v => `5번째 파동마다 범위 3배, 피해 ${v}배의 거대 파동` },
-  m_shrap:   { name: '파편탄',   min: 1, for: 'mortar',  v: [0, 4, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 30%)` },
+  m_shrap:   { name: '파편탄',   min: 2, for: 'mortar',  v: [0, 0, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 30%)` },
   m_barrage: { name: '연속 포격', min: 2, for: 'mortar',  v: [0, 0, 1, 2],      ap: add('barrage'), d: v => `다른 적을 노리는 포탄 ${v}발 추가 발사 (피해 70%)` },
   m_nuke:    { name: '핵탄두',   min: 3, for: 'mortar',  v: [0, 0, 0, 3],      ap: add('nuke'),   d: v => `4번째 포탄마다 핵탄두: 폭발 범위 2.5배, 피해 ${v}배` },
   t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 20, 30, 40],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
   t_multi:   { name: '다중 방전', min: 2, for: 'tesla',   v: [0, 0, 1, 2],      ap: add('multi'),  d: v => `처음 노리는 적이 ${v}명 늘어남 (각각 연쇄)` },
   t_storm:   { name: '번개 폭풍', min: 3, for: 'tesla',   v: [0, 0, 0, 5],      ap: add('storm'),  d: v => `3번째 공격마다 무작위 적 ${v}명에게 낙뢰 (피해 150%)` },
+  // 기지 증강 (기지 강화 5단계마다)
+  h_armor:  { name: '강화 장갑',   min: 0, for: 'base', v: [20, 40, 70, 110], ap: add('hpAdd'),   d: v => `기지 최대 체력 +${v}` },
+  h_supply: { name: '보급선',     min: 0, for: 'base', v: [8, 15, 24, 36],   ap: pct('goldAll'), d: v => `재화 획득 +${v}%` },
+  h_repair: { name: '정비반',     min: 0, for: 'base', v: [6, 4.5, 3.5, 2.5], ap: (s, v) => { s.regen += 1 / v; }, d: v => `${v}초마다 기지 체력 1 회복` },
+  h_drill:  { name: '숙련 공병',   min: 0, for: 'base', v: [2, 4, 6, 9],      ap: pct('luck'),    d: v => `모든 강화의 성공률 +${v}%p` },
+  h_turret: { name: '방어 포탑',   min: 2, for: 'base', v: [0, 0, 30, 55],    ap: mx('turret'),   d: v => `기지 중앙의 포탑이 가장 가까운 적을 자동 공격 (가장 강한 무기 화력의 ${v}%)` },
+  h_shock:  { name: '충격 방벽',   min: 2, for: 'base', v: [0, 0, 60, 110],   ap: add('shock'),   d: v => `적이 기지에 닿으면 충격파가 퍼져 근처 적을 밀어내고 피해를 줌 (세기 ${v})` },
+  h_fence:  { name: '전기 울타리', min: 2, for: 'base', v: [0, 0, 25, 45],    ap: mx('fence'),    d: v => `기지 바로 앞의 적에게 지속 피해 (가장 강한 무기 화력의 ${v}%)` },
+  h_wave:   { name: '빙결 파동',   min: 2, for: 'base', v: [0, 0, 30, 18],    ap: (s, v) => { s.wave = s.wave ? Math.min(s.wave, v) : v; }, d: v => `${v}초마다 전장의 모든 적을 1.5초간 얼림 (보스는 둔화)` },
+  h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 35],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
 };
 const AUG_POOL = {};
 for (const wid of WEAPON_IDS) AUG_POOL[wid] = Object.keys(AUGS).filter(id => AUGS[id].for === 'all' || AUGS[id].for === wid);
+AUG_POOL.base = Object.keys(AUGS).filter(id => AUGS[id].for === 'base');
 
 function partDesc(p) { return PARTS[p.id].d(PARTS[p.id].v[p.g]); }
 function augDesc(a) { return AUGS[a.id].d(AUGS[a.id].v[a.g]); }
@@ -554,6 +615,7 @@ const ENEMIES = {
 /* ---------- 상태 ---------- */
 let S = null;
 
+function newBase() { return { lv: 0, parts: new Array(CFG.baseSlots).fill(null), augs: [null, null, null], kills: 0, dealt: 0, tt: 0, wv: 0, bc: 0, rg: 0 }; }
 function newWeapon(type) {
   return { kind: 'w', type, lv: 0, parts: [null, null, null], augs: [null, null, null], cd: 0.3, n: 0, kills: 0, dealt: 0 };
 }
@@ -568,10 +630,12 @@ function newGame(h) {
     spawnAcc: 0, nextBoss: CFG.bossEvery, bossN: 0,
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
   };
+  S.base = newBase();
   S.slots[2] = newWeapon('blaster');
+  syncMaxHp(); S.hp = S.maxHp;
   return S;
 }
-function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.beams) S.beams = []; if (!S.melt) S.melt = 0; }
+function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.beams) S.beams = []; if (!S.melt) S.melt = 0; if (!S.base) S.base = newBase(); syncMaxHp(); }
 function setH(h) {
   if (!h || h === H) return;
   if (S) { const k = h / H; for (const e of S.enemies) e.y *= k; }
@@ -579,20 +643,25 @@ function setH(h) {
 }
 
 /* ---------- 능력치 계산 ---------- */
-function stats(w) {
-  if (w._s) return w._s;
-  const d = WEAPONS[w.type];
-  const s = {
+function blankStats(lanes, chain) {
+  return {
     dmgPct: 0, ratePct: 0, crit: 0.05, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, goldPct: 0,
     execPct: 0, firstPct: 0, heal: 0, luck: 0, save: 0, dbl: 0,
-    pierce: 0, shots: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes: d.lanes,
-    chain: d.chain || 0, chainGrow: 0, closePct: 0, third: 0, instakill: 0, cluster: 0, pool: 0, echo: 0, sideBeam: 0,
+    pierce: 0, shots: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes,
+    chain, chainGrow: 0, closePct: 0, third: 0, instakill: 0, cluster: 0, pool: 0, echo: 0, sideBeam: 0,
     farPct: 0, gamble: 0, shield: 0, magnet: 0, ramp: 0, deathBoom: 0,
     rico: 0, split: 0, giant: 0, again: 0, slug: 0, freeze: 0, orbit: 0, hold: 0, orbs: 0, nova: 0,
     shrap: 0, barrage: 0, nuke: 0, multi: 0, storm: 0,
-  };
+    };
+}
+function stats(w) {
+  if (w._s) return w._s;
+  const d = WEAPONS[w.type];
+  const s = blankStats(d.lanes, d.chain || 0);
   for (const p of w.parts) if (p) PARTS[p.id].ap(s, PARTS[p.id].v[p.g]);
   for (const a of w.augs) if (a) AUGS[a.id].ap(s, AUGS[a.id].v[a.g]);
+  const bs = bstats();                    // 기지 파츠의 전체 효과
+  s.dmgPct += bs.dmgAll; s.rangePct += bs.rangeAll;
   const rg = Math.max(0.4, 1 + s.rangePct);
   s.dmg = d.dmg * BAL.lvMul(w.lv) * Math.max(0.2, 1 + s.dmgPct);
   s.cd = d.cd / Math.max(0.4, 1 + s.ratePct);
@@ -609,6 +678,35 @@ function stats(w) {
   return s;
 }
 function dirty(w) { if (w) w._s = null; }
+// 기지 능력치: 강화 단계, 기지 파츠, 기지 증강의 합
+function bstats() {
+  const b = S.base; if (b._s) return b._s;
+  const s = { hpAdd: 0, regen: 0, shield: 0, heal: 0, nearSlow: 0, luck: 0, save: 0, magnet: 0, goldAll: 0, dmgAll: 0, rangeAll: 0, revive: 0,
+    turret: 0, shock: 0, fence: 0, wave: 0, bomb: 0 };
+  for (const p of b.parts) if (p) PARTS[p.id].ap(s, PARTS[p.id].v[p.g]);
+  for (const a of b.augs) if (a) AUGS[a.id].ap(s, AUGS[a.id].v[a.g]);
+  s.shield = Math.min(0.6, s.shield);
+  s.maxHp = CFG.baseHp + b.lv * CFG.baseHpPerLv + s.hpAdd;
+  s.st = Object.assign(blankStats(0, 0), { color: '#7af0c1', type: 'base', w: b, dmg: 0, crit: 0 });   // 기지가 주는 피해의 기록용
+  Object.defineProperty(b, '_s', { value: s, writable: true, configurable: true, enumerable: false });
+  return s;
+}
+function syncMaxHp() {
+  const m = bstats().maxHp, old = S.maxHp || m;
+  if (m > old) S.hp += m - old;
+  S.maxHp = m; if (S.hp > m) S.hp = m;
+}
+function bdirty() {
+  S.base._s = null;
+  for (const w of S.slots) dirty(w);
+  for (const it of S.inv) if (it && it.kind === 'w') dirty(it);
+  syncMaxHp();
+}
+function bestDps() { // 가장 강한 무기의 초당 화력 (기지 포탑 등의 기준)
+  let d = 0;
+  for (const w of S.slots) if (w) { const st = stats(w); d = Math.max(d, st.dmg / st.cd); }
+  return d || 10;
+}
 
 /* ---------- 인벤토리 ---------- */
 function freeSlot() { return S.inv.indexOf(null); }
@@ -653,7 +751,7 @@ function ownedTypes() {
 /* ---------- 생성 ---------- */
 function genCost() { return BAL.genCost(S.gen); }
 function rollPartGrade(boost) {
-  const f = Math.min(1, S.t / 1200);   // 20분에 걸쳐 천천히 좋아진다
+  const f = 1 - Math.exp(-S.t / 700);  // 시간이 갈수록 천천히 좋아진다
   const ws = [80 - 28 * f, 17 + 13 * f, 2.7 + 11.3 * f, 0.3 + 3.7 * f];
   let g = wpick(ws);
   if (boost) g = Math.max(1, g, wpick(ws));
@@ -661,7 +759,7 @@ function rollPartGrade(boost) {
 }
 function newPart(boost) {
   const g = rollPartGrade(boost);
-  const ids = PART_IDS.filter(id => PARTS[id].min <= g);
+  const ids = (rnd() < CFG.basePartShare ? BASE_PART_IDS : WEAPON_PART_IDS).filter(id => PARTS[id].min <= g);
   return { kind: 'p', id: pick(ids), g };
 }
 function randomWeapon(preferNew) {
@@ -725,6 +823,7 @@ function swapSlots(a, b) {
 function attachPart(invIdx, slot) {
   const it = S.inv[invIdx], w = S.slots[slot];
   if (!it || it.kind !== 'p' || !w) return { ok: false, reason: 'none' };
+  if (PARTS[it.id].base) return { ok: false, reason: 'base' };
   const k = w.parts.indexOf(null);
   if (k < 0) return { ok: false, reason: 'full' };
   w.parts[k] = { id: it.id, g: it.g }; S.inv[invIdx] = null; dirty(w);
@@ -732,17 +831,39 @@ function attachPart(invIdx, slot) {
 }
 function replacePart(invIdx, slot, k) { // 가득 찬 무기의 파츠 하나와 맞바꾼다. 빠진 파츠는 인벤토리의 그 칸으로 간다
   const it = S.inv[invIdx], w = S.slots[slot];
-  if (!it || it.kind !== 'p' || !w || !w.parts[k]) return false;
+  if (!it || it.kind !== 'p' || PARTS[it.id].base || !w || !w.parts[k]) return false;
   const old = w.parts[k];
   w.parts[k] = { id: it.id, g: it.g }; S.inv[invIdx] = { kind: 'p', id: old.id, g: old.g }; dirty(w);
   return true;
 }
 function putPart(invIdx, slot, k) { // 무기의 k번 파츠 칸에 넣는다. 차 있으면 맞바꾼다
   const it = S.inv[invIdx], w = S.slots[slot];
-  if (!it || it.kind !== 'p' || !w) return false;
+  if (!it || it.kind !== 'p' || PARTS[it.id].base || !w) return false;
   if (w.parts[k]) return replacePart(invIdx, slot, k);
   w.parts[k] = { id: it.id, g: it.g }; S.inv[invIdx] = null; dirty(w);
   return true;
+}
+// 기지 파츠: k를 주면 그 칸에(차 있으면 맞바꿈), 안 주면 빈 칸에 넣는다
+function basePut(invIdx, k) {
+  const it = S.inv[invIdx], b = S.base;
+  if (!it || it.kind !== 'p' || !PARTS[it.id].base) return { ok: false, reason: 'none' };
+  if (k == null) { k = b.parts.indexOf(null); if (k < 0) return { ok: false, reason: 'full' }; }
+  const old = b.parts[k];
+  b.parts[k] = { id: it.id, g: it.g };
+  S.inv[invIdx] = old ? { kind: 'p', id: old.id, g: old.g } : null;
+  bdirty();
+  return { ok: true };
+}
+function baseDetach(k) {
+  const b = S.base; if (!b.parts[k]) return false;
+  const i = freeSlot(); if (i < 0) return false;
+  S.inv[i] = { kind: 'p', id: b.parts[k].id, g: b.parts[k].g }; b.parts[k] = null; bdirty();
+  return true;
+}
+function meltAll() { // 인벤토리의 파츠를 전부 녹인다
+  let pts = 0, n = 0;
+  for (let i = 0; i < S.inv.length; i++) if (S.inv[i] && S.inv[i].kind === 'p') { pts += meltPart(i); n++; }
+  return { pts, n };
 }
 function meltPart(i) { // 용해로: 파츠를 녹여 게이지를 얻는다
   const it = S.inv[i]; if (!it || it.kind !== 'p') return 0;
@@ -767,37 +888,49 @@ function detachPart(slot, k) {
 }
 
 /* ---------- 강화와 증강 ---------- */
-function upgradeInfo(w) {
-  const next = w.lv + 1;
-  return { cost: next, rate: Math.min(1, BAL.success(next) + stats(w).luck), have: shardCount(), max: w.lv >= CFG.maxLv };
+function upgradeInfo(t) { // t: 무기 또는 기지
+  const next = t.lv + 1;
+  return { cost: next, rate: Math.min(1, BAL.success(next) + bstats().luck), have: shardCount(), max: t.lv >= CFG.maxLv };
+}
+function tryUpgrade(t) {
+  const info = upgradeInfo(t);
+  if (info.max) return { ok: false, reason: 'max' };
+  if (info.have < info.cost) return { ok: false, reason: 'shards' };
+  const bs = bstats();
+  const saved = bs.save > 0 && rnd() < bs.save;
+  if (!saved) takeShards(info.cost);
+  return { ok: true, success: rnd() < info.rate, saved };
 }
 function upgrade(slot) {
   const w = S.slots[slot];
   if (!w || S.over || S.pendingAug) return { ok: false, reason: 'busy' };
-  const info = upgradeInfo(w);
-  if (info.max) return { ok: false, reason: 'max' };
-  if (info.have < info.cost) return { ok: false, reason: 'shards' };
-  const st = stats(w);
-  const saved = st.save > 0 && rnd() < st.save;
-  if (!saved) takeShards(info.cost);
-  const success = rnd() < info.rate;
-  if (success) {
+  const r = tryUpgrade(w); if (!r.ok) return r;
+  if (r.success) {
     w.lv++; dirty(w);
     if (w.lv > S.maxLv) S.maxLv = w.lv;
-    if (w.lv % CFG.augEvery === 0) S.pendingAug = { slot, lv: w.lv, options: rollAugs(w) };
+    if (w.lv % CFG.augEvery === 0) S.pendingAug = { slot, lv: w.lv, options: rollAugs(w.augs, AUG_POOL[w.type], w.lv) };
   }
-  return { ok: true, success, saved, lv: w.lv };
+  r.lv = w.lv; return r;
 }
-function rollAugs(w) {
-  const f = w.lv / CFG.maxLv;
+function upgradeBase() {
+  const b = S.base;
+  if (S.over || S.pendingAug) return { ok: false, reason: 'busy' };
+  const r = tryUpgrade(b); if (!r.ok) return r;
+  if (r.success) {
+    b.lv++; bdirty();
+    if (b.lv % CFG.augEvery === 0) S.pendingAug = { base: true, slot: -1, lv: b.lv, options: rollAugs(b.augs, AUG_POOL.base, b.lv) };
+  }
+  r.lv = b.lv; return r;
+}
+function rollAugs(have, pool, lv) {
+  const f = lv / CFG.maxLv;
   const ws = [72 - 32 * f, 23 + 7 * f, 4.5 + 17.5 * f, 0.5 + 7.5 * f];
-  const pool = AUG_POOL[w.type];
   const out = [];
   for (let k = 0; k < 3; k++) {
     let g = wpick(ws), cand = [];
     for (let tries = 0; tries < 4 && !cand.length; tries++) {
       cand = pool.filter(id => AUGS[id].min <= g && !out.some(o => o.id === id) &&
-        !w.augs.some(a => a && a.id === id && a.g >= g));
+        !have.some(a => a && a.id === id && a.g >= g));
       if (!cand.length) g = Math.min(3, g + 1);
     }
     if (!cand.length) cand = pool.filter(id => !out.some(o => o.id === id));
@@ -806,18 +939,20 @@ function rollAugs(w) {
   }
   return out;
 }
+function augTarget(pa) { return pa.base ? S.base : S.slots[pa.slot]; }
 // 반환: {ok} 또는 {ok:false, need:'replace'} (칸이 가득 차서 교체할 칸을 골라야 함)
 function chooseAug(i, replaceIdx) {
   const pa = S.pendingAug; if (!pa) return { ok: false };
-  const w = S.slots[pa.slot], opt = pa.options[i];
-  if (!w || !opt) { S.pendingAug = null; return { ok: false }; }
-  let k = w.augs.findIndex(a => a && a.id === opt.id);
-  if (k < 0) k = w.augs.indexOf(null);
+  const t = augTarget(pa), opt = pa.options[i];
+  if (!t || !opt) { S.pendingAug = null; return { ok: false }; }
+  let k = t.augs.findIndex(a => a && a.id === opt.id);
+  if (k < 0) k = t.augs.indexOf(null);
   if (k < 0) {
     if (replaceIdx == null || replaceIdx < 0 || replaceIdx > 2) return { ok: false, need: 'replace' };
     k = replaceIdx;
   }
-  w.augs[k] = { id: opt.id, g: opt.g }; dirty(w);
+  t.augs[k] = { id: opt.id, g: opt.g };
+  if (pa.base) bdirty(); else dirty(t);
   S.pendingAug = null;
   return { ok: true };
 }
@@ -870,11 +1005,12 @@ function kill(e, st) {
   if (e.dead) return;
   e.dead = true; S.kills++;
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
-  S.gold += e.gold * (1 + (st ? st.goldPct : 0));
-  if (st && st.heal && S.hp < S.maxHp && rnd() < st.heal) S.hp = Math.min(S.maxHp, S.hp + 1);
+  const bs = bstats();
+  S.gold += e.gold * (1 + (st ? st.goldPct : 0) + bs.goldAll);
+  if (bs.heal && S.hp < S.maxHp && rnd() < bs.heal) S.hp = Math.min(S.maxHp, S.hp + 1);
   fx({ k: 'pop', d: 0.25, x: e.x, y: e.y, r: e.r, boss: e.boss });
   snd(e.boss ? 'bosskill' : 'kill');
-  if (st && st.magnet && rnd() < st.magnet) {
+  if (bs.magnet && rnd() < bs.magnet) {
     const n = Math.max(1, Math.round(BAL.bundle(genCost()) * 0.06));
     if (addShards(n) < n) { fxNum(e.x, e.y, n, 3); S.invDirty = true; }
   }
@@ -928,6 +1064,7 @@ function hit(e, amt, st, noSplash) {
     if (e.boss) { e.slowT = Math.max(e.slowT, 1); e.slowPct = Math.max(e.slowPct, 0.4); }
     else { e.stunT = Math.max(e.stunT, st.freeze); e.ice = true; }
   }
+  if (S.fx.length < 150) S.fx.push({ k: 'spark', d: 0.16, t: 0.16, x: e.x + (rnd() - 0.5) * e.r, y: e.y + (rnd() - 0.5) * e.r, c: st.color });
   e.nAcc = (e.nAcc || 0) + d; if (crit) e.nCrit = true;
   if (e.hp <= 0 || S.t - (e.nT || -1) >= 0.2) flushNum(e);
   const ex = e.x, ey = e.y;
@@ -1236,6 +1373,50 @@ function step(dt) {
     }
   }
 
+  // 기지의 자동 효과
+  const bs = bstats(), B = S.base;
+  if (bs.regen && S.hp < S.maxHp) { B.rg += bs.regen * dt; while (B.rg >= 1) { B.rg -= 1; S.hp = Math.min(S.maxHp, S.hp + 1); } }
+  if (bs.turret) {                           // 방어 포탑
+    B.tt -= dt;
+    if (B.tt <= 0) {
+      let t = null;
+      for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && (!t || e.y > t.y)) t = e;
+      if (t) {
+        bullet(W / 2, H - 6, Math.atan2(t.x - W / 2, H - 6 - t.y), bestDps() * bs.turret * 0.5, bs.st, H + 150, { pierce: 0, rico: 0, split: 0, r: 6 });
+        snd('blaster'); B.tt = 0.5;
+      } else B.tt = 0.1;
+    }
+  }
+  if (bs.fence) {                            // 전기 울타리
+    const dps = bestDps() * bs.fence;
+    for (let i = 0, n = S.enemies.length; i < n; i++) { const e = S.enemies[i]; if (!e.dead && e.y + e.r > H * 0.86) dot(e, dps * dt, bs.st); }
+  }
+  if (bs.wave) {                             // 빙결 파동
+    B.wv += dt;
+    if (B.wv >= bs.wave && S.enemies.some(e => !e.dead && e.y + e.r > 0)) {
+      B.wv = 0;
+      for (const e of S.enemies) {
+        if (e.dead || e.y + e.r <= 0) continue;
+        if (e.boss) { e.slowT = Math.max(e.slowT, 1.5); e.slowPct = Math.max(e.slowPct, 0.4); }
+        else { e.stunT = Math.max(e.stunT, 1.5); e.ice = true; }
+      }
+      fx({ k: 'ring', d: 0.7, x: W / 2, y: H, r: Math.hypot(W / 2, H) * 1.05, c: '#8fe3ff', fat: 1 });
+      snd('pulse');
+    }
+  }
+  if (B.bc > 0) B.bc -= dt;
+  if (bs.bomb && B.bc <= 0 && S.hp / S.maxHp < bs.bomb / 100 && S.enemies.length) {   // 비상 폭격
+    B.bc = 60;
+    const bd = bestDps() * 8;
+    fx({ k: 'flash', d: 0.3 });
+    for (let i = 0, n = S.enemies.length; i < n; i++) {
+      const e = S.enemies[i]; if (e.dead || e.y + e.r <= 0) continue;
+      fx({ k: 'boom', d: 0.4, x: e.x, y: e.y, r: 60, c: '#ffffff' });
+      hit(e, bd, bs.st, true);
+    }
+    snd('bosskill');
+  }
+
   // 적 이동
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i]; if (e.dead) continue;
@@ -1244,15 +1425,24 @@ function step(dt) {
     if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0) e.ice = false; continue; }
     let sp = e.speed;
     if (e.slowT > 0) { e.slowT -= dt; sp *= 1 - e.slowPct; if (e.slowT <= 0) e.slowPct = 0; }
+    if (bs.nearSlow && e.y > H * 0.75) sp *= 1 - (e.boss ? bs.nearSlow * 0.5 : bs.nearSlow);
     e.y += sp * H * dt;
     if (e.y + e.r * 0.3 >= H) {
       e.dead = true;
-      let red = 0;
-      for (const w of S.slots) if (w) red += stats(w).shield;
-      const dmg = Math.round(e.leak * (1 - Math.min(0.6, red)) * 10) / 10;
+      const dmg = Math.round(e.leak * (1 - bs.shield) * 10) / 10;
       S.hp -= dmg; S.hitFlash = 0.3;
       fx({ k: 'leak', d: 0.5, x: e.x, n: dmg });
       snd('leak');
+      if (bs.shock) {                        // 충격 방벽
+        const R = 230, bd = bestDps();
+        fx({ k: 'ring', d: 0.45, x: e.x, y: H, r: R, c: '#7af0c1', fat: 1 });
+        for (let j = 0; j < n; j++) {
+          const o = S.enemies[j];
+          if (o.dead || Math.hypot(o.x - e.x, o.y - H) > R + o.r * 0.5) continue;
+          o.y = Math.max(-o.r, o.y - (o.boss ? bs.shock * 0.4 : bs.shock));
+          hit(o, bd, bs.st, true);
+        }
+      }
     }
   }
 
@@ -1268,14 +1458,25 @@ function step(dt) {
   // 보스 보상은 빈 칸이 생길 때 들어온다
   while (S.drops.length && freeSlot() >= 0) { S.inv[freeSlot()] = S.drops.shift(); S.newDrop = true; S.invDirty = true; }
 
-  if (S.hp <= 0) { S.hp = 0; S.over = true; }
+  if (S.hp <= 0) {
+    const k = B.parts.findIndex(p => p && p.id === 'barrier');
+    if (k >= 0) {                            // 비상 방벽: 한 번 막고 사라진다
+      const v = PARTS.barrier.v[B.parts[k].g];
+      B.parts[k] = null; bdirty();
+      S.hp = Math.max(1, Math.round(S.maxHp * v / 100));
+      for (const e of S.enemies) if (!e.dead && !e.boss && e.y > H * 0.5) e.y -= H * 0.3;
+      fx({ k: 'flash', d: 0.4 }); fx({ k: 'ring', d: 0.7, x: W / 2, y: H, r: H * 0.8, c: '#7af0c1', fat: 1 });
+      snd('bosskill'); S.revived = true; S.invDirty = true;
+    } else { S.hp = 0; S.over = true; }
+  }
 }
 
 const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots,
-  attachPart, replacePart, putPart, meltPart, craftPart, detachPart, orbPos, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, freeSlot,
+  attachPart, replacePart, putPart, meltPart, meltAll, craftPart, detachPart, orbPos,
+  bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, freeSlot,
   partDesc, augDesc, newWeapon,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
@@ -1284,7 +1485,7 @@ else root.Core = Core;
 
 </script>
 <script>
-/* 도형 방어선: 화면과 조작 */
+/* 도형 디펜스: 화면과 조작 */
 (function () {
 'use strict';
 const C = window.Core;
@@ -1292,6 +1493,7 @@ const $ = (s) => document.querySelector(s);
 const cv = $('#field'), ctx = cv.getContext('2d'), wrap = $('#fieldWrap');
 const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
 const fxLayer = document.createElement('div'); fxLayer.id = 'fxLayer'; $('#app').appendChild(fxLayer);
+const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.appendChild(toastEl);   // 알림은 전장 아래쪽에 잠깐 뜬다
 const GR = C.GRADES;
 const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];
 const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d' };
@@ -1300,7 +1502,8 @@ const BEST_KEY = 'shape-defense-best';
 let mode = 'start';            // start | play | pause | over
 let sel = null;                // 고른 것: {from:'inv', i} 또는 {from:'slot', k}
 let wmodal = -1, wpick = -1;   // 무기 창이 열린 칸, 그 안에서 파츠를 고르는 중인 칸
-let meltMode = false, meltArm = -1;   // 용해로 모드, 한 번 눌러 둔 고등급 파츠
+let bmodal = false;            // 기지 창
+let meltMode = false, meltArm = -1, meltAllArm = false;   // 용해로 모드, 한 번 눌러 둔 고등급 파츠, 모두 분해 확인
 let augArm = '';               // 한 번 눌러 둔 증강 선택 (두 번 눌러야 적용)
 let lastUp = null;             // 무기 창 안의 강화 결과 표시
 let confirmDrop = false;
@@ -1401,8 +1604,8 @@ function fmt(n) {
 }
 function fmtDmg(n) {
   if (n >= 1e8) return (n / 1e8).toFixed(1) + '억';
-  if (n >= 1e4) return (n / 1e4).toFixed(1) + '만';
-  return n >= 10 ? String(Math.round(n)) : n.toFixed(1);
+  if (n >= 1e5) return Math.round(n / 1e4) + '만';
+  return String(Math.max(1, Math.round(n)));   // 소수점 없이
 }
 function fmtInt(n) { n = Math.floor(n); return n >= 1e5 ? fmt(n) : String(n); }
 const rgbaCache = {};
@@ -1412,7 +1615,10 @@ function rgba(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return (rgbaCache[k] = `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`);
 }
-function say(text, warn) { msg = text; msgWarn = !!warn; msgUntil = performance.now() + 2400; updateInfo(); }
+function say(text, warn) {
+  msg = text; msgWarn = !!warn; msgUntil = performance.now() + 2400;
+  toastEl.innerHTML = text; toastEl.classList.toggle('warn', !!warn); toastEl.classList.add('show');
+}
 
 function icon(type, size) {
   const c = C.WEAPONS[type].color;
@@ -1423,7 +1629,7 @@ function icon(type, size) {
     case 'shotgun': p = `<polygon points="3,5 21,5 15,21 9,21" ${a}/><path d="M8.5 5l1.8 16M15.5 5l-1.8 16" stroke="${c}" stroke-width="1.2"/>`; break;
     case 'laser': p = `<rect x="9" y="2" width="6" height="20" rx="1" ${a}/><path d="M12 5.5v13" stroke="${c}" stroke-width="1.6"/>`; break;
     case 'pulse': p = `<circle cx="12" cy="12" r="9.5" ${a}/><circle cx="12" cy="12" r="4" fill="${c}"/>`; break;
-    case 'mortar': p = `<path d="M3 21a9 9 0 0 1 18 0z" ${a}/><circle cx="12" cy="6" r="3.4" fill="${c}"/>`; break;
+    case 'mortar': p = `<polygon points="6.5,19.5 13.5,4 18,6 11,21" ${a}/><path d="M3 21.5h18M14.5 12l5 9.5" stroke="${c}" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.5" cy="2.8" r="1.6" fill="${c}"/>`; break;
     case 'tesla': p = `<polygon points="14,2 5,13.5 11,13.5 9,22 19,9.5 13,9.5" ${a}/>`; break;
   }
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${p}</svg>`;
@@ -1442,9 +1648,6 @@ const PICON = {
   gold: `<path d="M12 2l10 10-10 10L2 12z"/><path d="M12 8l4 4-4 4-4-4z" ${FILL}/>`,
   exec: '<path d="M5 5h14l-7 15z"/><path d="M3 5h18"/>',
   first: '<path d="M2 12h12M10 7l5 5-5 5"/><path d="M20 4v16"/>',
-  heal: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
-  luck: '<circle cx="8" cy="8" r="3.5"/><circle cx="16" cy="8" r="3.5"/><circle cx="8" cy="16" r="3.5"/><circle cx="16" cy="16" r="3.5"/>',
-  save: '<path d="M19.5 9A8 8 0 1 0 20 14"/><path d="M20 3v6h-6"/>',
   dbl: '<path d="M7 3c2 2 2.5 4 2.5 7v10h-5V10c0-3 .5-5 2.5-7zM17 3c2 2 2.5 4 2.5 7v10h-5V10c0-3 .5-5 2.5-7z"/>',
   core: `<path d="M12 2l8.5 5v10L12 22l-8.5-5V7z"/><circle cx="12" cy="12" r="3.2" ${FILL}/>`,
   heavy: '<path d="M7 9h10l3 12H4z"/><path d="M9 9a3 3 0 0 1 6 0"/>',
@@ -1455,17 +1658,37 @@ const PICON = {
   big: `<circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="4" ${FILL}/>`,
   ember: '<path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-4 3-6 1 2 2 2 3-6z"/>',
   gamble: `<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" ${FILL}/><circle cx="15.5" cy="15.5" r="1.5" ${FILL}/><circle cx="12" cy="12" r="1.5" ${FILL}/><circle cx="15.5" cy="8.5" r="1.5" ${FILL}/><circle cx="8.5" cy="15.5" r="1.5" ${FILL}/>`,
-  shield: '<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>',
-  magnet: '<path d="M6 3v9a6 6 0 0 0 12 0V3h-4v9a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>',
   ramp: '<path d="M3 17a9 9 0 0 1 18 0"/><path d="M12 17l5-7"/><path d="M3 21h18"/>',
+  // 기지 파츠
+  shield: '<path d="M12 3l7 3v5c0 4.500-3 7.500-7 9.500-4-2-7-5-7-9.500V6z"/>',
+  armor: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M12 4v16"/>',
+  drone: '<circle cx="12" cy="14" r="4.5"/><path d="M2 6h8M14 6h8M6 6l3.5 5M18 6l-3.5 5"/>',
+  heal: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
+  wire: '<path d="M2 12h20M6 7l4 10M10 7L6 17M14 7l4 10M18 7l-4 10"/>',
+  luck: '<circle cx="8" cy="8" r="3.5"/><circle cx="16" cy="8" r="3.5"/><circle cx="8" cy="16" r="3.5"/><circle cx="16" cy="16" r="3.5"/>',
+  save: '<path d="M19.5 9A8 8 0 1 0 20 14"/><path d="M20 3v6h-6"/>',
+  magnet: '<path d="M6 3v9a6 6 0 0 0 12 0V3h-4v9a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>',
+  depot: '<rect x="3" y="5" width="18" height="15" rx="1"/><path d="M3 10h18M9 5v15M15 5v15"/>',
+  command: `<path d="M12 22V9M7 22h10"/><circle cx="12" cy="6" r="2.2" ${FILL}/><path d="M6 2a8 8 0 0 0 0 8M18 2a8 8 0 0 1 0 8"/>`,
+  radar: `<path d="M4 20A16 16 0 0 1 20 4"/><path d="M4 20a9 9 0 0 1 9-9"/><path d="M4 20l9-9"/><circle cx="4" cy="20" r="1.8" ${FILL}/>`,
+  barrier: '<path d="M3 21V9l9-6 9 6v12z"/><path d="M3 15h18M9 15v6M15 15v6M12 9v6"/>',
 };
+const SVG_ATTR = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+// 무기 파츠는 그림 그대로, 기지 파츠는 방패 모양 테두리 안에 그려 구분한다
 function partIcon(id, size) {
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PICON[id] || ''}</svg>`;
+  const body = PICON[id] || '';
+  if (C.PARTS[id] && C.PARTS[id].base) {
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${SVG_ATTR}><path d="M12 1.2l9.6 3.4v6.6c0 5.700-4 9.700-9.600 11.600C6.400 20.900 2.400 16.900 2.400 11.200V4.600z" stroke-width="1.5" fill="currentColor" fill-opacity=".13"/><g transform="translate(12 11.200) scale(.54) translate(-12 -12)" stroke-width="2.800">${body}</g></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${SVG_ATTR}>${body}</svg>`;
 }
-const FLAME = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-4 3-6 1 2 2 2 3-6z"/></svg>';
+const FLAME = `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_ATTR}><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-4 3-6 1 2 2 2 3-6z"/></svg>`;
+const BASEICON = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${SVG_ATTR}><path d="M3 21V10l4-3v4l5-4 5 4V7l4 3v11z"/><path d="M10 21v-5h4v5"/></svg>`;
+const isBasePart = (it) => !!it && it.kind === 'p' && !!C.PARTS[it.id].base;
 function partLine(p) { return `<b class="g${p.g}">[${GR[p.g]}] ${C.PARTS[p.id].name}</b> ${C.partDesc(p)}`; }
+function picHtml(p) { return `<span class="pic g${p.g}${C.PARTS[p.id].base ? ' bp' : ''}">${partIcon(p.id, 26)}</span>`; }
 function partRow(p, attr) {
-  return `<button type="button" class="prow g${p.g}" ${attr}><span class="pic g${p.g}">${partIcon(p.id, 26)}</span><span class="chip g${p.g}">${GR[p.g]}</span><span class="nm">${C.PARTS[p.id].name}</span><span class="ds">${C.partDesc(p)}</span></button>`;
+  return `<button type="button" class="prow g${p.g}" ${attr}>${picHtml(p)}<span class="chip g${p.g}">${GR[p.g]}</span><span class="nm">${C.PARTS[p.id].name}</span><span class="ds">${C.partDesc(p)}</span></button>`;
 }
 
 /* ---------- 무기 칸 ---------- */
@@ -1474,11 +1697,12 @@ function renderWeapons() {
   if (drag) { needRender = true; return; }
   const picked = sel && sel.from === 'inv' ? S.inv[sel.i] : null;
   const upmode = !!picked && picked.kind === 's';
+  const target = !!picked && !upmode && !isBasePart(picked);
   let h = '';
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k];
     const mine = sel && sel.from === 'slot' && sel.k === k;
-    const cls = 'slot' + (w ? '' : ' empty') + (mine ? ' sel' : '') + (picked && !upmode && (picked.kind === 'w' || w) ? ' tg' : '');
+    const cls = 'slot' + (w ? '' : ' empty') + (mine ? ' sel' : '') + (target && (picked.kind === 'w' || w) ? ' tg' : '');
     h += `<button type="button" class="${cls}" data-slot="${k}" aria-label="무기 칸 ${k + 1}">`;
     if (w) {
       h += icon(w.type, 26) + `<b class="lv">+${w.lv}</b><span class="pips">` +
@@ -1492,57 +1716,62 @@ function renderWeapons() {
   elW.innerHTML = h;
   elW.classList.toggle('upmode', upmode);     // 강화 조각을 고른 상태를 눈으로 알 수 있게
 }
-// 강화 결과 연출: 다시 그려도 지워지지 않도록 별도 층에 올린다
-function slotBurst(k, ok, text) {
-  const el = elW.querySelector(`[data-slot="${k}"]`), app = $('#app'); if (!el) return;
-  const r = el.getBoundingClientRect(), a = app.getBoundingClientRect();
+// 강화 결과 연출: 글자 없이 효과 위주. 성공하면 빛과 고리, 불꽃, 그리고 위로 올라가는 강화 단계. 실패하면 붉게 흔들리며 X 표시
+function burstAt(el, ok, lv) {
+  if (!el) return;
+  const app = $('#app'), r = el.getBoundingClientRect(), a = app.getBoundingClientRect();
   const d = document.createElement('div');
-  d.className = 'upfx ' + (ok ? 'ok' : 'no') + (k === 0 ? ' edge-l' : k === C.LANES - 1 ? ' edge-r' : '');
+  const cx = r.left - a.left + r.width / 2;
+  d.className = 'upfx ' + (ok ? 'ok' : 'no') + (cx < 60 ? ' edge-l' : cx > a.width - 60 ? ' edge-r' : '');
   d.style.left = (r.left - a.left) + 'px'; d.style.top = (r.top - a.top) + 'px';
   d.style.width = r.width + 'px'; d.style.height = r.height + 'px';
-  let sparks = '';
-  if (ok) for (let i = 0; i < 10; i++) {
-    const an = i / 10 * Math.PI * 2, dist = 34 + Math.random() * 22;
-    sparks += `<s style="--dx:${(Math.cos(an) * dist).toFixed(0)}px;--dy:${(Math.sin(an) * dist).toFixed(0)}px"></s>`;
-  }
-  d.innerHTML = `<i class="glow"></i><i class="ring"></i><b>${text}</b>${sparks}`;
+  let inner = '<i class="glow"></i>';
+  if (ok) {
+    inner += `<i class="ring"></i><b>+${lv}</b>`;
+    for (let i = 0; i < 10; i++) {
+      const an = i / 10 * Math.PI * 2, dist = 34 + Math.random() * 22;
+      inner += `<s style="--dx:${(Math.cos(an) * dist).toFixed(0)}px;--dy:${(Math.sin(an) * dist).toFixed(0)}px"></s>`;
+    }
+  } else inner += '<u></u>';
+  d.innerHTML = inner;
   while (fxLayer.children.length > 5) fxLayer.firstChild.remove();
   fxLayer.appendChild(d);
-  setTimeout(() => d.remove(), 1100);
+  setTimeout(() => d.remove(), 1000);
 }
 
 /* ---------- 하단 인벤토리 ---------- */
 function itemInfo(it) {
   if (it.kind === 'w') { const d = C.WEAPONS[it.type]; return `<b style="color:${d.color}">${d.name} +${it.lv}</b> ${d.desc}`; }
-  if (it.kind === 'p') return partLine(it);
+  if (it.kind === 'p') return (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it);
   return `<b>강화 조각 ${it.n}개</b> 무기 칸을 누를 때마다 한 번씩 강화합니다.`;
 }
+function bupText(u) { return u.max ? '최대' : `필요 ${u.cost} · ${Math.round(u.rate * 100)}%`; }
+// 설명 줄. 아무것도 고르지 않았을 때는 기지 파츠, 기지 강화 버튼이 들어간다
 function infoHtml() {
   const S = C.S;
   if (meltMode) {
     const pct = Math.min(100, (S.melt || 0) / C.CFG.craftCost * 100);
-    return `<span class="gbar"><i style="width:${pct}%"></i></span>` +
-      (msg || `<b>용해로 게이지 ${S.melt || 0}</b> 녹일 파츠를 누르세요. 게이지 ${C.CFG.craftCost}으로 희귀 이상 파츠를 제조합니다.`);
+    return `<span class="gbar"><i style="width:${pct}%"></i></span><b>게이지 ${S.melt || 0}/${C.CFG.craftCost}</b> 파츠를 누르면 녹입니다. 제조하면 희귀 이상.`;
   }
-  if (msg) return msg;
   if (sel && sel.from === 'inv' && S.inv[sel.i]) return itemInfo(S.inv[sel.i]);
   if (sel && sel.from === 'slot' && S.slots[sel.k]) {
     const w = S.slots[sel.k], d = C.WEAPONS[w.type];
     return `<b style="color:${d.color}">${d.name} +${w.lv}</b> 한 번 더 누르면 무기 창이 열립니다. 자리를 옮기려면 끌어다 놓으세요.`;
   }
-  if (S.drops.length) return `보스 보상 ${S.drops.length}개가 기다리는 중입니다. 인벤토리를 비우면 들어옵니다.`;
-  return '<b>생성</b>으로 무기, 파츠, 강화 조각을 얻으세요. 물건을 누른 다음 무기 칸을 누르거나 끌어다 놓으면 적용됩니다.';
+  const b = S.base, u = C.upgradeInfo(b), n = b.parts.filter(Boolean).length;
+  return `<button type="button" class="bbtn" data-act="bopen">${BASEICON(16)} 기지 파츠 <b>${n}/${C.CFG.baseSlots}</b></button>` +
+    `<button type="button" class="bbtn up${!u.max && u.have >= u.cost ? '' : ' off'}" id="bupBtn" data-act="bup">기지 강화 <b>+${b.lv}</b><small id="bupTxt">${bupText(u)}</small></button>`;
 }
 function updateInfo() {
   const el = elB.querySelector('.info'); if (!el) return;
   el.innerHTML = infoHtml();
-  el.classList.toggle('warn', !!msg && msgWarn);
+  el.classList.toggle('bar', !meltMode && !sel);
 }
 function cellHtml(it, i) {
   let inner = '', cls = 'cell';
   if (!it) cls += ' empty';
   else if (it.kind === 'w') { inner = icon(it.type, 20) + `<b>+${it.lv}</b>`; cls += ' kw'; }
-  else if (it.kind === 'p') { inner = partIcon(it.id, 26); cls += ' kp g' + it.g; }
+  else if (it.kind === 'p') { inner = partIcon(it.id, 26); cls += ' kp g' + it.g + (isBasePart(it) ? ' kb' : ''); }
   else { inner = SHARD + `<b>${it.n}</b>`; cls += ' ks'; }
   if (meltMode) cls += it && it.kind === 'p' ? ' meltable' : ' dim';
   if (meltMode ? meltArm === i : sel && sel.from === 'inv' && sel.i === i) cls += ' sel';
@@ -1551,27 +1780,30 @@ function cellHtml(it, i) {
 }
 function invHtml() {
   const S = C.S;
-  let acts, two = false;
+  let acts, cols = '';
   if (meltMode) {
-    two = true;
-    acts = `<button type="button" class="btn primary${(S.melt || 0) >= C.CFG.craftCost ? '' : ' off'}" data-act="craft">제조 <small>게이지 ${C.CFG.craftCost} 소모</small></button>
+    cols = ' three';
+    acts = `<button type="button" class="btn primary${(S.melt || 0) >= C.CFG.craftCost ? '' : ' off'}" data-act="craft">제조 <small>게이지 ${C.CFG.craftCost}</small></button>
+      <button type="button" class="btn${meltAllArm ? ' danger' : ''}" data-act="meltAll">${meltAllArm ? '정말 모두 분해' : '모두 분해'}</button>
       <button type="button" class="btn" data-act="meltOff">닫기</button>`;
   } else if (!sel) {
-    two = true;
+    cols = ' two';
     const canGen = S.gold >= C.genCost() && C.freeSlot() >= 0;
-    acts = `<button type="button" class="btn primary${canGen ? '' : ' off'}" id="genBtn" data-act="gen">생성 <b id="genCost">◆ ${C.genCost()}</b></button>
+    acts = `<button type="button" class="btn primary gen${canGen ? '' : ' off'}" id="genBtn" data-act="gen"><span>생성</span><span class="gc"><b id="genHave">◆ ${fmtInt(S.gold)}</b><small id="genCost">비용 ${C.genCost()}</small></span></button>
       <button type="button" class="btn melt${(S.melt || 0) >= C.CFG.craftCost ? ' ready' : ''}" data-act="meltOn">${FLAME} 용해로 <b>${S.melt || 0}</b></button>`;
   } else if (sel.from === 'inv') {
-    acts = `<button type="button" class="btn${confirmDrop ? ' danger' : ''}" data-act="drop">${confirmDrop ? '정말 버리기' : '버리기'}</button>`;
+    const drop = `<button type="button" class="btn${confirmDrop ? ' danger' : ''}" data-act="drop">${confirmDrop ? '정말 버리기' : '버리기'}</button>`;
+    if (isBasePart(S.inv[sel.i])) { cols = ' two'; acts = '<button type="button" class="btn primary" data-act="bequip">기지에 장착</button>' + drop; }
+    else acts = drop;
   } else {
     acts = '<button type="button" class="btn" data-act="wopen">무기 창 열기</button>';
   }
   return `<div class="info"></div>
     <div class="inv${meltMode ? ' melting' : ''}">${S.inv.map(cellHtml).join('')}</div>
-    <div class="acts${two ? ' two' : ''}">${acts}</div>`;
+    <div class="acts${cols}">${acts}</div>`;
 }
-function upText(w) {
-  const u = C.upgradeInfo(w);
+function upText(t) {
+  const u = C.upgradeInfo(t);
   return u.max ? '최대 강화' : `필요 ${u.cost} · 보유 ${fmtInt(u.have)} · 성공 ${Math.round(u.rate * 100)}%`;
 }
 function renderBottom() {
@@ -1583,37 +1815,53 @@ function renderBottom() {
   updateInfo();
 }
 function renderAll() { renderWeapons(); renderBottom(); renderOverlay(); }
-// 0.25초마다 가벼운 갱신 (버튼 상태와 안내 문구만)
+// 자주 바뀌는 숫자만 가볍게 갱신 (버튼을 새로 만들지 않아 누르는 도중에 끊기지 않는다)
 function lightUpdate() {
   const S = C.S; if (!S) return;
-  if (msg && performance.now() > msgUntil) { msg = ''; updateInfo(); updateWInfo(); }
+  if (msg && performance.now() > msgUntil) { msg = ''; toastEl.classList.remove('show'); updateWInfo(); }
   const g = $('#genBtn');
   if (g) {
     g.classList.toggle('off', !(S.gold >= C.genCost() && C.freeSlot() >= 0));
-    const c = $('#genCost'), t = '◆ ' + C.genCost(); if (c.textContent !== t) c.textContent = t;
+    const h = $('#genHave'), ht = '◆ ' + fmtInt(S.gold); if (h.textContent !== ht) h.textContent = ht;
+    const c = $('#genCost'), t = '비용 ' + C.genCost(); if (c.textContent !== t) c.textContent = t;
+  }
+  const bu = $('#bupBtn');
+  if (bu) {
+    const u = C.upgradeInfo(S.base), t = bupText(u), el = $('#bupTxt');
+    if (el.textContent !== t) el.textContent = t;
+    bu.classList.toggle('off', u.max || u.have < u.cost);
   }
 }
 
-/* ---------- 무기 창 ---------- */
-function wInfoHtml(w) {
+/* ---------- 무기 창과 기지 창 ---------- */
+function wInfoHtml(text) {
   if (msg) return `<span class="${msgWarn ? 'warn' : ''}">${msg}</span>`;
-  return `<span>${C.WEAPONS[w.type].desc}. 파츠 칸을 누르면 바꾸거나 새로 장착합니다.</span>`;
+  return `<span>${text}</span>`;
+}
+function modalInfoText() {
+  const S = C.S;
+  if (bmodal) return '기지 파츠 칸을 누르면 바꾸거나 새로 장착합니다. 기지 파츠의 효과는 모든 무기와 기지에 적용됩니다.';
+  const w = S.slots[wmodal];
+  return w ? C.WEAPONS[w.type].desc + '. 파츠 칸을 누르면 바꾸거나 새로 장착합니다.' : '';
 }
 function updateWInfo() {
-  const el = $('#wmInfo'), S = C.S;
-  if (el && S && wmodal >= 0 && S.slots[wmodal]) el.innerHTML = wInfoHtml(S.slots[wmodal]);
+  const el = $('#wmInfo');
+  if (el && C.S && (wmodal >= 0 || bmodal)) el.innerHTML = wInfoHtml(modalInfoText());
 }
+function augRows(augs) {
+  return augs.map(a => a
+    ? `<div class="arow g${a.g}"><span class="chip g${a.g}">${GR[a.g]}</span><b>${C.AUGS[a.id].name}</b><span class="ds">${C.augDesc(a)}</span></div>`
+    : '<div class="arow empty">증강</div>').join('');
+}
+function partNodes(parts, pre) {
+  return parts.map((p, k) => p
+    ? `<button type="button" class="pt ${pre}${k} g${p.g}" data-wpart="${k}">${partIcon(p.id, 22)}<small>${C.PARTS[p.id].name}</small></button>`
+    : `<button type="button" class="pt ${pre}${k} empty" data-wpart="${k}">파츠</button>`).join('');
+}
+function coreCls() { return lastUp && performance.now() - lastUp.at < 900 ? (lastUp.ok ? ' up-ok' : ' up-no') : ''; }
 function wmHtml(w) {
   const S = C.S, st = C.stats(w), d = C.WEAPONS[w.type], u = C.upgradeInfo(w);
   const dealt = w.dealt || 0, share = S.dealt > 0 ? Math.round(dealt / S.dealt * 100) : 0;
-  const fresh = lastUp && performance.now() - lastUp.at < 900;
-  const pop = fresh ? `<span class="pop ${lastUp.ok ? 'ok' : 'no'}">${lastUp.text}</span>` : '';
-  const parts = w.parts.map((p, k) => p
-    ? `<button type="button" class="pt p${k} g${p.g}" data-wpart="${k}">${partIcon(p.id, 22)}<small>${C.PARTS[p.id].name}</small></button>`
-    : `<button type="button" class="pt p${k} empty" data-wpart="${k}">파츠</button>`).join('');
-  const augs = w.augs.map(a => a
-    ? `<div class="arow g${a.g}"><span class="chip g${a.g}">${GR[a.g]}</span><b>${C.AUGS[a.id].name}</b><span class="ds">${C.augDesc(a)}</span></div>`
-    : '<div class="arow empty">증강</div>').join('');
   return `<div class="modal wm">
     <div class="wm-head">
       <div><span class="nm" style="color:${d.color}">${d.name} +${w.lv}</span>
@@ -1625,32 +1873,76 @@ function wmHtml(w) {
       <svg class="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path d="M50 54L50 16M50 54L17 84M50 54L83 84" fill="none" stroke="${d.color}" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
       </svg>
-      <div class="core${fresh ? (lastUp.ok ? ' up-ok' : ' up-no') : ''}" style="border-color:${d.color}">${icon(w.type, 46)}<b>+${w.lv}</b>${pop}</div>
-      ${parts}
+      <div class="core${coreCls()}" style="border-color:${d.color}">${icon(w.type, 46)}<b>+${w.lv}</b></div>
+      ${partNodes(w.parts, 'p')}
     </div>
-    <div class="wm-info" id="wmInfo">${wInfoHtml(w)}</div>
+    <div class="wm-info" id="wmInfo">${wInfoHtml(modalInfoText())}</div>
     <div class="wm-sec">증강</div>
-    <div class="wm-augs">${augs}</div>
+    <div class="wm-augs">${augRows(w.augs)}</div>
     <div class="rec"><div><small>처치</small><b>${fmtInt(w.kills || 0)}</b></div><div><small>누적 피해</small><b>${fmt(dealt)}</b></div><div><small>전체 피해 중</small><b>${share}%</b></div></div>
     <div class="d-acts">
       <button type="button" class="btn primary${!u.max && u.have >= u.cost ? '' : ' off'}" data-act="wup">강화 <small>${upText(w)}</small></button>
       <button type="button" class="btn" data-act="wunequip">장착 해제</button>
     </div></div>`;
 }
-// 무기 창에서 파츠 칸을 눌렀을 때: 인벤토리의 파츠로 바로 바꾸거나 새로 장착
-function wpickHtml(w, k) {
-  const S = C.S, d = C.WEAPONS[w.type], cur = w.parts[k];
-  const rows = S.inv.map((it, i) => it && it.kind === 'p' ? partRow(it, `data-wput="${i}"`) : '').join('');
+function bmHtml() {
+  const S = C.S, b = S.base, bs = C.bstats(), u = C.upgradeInfo(b);
+  const extra = [];
+  if (bs.shield) extra.push(`받는 피해 -${Math.round(bs.shield * 100)}%`);
+  if (bs.regen) extra.push(`${(1 / bs.regen).toFixed(1)}초마다 회복`);
+  if (bs.luck) extra.push(`강화 성공 +${Math.round(bs.luck * 100)}%p`);
+  return `<div class="modal wm bm">
+    <div class="wm-head">
+      <div><span class="nm bcol">기지 +${b.lv}</span>
+      <span class="st">최대 체력 ${bs.maxHp}${extra.length ? ' · ' + extra.join(' · ') : ''}</span></div>
+      <button type="button" class="x" data-act="wclose">닫기</button>
+    </div>
+    <div class="schem base">
+      <span class="lab">기지 파츠</span>
+      <svg class="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M50 50L20 16M50 50L80 16M50 50L20 84M50 50L80 84" fill="none" stroke="#7af0c1" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <div class="core bcore${coreCls()}">${BASEICON(44)}<b>+${b.lv}</b></div>
+      ${partNodes(b.parts, 'b')}
+    </div>
+    <div class="wm-info" id="wmInfo">${wInfoHtml(modalInfoText())}</div>
+    <div class="wm-sec">기지 증강</div>
+    <div class="wm-augs">${augRows(b.augs)}</div>
+    <div class="rec"><div><small>체력</small><b>${Math.ceil(S.hp)}/${S.maxHp}</b></div><div><small>기지가 처치</small><b>${fmtInt(b.kills || 0)}</b></div><div><small>기지가 준 피해</small><b>${fmt(b.dealt || 0)}</b></div></div>
+    <div class="d-acts one">
+      <button type="button" class="btn primary${!u.max && u.have >= u.cost ? '' : ' off'}" data-act="bup">강화 <small>${upText(b)} · 단계마다 체력 +${C.CFG.baseHpPerLv}</small></button>
+    </div></div>`;
+}
+// 파츠 고르기 창: 무기 창이나 기지 창에서 파츠 칸을 눌렀을 때
+function wpickHtml(k) {
+  const S = C.S, holder = bmodal ? S.base : S.slots[wmodal], cur = holder.parts[k];
+  const name = bmodal ? `<b class="bcol">기지 +${holder.lv}</b>` : `<b style="color:${C.WEAPONS[holder.type].color}">${C.WEAPONS[holder.type].name} +${holder.lv}</b>`;
+  const rows = S.inv.map((it, i) => it && it.kind === 'p' && isBasePart(it) === bmodal ? partRow(it, `data-wput="${i}"`) : '').join('');
   return `<div class="modal wm">
     <div class="wm-head">
-      <div><span class="nm">파츠 고르기</span><span class="st"><b style="color:${d.color}">${d.name} +${w.lv}</b>의 ${k + 1}번 파츠 칸</span></div>
+      <div><span class="nm">파츠 고르기</span><span class="st">${name}의 ${k + 1}번 파츠 칸</span></div>
       <button type="button" class="x" data-act="wpickBack">뒤로</button>
     </div>
     ${cur ? `<div class="wm-sec">지금 장착한 파츠</div>
-      <div class="curpart g${cur.g}"><span class="pic g${cur.g}">${partIcon(cur.id, 26)}</span><span class="tx">${partLine(cur)}</span><button type="button" class="btn sm" data-act="wdetach">해제</button></div>` : ''}
+      <div class="curpart g${cur.g}">${picHtml(cur)}<span class="tx">${partLine(cur)}</span><button type="button" class="btn sm" data-act="wdetach">해제</button></div>` : ''}
     ${msg ? `<p class="warn">${msg}</p>` : ''}
-    <div class="wm-sec">인벤토리의 파츠 (누르면 ${cur ? '교체' : '장착'})</div>
-    <div class="plist">${rows || '<p>인벤토리에 파츠가 없습니다.</p>'}</div></div>`;
+    <div class="wm-sec">인벤토리의 ${bmodal ? '기지 ' : ''}파츠 (누르면 ${cur ? '교체' : '장착'})</div>
+    <div class="plist">${rows || `<p>인벤토리에 ${bmodal ? '기지 ' : '무기 '}파츠가 없습니다.</p>`}</div></div>`;
+}
+// 파츠 교체 창: 인벤토리의 파츠를 가득 찬 무기나 기지에 넣을 때. 파츠 고르기 창과 같은 양식
+function swapHtml() {
+  const S = C.S, it = S.inv[partSwap.i], isBase = partSwap.k === 'base';
+  const holder = isBase ? S.base : S.slots[partSwap.k];
+  const name = isBase ? `<b class="bcol">기지 +${holder.lv}</b>` : `<b style="color:${C.WEAPONS[holder.type].color}">${C.WEAPONS[holder.type].name} +${holder.lv}</b>`;
+  return `<div class="modal wm">
+    <div class="wm-head">
+      <div><span class="nm">파츠 교체</span><span class="st">${name}의 파츠 칸이 가득 찼습니다</span></div>
+      <button type="button" class="x" data-act="pswapCancel">취소</button>
+    </div>
+    <div class="wm-sec">새로 넣을 파츠</div>
+    <div class="curpart g${it.g}">${picHtml(it)}<span class="tx">${partLine(it)}</span></div>
+    <div class="wm-sec">지금 장착한 파츠 (누르면 교체, 빠진 파츠는 인벤토리로)</div>
+    <div class="plist">${holder.parts.map((p, k) => p ? partRow(p, `data-prep="${k}"`) : '').join('')}</div></div>`;
 }
 
 /* ---------- 겹침 창 ---------- */
@@ -1662,20 +1954,21 @@ function augCard(a, key, i, tag) {
   return `<button type="button" class="aug g${a.g}${armed ? ' armed' : ''}" data-${key}="${i}"><span class="chip g${a.g}">${GR[a.g]}</span><span class="nm">${d.name}</span><span class="ds">${C.augDesc(a)}</span>${armed ? '<span class="tag go">한 번 더 누르면 적용됩니다</span>' : tag ? `<span class="tag">${tag}</span>` : ''}</button>`;
 }
 function augHtml() {
-  const S = C.S, pa = S.pendingAug, w = S.slots[pa.slot], d = C.WEAPONS[w.type];
-  const full = w.augs.every(Boolean);
+  const S = C.S, pa = S.pendingAug, t = pa.base ? S.base : S.slots[pa.slot];
+  const who = pa.base ? `<b class="bcol">기지 +${pa.lv}</b>` : `<b style="color:${C.WEAPONS[t.type].color}">${C.WEAPONS[t.type].name} +${pa.lv}</b>`;
+  const full = t.augs.every(Boolean);
   if (augPick >= 0) {
     const o = pa.options[augPick];
     return `<div class="modal"><h2>교체할 증강 선택</h2>
       <p>새 증강은 <b class="g${o.g}">[${GR[o.g]}] ${C.AUGS[o.id].name}</b>입니다. 고른 증강은 사라집니다.</p>
-      ${w.augs.map((a, k) => augCard(a, 'rep', k)).join('')}
+      ${t.augs.map((a, k) => augCard(a, 'rep', k)).join('')}
       <button type="button" class="btn" data-act="augBack">뒤로</button></div>`;
   }
-  const cur = w.augs.filter(Boolean).map(a => `<b class="g${a.g}">[${GR[a.g]}] ${C.AUGS[a.id].name}</b>`).join(', ');
-  return `<div class="modal"><h2>증강 선택</h2>
-    <p><b style="color:${d.color}">${d.name} +${pa.lv}</b> 달성. 하나를 고르세요. 고르는 동안 게임은 멈춥니다.</p>
+  const cur = t.augs.filter(Boolean).map(a => `<b class="g${a.g}">[${GR[a.g]}] ${C.AUGS[a.id].name}</b>`).join(', ');
+  return `<div class="modal"><h2>${pa.base ? '기지 증강 선택' : '증강 선택'}</h2>
+    <p>${who} 달성. 하나를 고르세요. 고르는 동안 게임은 멈춥니다.</p>
     ${pa.options.map((o, i) => {
-      const same = w.augs.find(a => a && a.id === o.id);
+      const same = t.augs.find(a => a && a.id === o.id);
       const tag = same ? `장착 중인 같은 증강([${GR[same.g]}])을 대체합니다` : full ? '칸이 가득 차서 기존 증강 하나와 교체합니다' : '';
       return augCard(o, 'aug', i, tag);
     }).join('')}
@@ -1686,12 +1979,13 @@ function renderOverlay() {
   const S = C.S;
   let h = '';
   if (mode === 'start') {
-    h = `<div class="modal"><p>도형으로 막는 무한 방어</p><h1>도형 <span>방어선</span></h1>
+    h = `<div class="modal"><p>도형으로 막는 무한 디펜스</p><h1>도형 <span>디펜스</span></h1>
       <ol><li><b>생성</b>을 눌러 무기, 파츠, 강화 조각을 얻습니다.</li>
       <li>물건을 누른 다음 <b>무기 칸</b>을 누르면 장착하거나 강화합니다. 끌어다 놓아도 됩니다.</li>
       <li>장착한 무기의 자리는 <b>끌어서</b> 바꿉니다. 무기를 두 번 누르면 <b>무기 창</b>이 열립니다.</li>
+      <li><b>기지</b>도 파츠를 달고 강화할 수 있습니다. 방패 모양 테두리가 기지 파츠입니다.</li>
       <li>남는 파츠는 <b>용해로</b>에 녹여 새 파츠를 제조합니다.</li>
-      <li>적이 방어선에 닿으면 체력이 줄어듭니다. 0이 되면 끝납니다.</li></ol>
+      <li>적이 기지에 닿으면 체력이 줄어듭니다. 0이 되면 끝납니다.</li></ol>
       ${best ? '<p>최고 기록</p>' + recHtml(best) : '<p>아직 기록이 없습니다.</p>'}
       <button type="button" class="btn primary" data-act="start">시작</button>
       <button type="button" class="btn" data-act="mute">소리: ${Snd.muted ? '꺼짐' : '켜짐'}</button></div>`;
@@ -1701,30 +1995,24 @@ function renderOverlay() {
       <button type="button" class="btn" data-act="mute">소리: ${Snd.muted ? '꺼짐' : '켜짐'}</button>
       <button type="button" class="btn" data-act="restart">처음부터 다시</button></div>`;
   } else if (mode === 'over') {
-    h = `<div class="modal"><h2>방어선이 무너졌습니다</h2>
+    h = `<div class="modal"><h2>기지가 무너졌습니다</h2>
       ${newRec ? '<p class="newrec">최고 기록을 새로 썼습니다.</p>' : '<p>이번 기록</p>'}${recHtml(lastRec)}
       ${best && !newRec ? '<p>최고 기록</p>' + recHtml(best) : ''}
       <button type="button" class="btn primary" data-act="restart">다시 하기</button></div>`;
   } else if (S && S.pendingAug) {
-    if (!S.slots[S.pendingAug.slot]) C.skipAug();
+    if (!S.pendingAug.base && !S.slots[S.pendingAug.slot]) C.skipAug();
     else {
       if (shownAug !== S.pendingAug) { shownAug = S.pendingAug; augOpenAt = performance.now(); augArm = ''; Snd.play('aug'); }
       h = augHtml();
     }
   }
   if (!h && mode === 'play' && S && partSwap) {
-    const it = S.inv[partSwap.i], w = S.slots[partSwap.k];
-    if (!it || it.kind !== 'p' || !w) partSwap = null;
-    else {
-      h = `<div class="modal"><h2>교체할 파츠 선택</h2>
-        <p>이 무기는 파츠 칸이 가득 찼습니다. 새 파츠 ${partLine(it)}와 바꿀 파츠를 고르세요. 빠진 파츠는 인벤토리로 돌아갑니다.</p>
-        ${w.parts.map((p, k) => partRow(p, `data-prep="${k}"`)).join('')}
-        <button type="button" class="btn" data-act="pswapCancel">취소</button></div>`;
-    }
+    const it = S.inv[partSwap.i], holder = partSwap.k === 'base' ? S.base : S.slots[partSwap.k];
+    if (!it || it.kind !== 'p' || !holder) partSwap = null; else h = swapHtml();
   }
-  if (!h && mode === 'play' && S && wmodal >= 0) {
-    const w = S.slots[wmodal];
-    if (w) h = wpick >= 0 ? wpickHtml(w, wpick) : wmHtml(w); else { wmodal = -1; wpick = -1; }
+  if (!h && mode === 'play' && S && (wmodal >= 0 || bmodal)) {
+    if (!bmodal && !S.slots[wmodal]) { wmodal = -1; wpick = -1; }
+    else h = wpick >= 0 ? wpickHtml(wpick) : bmodal ? bmHtml() : wmHtml(S.slots[wmodal]);
   }
   if (h) { elO.innerHTML = h; elO.hidden = false; }
   else { elO.hidden = true; elO.innerHTML = ''; }
@@ -1732,8 +2020,9 @@ function renderOverlay() {
 
 /* ---------- 조작 ---------- */
 function resetUi() {
-  sel = null; partSwap = null; wmodal = -1; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
-  augPick = -1; augArm = ''; newCell = -1; meltMode = false; meltArm = -1;
+  sel = null; partSwap = null; wmodal = -1; bmodal = false; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
+  augPick = -1; augArm = ''; newCell = -1; meltMode = false; meltArm = -1; meltAllArm = false;
+  toastEl.classList.remove('show');
 }
 function startGame() { C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
 function pause() { if (mode === 'play') { mode = 'pause'; renderOverlay(); } }
@@ -1745,37 +2034,59 @@ function gameOver() {
   mode = 'over'; resetUi(); renderAll(); Snd.play('over');
 }
 function askPartSwap(i, k) { partSwap = { i, k }; pswapAt = performance.now(); sel = null; msg = ''; renderAll(); }
-function openW(k) { wmodal = k; wpick = -1; lastUp = null; msg = ''; sel = null; confirmDrop = false; meltMode = false; renderAll(); }
-function closeW() { wmodal = -1; wpick = -1; msg = ''; last = 0; renderAll(); }
+function openW(k) { wmodal = k; bmodal = false; wpick = -1; lastUp = null; msg = ''; sel = null; confirmDrop = false; meltMode = false; renderAll(); }
+function openB() { bmodal = true; wmodal = -1; wpick = -1; lastUp = null; msg = ''; sel = null; confirmDrop = false; meltMode = false; renderAll(); }
+function closeW() { wmodal = -1; bmodal = false; wpick = -1; msg = ''; last = 0; renderAll(); }
+function upgradeFail(r, lv) {
+  if (r.reason === 'shards') say(`강화 조각이 부족합니다. ${lv + 1}개가 필요합니다.`, true);
+  else if (r.reason === 'max') say('이미 최대 강화입니다.', true);
+  updateWInfo();
+}
 function doUpgrade(k) {
   const S = C.S, w = S.slots[k]; if (!w) return;
   const r = C.upgrade(k);
-  if (!r.ok) {
-    if (r.reason === 'shards') say(`강화 조각이 부족합니다. ${w.lv + 1}개가 필요합니다.`, true);
-    else if (r.reason === 'max') say('이미 최대 강화입니다.', true);
-    updateWInfo();
-    return;
-  }
+  if (!r.ok) return upgradeFail(r, w.lv);
   if (sel && sel.from === 'inv' && !S.inv[sel.i]) {
     const j = S.inv.findIndex(x => x && x.kind === 's');
     sel = j >= 0 ? { from: 'inv', i: j } : null;
   }
-  const text = r.success ? '성공 +' + r.lv : (r.saved ? '실패 · 보존' : '실패');
   Snd.play(r.success ? 'ok' : 'fail');
   msg = '';
   renderWeapons(); renderBottom();
-  if (wmodal >= 0) lastUp = { text, ok: r.success, at: performance.now() };
+  if (wmodal >= 0) lastUp = { ok: r.success, at: performance.now() };
   else {
-    slotBurst(k, r.success, text);
+    burstAt(elW.querySelector(`[data-slot="${k}"]`), r.success, r.lv);
     if (r.success && S.fx.length < 200) S.fx.push({ k: 'ring', d: 0.5, t: 0.5, x: (k + 0.5) * C.LW, y: C.H, r: 95, c: '#7af0c1', fat: 1 });
   }
   if (S.pendingAug) augPick = -1;
   renderOverlay();
 }
+function doBaseUpgrade() {
+  const S = C.S, b = S.base;
+  const r = C.upgradeBase();
+  if (!r.ok) return upgradeFail(r, b.lv);
+  Snd.play(r.success ? 'ok' : 'fail');
+  msg = '';
+  renderBottom();
+  if (bmodal) lastUp = { ok: r.success, at: performance.now() };
+  else {
+    burstAt($('#bupBtn'), r.success, r.lv);
+    if (r.success && S.fx.length < 200) S.fx.push({ k: 'ring', d: 0.6, t: 0.6, x: C.W / 2, y: C.H, r: C.W * 0.6, c: '#7af0c1', fat: 1 });
+  }
+  if (S.pendingAug) augPick = -1;
+  renderOverlay();
+}
 const NO_WEAPON = '무기가 없는 칸입니다. 무기가 있는 칸을 누르세요.';
+const BASE_ONLY = '기지 파츠는 무기에 달 수 없습니다. <b>기지에 장착</b>을 누르세요.';
+function equipBasePart(i) {
+  const r = C.basePut(i);
+  if (r.ok) { sel = null; Snd.play('equip'); renderWeapons(); renderBottom(); return true; }
+  if (r.reason === 'full') askPartSwap(i, 'base');
+  return false;
+}
 function tapInv(i) {                      // 누르면 고르기만 한다. 다른 것을 누르면 이전 선택은 풀린다
   const S = C.S, it = S.inv[i];
-  confirmDrop = false; msg = '';
+  confirmDrop = false; msg = ''; meltAllArm = false;
   if (meltMode) {                          // 용해로: 파츠를 누르면 녹인다
     if (!it || it.kind !== 'p') { meltArm = -1; renderBottom(); return say('용해로에는 파츠만 넣을 수 있습니다.', true); }
     if (it.g >= 2 && meltArm !== i) {
@@ -1793,10 +2104,11 @@ function tapInv(i) {                      // 누르면 고르기만 한다. 다�
 function tapSlot(k) {
   const S = C.S, w = S.slots[k];
   confirmDrop = false; msg = '';
-  if (meltMode) { meltMode = false; meltArm = -1; }
+  if (meltMode) { meltMode = false; meltArm = -1; meltAllArm = false; }
   const it = sel && sel.from === 'inv' ? S.inv[sel.i] : null;
   if (it) {                                // 인벤토리에서 고른 물건을 이 칸에 바로 적용
     if (it.kind === 'w') { C.equipWeapon(sel.i, k); sel = null; Snd.play('equip'); }
+    else if (isBasePart(it)) return say(BASE_ONLY, true);
     else if (!w) return say(NO_WEAPON, true);
     else if (it.kind === 'p') {
       if (!C.attachPart(sel.i, k).ok) return askPartSwap(sel.i, k);
@@ -1823,7 +2135,8 @@ function dragSource(el) {
 }
 function dropTarget(x, y) {
   const el = document.elementFromPoint(x, y);
-  const b = el && el.closest && el.closest('[data-inv],[data-slot]'); if (!b) return null;
+  const b = el && el.closest && el.closest('[data-inv],[data-slot],.bbtn'); if (!b) return null;
+  if (b.classList.contains('bbtn')) return { from: 'base', el: b };
   return b.dataset.inv != null ? { from: 'inv', i: +b.dataset.inv, el: b } : { from: 'slot', k: +b.dataset.slot, el: b };
 }
 function sameSpot(a, b) { return a && b && a.from === b.from && (a.from === 'inv' ? a.i === b.i : a.k === b.k); }
@@ -1831,14 +2144,19 @@ function applyDrop(src, t) {               // 반환값: 실제로 옮겼는지
   const S = C.S;
   if (src.from === 'inv') {
     const it = S.inv[src.i]; if (!it) return false;
+    if (t.from === 'base') {                // 기지 버튼 위에 놓기
+      if (isBasePart(it)) { const r = C.basePut(src.i); if (r.ok) return true; if (r.reason === 'full') askPartSwap(src.i, 'base'); return false; }
+      say('기지에는 기지 파츠만 달 수 있습니다.', true); return false;
+    }
     if (t.from === 'inv') return C.moveInv(src.i, t.i);
     const w = S.slots[t.k];
     if (it.kind === 'w') return C.equipWeapon(src.i, t.k);
+    if (isBasePart(it)) { say(BASE_ONLY, true); return false; }
     if (!w) { say(NO_WEAPON, true); return false; }
     if (it.kind === 'p') { if (C.attachPart(src.i, t.k).ok) return true; askPartSwap(src.i, t.k); return false; }
     doUpgrade(t.k); return false;
   }
-  if (!S.slots[src.k]) return false;
+  if (!S.slots[src.k] || t.from === 'base') return false;
   if (t.from === 'slot') return C.swapSlots(src.k, t.k);
   const it = S.inv[t.i];
   if (!it) return C.unequipWeapon(src.k, t.i);
@@ -1864,9 +2182,9 @@ function endDrag(apply, x, y) {
 }
 $('#app').addEventListener('pointerdown', (ev) => {
   if (drag) endDrag(false);                // 이전 끌기가 비정상적으로 끝났다면 정리
-  if (mode !== 'play' || !C.S || C.S.pendingAug || wmodal >= 0 || partSwap) return;
+  if (mode !== 'play' || !C.S || C.S.pendingAug || wmodal >= 0 || bmodal || partSwap) return;
   if ((sel || meltMode) && !ev.target.closest('button')) {   // 다른 곳(전장, 빈 공간)을 누르면 선택과 용해로 모드 취소
-    sel = null; confirmDrop = false; msg = ''; meltMode = false; meltArm = -1;
+    sel = null; confirmDrop = false; msg = ''; meltMode = false; meltArm = -1; meltAllArm = false;
     renderWeapons(); renderBottom(); return;
   }
   if (ev.pointerType === 'mouse' && ev.button !== 0) return;
@@ -1880,7 +2198,7 @@ window.addEventListener('pointermove', (ev) => {
     if (Math.hypot(ev.clientX - drag.x0, ev.clientY - drag.y0) < 10) return;
     // 끄는 동안에는 화면 요소를 새로 만들지 않는다. 손가락이 닿은 요소가 사라지면
     // 일부 기기에서 이후 터치 신호가 끊겨 끌기가 멈추기 때문이다.
-    sel = null; confirmDrop = false; msg = ''; meltMode = false; meltArm = -1;
+    sel = null; confirmDrop = false; msg = ''; meltMode = false; meltArm = -1; meltAllArm = false;
     document.querySelectorAll('#weapons .sel, #weapons .tg, #bottom .sel').forEach(e => e.classList.remove('sel', 'tg'));
     elW.classList.remove('upmode');
     const el = drag.src.el, r = el.getBoundingClientRect();
@@ -1919,6 +2237,7 @@ function act(name) {
     case 'pswapCancel': partSwap = null; renderAll(); return;
   }
   if (mode !== 'play' || S.pendingAug) return;
+  if (name !== 'meltAll') meltAllArm = false;
   switch (name) {
     case 'gen': {
       const pre = S.inv.map(x => x ? (x.kind === 's' ? x.n : -1) : null);
@@ -1934,12 +2253,20 @@ function act(name) {
       const nc = newCell; setTimeout(() => { if (newCell === nc) newCell = -1; }, 500);
       renderBottom();
       if (it.kind === 'w') say(`획득: <b style="color:${C.WEAPONS[it.type].color}">${C.WEAPONS[it.type].name}</b> (무기)`);
-      else if (it.kind === 'p') say('획득: ' + partLine(it));
+      else if (it.kind === 'p') say('획득: ' + (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it));
       else say(`획득: <b>강화 조각 ${it.n}개</b>`);
       return;
     }
     case 'meltOn': meltMode = true; meltArm = -1; sel = null; msg = ''; renderWeapons(); renderBottom(); return;
     case 'meltOff': meltMode = false; meltArm = -1; msg = ''; renderBottom(); return;
+    case 'meltAll': {
+      const n = S.inv.filter(x => x && x.kind === 'p').length;
+      if (!n) return say('분해할 파츠가 없습니다.', true);
+      if (!meltAllArm) { meltAllArm = true; meltArm = -1; renderBottom(); return say(`파츠 ${n}개를 모두 분해하려면 한 번 더 누르세요.`, true); }
+      const r = C.meltAll(); meltAllArm = false; Snd.play('melt');
+      renderBottom();
+      return say(`<b>파츠 ${r.n}개를 분해했습니다.</b> 게이지 +${r.pts} (현재 ${S.melt})`);
+    }
     case 'craft': {
       const r = C.craftPart();
       if (!r.ok) {
@@ -1950,18 +2277,19 @@ function act(name) {
       Snd.play('gen');
       newCell = r.i; const nc = newCell; setTimeout(() => { if (newCell === nc) newCell = -1; }, 500);
       meltArm = -1; renderBottom();
-      say('제조: ' + partLine(r.item));
+      say('제조: ' + (isBasePart(r.item) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(r.item));
       return;
     }
-    case 'drop': {
+    case 'drop': {                           // 무엇이든 한 번 더 눌러야 버려진다
       if (!sel || sel.from !== 'inv') return;
-      const it = S.inv[sel.i]; if (!it) return;
-      const valuable = it.kind === 's' ||     // 강화 조각은 수량과 관계없이 두 번 눌러야 버려진다
-        (it.kind === 'w' && (it.lv > 0 || it.parts.some(Boolean) || it.augs.some(Boolean))) || (it.kind === 'p' && it.g >= 2);
-      if (valuable && !confirmDrop) { confirmDrop = true; renderBottom(); return; }
+      if (!S.inv[sel.i]) return;
+      if (!confirmDrop) { confirmDrop = true; renderBottom(); return; }
       C.discard(sel.i); sel = null; confirmDrop = false; msg = ''; Snd.play('drop');
       renderWeapons(); renderBottom(); return;
     }
+    case 'bequip': if (sel && sel.from === 'inv') equipBasePart(sel.i); return;
+    case 'bopen': openB(); return;
+    case 'bup': doBaseUpgrade(); return;
     case 'wopen': if (sel && sel.from === 'slot') openW(sel.k); return;
     case 'wclose': closeW(); return;
     case 'wup': if (wmodal >= 0) doUpgrade(wmodal); return;
@@ -1972,19 +2300,23 @@ function act(name) {
     }
     case 'wpickBack': wpick = -1; msg = ''; renderOverlay(); return;
     case 'wdetach': {
-      if (wmodal < 0 || wpick < 0) return;
-      if (!C.detachPart(wmodal, wpick)) { say('인벤토리에 빈 칸이 없어 해제할 수 없습니다.', true); renderOverlay(); return; }
+      if (wpick < 0 || (wmodal < 0 && !bmodal)) return;
+      const ok = bmodal ? C.baseDetach(wpick) : C.detachPart(wmodal, wpick);
+      if (!ok) { say('인벤토리에 빈 칸이 없어 해제할 수 없습니다.', true); renderOverlay(); return; }
       wpick = -1; Snd.play('equip'); renderAll(); return;
     }
   }
 }
 $('#app').addEventListener('click', (ev) => {
+  const S = C.S;
+  // 무기 창이나 기지 창의 바깥 부분을 누르면 닫힌다
+  if (ev.target === elO && mode === 'play' && S && !S.pendingAug && !partSwap && (wmodal >= 0 || bmodal)) { closeW(); return; }
   const b = ev.target.closest('button'); if (!b) return;
   Snd.ensure();
   if (performance.now() < suppressClick) return;   // 끌기가 끝난 직후의 누름은 무시
   if (b.id === 'pauseBtn') { pause(); return; }
   if (b.id === 'speedBtn') { speed = speed === 1 ? 2 : 1; b.textContent = speed + '배'; b.classList.toggle('on', speed === 2); return; }
-  const ds = b.dataset, S = C.S;
+  const ds = b.dataset;
   if (ds.act) { act(ds.act); return; }
   if (ds.aug != null || ds.rep != null) {
     if (!S || !S.pendingAug || performance.now() - augOpenAt < 400) return; // 연타 중 잘못 누르는 것 방지
@@ -2000,16 +2332,19 @@ $('#app').addEventListener('click', (ev) => {
   if (mode !== 'play' || !S || S.pendingAug) return;
   if (ds.prep != null) {
     if (!partSwap || performance.now() - pswapAt < 400) return;
-    if (C.replacePart(partSwap.i, partSwap.k, +ds.prep)) Snd.play('equip');
+    const ok = partSwap.k === 'base' ? C.basePut(partSwap.i, +ds.prep).ok : C.replacePart(partSwap.i, partSwap.k, +ds.prep);
+    if (ok) Snd.play('equip');
     partSwap = null; renderAll(); return;
   }
   if (partSwap) return;
-  if (ds.wpart != null && wmodal >= 0) { wpick = +ds.wpart; msg = ''; renderOverlay(); return; }
-  if (ds.wput != null && wmodal >= 0 && wpick >= 0) {
-    if (C.putPart(+ds.wput, wmodal, wpick)) Snd.play('equip');
+  const open = wmodal >= 0 || bmodal;
+  if (ds.wpart != null && open) { wpick = +ds.wpart; msg = ''; renderOverlay(); return; }
+  if (ds.wput != null && open && wpick >= 0) {
+    const ok = bmodal ? C.basePut(+ds.wput, wpick).ok : C.putPart(+ds.wput, wmodal, wpick);
+    if (ok) Snd.play('equip');
     wpick = -1; renderAll(); return;
   }
-  if (wmodal >= 0) return;
+  if (open) return;
   if (ds.inv != null) return tapInv(+ds.inv);
   if (ds.slot != null) return tapSlot(+ds.slot);
 });
@@ -2043,13 +2378,49 @@ function enemyPath(e) {
     default: ctx.arc(x, y, r, 0, Math.PI * 2);
   }
 }
+// 상태 이상을 눈에 띄게: 빙결은 얼음 덩어리, 둔화는 푸른 물듦, 화상은 주황 테두리, 그리고 머리 위 표식
+function drawStatus(e, iced) {
+  const now = performance.now(), burn = e.burnT > 0, slow = e.slowT > 0 && !iced, stun = e.stunT > 0 && !iced;
+  if (iced) {
+    const q = e.r * 1.25;
+    ctx.fillStyle = 'rgba(170,235,255,.38)'; ctx.strokeStyle = '#e6fbff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.rect(e.x - q, e.y - q, q * 2, q * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(e.x - q, e.y - q * 0.3); ctx.lineTo(e.x - q * 0.3, e.y - q); ctx.moveTo(e.x + q * 0.2, e.y + q); ctx.lineTo(e.x + q, e.y + q * 0.2); ctx.stroke();
+  }
+  if (slow) { enemyPath(e); ctx.fillStyle = 'rgba(110,200,255,.42)'; ctx.fill(); }
+  if (burn) {
+    enemyPath(e); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,150,50,.95)';
+    ctx.setLineDash([5, 4]); ctx.lineDashOffset = -now / 40; ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  }
+  const icons = [];
+  if (burn) icons.push('b'); if (slow || iced) icons.push('s'); if (stun) icons.push('z');
+  if (!icons.length) return;
+  let x = e.x - (icons.length - 1) * 9; const y = e.y - e.r - (e.hp < e.maxHp ? 24 : 15);
+  for (const k of icons) {
+    if (k === 'b') {                        // 불꽃
+      const f = 1 + 0.18 * Math.sin(now / 70 + e.x);
+      ctx.fillStyle = '#ff8a2a'; ctx.beginPath(); ctx.moveTo(x, y - 9 * f);
+      ctx.quadraticCurveTo(x + 8, y - 1, x + 5, y + 5); ctx.quadraticCurveTo(x, y + 9, x - 5, y + 5); ctx.quadraticCurveTo(x - 8, y - 1, x, y - 9 * f); ctx.fill();
+      ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.arc(x, y + 2, 3, 0, 7); ctx.fill();
+    } else if (k === 's') {                 // 눈꽃
+      ctx.strokeStyle = '#9fe8ff'; ctx.lineWidth = 2; ctx.beginPath();
+      for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; ctx.moveTo(x - Math.cos(a) * 7, y - Math.sin(a) * 7); ctx.lineTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7); }
+      ctx.stroke();
+    } else {                                // 기절: 빙빙 도는 별
+      ctx.fillStyle = '#ffe66b';
+      for (let i = 0; i < 3; i++) { const a = now / 150 + i * 2.094; ctx.beginPath(); ctx.arc(x + Math.cos(a) * 7, y + Math.sin(a) * 3.5, 2.6, 0, 7); ctx.fill(); }
+    }
+    x += 18;
+  }
+}
 function drawEnemy(e) {
   const col = ECOL[e.type], iced = e.stunT > 0 && e.ice;
   if (e.boss) {                             // 보스는 맥동하는 테두리로 눈에 띄게
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 9 + Math.sin(performance.now() / 160) * 4, 0, Math.PI * 2);
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,61,61,.5)'; ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
   }
-  enemyPath(e);
+  const r0 = e.r; if (e.flash > 0) e.r = r0 * 1.12;   // 맞는 순간 살짝 부풀어 타격감을 준다
+  enemyPath(e); e.r = r0;
   ctx.fillStyle = e.flash > 0 ? 'rgba(255,255,255,.8)' : iced ? 'rgba(160,230,255,.5)' : rgba(col, e.boss ? 0.28 : 0.2);
   ctx.fill();
   ctx.lineWidth = e.boss ? 4 : 2.5; ctx.strokeStyle = iced ? '#d6f6ff' : e.stunT > 0 ? '#fff3a0' : e.slowT > 0 ? '#8fe3ff' : col; ctx.stroke();
@@ -2058,7 +2429,7 @@ function drawEnemy(e) {
     ctx.lineWidth = 2; ctx.strokeStyle = col;
     for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 3; ctx.beginPath(); ngon(e.x + Math.cos(a) * e.r * 0.45, e.y + Math.sin(a) * e.r * 0.45, e.r * 0.26, 6, 0); ctx.stroke(); }
   }
-  if (e.burnT > 0) { ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.arc(e.x + e.r * 0.6, e.y - e.r * 0.8, 4, 0, 7); ctx.fill(); }
+  drawStatus(e, iced);
   if (e.hp < e.maxHp) {
     const w = e.r * 1.8, h = e.boss ? 6 : 4, x = e.x - w / 2, y = e.y - e.r - (e.boss ? 14 : 9);
     ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(x, y, w, h);
@@ -2097,9 +2468,17 @@ function drawFx(f, H) {
       ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.7 - p * 0.7), 0, Math.PI * 2);
       ctx.lineWidth = f.boss ? 5 : 2; ctx.strokeStyle = `rgba(255,150,150,${p})`; ctx.stroke();
       break;
+    case 'spark': {                         // 피격 불꽃
+      const r = 5 + (1 - p) * 10;
+      ctx.strokeStyle = rgba(f.c, p); ctx.lineWidth = 2; ctx.beginPath();
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + f.x; ctx.moveTo(f.x + Math.cos(a) * r * 0.4, f.y + Math.sin(a) * r * 0.4); ctx.lineTo(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r); }
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,255,255,${p})`; ctx.beginPath(); ctx.arc(f.x, f.y, 2.4 * p + 0.5, 0, 7); ctx.fill();
+      break;
+    }
     case 'num': {                           // 피해 숫자
       const y = f.y - (1 - p) * 28, al = Math.min(1, p * 2.4), big = f.c === 1;
-      const txt = (f.c === 3 ? '+' : '') + fmtDmg(f.v) + (big ? '!' : '');
+      const txt = (f.c === 3 ? '+' : '') + fmtDmg(f.v);
       ctx.font = (big ? 25 : f.c === 2 ? 15 : 19) + 'px "Do Hyeon", sans-serif'; ctx.textAlign = 'center';
       ctx.lineWidth = 3.5; ctx.strokeStyle = `rgba(6,13,30,${0.85 * al})`; ctx.strokeText(txt, f.x, y);
       ctx.fillStyle = big ? `rgba(255,209,102,${al})` : f.c === 2 ? `rgba(255,160,90,${al})` : f.c === 3 ? `rgba(255,224,130,${al})` : `rgba(233,240,255,${al})`;
@@ -2160,6 +2539,16 @@ function draw() {
       ctx.fillRect(x0, y0, x1 - x0, H - y0); ctx.strokeRect(x0 + 1, y0 + 1, x1 - x0 - 2, H - y0 + 4);
     }
   }
+  const bs = C.bstats(), nowT = performance.now();
+  if (bs.nearSlow) {                         // 감속 철조망 구역
+    ctx.fillStyle = 'rgba(110,200,255,.06)'; ctx.fillRect(0, H * 0.75, W, H * 0.25);
+    ctx.strokeStyle = 'rgba(110,200,255,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 7]); ctx.beginPath(); ctx.moveTo(0, H * 0.75); ctx.lineTo(W, H * 0.75); ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (bs.fence) {                            // 전기 울타리
+    ctx.strokeStyle = 'rgba(255,230,120,.85)'; ctx.lineWidth = 2; ctx.beginPath();
+    for (let x = 0; x <= W; x += 20) { const y = H * 0.86 + ((x / 20 + Math.floor(nowT / 90)) % 2 ? -5 : 5); if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+    ctx.stroke();
+  }
   for (const p of S.pools) {
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255,140,60,${0.1 + 0.12 * Math.min(1, p.t)})`; ctx.fill();
@@ -2175,10 +2564,11 @@ function draw() {
     const w = S.slots[k]; if (!w || w.type !== 'pulse') continue;
     const st = C.stats(w);
     for (let i = 0; i < st.orbs; i++) {
-      const q = C.orbPos(k, st, i, S.t);
-      ctx.beginPath(); ctx.arc(q[0], q[1], 14, 0, Math.PI * 2); ctx.fillStyle = rgba(st.color, 0.35); ctx.fill();
-      ctx.lineWidth = 2.5; ctx.strokeStyle = st.color; ctx.stroke();
-      ctx.beginPath(); ctx.arc(q[0], q[1], 5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+      for (let j = 9; j >= 0; j--) {          // 작은 점과 지나온 궤적
+        const q = C.orbPos(k, st, i, S.t - j * 0.035);
+        ctx.beginPath(); ctx.arc(q[0], q[1], 7 * (1 - j / 12), 0, Math.PI * 2);
+        ctx.fillStyle = j ? rgba(st.color, 0.42 * (1 - j / 10)) : st.color; ctx.fill();
+      }
     }
   }
   ctx.lineCap = 'round';
@@ -2210,9 +2600,10 @@ function draw() {
     ctx.fillStyle = '#ffd0d0'; ctx.font = '17px "Do Hyeon", sans-serif'; ctx.textAlign = 'left';
     ctx.fillText('보스 · ' + C.ENEMIES[boss.type].name, 12, 38);
   }
-  // 방어선과 포구
-  ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : 'rgba(122,240,193,.75)';
-  ctx.fillRect(0, H - 3, W, 3);
+  // 기지와 포구
+  ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : 'rgba(122,240,193,.8)';
+  ctx.fillRect(0, H - 4, W, 4);
+  if (bs.turret) { ctx.fillStyle = '#7af0c1'; ctx.fillRect(W / 2 - 10, H - 17, 20, 13); ctx.fillRect(W / 2 - 3, H - 26, 6, 11); }
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k]; if (!w) continue;
     const x = (k + 0.5) * C.LW;
@@ -2238,18 +2629,19 @@ let last = 0, acc = 0, lightAt = 0;
 function frame(ts) {
   const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
   const S = C.S;
-  if (mode === 'play' && S && !S.pendingAug && wmodal < 0 && !partSwap) {
+  if (mode === 'play' && S && !S.pendingAug && wmodal < 0 && !bmodal && !partSwap) {
     acc += dt * speed; let n = 0;
     while (acc >= 1 / 60 && n < 12) { C.step(1 / 60); acc -= 1 / 60; n++; }
     if (n === 12) acc = 0;
     if (S.snd && S.snd.length) { for (const n of S.snd) Snd.play(n); S.snd.length = 0; }
     if (S.invDirty) { S.invDirty = false; renderBottom(); }
+    if (S.revived) { S.revived = false; say('<b>비상 방벽</b>이 기지를 지켰습니다. 방벽 파츠는 사라졌습니다.'); }
     if (S.newDrop) { S.newDrop = false; say('보스 보상이 인벤토리에 들어왔습니다.'); }
     if (S.over) gameOver();
   }
   if (drag && performance.now() - drag.at > 6000) endDrag(false);   // 신호가 끊긴 끌기 정리
   draw(); hud();
-  if (ts - lightAt > 250) { lightAt = ts; lightUpdate(); }
+  if (ts - lightAt > 120) { lightAt = ts; lightUpdate(); }
   requestAnimationFrame(frame);
 }
 
