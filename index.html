@@ -634,29 +634,113 @@ b { font-weight: 600; }
 .slot.closed .cl { font-size: 10.5px; color: var(--dim); }
 
 /* ---- 천칭의 거래 ---- */
-.pacts { display: flex; flex-direction: column; gap: 8px; }
-.pact { text-align: left; width: 100%; padding: 10px 12px; border-radius: 6px; border: 1.5px solid var(--line); background: var(--panel-2); display: flex; flex-direction: column; gap: 4px; }
-.pact .nm { font: 19px var(--font-display); color: var(--ink); display: flex; align-items: center; gap: 8px; }
-.pact .nm .chip { font: 600 10.5px var(--font-body); padding: 0 7px; border-radius: 999px; border: 1px solid var(--accent-ink); color: var(--accent-ink); }
 .up { color: var(--ok); } .dn { color: var(--danger); }
-.pact .up, .pact .dn, .pdone .up, .pdone .dn { display: block; font-size: 13px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere; word-break: keep-all; }
-.pact.sel { outline: 3px solid var(--accent); outline-offset: 2px; background: color-mix(in srgb, var(--accent) 10%, var(--panel-2)); }
-.pact.dim { opacity: .55; }
-.modal.intro .pact { animation: augin .32s ease-out both; animation-delay: calc(var(--i, 0) * 90ms); }
-@media (prefers-reduced-motion: reduce) { .modal.intro .pact { animation: none; } }
+.pdone .up, .pdone .dn { display: block; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; word-break: keep-all; }
 .pdone { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
 .pdone b { font: 15px var(--font-display); color: var(--ink); }
-.pdone .up, .pdone .dn { font-size: 12px; font-weight: 400; }
 .pnames { color: var(--ink) !important; }
 .hnote { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--dim); }
 .modal p.hnote { color: var(--dim); }
-.hpact { display: flex; flex-direction: column; gap: 1px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: color-mix(in srgb, var(--panel-2) 45%, transparent); font-size: 12px; }
-.hpact b { font: 13px var(--font-display); color: var(--ink); }
 
 /* ---- 기록 이미지 보기 (공유와 저장이 모두 안 될 때) ---- */
 .modal.sharev { align-items: stretch; }
 .shimg { display: block; width: 100%; max-height: 60vh; object-fit: contain; border-radius: 6px; border: 1px solid var(--line); -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
 .modal.sharev p { text-align: center; }
+
+/* ---- 도움말: 보스 카드 (특징 / 공략) ---- */
+.hbl { display: flex; flex-direction: column; gap: 6px; }
+.hbc { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 8px; row-gap: 4px; align-items: center; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: color-mix(in srgb, var(--panel-2) 45%, transparent); }
+.hbc > svg { grid-row: 1; justify-self: center; }
+.hbn { grid-column: 2; font: 15px/1.2 var(--font-display); }
+.hbr { grid-column: 1 / -1; display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 8px; align-items: start; font-size: 12px; line-height: 1.4; color: var(--ink); word-break: keep-all; }
+.hbr i { font: normal 600 10.5px/16px var(--font-body); text-align: center; border-radius: 3px; border: 1px solid var(--line); color: var(--dim); }
+.hbr:last-child i { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* ---- 천칭의 거래: 어두운 막 위의 계약서 ---- */
+#overlay.pactv { padding: 0; background: none; }
+.pv {
+  --pg: #c9a55c; --pgb: #e2c98a; --pc: #c0586b; --pi: #ece5d4; --pd: #a9a293;
+  position: absolute; inset: 0; isolation: isolate; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 10px 14px 12px; color: var(--pi); text-align: center; overflow-y: auto;
+}
+.pv::before { content: ''; position: absolute; inset: 0; z-index: -1; background:
+  radial-gradient(ellipse 85% 70% at 50% 42%, rgba(34, 26, 30, .9) 0, rgba(12, 9, 13, .96) 62%, rgba(3, 2, 4, .99) 100%); }
+.pv::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; box-shadow: inset 0 0 90px 30px rgba(0, 0, 0, .7); }
+.pv-top { width: 100%; max-width: 362px; }
+.pv-emb { display: block; overflow: visible; }
+.pv h2.pv-title { margin: 0; font: 26px/1.1 var(--font-display); letter-spacing: 3px; color: var(--pgb); }
+.pv .pv-sub { margin: 0; font-size: 12px; color: var(--pd); }
+.pv-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 362px; align-items: stretch; }
+.pv-cards.n1 { grid-template-columns: minmax(0, 200px); justify-content: center; }
+.pc {
+  position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-height: 238px; padding: 18px 12px 14px; text-align: left; color: var(--pi);
+  border: 1px solid rgba(201, 165, 92, .3); border-radius: 3px; background: linear-gradient(180deg, #221d22, #141116);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .55), inset 0 0 0 3px rgba(0, 0, 0, .25); transition: transform .18s, opacity .18s, border-color .18s, box-shadow .18s;
+}
+.pc::before { content: ''; position: absolute; inset: 4px; border: 1px solid rgba(201, 165, 92, .12); border-radius: 2px; pointer-events: none; }
+.pc-nm { font: 20px/1.2 var(--font-display); color: var(--pi); text-align: center; letter-spacing: .5px; word-break: keep-all; }
+.pc-tag { align-self: center; font: 600 10px/1 var(--font-body); color: var(--pg); border: 1px solid rgba(201, 165, 92, .5); padding: 2px 6px; border-radius: 999px; }
+.pc-hr { display: block; height: 1px; margin: 2px 14px 4px; background: linear-gradient(90deg, transparent, var(--pg), transparent); opacity: .7; }
+.pc-row { display: flex; flex-direction: column; gap: 3px; padding-left: 8px; border-left: 2px solid; font-size: 12.5px; line-height: 1.4; color: var(--pi); overflow-wrap: anywhere; word-break: keep-all; }
+.pc-row small { font: 600 10.5px/1 var(--font-body); letter-spacing: 1px; }
+.pc-row.gain { border-color: var(--pg); } .pc-row.gain small { color: var(--pg); }
+.pc-row.cost { border-color: var(--pc); margin-top: 6px; } .pc-row.cost small { color: var(--pc); }
+.pc.sel { transform: translateY(-8px); border-color: var(--pgb); box-shadow: 0 0 0 1px rgba(226, 201, 138, .7), 0 14px 28px rgba(0, 0, 0, .6), 0 0 26px rgba(201, 165, 92, .22); background: linear-gradient(180deg, #2b2420, #17131a); }
+.pc.dim { opacity: .42; transform: scale(.97); }
+.pv-note { margin: 2px 0 0; font-size: 11.5px; color: var(--pd); }
+.pv-acts { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; max-width: 280px; }
+.pv-ok { width: 100%; height: 46px; border-radius: 3px; border: 1px solid var(--pgb); background: linear-gradient(180deg, #dcc07c, #b8924a); color: #1c1305; font: 18px var(--font-display); letter-spacing: 2px; box-shadow: 0 0 18px rgba(201, 165, 92, .25); }
+.pv-ok.off, .pv-ok[disabled] { background: none; color: rgba(201, 165, 92, .55); border-color: rgba(201, 165, 92, .35); box-shadow: none; cursor: default; }
+.pv-no { min-height: 40px; padding: 0 18px; font-size: 13px; color: var(--pd); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgba(169, 162, 147, .45); }
+.pv .pv-no:focus-visible, .pv-ok:focus-visible, .pc:focus-visible { outline-color: var(--pgb); }
+.pv-box { width: 100%; max-width: 300px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 16px 14px; border: 1px solid rgba(201, 165, 92, .3); border-radius: 3px; background: linear-gradient(180deg, #221d22, #141116); max-height: 100%; }
+.pv-box.wide { max-width: 340px; }
+.pv-list { width: 100%; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; max-height: 400px; text-align: left; }
+.pl { display: flex; flex-direction: column; gap: 5px; padding: 10px 10px 9px; border: 1px solid rgba(201, 165, 92, .22); border-radius: 3px; background: rgba(255, 255, 255, .03); }
+.pl .pc-nm { text-align: left; font-size: 17px; }
+.pl .pc-hr { margin: 0 0 2px; background: linear-gradient(90deg, var(--pg), transparent); }
+.pl .pc-row.cost { margin-top: 2px; }
+/* 등장 연출 (약 0.9초, 누르면 건너뜀) */
+.pv.intro::before { animation: pvfade .35s ease-out backwards; }
+.pv.intro .pv-emb { animation: pvdrop .5s .12s cubic-bezier(.2, .8, .3, 1) backwards; }
+.pv.intro .pv-emb .beam { animation: pvbeam .6s .15s ease-out backwards; }
+.pv.intro .pv-title, .pv.intro .pv-sub { animation: pvfade .4s .25s ease-out backwards; }
+.pv.intro .pc { animation: pvcard .35s ease-out backwards; animation-delay: calc(.4s + var(--i, 0) * .15s); }
+.pv.intro .pv-note, .pv.intro .pv-acts { animation: pvfade .3s .7s ease-out backwards; }
+@keyframes pvfade { from { opacity: 0; } }
+@keyframes pvdrop { from { opacity: 0; transform: translateY(-14px); } }
+@keyframes pvbeam { from { transform: rotate(-7deg); } 60% { transform: rotate(3deg); } }
+@keyframes pvcard { from { opacity: 0; transform: translateY(24px); } }
+@media (max-height: 660px) { .pc { min-height: 200px; padding-top: 14px; } .pv-emb { height: 70px; } .pv { gap: 5px; } }
+@media (prefers-reduced-motion: reduce) { .pv.intro::before, .pv.intro .pv-emb, .pv.intro .pv-emb .beam, .pv.intro .pv-title, .pv.intro .pv-sub, .pv.intro .pc, .pv.intro .pv-note, .pv.intro .pv-acts, .pc { animation: none; transition: none; } }
+
+/* ---- 거래 완료 배너 ---- */
+#pactBanner { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; align-items: center; justify-content: center; overflow: hidden; }
+#pactBanner.show { display: flex; animation: pbout .3s 1.5s ease-in forwards; }
+.pb-band { position: relative; width: 100%; padding: 22px 12px 20px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: linear-gradient(180deg, transparent, rgba(10, 7, 11, .82) 22%, rgba(10, 7, 11, .82) 78%, transparent); animation: pbin .3s ease-out backwards; }
+.pb-t { font: 38px/1 var(--font-display); color: #ecd9a4; letter-spacing: 10px; text-indent: 10px; text-shadow: 0 0 18px rgba(226, 190, 100, .55); animation: pbt .8s .1s ease-out backwards; }
+.pb-line { display: block; width: 78%; height: 1px; background: linear-gradient(90deg, transparent, #d9bb70, transparent); transform-origin: center; animation: pbline .6s .1s ease-out backwards; }
+.pb-n { font: 17px/1.2 var(--font-display); color: #f0e8d6; letter-spacing: 1px; animation: pbin .4s .45s ease-out backwards; }
+.pb-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(240, 205, 120, .6), transparent 55%); animation: pbflash .8s ease-out both; }
+.pb-ring { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 1.5px solid rgba(236, 205, 130, .85); box-shadow: 0 0 20px rgba(226, 190, 100, .4); animation: pbring .9s ease-out both; }
+@keyframes pbin { from { opacity: 0; } }
+@keyframes pbout { to { opacity: 0; } }
+@keyframes pbt { from { opacity: 0; letter-spacing: 22px; } }
+@keyframes pbline { from { transform: scaleX(0); } }
+@keyframes pbflash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pbring { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(2.4); } }
+@media (prefers-reduced-motion: reduce) { .pb-t, .pb-line, .pb-n, .pb-band { animation: none; } .pb-flash, .pb-ring { display: none; } }
+
+/* ---- 책갈피: 맺은 거래 보기 ---- */
+#pactMark {
+  position: absolute; right: 12px; top: 0; z-index: 3; width: 34px; height: 38px; padding: 4px 0 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  color: #dcc07c; background: linear-gradient(180deg, #3a1a24, #5a2331); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); transition: top .2s;
+}
+#pactMark[hidden] { display: none; }
+#pactMark.low { top: 22px; height: 34px; }
+#pactMark b { font: 12px/1 var(--font-display); color: #f0e8d6; }
 
 </style>
 </head>
@@ -2182,6 +2266,11 @@ const cv = $('#field'), ctx = cv.getContext('2d'), wrap = $('#fieldWrap');
 const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
 const fxLayer = document.createElement('div'); fxLayer.id = 'fxLayer'; $('#app').appendChild(fxLayer);
 const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.appendChild(toastEl);   // 알림은 전장 아래쪽에 잠깐 뜬다
+const bannerEl = document.createElement('div'); bannerEl.id = 'pactBanner'; wrap.appendChild(bannerEl);   // 거래 완료 배너 (입력을 막지 않는다)
+const markEl = document.createElement('button'); markEl.id = 'pactMark'; markEl.type = 'button'; markEl.dataset.act = 'pactMark'; markEl.hidden = true; markEl.setAttribute('aria-label', '맺은 거래 보기');
+markEl.innerHTML = '<svg viewBox="-1 0 26 20" width="18" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v15M7 17h10M3 5h18M3 5l-2.5 7M3 5l2.5 7M0.5 12q2.5 3 5 0M21 5l-2.5 7M21 5l2.5 7M18.5 12q2.5 3 5 0"/></svg><b></b>';
+wrap.appendChild(markEl);
+let markN = 0, markLow = null;
 const GR = C.GRADES;
 const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];   // 등급 색 (테마를 바꾸면 값만 바뀐다)
 const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d',
@@ -2285,6 +2374,7 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)');   // 움직임 줄이
 let drag = null, suppressClick = 0, needRender = false;   // 끌어서 옮기기
 let pauseView = '';              // 일시정지 화면의 하위 화면: '' | confirm
 let helpFrom = '';               // 도움말을 연 화면: '' | start | pause (뒤로를 누르면 그 화면으로 돌아간다)
+let pactView = false, pactResume = false, bannerUntil = 0;   // 맺은 거래 보기 창, 닫을 때 게임을 이어갈지, 완료 배너가 사라질 시각
 let pactSel = -1, pactSkip = false, pactOpenAt = 0, shownPact = null, pactIntro = false;   // 천칭의 거래 창: 고른 카드, 건너뛰기 확인, 열린 시각
 let lastRes = null;              // 게임 오버 때 남기는 무기별 결과
 let partSwap = null, pswapAt = 0;   // 가득 찬 무기에 파츠를 넣을 때: {i: 인벤토리 칸, k: 무기 칸, sel: 고른 교체 대상}
@@ -2348,6 +2438,7 @@ const Snd = (function () {
     fail: [30, () => tone('sawtooth', 220, 110, 0.22, 0.07)],
     aug: [200, () => seq('sine', [523, 659, 784, 1047], 0.5, 0.08, 0.05)],
     legend: [300, () => { seq('triangle', [1047, 1319, 1568, 2093], 0.2, 0.09, 0.055); seq('sine', [2093, 2637], 0.3, 0.05, 0.14); }],
+    pact: [600, () => { tone('sine', 98, 92, 1.1, 0.16); tone('sine', 196, 190, 0.9, 0.07, 0.03); tone('triangle', 294, 290, 0.7, 0.035, 0.05); hiss(0.45, 0.07, 260, 0.8, 'lowpass', 0.02); }],   // 거래 완료: 낮고 묵직한 울림
     pick: [40, () => seq('triangle', [784, 1175], 0.14, 0.1, 0.08)],
     equip: [40, () => tone('triangle', 330, 520, 0.07, 0.1)],
     tap: [30, () => tone('triangle', 660, 660, 0.03, 0.05)],
@@ -2420,6 +2511,17 @@ function rgba(hex, a) {
 function say(text, warn, ms) {
   msg = text; msgWarn = !!warn; msgUntil = performance.now() + (ms || 2400);
   toastEl.innerHTML = text; toastEl.classList.toggle('warn', !!warn); toastEl.classList.add('show');
+}
+function banner(name) {
+  bannerEl.innerHTML = `<i class="pb-flash"></i><i class="pb-ring"></i><div class="pb-band"><b class="pb-t">거래 완료</b><i class="pb-line"></i><span class="pb-n">${name}</span></div>`;
+  bannerEl.classList.remove('show'); void bannerEl.offsetWidth; bannerEl.classList.add('show');
+  bannerUntil = performance.now() + 1800;
+}
+function updateMark() {
+  const S = C.S, n = S && S.pacts ? S.pacts.length : 0;
+  if (n !== markN) { markN = n; markEl.hidden = !n; markEl.querySelector('b').textContent = n; }
+  const low = !!S && S.enemies.some(e => e.boss && !e.dead);   // 보스 체력 막대 아래로 내려 앉는다
+  if (low !== markLow) { markLow = low; markEl.classList.toggle('low', low); }
 }
 
 function icon(type, size) {
@@ -2760,11 +2862,12 @@ function renderBottom() {
   elB.innerHTML = invHtml();
   updateInfo();
 }
-function renderAll() { abKey = ''; renderWeapons(); renderBottom(); renderOverlay(); updateChips(); }
+function renderAll() { abKey = ''; renderWeapons(); renderBottom(); renderOverlay(); updateChips(); updateMark(); }
 // 자주 바뀌는 숫자만 가볍게 갱신 (버튼을 새로 만들지 않아 누르는 도중에 끊기지 않는다)
 function lightUpdate() {
   const S = C.S; if (!S) return;
-  updateChips();
+  updateChips(); updateMark();
+  if (bannerEl.classList.contains('show') && performance.now() > bannerUntil) bannerEl.classList.remove('show');
   if (confirmDrop && performance.now() - dropArmAt > 3000) {      // 3초가 지나면 버리기 무장 해제 (버튼을 새로 만들지 않고 그 자리에서 되돌린다)
     confirmDrop = false;
     const b = elB.querySelector('[data-act="drop"]'); if (b) { b.classList.remove('armed'); b.textContent = '버리기'; }
@@ -2937,20 +3040,45 @@ function recHtml(r) {
 }
 /* ---------- 천칭의 거래 ---------- */
 function pactLines(id) { const d = C.PACTS[id]; return `<span class="up">▲ ${d.up}</span><span class="dn">▼ ${d.dn}</span>`; }
+// 천칭 그림: 저울대와 접시. 고른 쪽 접시가 올라간다
+function scaleEmblem(n, sel) {
+  const gold = '#c9a55c', cx = 181, xs = n === 1 ? [181] : [88, 274];
+  const tilt = n === 2 && sel >= 0 ? (sel === 0 ? 3.5 : -3.5) : 0;   // 고른 쪽이 위로
+  const pan = (x, dy) => `<g transform="translate(0 ${dy})"><path d="M${x} 20L${x - 30} 80M${x} 20L${x + 30} 80" /><path d="M${x - 38} 80Q${x} 90 ${x + 38} 80" stroke-width="1.6"/></g>`;
+  const beam = n === 2 ? `<path d="M${xs[0]} 20H${xs[1]}"/><circle cx="${xs[0]}" cy="20" r="2.6" fill="${gold}"/><circle cx="${xs[1]}" cy="20" r="2.6" fill="${gold}"/>` : '';
+  const rot = `rotate(${tilt} ${cx} 20)`;
+  const dy = (i) => n === 2 ? (tilt > 0 ? (i === 0 ? 0 : 6) : tilt < 0 ? (i === 0 ? 6 : 0) : 3) : 3;
+  return `<svg class="pv-emb" viewBox="0 0 362 92" width="100%" height="86" fill="none" stroke="${gold}" stroke-width="1.2" stroke-linecap="round" aria-hidden="true">
+    <path d="M${cx} 20V8M${cx - 8} 8h16" /><circle cx="${cx}" cy="5" r="3.2" fill="${gold}" stroke="none"/>
+    <g class="beam" style="transform-origin:${cx}px 20px"><g transform="${rot}" style="transform-origin:${cx}px 20px">${beam}${xs.map((x, i) => pan(x, dy(i))).join('')}${n === 1 ? `<path d="M${cx - 16} 20h32"/>` : ''}</g></g></svg>`;
+}
+function pvRows(id) {
+  const d = C.PACTS[id];
+  return `<span class="pc-row gain"><small>얻는 것</small><span>${d.up}</span></span><span class="pc-row cost"><small>치르는 것</small><span>${d.dn}</span></span>`;
+}
 function pactCard(id, i, selected, dim) {
   const d = C.PACTS[id];
-  return `<button type="button" class="pact${selected ? ' sel' : ''}${dim ? ' dim' : ''}" data-pact="${i}" style="--i:${i}"><span class="nm">${d.name}${d.instant ? '<span class="chip">즉시</span>' : ''}</span>${pactLines(id)}</button>`;
+  return `<button type="button" class="pc${selected ? ' sel' : ''}${dim ? ' dim' : ''}" data-pact="${i}" style="--i:${i}" aria-pressed="${selected}"><span class="pc-nm">${d.name}</span>${d.instant ? '<span class="pc-tag">즉시 적용</span>' : ''}<i class="pc-hr"></i>${pvRows(id)}</button>`;
 }
 function pactHtml() {
-  const pp = C.S.pendingPact;
+  const pp = C.S.pendingPact, intro = pactIntro ? ' intro' : '';
   if (pactSkip) {
-    return `<div class="modal"><h2>건너뛰기</h2><p>거래를 받지 않고 건너뜁니다</p>
-      <div class="d-acts two"><button type="button" class="btn danger" data-act="pactSkipOk">건너뛰기</button><button type="button" class="btn" data-act="pactBack">뒤로</button></div></div>`;
+    return `<div class="pv${intro} ask"><div class="pv-box"><h2 class="pv-title">거절</h2><p class="pv-sub">이번 거래를 맺지 않고 지나갑니다.</p>
+      <div class="pv-acts"><button type="button" class="pv-ok" data-act="pactSkipOk">거절한다</button><button type="button" class="pv-no" data-act="pactBack">돌아간다</button></div></div></div>`;
   }
-  return `<div class="modal${pactIntro ? ' intro' : ''}"><h2>천칭의 거래</h2>
-    <p>하나를 고르세요. 얻는 것과 치르는 것이 이번 판 내내 이어집니다. 고르는 동안 게임은 멈춥니다.</p>
-    <div class="pacts">${pp.map((id, i) => pactCard(id, i, i === pactSel, pactSel >= 0 && i !== pactSel)).join('')}</div>
-    <div class="d-acts two"><button type="button" class="btn primary${pactSel >= 0 ? '' : ' off'}" data-act="pactOk"${pactSel >= 0 ? '' : ' disabled'}>거래하기</button><button type="button" class="btn" data-act="pactSkip">건너뛰기</button></div></div>`;
+  const ok = pactSel >= 0;
+  return `<div class="pv${intro}"><div class="pv-top">${scaleEmblem(pp.length, pactSel)}</div>
+    <h2 class="pv-title">천칭의 거래</h2><p class="pv-sub">하나를 고르세요. 고르는 동안 게임은 멈춥니다.</p>
+    <div class="pv-cards n${pp.length}">${pp.map((id, i) => pactCard(id, i, i === pactSel, ok && i !== pactSel)).join('')}</div>
+    <p class="pv-note">한번 맺은 거래는 이번 판이 끝날 때까지 이어집니다.</p>
+    <div class="pv-acts"><button type="button" class="pv-ok${ok ? '' : ' off'}" data-act="pactOk"${ok ? '' : ' disabled'}>거래를 맺는다</button><button type="button" class="pv-no" data-act="pactSkip">거절한다</button></div></div>`;
+}
+// 맺은 거래 보기 (책갈피)
+function pactViewHtml() {
+  const L = C.S.pacts || [];
+  return `<div class="pv"><div class="pv-box wide"><h2 class="pv-title">맺은 거래</h2><p class="pv-sub">이번 판이 끝날 때까지 이어집니다. (${L.length})</p>
+    <div class="pv-list">${L.map(id => `<div class="pl"><span class="pc-nm">${C.PACTS[id].name}</span><i class="pc-hr"></i>${pvRows(id)}</div>`).join('')}</div>
+    <div class="pv-acts"><button type="button" class="pv-ok" data-act="pactMarkClose">닫기</button></div></div></div>`;
 }
 function pactToast(r) {
   const d = C.PACTS[r.id];
@@ -3074,6 +3202,21 @@ function bossSvg(t) {
   }
   return `<svg viewBox="-36 -36 72 72" width="40" height="40" aria-hidden="true">${g}</svg>`;
 }
+const BOSS_HELP = {
+  giant: ['체력이 아주 많고 크고 단단한 보스입니다.', '무기와 강화를 한곳에 몰아서 기지에 닿기 전에 쓰러뜨리세요.'],
+  split: ['쓰러뜨리면 대형 적 셋으로 갈라집니다.', '갈라진 적이 한꺼번에 오니 범위 공격 무기를 준비하세요.'],
+  summon: ['지나가는 동안 졸개를 계속 불러냅니다.', '졸개가 쌓이기 전에 범위 공격 무기로 쓸어내세요.'],
+  jammer: ['무기 칸 하나를 잠가 한동안 쓰지 못하게 합니다. 어느 칸인지 미리 알려 줍니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
+  shield: ['방패로 정면에서 오는 공격을 막습니다.', '옆 레인에 있는 무기로 공격하세요.'],
+  thief: ['인벤토리의 물건 하나를 훔쳐 갑니다. 훔칠 칸을 미리 알려 줍니다.', '예고된 칸의 물건을 옮기거나 사용해서 비워 두세요.'],
+  corrode: ['예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
+  scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
+};
+function bossCard(t) {
+  const d = C.ENEMIES[t], h = BOSS_HELP[t] || [d.hint, (d.tip || [])[1] || ''];
+  return `<div class="hbc">${bossSvg(t)}<span class="hbn" style="color:${t === 'scale' ? 'var(--ink)' : ECOL[t] || 'var(--ink)'}">${d.name}</span>
+    <span class="hbr"><i>특징</i><span>${h[0]}</span></span><span class="hbr"><i>공략</i><span>${h[1]}</span></span></div>`;
+}
 // 도움말: 시작 화면이나 일시정지 화면에서
 function helpHtml() {
   const L = theme.scheme === 'light';
@@ -3085,7 +3228,8 @@ function helpHtml() {
   const ctl = `<div class="hgrid3">
     ${hnode(hbox(partIcon(wp, 22), 'g1') + HARR + slot('blaster'), '장착 · 강화')}
     ${hnode(slot('blaster') + HSWAP + slot('mortar'), '자리 바꾸기')}
-    ${hnode(tap + HARR + win, '무기 창')}</div><p class="hnote">버리기는 두 번 눌러야 버려집니다. 한 번 누르면 버튼이 붉게 바뀌고, 다른 곳을 누르거나 3초가 지나면 취소됩니다.</p>`;
+    ${hnode(tap + HARR + win, '상세 보기')}</div><p class="hnote">무기 창(무기를 두 번 누르면 열리는 상세 화면)에서는 강화 단계, 파츠, 증강을 확인합니다. 버리기는 한 번 더 눌러야 실행됩니다.</p>`;
+  const ctlIntro = `<p class="hnote">누르기와 끌기로 파츠를 장착하고, 무기 자리를 바꾸고, 무기와 기지의 상태를 살펴보는 방법입니다.</p>`;
   const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>`;
   const grades = `<div class="hchips">${GR.map((n, g) => `<span class="hchip g${g}">${n}</span>`).join('')}</div>`;
   const parts = `<div class="hgrid2"><div class="hp"><span class="pic g1">${partIcon(wp, 28)}</span><span><b>무기 파츠</b><small>무기 하나에 장착</small></span></div>
@@ -3093,20 +3237,20 @@ function helpHtml() {
   const augs = `<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`;
   const up = `<div class="hflow">${hnode(SHARD.replace('width="15" height="15"', 'width="28" height="28"'), '강화 조각')}${HARR}${hnode(hbox(icon('blaster', 22) + '<em class="bdg">+5</em>', 'slot'), '강화')}${HARR}${hnode(augs, '5단계마다 증강')}</div>`;
   const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2') + hbox(icon('pulse', 20), 'slot'), '파츠 · 무기')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
-  const meltNote = `<p class="hnote">용해로를 켜고 물건을 눌러 여러 개를 고른 뒤 '선택 분해'를 누릅니다. 아무것도 고르지 않으면 '모두 분해'가 되며, 영웅 이상 파츠와 강화한 무기는 빠집니다. 버튼에 얻을 게이지가 표시됩니다.</p>`;
-  const scaleHelp = `<div class="hb">${bossSvg('scale')}<span><b>천칭</b><small>10번째 보스마다 등장</small><small>4초마다 단단함과 연약함이 바뀜</small><small>처치하면 거래 제안</small></span></div>
-    <div class="hpact"><b>거래 하나</b><span class="up">▲ 얻는 것</span><span class="dn">▼ 치르는 것</span></div>
-    <p class="hnote">둘 중 하나를 고르거나 건너뜁니다. 고른 거래는 이번 판 내내 이어지고 같은 거래는 한 번만 받습니다. 받은 거래는 기지 창에서 볼 수 있습니다.</p>`;
+  const meltNote = `<p class="hnote">쓰지 않는 파츠와 무기를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 녹일 물건은 눌러서 고릅니다.</p>`;
+  const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 이번 판이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 기지 창(기지를 누르면 열리는 화면)에서 볼 수 있습니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
-  const bosses = `<div class="hgrid2">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(t => { const d = C.ENEMIES[t], tp = d.tip || [d.hint]; return `<div class="hb">${bossSvg(t)}<span><b style="color:${ECOL[t]}">${d.name}</b>${tp.map(x => `<small>${x}</small>`).join('')}</span></div>`; }).join('')}</div>`;
+  const bosses = `<div class="hbl">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(bossCard).join('')}</div>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
-    ${sec('조작', ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
+    ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
 }
 function renderOverlay() {
   const S = C.S;
   let h = '';
-  if ((mode === 'start' || mode === 'pause') && helpFrom) {
+  if (mode === 'pause' && pactView && S && S.pacts && S.pacts.length) {
+    h = pactViewHtml();
+  } else if ((mode === 'start' || mode === 'pause') && helpFrom) {
     h = helpHtml();
   } else if (mode === 'start') {
     h = `<div class="modal start"><h1>도형 <span>디펜스</span></h1>
@@ -3161,6 +3305,7 @@ function renderOverlay() {
       h = wpick >= 0 ? wpickHtml(wpick) : bmodal ? bmHtml() : wmHtml(S.slots[wmodal]);
     }
   }
+  elO.classList.toggle('pactv', !!h && h.startsWith('<div class="pv'));
   if (h) { elO.innerHTML = h; elO.hidden = false; }
   else { elO.hidden = true; elO.innerHTML = ''; }
 }
@@ -3168,7 +3313,7 @@ function renderOverlay() {
 /* ---------- 조작 ---------- */
 function resetUi() {
   sel = null; partSwap = null; wmodal = -1; bmodal = false; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
-  augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
+  augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = '';
 }
 function startGame() { shareReset(); C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
@@ -3559,6 +3704,14 @@ function act(name) {
     case 'pactSkip':                         // 천칭의 거래 건너뛰기: 증강처럼 한 번 더 확인한다
       if (!S || !S.pendingPact || performance.now() - pactOpenAt < 400) return;
       pactSkip = true; pactSel = -1; pactOpenAt = performance.now(); renderOverlay(); return;
+    case 'pactMark':
+      if (mode !== 'play' || !S || !S.pacts || !S.pacts.length || S.pendingAug || S.pendingPact) return;
+      pactResume = true; pactView = true; mode = 'pause'; Snd.play('tap'); renderOverlay(); return;
+    case 'pactMarkClose':
+      if (!pactView) return;
+      pactView = false; Snd.play('tap');
+      if (pactResume) { mode = 'play'; last = 0; } pactResume = false;
+      renderAll(); return;
     case 'pactBack':
       if (!S || !S.pendingPact) return;
       pactSkip = false; pactOpenAt = performance.now(); renderOverlay(); return;
@@ -3570,9 +3723,10 @@ function act(name) {
       legendMark();
       const r = C.choosePact(pactSel);
       if (!r.ok) return;
-      pactSel = -1; pactSkip = false; Snd.play('pick');
+      pactSel = -1; pactSkip = false; pactIntro = false; Snd.play('pact');
       renderAll(); legendScan();
-      say(pactToast(r));
+      banner(C.PACTS[r.id].name);
+      if (r.id === 'relic' || (r.id === 'focus' && r.moved)) say(pactToast(r));   // 부수 결과(인벤토리 변화)는 알림으로 따로 알린다
       return;
     }
     case 'home': goHome(); return;
@@ -3684,6 +3838,7 @@ $('#app').addEventListener('click', (ev) => {
   const S = C.S;
   // 무기 창이나 기지 창의 바깥 부분을 누르면 닫힌다
   if (ev.target === elO && mode === 'play' && S && !S.pendingAug && !partSwap && (wmodal >= 0 || bmodal)) { closeW(); return; }
+  if (pactIntro && S && S.pendingPact && elO.contains(ev.target)) { pactIntro = false; renderOverlay(); return; }   // 등장 연출은 누르면 건너뛴다
   const b = ev.target.closest('button'); if (!b) return;
   Snd.ensure();
   if (performance.now() < suppressClick) return;   // 끌기가 끝난 직후의 누름은 무시
