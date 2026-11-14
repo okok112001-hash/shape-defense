@@ -469,7 +469,11 @@ b { font-weight: 600; }
 /* 하단 버튼 줄: 생성, 강화, 용해로 / 분해 버튼 */
 .acts.three3 { grid-template-columns: 1.25fr 1.05fr 1fr; }
 .acts.two2 { grid-template-columns: 1fr 1fr; }
-.acts.three3 .btn { padding: 0 8px; gap: 4px; font-size: 14px; }
+.acts.three3 .btn { padding: 0 8px; gap: 4px; font-size: 14px; white-space: nowrap; min-width: 0; }
+.mlb { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.btn.melt .mlb b[data-n="4"] { font-size: 14px; } .btn.melt .mlb b[data-n="5"], .btn.melt .mlb b[data-n="6"] { font-size: 12px; letter-spacing: -.4px; }
+.btn.melt .mlb b[data-n="5"], .btn.melt .mlb b[data-n="6"] { margin-left: -1px; }
+.gc b, .gc small { white-space: nowrap; }
 .acts.three3 .btn.gen, .btn.up { justify-content: space-between; }
 .btn.up { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 .btn.up .gc b { font: 17px var(--font-display); }
@@ -668,6 +672,8 @@ b { font-weight: 600; }
 .pv::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; box-shadow: inset 0 0 90px 30px rgba(0, 0, 0, .7); }
 .pv-top { width: 100%; max-width: 362px; }
 .pv-emb { display: block; overflow: visible; }
+.pv-emb .beam, .pv-emb .pan > g { transition: transform .4s cubic-bezier(.3, 1.3, .5, 1); }
+.pv .pv-quote { font-style: italic; font-size: 13.5px; line-height: 1.45; color: var(--pi); word-break: keep-all; padding: 0 10px; }
 .pv h2.pv-title { margin: 0; font: 26px/1.1 var(--font-display); letter-spacing: 3px; color: var(--pgb); }
 .pv .pv-sub { margin: 0; font-size: 12px; color: var(--pd); }
 .pv-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 362px; align-items: stretch; }
@@ -704,15 +710,17 @@ b { font-weight: 600; }
 .pv.intro::before { animation: pvfade .35s ease-out backwards; }
 .pv.intro .pv-emb { animation: pvdrop .5s .12s cubic-bezier(.2, .8, .3, 1) backwards; }
 .pv.intro .pv-emb .beam { animation: pvbeam .6s .15s ease-out backwards; }
+.pv.intro .pv-emb .pan > g { animation: pvpan .6s .15s ease-out backwards; }
 .pv.intro .pv-title, .pv.intro .pv-sub { animation: pvfade .4s .25s ease-out backwards; }
 .pv.intro .pc { animation: pvcard .35s ease-out backwards; animation-delay: calc(.4s + var(--i, 0) * .15s); }
 .pv.intro .pv-note, .pv.intro .pv-acts { animation: pvfade .3s .7s ease-out backwards; }
 @keyframes pvfade { from { opacity: 0; } }
 @keyframes pvdrop { from { opacity: 0; transform: translateY(-14px); } }
 @keyframes pvbeam { from { transform: rotate(-7deg); } 60% { transform: rotate(3deg); } }
+@keyframes pvpan { from { transform: rotate(7deg); } 60% { transform: rotate(-3deg); } }
 @keyframes pvcard { from { opacity: 0; transform: translateY(24px); } }
 @media (max-height: 660px) { .pc { min-height: 200px; padding-top: 14px; } .pv-emb { height: 70px; } .pv { gap: 5px; } }
-@media (prefers-reduced-motion: reduce) { .pv.intro::before, .pv.intro .pv-emb, .pv.intro .pv-emb .beam, .pv.intro .pv-title, .pv.intro .pv-sub, .pv.intro .pc, .pv.intro .pv-note, .pv.intro .pv-acts, .pc { animation: none; transition: none; } }
+@media (prefers-reduced-motion: reduce) { .pv.intro::before, .pv.intro .pv-emb, .pv.intro .pv-emb .beam, .pv.intro .pv-emb .pan > g, .pv-emb .beam, .pv-emb .pan > g, .pv.intro .pv-title, .pv.intro .pv-sub, .pv.intro .pc, .pv.intro .pv-note, .pv.intro .pv-acts, .pc { animation: none; transition: none; } }
 
 /* ---- 거래 완료 배너 ---- */
 #pactBanner { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; align-items: center; justify-content: center; overflow: hidden; }
@@ -828,8 +836,10 @@ const BAL = {
   },
   lvMul(L) { return Math.pow(1.05, L); },
   // 적 체력 배수: 끊김 없는 식 하나. 초반에는 거의 오르지 않고, 이후 꾸준히 오르며 끝없이 계속된다
-  hpMul(t) { return Math.pow(1 + Math.pow(t / 301, 3.1), 0.9) * Math.exp(0.0012 * t); },
-  bossMul(n) { return 1 - 0.6 * Math.exp(-n / 2.5); }, // 초반 보스는 약하게
+  hpMul(t) { return Math.pow(1 + Math.pow(t / 321, 3.1), 0.9) * Math.exp(0.0012 * t); },
+  bossHp: 1.3,      // 모든 보스의 체력 배수 (일반 적과 같은 hpMul 곡선에 곱한다)
+  bossSpd: 0.85,    // 모든 보스의 이동 속도 배수
+  bossY: 0.14,      // 보스가 나타나는 높이 (전장 높이의 비율). 예고 동안 이 자리에 고정된다
   spawnRate(t) { return 0.5 + 5.5 * (1 - Math.exp(-t / 340)); },
   // 적 종류별 등장 가중치 [basic, runner, swarm, heavy]. 해금 뒤 서서히 늘어난다
   spawnWeights(t) {
@@ -871,42 +881,42 @@ const pct = (k) => (s, v) => { s[k] += v / 100; };
 const add = (k) => (s, v) => { s[k] += v; };
 const mx = (k) => (s, v) => { s[k] = Math.max(s[k], v / 100); };
 const PARTS = {
-  dmg:   { name: '강화 탄두',   abbr: '공격', min: 0, v: [4.6, 9.2, 23, 69],    ap: pct('dmgPct'),   d: v => `공격력 +${v}%` },
-  rate:  { name: '가속 장치',   abbr: '속도', min: 0, v: [4.6, 9.2, 23, 46],    ap: pct('ratePct'),  d: v => `공격 속도 +${v}%` },
-  crit:  { name: '조준경',      abbr: '치확', min: 0, v: [6, 12, 30, 80],    ap: pct('crit'),     d: v => `치명타 확률 +${v}%` },
-  critd: { name: '예리한 날',   abbr: '치피', min: 0, v: [20, 40, 100, 270], w: [1.8, 3.6, 9, 24],  ap: (s, v, w) => { s.critDmg += v / 100; s.crit += w / 100; }, d: (v, w) => `치명타 피해 +${v}%, 치명타 확률 +${w}%` },
-  range: { name: '확장 모듈',   abbr: '범위', min: 0, v: [7.4, 15, 37, 110],    ap: pct('rangePct'), d: v => `사거리와 공격 범위 +${v}%` },
-  boss:  { name: '약점 분석기', abbr: '보스', min: 0, v: [11, 22, 54, 160],   ap: pct('bossPct'),  d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
-  gold:  { name: '채굴 칩',     abbr: '재화', min: 0, v: [14, 28, 70, 210],    ap: pct('goldPct'),  d: v => `이 무기로 처치 시 재화 +${v}%` },
-  exec:  { name: '처형 모듈',   abbr: '처형', min: 0, v: [16, 32, 80, 240],   ap: pct('execPct'),  d: v => `체력 50% 이하인 적에게 피해 +${v}%` },
-  first: { name: '선제 타격기', abbr: '선제', min: 0, v: [15, 30, 74, 220],   ap: pct('firstPct'), d: v => `체력 70% 이상인 적에게 피해 +${v}%` },
+  dmg:   { name: '강화 탄두',   abbr: '공격', min: 0, v: [5.8, 12, 23, 58],    ap: pct('dmgPct'),   d: v => `공격력 +${v}%` },
+  rate:  { name: '가속 장치',   abbr: '속도', min: 0, v: [5.8, 12, 23, 46],    ap: pct('ratePct'),  d: v => `공격 속도 +${v}%` },
+  crit:  { name: '조준경',      abbr: '치확', min: 0, v: [7.5, 15, 30, 75],    ap: pct('crit'),     d: v => `치명타 확률 +${v}%` },
+  critd: { name: '예리한 날',   abbr: '치피', min: 0, v: [25, 50, 100, 250], w: [2.3, 4.5, 9, 23],  ap: (s, v, w) => { s.critDmg += v / 100; s.crit += w / 100; }, d: (v, w) => `치명타 피해 +${v}%, 치명타 확률 +${w}%` },
+  range: { name: '확장 모듈',   abbr: '범위', min: 0, v: [9.3, 19, 37, 93],    ap: pct('rangePct'), d: v => `사거리와 공격 범위 +${v}%` },
+  boss:  { name: '약점 분석기', abbr: '보스', min: 0, v: [14, 27, 54, 140],   ap: pct('bossPct'),  d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
+  gold:  { name: '채굴 칩',     abbr: '재화', min: 0, v: [18, 35, 70, 180],    ap: pct('goldPct'),  d: v => `이 무기로 처치 시 재화 +${v}%` },
+  exec:  { name: '처형 모듈',   abbr: '처형', min: 0, v: [20, 40, 80, 200],   ap: pct('execPct'),  d: v => `체력 50% 이하인 적에게 피해 +${v}%` },
+  first: { name: '선제 타격기', abbr: '선제', min: 0, v: [19, 37, 74, 190],   ap: pct('firstPct'), d: v => `체력 70% 이상인 적에게 피해 +${v}%` },
   dbl:   { name: '이중 장전기', abbr: '연사', min: 2, v: [0, 0, 21, 42],      ap: pct('dbl'),      d: v => `공격 시 ${v}% 확률로 즉시 한 번 더 공격` },
   core:  { name: '코어 증폭기', abbr: '코어', min: 3, v: [0, 0, 0, 24],
     ap: (s, v) => { s.dmgPct += v / 100; s.ratePct += v / 200; }, d: v => `공격력 +${v}%, 공격 속도 +${v / 2}%` },
   // 여러 수치를 함께 바꾸거나 독특한 효과가 있는 파츠
-  heavy:  { name: '중화기 개조',     min: 0, v: [9.6, 19, 48, 140], ap: (s, v) => { s.dmgPct += v / 100; s.ratePct -= 0.15; }, d: v => `공격력 +${v}%, 공격 속도 -15%` },
-  light:  { name: '경량 프레임',     min: 0, v: [6.2, 12, 31, 62],  ap: (s, v) => { s.ratePct += v / 100; s.dmgPct -= 0.10; }, d: v => `공격 속도 +${v}%, 공격력 -10%` },
-  sniper: { name: '저격 조준기',     min: 0, v: [14, 28, 70, 180], ap: pct('farPct'), d: v => `전장 위쪽 70%에 있는 적에게 피해 +${v}%` },
-  chill:  { name: '냉각수 탱크',     min: 0, v: [7.8, 16, 39, 80],   ap: mx('slow'),    d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
-  glass:  { name: '유리 대포',       min: 1, v: [0, 13, 33, 99],  ap: (s, v) => { s.dmgPct += v / 100; s.rangePct -= 0.15; }, d: v => `공격력 +${v}%, 사거리와 범위 -15%` },
-  big:    { name: '대구경 포신',     min: 1, v: [0, 9.2, 23, 46],   ap: (s, v) => { s.rangePct += v / 100; s.dmgPct += v / 200; }, d: v => `사거리와 범위 +${v}%, 공격력 +${v / 2}%` },
-  ember:  { name: '발화 장치',       min: 1, v: [0, 10, 26, 78],   ap: mx('burn'),    d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
-  gamble: { name: '도박사의 주사위', min: 1, v: [0, 170, 202, 310], ap: mx('gamble'), d: v => `공격할 때마다 피해가 50%~${v}% 사이에서 무작위로 결정` },
+  heavy:  { name: '중화기 개조',     min: 0, v: [12, 24, 48, 120], ap: (s, v) => { s.dmgPct += v / 100; s.ratePct -= 0.15; }, d: v => `공격력 +${v}%, 공격 속도 -15%` },
+  light:  { name: '경량 프레임',     min: 0, v: [7.8, 16, 31, 62],  ap: (s, v) => { s.ratePct += v / 100; s.dmgPct -= 0.10; }, d: v => `공격 속도 +${v}%, 공격력 -10%` },
+  sniper: { name: '저격 조준기',     min: 0, v: [18, 35, 70, 180], ap: pct('farPct'), d: v => `전장 위쪽 70%에 있는 적에게 피해 +${v}%` },
+  chill:  { name: '냉각수 탱크',     min: 0, v: [9.8, 20, 39, 80],   ap: mx('slow'),    d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
+  glass:  { name: '유리 대포',       min: 1, v: [0, 17, 33, 83],  ap: (s, v) => { s.dmgPct += v / 100; s.rangePct -= 0.15; }, d: v => `공격력 +${v}%, 사거리와 범위 -15%` },
+  big:    { name: '대구경 포신',     min: 1, v: [0, 12, 23, 46],   ap: (s, v) => { s.rangePct += v / 100; s.dmgPct += v / 200; }, d: v => `사거리와 범위 +${v}%, 공격력 +${v / 2}%` },
+  ember:  { name: '발화 장치',       min: 1, v: [0, 13, 26, 65],   ap: mx('burn'),    d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
+  gamble: { name: '도박사의 주사위', min: 1, v: [0, 180, 202, 280], ap: mx('gamble'), d: v => `공격할 때마다 피해가 50%~${v}% 사이에서 무작위로 결정` },
   ramp:   { name: '과열 엔진',       min: 2, v: [0, 0, 20, 50],    ap: mx('ramp'),    d: v => `쉬지 않고 공격하면 공격 속도가 점점 올라 최대 +${v}%` },
   // 기지 전용 파츠 (기지 파츠 칸에만 장착, 효과는 전체에 적용)
-  shield:  { base: true, name: '방패 발생기', min: 0, v: [2.4, 4.8, 12, 36],     ap: pct('shield'),   d: v => `기지가 받는 피해 -${v}% (합산, 최대 60%)` },
+  shield:  { base: true, name: '방패 발생기', min: 0, v: [3, 6, 12, 30],     ap: pct('shield'),   d: v => `기지가 받는 피해 -${v}% (합산, 최대 60%)` },
   // 두 가지 능력을 가진 기지 항목: v = 첫째 수치, w = 둘째 수치 (등급별 배열). ap(s, v, w), d(v, w)
-  armor:   { base: true, name: '장갑판',     min: 0, v: [4, 8, 20, 60], w: [0.88, 1.8, 4.4, 13], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgAll += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 모든 무기의 공격력 +${w}%` },
-  drone:   { base: true, name: '수리 드론',   min: 0, v: [0.05, 0.1, 0.25, 0.75], w: [0.56, 1.1, 2.8, 8.4], ap: (s, v, w) => { s.regenPct += v / 100; s.goldAll += w / 100; }, d: (v, w) => `1초마다 최대 체력의 ${v}% 회복 · 재화 획득 +${w}%` },
-  heal:    { base: true, name: '수리 장치',   min: 0, v: [0.8, 1.6, 4, 12], w: [1.2, 2.4, 6, 18], ap: (s, v, w) => { s.heal += v / 100; s.bossHeal += w / 100; }, d: (v, w) => `적을 처치할 때 ${v}% 확률로 최대 체력의 1% 회복 · 보스를 처치하면 체력 ${w}% 회복` },
-  wire:    { base: true, name: '감속 철조망', min: 0, v: [5.8, 12, 29, 80],    ap: mx('nearSlow'),  d: v => `기지 가까이 온 적(전장 아래 4분의 1)을 ${v}% 둔화` },
-  luck:    { base: true, name: '행운 부적',   min: 0, v: [0.38, 0.76, 1.9, 5.7],       ap: pct('luck'),     d: v => `모든 강화의 성공률 +${v}%p` },
-  save:    { base: true, name: '절약 회로',   min: 0, v: [1.1, 2.3, 5.7, 17],     ap: pct('save'),     d: v => `강화할 때 ${v}% 확률로 조각을 소모하지 않음` },
-  magnet:  { base: true, name: '자석 코어',   min: 0, v: [0.34, 0.68, 1.7, 5.1],        ap: pct('magnet'),   d: v => `적을 처치할 때 ${v}% 확률로 강화 조각 획득` },
-  depot:   { base: true, name: '보급 창고',   min: 0, v: [1.4, 2.8, 7, 21],     ap: pct('goldAll'),  d: v => `재화 획득 +${v}%` },
-  command: { base: true, name: '지휘 통신기', min: 0, v: [2.8, 5.6, 14, 42],      ap: pct('dmgAll'),   d: v => `모든 무기의 공격력 +${v}%` },
-  radar:   { base: true, name: '레이더',     min: 0, v: [2.2, 4.4, 11, 33],      ap: pct('rangeAll'), d: v => `모든 무기의 사거리와 범위 +${v}%` },
-  barrier: { base: true, name: '비상 방벽',   min: 2, v: [0, 0, 30, 90],      ap: mx('revive'),    d: v => `기지가 파괴될 피해를 한 번 막고 체력을 ${v}% 회복. 발동하면 이 파츠는 사라짐` },
+  armor:   { base: true, name: '장갑판',     min: 0, v: [5, 10, 20, 50], w: [1.1, 2.2, 4.4, 11], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgAll += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 모든 무기의 공격력 +${w}%` },
+  drone:   { base: true, name: '수리 드론',   min: 0, v: [0.063, 0.13, 0.25, 0.63], w: [0.7, 1.4, 2.8, 7], ap: (s, v, w) => { s.regenPct += v / 100; s.goldAll += w / 100; }, d: (v, w) => `1초마다 최대 체력의 ${v}% 회복 · 재화 획득 +${w}%` },
+  heal:    { base: true, name: '수리 장치',   min: 0, v: [1, 2, 4, 10], w: [1.5, 3, 6, 15], ap: (s, v, w) => { s.heal += v / 100; s.bossHeal += w / 100; }, d: (v, w) => `적을 처치할 때 ${v}% 확률로 최대 체력의 1% 회복 · 보스를 처치하면 체력 ${w}% 회복` },
+  wire:    { base: true, name: '감속 철조망', min: 0, v: [7.3, 15, 29, 73],    ap: mx('nearSlow'),  d: v => `기지 가까이 온 적(전장 아래 4분의 1)을 ${v}% 둔화` },
+  luck:    { base: true, name: '행운 부적',   min: 0, v: [0.47, 0.95, 1.9, 4.8],       ap: pct('luck'),     d: v => `모든 강화의 성공률 +${v}%p` },
+  save:    { base: true, name: '절약 회로',   min: 0, v: [1.4, 2.9, 5.7, 14],     ap: pct('save'),     d: v => `강화할 때 ${v}% 확률로 조각을 소모하지 않음` },
+  magnet:  { base: true, name: '자석 코어',   min: 0, v: [0.42, 0.85, 1.7, 4.3],        ap: pct('magnet'),   d: v => `적을 처치할 때 ${v}% 확률로 강화 조각 획득` },
+  depot:   { base: true, name: '보급 창고',   min: 0, v: [1.8, 3.5, 7, 18],     ap: pct('goldAll'),  d: v => `재화 획득 +${v}%` },
+  command: { base: true, name: '지휘 통신기', min: 0, v: [3.5, 7, 14, 35],      ap: pct('dmgAll'),   d: v => `모든 무기의 공격력 +${v}%` },
+  radar:   { base: true, name: '레이더',     min: 0, v: [2.8, 5.5, 11, 28],      ap: pct('rangeAll'), d: v => `모든 무기의 사거리와 범위 +${v}%` },
+  barrier: { base: true, name: '비상 방벽',   min: 2, v: [0, 0, 30, 75],      ap: mx('revive'),    d: v => `기지가 파괴될 피해를 한 번 막고 체력을 ${v}% 회복. 발동하면 이 파츠는 사라짐` },
 };
 const BASE_PART_IDS = Object.keys(PARTS).filter(id => PARTS[id].base);
 const WEAPON_PART_IDS = Object.keys(PARTS).filter(id => !PARTS[id].base);
@@ -916,82 +926,82 @@ const PART_IDS = Object.keys(PARTS);
 const laneText = (n) => n >= 4 ? '모든 레인의 적을 조준' : `조준 범위가 양옆 ${n}레인으로 확대`;
 const AUGS = {
   // 공용 수치형
-  a_dmg:  { name: '고출력',   abbr: '출력', min: 0, for: 'all', v: [8.2, 16, 41, 100], ap: pct('dmgPct'),  d: v => `공격력 +${v}%` },
-  a_rate: { name: '속사',     abbr: '속사', min: 0, for: 'all', v: [7.2, 14, 36, 72],  ap: pct('ratePct'), d: v => `공격 속도 +${v}%` },
-  a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, for: 'all', v: [9.6, 19, 48, 90],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
+  a_dmg:  { name: '고출력',   abbr: '출력', min: 0, for: 'all', v: [10, 21, 41, 100], ap: pct('dmgPct'),  d: v => `공격력 +${v}%` },
+  a_rate: { name: '속사',     abbr: '속사', min: 0, for: 'all', v: [9, 18, 36, 72],  ap: pct('ratePct'), d: v => `공격 속도 +${v}%` },
+  a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, for: 'all', v: [12, 24, 48, 90],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
   // 블래스터
   b_pierce: { name: '관통탄', abbr: '관통', min: 0, for: 'blaster', v: [1, 2, 3, 4], ap: add('pierce'), d: v => `탄환이 적 ${v}명을 추가로 관통 (관통할 때마다 피해 -45%)` },
   b_multi:  { name: '연발',   abbr: '연발', min: 2, for: 'blaster', v: [0, 0, 1, 2], ap: add('shots'),  d: v => `탄환 ${v}발 추가 발사 (추가 탄 피해 ${Math.round(CFG.extraShotMul * 100)}%)` },
-  b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 25, 75], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
-  b_seek:   { name: '유도탄', abbr: '유도', min: 2, for: 'blaster', v: [0, 0, 2, 4], w: [0, 0, 25, 75], ap: (s, v, w) => { s.lanes += v; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v)}, 공격력 +${w}%` },
-  b_frost:  { name: '냉각탄', abbr: '냉각', min: 0, for: 'blaster', v: [14, 28, 69, 80], ap: mx('slow'), d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
+  b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 25, 63], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
+  b_seek:   { name: '유도탄', abbr: '유도', min: 2, for: 'blaster', v: [0, 0, 2, 4], w: [0, 0, 25, 63], ap: (s, v, w) => { s.lanes += v; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v)}, 공격력 +${w}%` },
+  b_frost:  { name: '냉각탄', abbr: '냉각', min: 0, for: 'blaster', v: [17, 35, 69, 80], ap: mx('slow'), d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
   // 산탄포
   s_wide:   { name: '광각 산탄', abbr: '광각', min: 2, for: 'shotgun', v: [0, 0, 1, 3], ap: add('lanes'), d: v => v >= 3 ? '모든 레인에 산탄 발사' : '양옆 2레인까지 산탄 발사' },
   s_pellet: { name: '추가 산탄', abbr: '산탄', min: 2, for: 'shotgun', v: [0, 0, 1, 2], ap: add('shots'), d: v => `레인마다 산탄 ${v}발 추가 (추가 탄 피해 ${Math.round(CFG.extraShotMul * 100)}%)` },
-  s_knock:  { name: '충격탄',   abbr: '충격', min: 0, for: 'shotgun', v: [3.8, 7.6, 19, 57], ap: add('knock'), d: v => `적중한 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
-  s_close:  { name: '근접 사격', abbr: '근접', min: 0, for: 'shotgun', v: [9.6, 19, 48, 140], ap: pct('closePct'), d: v => `기지 가까이 온 적에게 피해 +${v}%` },
+  s_knock:  { name: '충격탄',   abbr: '충격', min: 0, for: 'shotgun', v: [4.8, 9.5, 19, 48], ap: add('knock'), d: v => `적중한 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
+  s_close:  { name: '근접 사격', abbr: '근접', min: 0, for: 'shotgun', v: [12, 24, 48, 120], ap: pct('closePct'), d: v => `기지 가까이 온 적에게 피해 +${v}%` },
   s_pierce: { name: '철갑 산탄', abbr: '철갑', min: 1, for: 'shotgun', v: [0, 1, 2, 4], ap: add('pierce'), d: v => `산탄이 적 ${v}명을 추가로 관통 (관통할 때마다 피해 -45%)` },
   // 레이저
-  l_burn:   { name: '잔열',     abbr: '잔열', min: 0, for: 'laser', v: [7, 14, 35, 110], ap: mx('burn'), d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
-  l_wide:   { name: '광폭 빔',  abbr: '광폭', min: 2, for: 'laser', v: [0, 0, 12, 36], ap: pct('sideBeam'), d: v => `양옆 레인의 적에게도 ${v}% 피해` },
-  l_charge: { name: '과충전',   abbr: '충전', min: 0, for: 'laser', v: [32, 64, 160, 480], ap: pct('third'), d: v => `3번째 발사마다 피해 +${v}%` },
-  l_exec:   { name: '소멸 광선', abbr: '소멸', min: 2, for: 'laser', v: [0, 0, 12, 36], ap: mx('instakill'), d: v => `체력이 ${v}% 이하로 떨어진 일반 적을 즉시 처치` },
+  l_burn:   { name: '잔열',     abbr: '잔열', min: 0, for: 'laser', v: [8.8, 18, 35, 88], ap: mx('burn'), d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
+  l_wide:   { name: '광폭 빔',  abbr: '광폭', min: 2, for: 'laser', v: [0, 0, 12, 30], ap: pct('sideBeam'), d: v => `양옆 레인의 적에게도 ${v}% 피해` },
+  l_charge: { name: '과충전',   abbr: '충전', min: 0, for: 'laser', v: [40, 80, 160, 400], ap: pct('third'), d: v => `3번째 발사마다 피해 +${v}%` },
+  l_exec:   { name: '소멸 광선', abbr: '소멸', min: 2, for: 'laser', v: [0, 0, 12, 30], ap: mx('instakill'), d: v => `체력이 ${v}% 이하로 떨어진 일반 적을 즉시 처치` },
   // 펄스
-  p_area:   { name: '범위 증폭', abbr: '증폭', min: 0, for: 'pulse', v: [9, 18, 45, 55], ap: pct('areaPct'), d: v => `파동 범위 +${v}%` },
-  p_knock:  { name: '충격파',   abbr: '충격', min: 0, for: 'pulse', v: [2, 4, 10, 15], ap: add('knock'), d: v => `범위 안의 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
-  p_frost:  { name: '빙결장',   abbr: '빙결', min: 0, for: 'pulse', v: [7, 14, 35, 55], ap: mx('slow'), d: v => `범위 안의 적을 1.5초간 ${v}% 둔화` },
+  p_area:   { name: '범위 증폭', abbr: '증폭', min: 0, for: 'pulse', v: [11, 23, 45, 55], ap: pct('areaPct'), d: v => `파동 범위 +${v}%` },
+  p_knock:  { name: '충격파',   abbr: '충격', min: 0, for: 'pulse', v: [2.5, 5, 10, 15], ap: add('knock'), d: v => `범위 안의 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
+  p_frost:  { name: '빙결장',   abbr: '빙결', min: 0, for: 'pulse', v: [8.8, 18, 35, 55], ap: mx('slow'), d: v => `범위 안의 적을 1.5초간 ${v}% 둔화` },
   p_echo:   { name: '이중 파동', abbr: '이중', min: 2, for: 'pulse', v: [0, 0, 55, 90], ap: pct('echo'), d: v => `${v}% 확률로 파동이 한 번 더 발생` },
   // 박격포
-  m_big:     { name: '대형 포탄', abbr: '대형', min: 0, for: 'mortar', v: [11, 22, 55, 100], ap: pct('areaPct'), d: v => `폭발 범위 +${v}%` },
+  m_big:     { name: '대형 포탄', abbr: '대형', min: 0, for: 'mortar', v: [14, 28, 55, 100], ap: pct('areaPct'), d: v => `폭발 범위 +${v}%` },
   m_cluster: { name: '집속탄',   abbr: '집속', min: 2, for: 'mortar', v: [0, 0, 2, 4], ap: add('cluster'), d: v => `폭발 후 주변에 소형 폭발 ${v}개 추가 (피해 80%)` },
-  m_fire:    { name: '화염 지대', abbr: '화염', min: 2, for: 'mortar', v: [0, 0, 26, 78], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
-  m_boss:    { name: '정밀 포격', abbr: '포격', min: 0, for: 'mortar', v: [42, 84, 211, 630], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
+  m_fire:    { name: '화염 지대', abbr: '화염', min: 2, for: 'mortar', v: [0, 0, 26, 65], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
+  m_boss:    { name: '정밀 포격', abbr: '포격', min: 0, for: 'mortar', v: [53, 110, 211, 530], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
   // 전격기
   t_chain: { name: '연쇄 증폭', abbr: '연쇄', min: 0, for: 'tesla', v: [1, 2, 3, 5], ap: add('chain'), d: v => `연쇄 횟수 +${v}` },
-  t_stun:  { name: '감전',     abbr: '감전', min: 0, for: 'tesla', v: [8.8, 18, 44, 90], ap: mx('stun'), d: v => `적중 시 ${v}% 확률로 0.8초 기절 (보스 제외)` },
-  t_grow:  { name: '과부하',   abbr: '과부', min: 2, for: 'tesla', v: [0, 0, 15, 45], ap: mx('chainGrow'), d: v => `연쇄할 때마다 피해가 줄지 않고 ${v}%씩 증가` },
+  t_stun:  { name: '감전',     abbr: '감전', min: 0, for: 'tesla', v: [11, 22, 44, 90], ap: mx('stun'), d: v => `적중 시 ${v}% 확률로 0.8초 기절 (보스 제외)` },
+  t_grow:  { name: '과부하',   abbr: '과부', min: 2, for: 'tesla', v: [0, 0, 15, 38], ap: mx('chainGrow'), d: v => `연쇄할 때마다 피해가 줄지 않고 ${v}%씩 증가` },
   t_wide:  { name: '광역 방전', abbr: '광역', min: 2, for: 'tesla', v: [0, 0, 2, 4], w: [0, 0, 20, 20], ap: (s, v, w) => { s.lanes += v; s.chain += v / 2 + 1; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v + 1)}, 연쇄 +${v / 2 + 1}, 공격력 +${w}%` },
   // 눈에 보이는 변화가 큰 증강 (대부분 영웅 이상)
-  a_boom:    { name: '연쇄 폭발', min: 2, for: 'all',     v: [0, 0, 15, 45],   ap: mx('deathBoom'), d: v => `이 무기로 처치한 적이 폭발해 주변에 공격력의 ${v}% 피해` },
+  a_boom:    { name: '연쇄 폭발', min: 2, for: 'all',     v: [0, 0, 15, 38],   ap: mx('deathBoom'), d: v => `이 무기로 처치한 적이 폭발해 주변에 공격력의 ${v}% 피해` },
   b_rico:    { name: '도탄',     min: 2, for: 'blaster', v: [0, 0, 1, 2],      ap: add('rico'),   d: v => `탄환이 적중 후 가까운 다른 적에게 ${v}번 튕김 (튕길 때마다 피해 -50%)` },
   b_split:   { name: '분열탄',   min: 2, for: 'blaster', v: [0, 0, 2, 3],      ap: add('split'),  d: v => `탄환이 적중하면 작은 탄 ${v}개로 갈라져 날아감 (피해 35%)` },
   b_giant:   { name: '거대탄',   min: 3, for: 'blaster', v: [0, 0, 0, 3],      ap: add('giant'),  d: v => `5번째 발사마다 거대탄: 피해 ${v}배, 적 8명 관통` },
   s_double:  { name: '2연발',    min: 2, for: 'shotgun', v: [0, 0, 37, 80],  ap: mx('again'),   d: v => `발사 직후 한 번 더 발사 (피해 ${v}%)` },
-  s_blast:   { name: '폭렬 산탄', min: 2, for: 'shotgun', v: [0, 0, 21, 63],    ap: pct('splash'), d: v => `산탄이 적중하면 폭발해 주변에 피해의 ${v}%` },
+  s_blast:   { name: '폭렬 산탄', min: 2, for: 'shotgun', v: [0, 0, 21, 53],    ap: pct('splash'), d: v => `산탄이 적중하면 폭발해 주변에 피해의 ${v}%` },
   s_slug:    { name: '슬러그탄', min: 3, for: 'shotgun', v: [0, 0, 0, 0.8],      ap: add('slug'),   d: v => `3번째 발사마다 정면에 대형 탄 추가: 피해 ${v}배, 모든 적 관통, 밀어냄` },
-  l_freeze:  { name: '냉동 광선', min: 2, for: 'laser',   v: [0, 0, 0.2, 0.6], ap: (s, v) => { s.freeze = Math.max(s.freeze, v); }, d: v => `적중한 적을 ${v}초간 얼림 (보스는 둔화)` },
-  l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 23, 69],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
+  l_freeze:  { name: '냉동 광선', min: 2, for: 'laser',   v: [0, 0, 0.2, 0.5], ap: (s, v) => { s.freeze = Math.max(s.freeze, v); }, d: v => `적중한 적을 ${v}초간 얼림 (보스는 둔화)` },
+  l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 23, 58],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
   l_hold:    { name: '지속 빔',  min: 3, for: 'laser',   v: [0, 0, 0, 25],     ap: mx('hold'),    d: v => `빔이 0.6초간 유지되며 0.1초마다 ${v}% 피해` },
-  p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 14, 35, 70],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
+  p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 18, 35, 70],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
   p_orbs:    { name: '위성 구체', min: 2, for: 'pulse',   v: [0, 0, 2, 3],      ap: add('orbs'),   d: v => `범위 가장자리를 오가는 구체 ${v}개가 닿는 적에게 지속 피해` },
   p_nova:    { name: '초신성',   min: 3, for: 'pulse',   v: [0, 0, 0, 2],      ap: add('nova'),   d: v => `5번째 파동마다 범위 2.2배, 피해 ${v}배의 거대 파동` },
   m_shrap:   { name: '파편탄',   min: 2, for: 'mortar',  v: [0, 0, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 25%)` },
   m_barrage: { name: '연속 포격', min: 2, for: 'mortar',  v: [0, 0, 1, 2],      ap: add('barrage'), d: v => `다른 적을 노리는 포탄 ${v}발 추가 발사 (피해 33%)` },
   m_nuke:    { name: '핵탄두',   min: 3, for: 'mortar',  v: [0, 0, 0, 3],      ap: add('nuke'),   d: v => `4번째 포탄마다 핵탄두: 폭발 범위 2.5배, 피해 ${v}배` },
-  t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 28, 70, 80],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
+  t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 35, 70, 80],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
   t_multi:   { name: '다중 방전', min: 2, for: 'tesla',   v: [0, 0, 1, 2],      ap: add('multi'),  d: v => `처음 노리는 적이 ${v}명 늘어남 (각각 연쇄, 추가된 적의 연쇄는 피해 50%)` },
   t_storm:   { name: '번개 폭풍', min: 3, for: 'tesla',   v: [0, 0, 0, 5],      ap: add('storm'),  d: v => `3번째 공격마다 무작위 적 ${v}명에게 낙뢰 (피해 80%)` },
   // 저격포
-  r_heavy:   { name: '철갑탄',   abbr: '철갑', min: 0, for: 'rail', v: [14, 28, 70, 210], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
-  r_mark:    { name: '표식',     abbr: '표식', min: 0, for: 'rail', v: [3.6, 7.2, 18, 54], ap: (s, v) => { s.vuln = Math.max(s.vuln, v / 100); s.vulnT = 4; }, d: v => `맞은 적이 4초간 받는 모든 피해 +${v}%` },
-  r_through: { name: '관통 저격', min: 2, for: 'rail', v: [0, 0, 60, 180], ap: mx('through'), d: v => `탄이 표적 뒤 일직선상의 적도 관통 (피해 ${v}%)` },
-  r_twin:    { name: '이중 저격', min: 2, for: 'rail', v: [0, 0, 60, 180], ap: mx('twin'),    d: v => `두 번째로 체력이 많은 적도 저격 (피해 ${v}%)` },
+  r_heavy:   { name: '철갑탄',   abbr: '철갑', min: 0, for: 'rail', v: [18, 35, 70, 180], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
+  r_mark:    { name: '표식',     abbr: '표식', min: 0, for: 'rail', v: [4.5, 9, 18, 45], ap: (s, v) => { s.vuln = Math.max(s.vuln, v / 100); s.vulnT = 4; }, d: v => `맞은 적이 4초간 받는 모든 피해 +${v}%` },
+  r_through: { name: '관통 저격', min: 2, for: 'rail', v: [0, 0, 60, 150], ap: mx('through'), d: v => `탄이 표적 뒤 일직선상의 적도 관통 (피해 ${v}%)` },
+  r_twin:    { name: '이중 저격', min: 2, for: 'rail', v: [0, 0, 60, 150], ap: mx('twin'),    d: v => `두 번째로 체력이 많은 적도 저격 (피해 ${v}%)` },
   r_carry:   { name: '과잉 살상', min: 3, for: 'rail', v: [0, 0, 0, 3],     ap: add('carry'),  d: v => `적을 처치하고 남은 피해가 다음으로 체력이 많은 적에게 넘어감 (최대 ${v}회)` },
   // 산성 분사기
-  c_corrode: { name: '부식액',   abbr: '부식', min: 0, for: 'acid', v: [7.8, 16, 39, 120], ap: pct('aVuln'), d: v => `웅덩이의 취약 효과 +${v}%p` },
-  c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, for: 'acid', v: [7, 14, 35, 110], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
-  c_pool:    { name: '끈적한 산', abbr: '끈적', min: 0, for: 'acid', v: [8.4, 17, 42, 80], ap: mx('aSlow'), d: v => `웅덩이 안의 적을 ${v}% 둔화` },
+  c_corrode: { name: '부식액',   abbr: '부식', min: 0, for: 'acid', v: [9.8, 20, 39, 98], ap: pct('aVuln'), d: v => `웅덩이의 취약 효과 +${v}%p` },
+  c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, for: 'acid', v: [8.8, 18, 35, 88], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
+  c_pool:    { name: '끈적한 산', abbr: '끈적', min: 0, for: 'acid', v: [11, 21, 42, 80], ap: mx('aSlow'), d: v => `웅덩이 안의 적을 ${v}% 둔화` },
   c_wide:    { name: '다중 투척', min: 2, for: 'acid', v: [0, 0, 1, 2], ap: add('aMulti'), d: v => `웅덩이를 ${v}개 더 던짐` },
   c_melt:    { name: '용해',     min: 3, for: 'acid', v: [0, 0, 0, 15.8], ap: (s, v) => { s.aMelt = Math.max(s.aMelt, v / 100); s.deathBoom = Math.max(s.deathBoom, 1.0); }, d: v => `웅덩이 안에서 체력이 ${v}% 이하가 된 일반 적을 즉시 처치. 처치한 적은 산성 폭발` },
   // 기지 증강 (기지 강화 5단계마다)
-  h_armor:  { name: '강화 장갑',   min: 0, for: 'base', v: [6, 12, 30, 90], w: [1.6, 3.2, 8, 24], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgRed += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 기지가 받는 피해 -${w}%` },
-  h_supply: { name: '보급선',     min: 0, for: 'base', v: [1.4, 2.8, 7, 21],   ap: pct('goldAll'), d: v => `재화 획득 +${v}%` },
-  h_repair: { name: '정비반',     min: 0, for: 'base', v: [0.05, 0.1, 0.25, 0.75], w: [1, 2, 5, 15], ap: (s, v, w) => { s.regenPct += v / 100; s.bossHeal += w / 100; }, d: (v, w) => `1초마다 최대 체력의 ${v}% 회복 · 보스를 처치하면 체력 ${w}% 회복` },
-  h_drill:  { name: '숙련 공병',   min: 0, for: 'base', v: [0.64, 1.3, 3.2, 9.6],      ap: pct('luck'),    d: v => `모든 강화의 성공률 +${v}%p` },
-  h_turret: { name: '방어 포탑',   min: 2, for: 'base', v: [0, 0, 11, 33],    ap: mx('turret'),   d: v => `기지 중앙의 포탑이 가장 가까운 적을 자동 공격 (가장 강한 무기 화력의 ${v}%)` },
-  h_shock:  { name: '충격 방벽',   min: 2, for: 'base', v: [0, 0, 60, 180],   ap: add('shock'),   d: v => `적이 기지에 닿으면 충격파가 퍼져 근처 적을 밀어내고 피해를 줌 (세기 ${v})` },
-  h_fence:  { name: '전기 울타리', min: 2, for: 'base', v: [0, 0, 9, 27],    ap: mx('fence'),    d: v => `기지 바로 앞의 적에게 지속 피해 (가장 강한 무기 화력의 ${v}%)` },
-  h_wave:   { name: '빙결 파동',   min: 2, for: 'base', v: [0, 0, 30, 10],    ap: (s, v) => { s.wave = s.wave ? Math.min(s.wave, v) : v; }, d: v => `${v}초마다 전장의 모든 적을 1.5초간 얼림 (보스는 둔화)` },
+  h_armor:  { name: '강화 장갑',   min: 0, for: 'base', v: [7.5, 15, 30, 75], w: [2, 4, 8, 20], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgRed += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 기지가 받는 피해 -${w}%` },
+  h_supply: { name: '보급선',     min: 0, for: 'base', v: [1.8, 3.5, 7, 18],   ap: pct('goldAll'), d: v => `재화 획득 +${v}%` },
+  h_repair: { name: '정비반',     min: 0, for: 'base', v: [0.063, 0.13, 0.25, 0.63], w: [1.3, 2.5, 5, 13], ap: (s, v, w) => { s.regenPct += v / 100; s.bossHeal += w / 100; }, d: (v, w) => `1초마다 최대 체력의 ${v}% 회복 · 보스를 처치하면 체력 ${w}% 회복` },
+  h_drill:  { name: '숙련 공병',   min: 0, for: 'base', v: [0.8, 1.6, 3.2, 8],      ap: pct('luck'),    d: v => `모든 강화의 성공률 +${v}%p` },
+  h_turret: { name: '방어 포탑',   min: 2, for: 'base', v: [0, 0, 11, 28],    ap: mx('turret'),   d: v => `기지 중앙의 포탑이 가장 가까운 적을 자동 공격 (가장 강한 무기 화력의 ${v}%)` },
+  h_shock:  { name: '충격 방벽',   min: 2, for: 'base', v: [0, 0, 8, 20],   ap: add('shock'),   d: v => `적이 기지에 닿으면 충격파가 퍼져 근처 적을 밀어내고 가장 강한 무기 화력의 ${v}% 피해` },
+  h_fence:  { name: '전기 울타리', min: 2, for: 'base', v: [0, 0, 9, 23],    ap: mx('fence'),    d: v => `기지 바로 앞의 적에게 지속 피해 (가장 강한 무기 화력의 ${v}%)` },
+  h_wave:   { name: '빙결 파동',   min: 2, for: 'base', v: [0, 0, 30, 12],    ap: (s, v) => { s.wave = s.wave ? Math.min(s.wave, v) : v; }, d: v => `${v}초마다 전장의 모든 적을 1.5초간 얼림 (보스는 둔화)` },
   h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 35],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
 };
 const AUG_POOL = {};
@@ -1061,7 +1071,7 @@ function newGame(h) {
     slots: [null, null, null, null, null],
     inv: new Array(CFG.invSize).fill(null),
     enemies: [], bullets: [], shells: [], pools: [], beams: [], fx: [], snd: [], abfx: [], drops: [], melt: 0,
-    spawnAcc: 0, nextBoss: CFG.bossEvery, bossN: 0,
+    spawnAcc: 0, nextBoss: CFG.bossEvery, bossN: 0, pendingBoss: null,
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
     shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
     pacts: [], pendingPact: null, bloodN: 0,     // 천칭의 거래: 받은 것, 제안 중인 것, 피의 계약의 처치 수
@@ -1075,7 +1085,7 @@ function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null
   S.shards = S.shards || 0;   // 예전 저장의 강화 조각 아이템은 재화로 바꾼다
   for (let i = 0; i < S.inv.length; i++) if (S.inv[i] && S.inv[i].kind === 's') { S.shards += S.inv[i].n || 0; S.inv[i] = null; }
   if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
-  if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null;
+  if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
   syncMaxHp(); }
 function setH(h) {
   if (!h || h === H) return;
@@ -1492,13 +1502,13 @@ let boomDepth = 0;
 /* ---------- 적 생성 ---------- */
 function spawn(type, lane, x, y) {
   const d = ENEMIES[type];
-  let m = BAL.hpMul(S.t) * (d.boss ? BAL.bossMul(S.bossN) : 1);
+  let m = BAL.hpMul(S.t) * (d.boss ? BAL.bossHp : 1);
   if (S.pacts.length) { if (hasPact('greed')) m *= PACT.greedHp; if (hasPact('rush')) m *= PACT.rushHp; }   // 이후 등장하는 적부터
   const cx = (lane + 0.5) * LW;
   const e = {
     type, lane, x: x != null ? x : cx + (d.boss ? 0 : (rndS() - 0.5) * 30), y: y != null ? y : -d.r,
-    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(S.t),
-    boss: !!d.boss, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
+    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(S.t),
+    boss: !!d.boss, born: S.t, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
   };
   e.x = Math.max(e.r * 0.7, Math.min(W - e.r * 0.7, e.x));
   S.enemies.push(e);
@@ -1518,11 +1528,18 @@ function spawnBoss() {
   const type = isScale ? 'scale' : S.bossN < BOSS_ORDER.length ? BOSS_ORDER[S.bossN] : pick(BOSS_ORDER.filter(t => t !== S.lastBoss), rndS);
   if (!isScale) S.lastBoss = type;
   const lane = 1 + Math.floor(rndS() * 3);
-  const e = spawn(type, lane);
-  if (isScale) { e.sc = { heavy: true, t: SCALE_T }; e.dmgMul = 0.5; e.spdMul = 0.6; }
+  // 예고(WARN_T초) 동안 등장 자리가 고정된다. 예고가 끝나면 그 자리에 나타난다 (위에서 걸어 들어오지 않는다)
+  S.pendingBoss = { type, lane, t: WARN_T, x: (lane + 0.5) * LW, y: BAL.bossY };
   S.bossN++;
   fx({ k: 'warn', d: 3.2, text: ENEMIES[type].name, hint: ENEMIES[type].hint });
   snd('warn');
+}
+function appearBoss() {
+  const p = S.pendingBoss; S.pendingBoss = null;
+  const e = spawn(p.type, p.lane, p.x, p.y * H);
+  if (p.type === 'scale') { e.sc = { heavy: true, t: SCALE_T }; e.dmgMul = 0.5; e.spdMul = 0.6; }
+  fx({ k: 'appear', d: 0.3, x: e.x, y: e.y, r: e.r, type: p.type });
+  return e;
 }
 
 /* ---------- 피해 처리 ---------- */
@@ -1535,7 +1552,8 @@ function kill(e, st) {
   if (hasPact('blood') && ++S.bloodN >= PACT.bloodEvery) { S.bloodN = 0; S.hp = Math.min(S.maxHp, S.hp + S.maxHp * PACT.bloodHeal); }
   if (bs.heal && rndH() < bs.heal && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * 0.01);   // 수리 장치: 최대 체력의 1%
   fx({ k: 'pop', d: 0.25, x: e.x, y: e.y, r: e.r, boss: e.boss });
-  snd(e.boss ? 'bosskill' : 'kill');
+  if (e.boss) fx({ k: 'bosskill', d: 1.1, x: e.x, y: e.y, r: e.r, type: e.type });   // 보스 처치 연출 (화면 흔들림 포함)
+  snd(e.boss ? 'bossdie' : 'kill');
   if (bs.magnet && rnd() < bs.magnet) {
     const n = Math.max(1, Math.round(BAL.bundle(genCost(), rnd) * 0.06));
     addShards(n); fxNum(e.x, e.y, n, 3);
@@ -2019,6 +2037,7 @@ function step(dt) {
   S.spawnAcc += BAL.spawnRate(S.t) * dt;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; spawnWave(); }
   if (S.t >= S.nextBoss) { S.nextBoss += bossInterval(); spawnBoss(); }
+  if (S.pendingBoss && (S.pendingBoss.t -= dt) <= 0) appearBoss();
 
   bossStep(dt);
 
@@ -2205,7 +2224,7 @@ function step(dt) {
       fx({ k: 'leak', d: 0.5, x: e.x, n: dmg });
       snd('leak');
       if (bs.shock) {                        // 충격 방벽
-        const R = 230, bd = bestDps();
+        const R = 150, bd = bestDps() * bs.shock / 100;
         fx({ k: 'ring', d: 0.45, x: e.x, y: H, r: R, c: '#7af0c1', fat: 1 });
         for (let j = 0; j < n; j++) {
           const o = S.enemies[j];
@@ -2375,6 +2394,8 @@ let drag = null, suppressClick = 0, needRender = false;   // 끌어서 옮기기
 let pauseView = '';              // 일시정지 화면의 하위 화면: '' | confirm
 let helpFrom = '';               // 도움말을 연 화면: '' | start | pause (뒤로를 누르면 그 화면으로 돌아간다)
 let pactView = false, pactResume = false, bannerUntil = 0;   // 맺은 거래 보기 창, 닫을 때 게임을 이어갈지, 완료 배너가 사라질 시각
+const PACT_LINES = ['원하는 것을 주지. 대신 그만한 것을 내놓아라.', '저울은 한쪽으로만 기울지 않는다. 골라라.', '공짜는 없다. 무엇을 걸겠나?', '힘을 원하나? 값은 네가 치른다.'];   // 천칭이 건네는 말
+let pactLine = PACT_LINES[0];
 let pactSel = -1, pactSkip = false, pactOpenAt = 0, shownPact = null, pactIntro = false;   // 천칭의 거래 창: 고른 카드, 건너뛰기 확인, 열린 시각
 let lastRes = null;              // 게임 오버 때 남기는 무기별 결과
 let partSwap = null, pswapAt = 0;   // 가득 찬 무기에 파츠를 넣을 때: {i: 인벤토리 칸, k: 무기 칸, sel: 고른 교체 대상}
@@ -2427,6 +2448,11 @@ const Snd = (function () {
     boom: [90, () => { hiss(0.28, 0.2, 500, 0.6); tone('sine', 90, 40, 0.25, 0.17); }],
     kill: [70, () => tone('triangle', 520, 880, 0.05, 0.05)],
     bosskill: [300, () => { hiss(0.5, 0.28, 400, 0.6); seq('triangle', [392, 523, 659, 784], 0.16, 0.12, 0.08); }],
+    bossdie: [300, () => {                                                                                                // 보스 처치: 묵직한 폭발, 깨지는 소리, 뒤따르는 하강음
+      tone('sine', 150, 38, 0.7, 0.3); tone('sawtooth', 220, 50, 0.4, 0.1); hiss(0.6, 0.3, 700, 0.6);
+      hiss(0.22, 0.16, 5200, 1, 'highpass', 0.03); tone('square', 1500, 300, 0.18, 0.05, 0.02);
+      seq('triangle', [784, 659, 523, 392], 0.2, 0.09, 0.09); tone('sine', 98, 49, 0.9, 0.14, 0.12);
+    }],
     leak: [150, () => { tone('square', 120, 60, 0.25, 0.13); hiss(0.2, 0.12, 300); }],
     warn: [500, () => { for (let i = 0; i < 3; i++) { tone('square', 440, 440, 0.14, 0.07, i * 0.32); tone('square', 330, 330, 0.14, 0.07, i * 0.32 + 0.16); } }],
     alert: [300, () => { for (let i = 0; i < 2; i++) { tone('square', 880, 880, 0.07, 0.08, i * 0.12); tone('square', 660, 660, 0.07, 0.08, i * 0.12 + 0.06); } }],   // 능력 예고: 짧고 높은 경보
@@ -2833,7 +2859,7 @@ function invHtml() {
     const canGen = S.gold >= C.genCost() && C.freeSlot() >= 0;
     acts = `<button type="button" class="btn primary gen${canGen ? ' hint' : ' off'}" id="genBtn" data-act="gen"><span class="gc"><b id="genHave">◆ ${fmtInt(S.gold)}</b><small id="genCost">비용 ${C.genCost()}</small></span><span>생성</span></button>
       <button type="button" class="btn up${upMode ? ' on' : ''}${canUp() ? ' hint' : ''}" id="upBtn" data-act="upMode"><span class="gc"><b class="shb">${SHARD}<span id="upHave">${fmtInt(S.shards || 0)}</span></b></span><span>강화</span></button>
-      <button type="button" class="btn melt${(S.melt || 0) >= C.craftCost() ? ' ready' : ''}" data-act="meltOn">${FLAME} 용해로 <b>${S.melt || 0}</b></button>`;
+      <button type="button" class="btn melt${(S.melt || 0) >= C.craftCost() ? ' ready' : ''}" data-act="meltOn"><span class="mlb">${FLAME}<span>용해로</span><b data-n="${String(fmtInt(S.melt || 0)).length}">${fmtInt(S.melt || 0)}</b></span></button>`;
   } else if (sel.from === 'inv') {
     const it = S.inv[sel.i];
     const armed = confirmDrop && dropArmI === sel.i;
@@ -3040,17 +3066,19 @@ function recHtml(r) {
 }
 /* ---------- 천칭의 거래 ---------- */
 function pactLines(id) { const d = C.PACTS[id]; return `<span class="up">▲ ${d.up}</span><span class="dn">▼ ${d.dn}</span>`; }
-// 천칭 그림: 저울대와 접시. 고른 쪽 접시가 올라간다
+// 천칭 그림: 저울대와 접시. 저울대는 기둥 꼭대기(가운데)를 축으로 돌고, 접시는 저울대 끝에서 항상 곧게 늘어진다.
+// 왼쪽 카드를 고르면 -EMB_TILT도, 오른쪽 카드를 고르면 +EMB_TILT도. 아무것도 고르지 않으면 수평
+const EMB_TILT = 8;
+let embA = 0;   // 직전에 그린 기울기: 다시 그릴 때 이 값에서 새 값으로 부드럽게 넘어간다
 function scaleEmblem(n, sel) {
   const gold = '#c9a55c', cx = 181, xs = n === 1 ? [181] : [88, 274];
-  const tilt = n === 2 && sel >= 0 ? (sel === 0 ? 3.5 : -3.5) : 0;   // 고른 쪽이 위로
-  const pan = (x, dy) => `<g transform="translate(0 ${dy})"><path d="M${x} 20L${x - 30} 80M${x} 20L${x + 30} 80" /><path d="M${x - 38} 80Q${x} 90 ${x + 38} 80" stroke-width="1.6"/></g>`;
+  const a = n === 2 && sel >= 0 ? (sel === 0 ? -EMB_TILT : EMB_TILT) : 0, from = embA; embA = a;
+  const rot = (deg) => `transform:rotate(${deg}deg)`;
+  const pan = (x) => `<g class="pan" transform="translate(${x} 20)"><g data-to="${rot(-a)}" style="${rot(-from)}"><path d="M0 0L-28 52M0 0L28 52" /><path d="M-36 52Q0 62 36 52" stroke-width="1.6"/></g></g>`;
   const beam = n === 2 ? `<path d="M${xs[0]} 20H${xs[1]}"/><circle cx="${xs[0]}" cy="20" r="2.6" fill="${gold}"/><circle cx="${xs[1]}" cy="20" r="2.6" fill="${gold}"/>` : '';
-  const rot = `rotate(${tilt} ${cx} 20)`;
-  const dy = (i) => n === 2 ? (tilt > 0 ? (i === 0 ? 0 : 6) : tilt < 0 ? (i === 0 ? 6 : 0) : 3) : 3;
   return `<svg class="pv-emb" viewBox="0 0 362 92" width="100%" height="86" fill="none" stroke="${gold}" stroke-width="1.2" stroke-linecap="round" aria-hidden="true">
     <path d="M${cx} 20V8M${cx - 8} 8h16" /><circle cx="${cx}" cy="5" r="3.2" fill="${gold}" stroke="none"/>
-    <g class="beam" style="transform-origin:${cx}px 20px"><g transform="${rot}" style="transform-origin:${cx}px 20px">${beam}${xs.map((x, i) => pan(x, dy(i))).join('')}${n === 1 ? `<path d="M${cx - 16} 20h32"/>` : ''}</g></g></svg>`;
+    <g class="beam" data-to="${rot(a)}" style="transform-origin:${cx}px 20px;${rot(from)}">${beam}${xs.map(pan).join('')}${n === 1 ? `<path d="M${cx - 16} 20h32"/>` : ''}</g></svg>`;
 }
 function pvRows(id) {
   const d = C.PACTS[id];
@@ -3068,15 +3096,15 @@ function pactHtml() {
   }
   const ok = pactSel >= 0;
   return `<div class="pv${intro}"><div class="pv-top">${scaleEmblem(pp.length, pactSel)}</div>
-    <h2 class="pv-title">천칭의 거래</h2><p class="pv-sub">하나를 고르세요. 고르는 동안 게임은 멈춥니다.</p>
+    <h2 class="pv-title">천칭의 거래</h2><p class="pv-sub pv-quote">‘${pactLine}’</p>
     <div class="pv-cards n${pp.length}">${pp.map((id, i) => pactCard(id, i, i === pactSel, ok && i !== pactSel)).join('')}</div>
-    <p class="pv-note">한번 맺은 거래는 이번 판이 끝날 때까지 이어집니다.</p>
+    <p class="pv-note">한번 맺은 거래는 게임이 끝날 때까지 이어진다</p>
     <div class="pv-acts"><button type="button" class="pv-ok${ok ? '' : ' off'}" data-act="pactOk"${ok ? '' : ' disabled'}>거래를 맺는다</button><button type="button" class="pv-no" data-act="pactSkip">거절한다</button></div></div>`;
 }
 // 맺은 거래 보기 (책갈피)
 function pactViewHtml() {
   const L = C.S.pacts || [];
-  return `<div class="pv"><div class="pv-box wide"><h2 class="pv-title">맺은 거래</h2><p class="pv-sub">이번 판이 끝날 때까지 이어집니다. (${L.length})</p>
+  return `<div class="pv"><div class="pv-box wide"><h2 class="pv-title">맺은 거래</h2><p class="pv-sub">게임이 끝날 때까지 이어집니다. (${L.length})</p>
     <div class="pv-list">${L.map(id => `<div class="pl"><span class="pc-nm">${C.PACTS[id].name}</span><i class="pc-hr"></i>${pvRows(id)}</div>`).join('')}</div>
     <div class="pv-acts"><button type="button" class="pv-ok" data-act="pactMarkClose">닫기</button></div></div></div>`;
 }
@@ -3238,7 +3266,7 @@ function helpHtml() {
   const up = `<div class="hflow">${hnode(SHARD.replace('width="15" height="15"', 'width="28" height="28"'), '강화 조각')}${HARR}${hnode(hbox(icon('blaster', 22) + '<em class="bdg">+5</em>', 'slot'), '강화')}${HARR}${hnode(augs, '5단계마다 증강')}</div>`;
   const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2') + hbox(icon('pulse', 20), 'slot'), '파츠 · 무기')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
   const meltNote = `<p class="hnote">쓰지 않는 파츠와 무기를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 녹일 물건은 눌러서 고릅니다.</p>`;
-  const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 이번 판이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 기지 창(기지를 누르면 열리는 화면)에서 볼 수 있습니다.</p>`;
+  const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 게임이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 기지 창(기지를 누르면 열리는 화면)에서 볼 수 있습니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(bossCard).join('')}</div>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
@@ -3289,7 +3317,7 @@ function renderOverlay() {
     }
   } else if (S && S.pendingPact) {
     if (shownPact !== S.pendingPact) {
-      shownPact = S.pendingPact; pactOpenAt = performance.now(); pactSel = -1; pactSkip = false;
+      shownPact = S.pendingPact; pactOpenAt = performance.now(); pactSel = -1; pactSkip = false; embA = 0; pactLine = PACT_LINES[Math.floor(Math.random() * PACT_LINES.length)];
       Snd.play('aug'); pactIntro = true; setTimeout(() => { pactIntro = false; }, 1000);
     }
     h = pactHtml();
@@ -3306,7 +3334,11 @@ function renderOverlay() {
     }
   }
   elO.classList.toggle('pactv', !!h && h.startsWith('<div class="pv'));
-  if (h) { elO.innerHTML = h; elO.hidden = false; }
+  if (h) {
+    elO.innerHTML = h; elO.hidden = false;
+    const mv = elO.querySelectorAll('.pv-emb [data-to]');   // 천칭 그림: 이전 기울기에서 새 기울기로
+    if (mv.length) { void elO.offsetWidth; for (const e of mv) e.style.transform = e.dataset.to.slice(10); }
+  }
   else { elO.hidden = true; elO.innerHTML = ''; }
 }
 
@@ -4038,6 +4070,50 @@ function drawEnemy(e) {
   }
 }
 function hash(n) { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }   // 흔들림이 일정한 가짜 난수
+// 보스 소환진: 예고 동안 등장 자리에서 이중 고리가 천천히 돌며 안쪽으로 좁혀든다
+function drawSummon(pb, H) {
+  const u = 1 - Math.max(0, pb.t) / C.WARN_T, col = ECOL[pb.type] || '#ff3d3d', r = C.ENEMIES[pb.type].r, x = pb.x, y = pb.y * H;
+  const al = Math.min(1, u * 5) * (u > 0.85 ? 0.75 + 0.25 * Math.sin(u * 90) : 1);
+  const ro = r * 1.15 + 18 * (1 - u) + 4, ri = ro * 0.74, rot = RM.matches ? 0 : u * 2.2;
+  ctx.save(); ctx.translate(x, y);
+  ctx.beginPath(); ctx.arc(0, 0, ro, 0, Math.PI * 2); ctx.fillStyle = rgba(col, 0.07 + 0.1 * u); ctx.fill();
+  const ring = (R, n, tk, dir, w) => {
+    ctx.save(); ctx.rotate(rot * dir);
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.lineWidth = w; ctx.strokeStyle = rgba(col, 0.9 * al); ctx.stroke();
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n, c = Math.cos(a), sn = Math.sin(a), l = i % 3 ? tk : tk * 1.7; ctx.moveTo(c * R, sn * R); ctx.lineTo(c * (R - l), sn * (R - l)); }
+    ctx.lineWidth = 2; ctx.strokeStyle = rgba(col, 0.85 * al); ctx.stroke(); ctx.restore();
+  };
+  ring(ro, 24, 6, 1, 2.5); ring(ri, 16, 5, -1, 1.6);
+  ctx.save(); ctx.rotate(-rot * 1.4);   // 안쪽 삼각형 두 개: 별 모양
+  ctx.beginPath(); for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3, rr = ri * 0.86; k ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  ctx.closePath(); ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(col, 0.5 * al); ctx.stroke(); ctx.restore();
+  ctx.restore();
+}
+// 보스 처치 연출: 보스 모양이 하얗게 번쩍, 고리 둘, 조각들 (흔들림은 draw 에서)
+function drawBossKill(f) {
+  const T = f.d - Math.max(0, f.t), q = T / f.d, col = ECOL[f.type] || '#ff3d3d', x = f.x, y = f.y, r = f.r;
+  if (T < 0.28) {
+    const a = 1 - T / 0.28;
+    ctx.save(); ctx.translate(x, y); ctx.scale(1 + 0.25 * (1 - a), 1 + 0.25 * (1 - a)); ctx.translate(-x, -y);
+    enemyPath({ type: f.type, x, y, r }); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = rgba(col, a); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.arc(x, y, r * (1.2 + 1.4 * (1 - a)), 0, Math.PI * 2); ctx.fillStyle = `rgba(255,255,255,${0.35 * a})`; ctx.fill();
+  }
+  for (let k = 0; k < 2; k++) {              // 퍼지는 고리 둘
+    const u = Math.max(0, (T - k * 0.12) / (f.d - 0.15)); if (u <= 0 || u >= 1) continue;
+    const e = 1 - Math.pow(1 - u, 2.2);
+    ctx.beginPath(); ctx.arc(x, y, r * (0.7 + (k ? 5.2 : 3.6) * e), 0, Math.PI * 2);
+    ctx.lineWidth = (k ? 5 : 9) * (1 - u) + 1; ctx.strokeStyle = k ? `rgba(255,255,255,${0.85 * (1 - u)})` : rgba(col, 0.95 * (1 - u)); ctx.stroke();
+  }
+  for (let i = 0; i < 28; i++) {             // 보스 색 조각
+    const a = hash(i * 3.3 + 1) * Math.PI * 2, v = 70 + hash(i * 7.1 + 2) * 230, sz = 4 + hash(i * 1.7 + 3) * 7;
+    const d = v * (1 - Math.exp(-3 * T)) / 3, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d + 150 * T * T, al = Math.max(0, 1 - q * q * 1.1);
+    const rot = hash(i + 5) * 6.3 + T * (hash(i + 9) - 0.5) * 16;
+    ctx.save(); ctx.translate(px, py); ctx.rotate(rot); ctx.beginPath(); ctx.moveTo(-sz, sz * 0.6); ctx.lineTo(sz, 0); ctx.lineTo(-sz * 0.3, -sz * 0.8); ctx.closePath();
+    ctx.fillStyle = rgba(col, al); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = `rgba(255,255,255,${0.7 * al})`; ctx.stroke(); ctx.restore();
+  }
+}
 function drawFx(f, H) {
   const p = Math.max(0, f.t / f.d);
   switch (f.k) {
@@ -4185,6 +4261,13 @@ function drawFx(f, H) {
       }
       break;
     }
+    case 'appear': {                        // 보스 등장 순간: 짧은 섬광
+      const q = 1 - p;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.8 + 1.4 * q), 0, Math.PI * 2); ctx.fillStyle = `rgba(255,255,255,${0.75 * p})`; ctx.fill();
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 + 1.8 * q), 0, Math.PI * 2); ctx.lineWidth = 5 * p + 1; ctx.strokeStyle = rgba(ECOL[f.type] || '#ff3d3d', 0.9 * p); ctx.stroke();
+      break;
+    }
+    case 'bosskill': drawBossKill(f); break;
     case 'pop':
       ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.7 - p * 0.7), 0, Math.PI * 2);
       ctx.lineWidth = f.boss ? 5 : 2; ctx.strokeStyle = `rgba(255,150,150,${p})`; ctx.stroke();
@@ -4257,6 +4340,10 @@ function draw() {
   const S = C.S, H = C.H, W = C.W;
   ctx.setTransform(dpr * sc, 0, 0, dpr * sc, 0, 0);
   ctx.fillStyle = TC.bg; ctx.fillRect(0, 0, W, H);
+  if (S) for (const f of S.fx) {           // 보스 처치: 짧은 화면 흔들림 (게임 시간 기준이라 멈추면 같이 멈춘다)
+    if (f.k !== 'bosskill' || RM.matches) continue;
+    const T = f.d - f.t; if (T < 0.35) ctx.translate(Math.sin(T * 130) * 7 * (1 - T / 0.35), Math.cos(T * 110) * 5 * (1 - T / 0.35));
+  }
   // 모눈
   ctx.strokeStyle = TC.grid; ctx.lineWidth = 1; ctx.beginPath();
   for (let x = 25; x < W; x += 25) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
@@ -4310,6 +4397,7 @@ function draw() {
     ctx.strokeStyle = p.c ? rgba(p.c, 0.55) : 'rgba(255,160,80,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]); ctx.stroke(); ctx.setLineDash([]);
   }
   const nowW = performance.now();
+  if (S.pendingBoss) drawSummon(S.pendingBoss, H);
   for (const e of S.enemies) {              // 봉쇄, 약탈, 부식 예고: 보스에서 대상 칸(약탈은 아래 가운데)까지 굵은 점선 빔과 맥동하는 표시
     if (e.dead || !e.boss || e.y <= 0) continue;
     let tx = -1, c = '', rem = 0;
@@ -4331,7 +4419,13 @@ function draw() {
     ctx.font = '17px "Do Hyeon", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(0,0,0,.75)';
     const tt = Math.max(0, rem).toFixed(1); ctx.strokeText(tt, tx, ty - 24); ctx.fillStyle = '#fff'; ctx.fillText(tt, tx, ty - 24);
   }
-  for (const e of S.enemies) drawEnemy(e);
+  for (const e of S.enemies) {
+    const age = e.boss && e.born != null ? S.t - e.born : 9;
+    if (age < 0.3) {                         // 보스 등장: 작게 시작해 살짝 넘쳤다가 제 크기로 (보이는 효과만)
+      const u = age / 0.3, k = Math.max(0.05, 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2));
+      ctx.save(); ctx.translate(e.x, e.y); ctx.scale(k, k); ctx.translate(-e.x, -e.y); drawEnemy(e); ctx.restore();
+    } else drawEnemy(e);
+  }
   for (const b of S.beams) {                // 지속 빔
     const st = b.st, x = (b.k + 0.5) * C.LW, len = st.range * H, wd = 10 + Math.random() * 8;
     ctx.fillStyle = rgba(st.color, 0.55); ctx.fillRect(x - wd / 2, H - len, wd, len);
