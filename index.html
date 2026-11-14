@@ -750,6 +750,93 @@ b { font-weight: 600; }
 #pactMark.low { top: 22px; height: 34px; }
 #pactMark b { font: 12px/1 var(--font-display); color: #f0e8d6; }
 
+/* ---- 진화 ---- */
+.slot.evo { border-color: var(--wc); box-shadow: 0 0 7px -1px var(--wc); }
+.slot.evo .lv { color: var(--wc); text-shadow: 0 0 5px color-mix(in srgb, var(--wc) 60%, transparent); }
+.evoic { filter: drop-shadow(0 0 2.5px var(--wc)); }
+.cell.kw.evo { border-color: var(--g3); }
+.skdot { position: absolute; right: 4px; top: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); border: 1.5px solid var(--panel); box-shadow: 0 0 0 1.5px var(--accent); animation: skdotp 1.1s ease-in-out infinite alternate; pointer-events: none; }
+@keyframes skdotp { to { transform: scale(1.3); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); } }
+.schem .core.evo { box-shadow: 0 0 0 3px color-mix(in srgb, var(--wc) 28%, transparent), 0 0 14px color-mix(in srgb, var(--wc) 55%, transparent); }
+.btn.evob { color: var(--ink); border-color: var(--wc); }
+.btn.evob.has { background: color-mix(in srgb, var(--wc) 20%, var(--panel-2)); }
+.btn.evob small b { color: var(--accent-ink); font: 15px var(--font-display); }
+
+/* 진화 창 */
+.modal.evom { gap: 12px; }
+.evo-w { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.evo-ic { flex: none; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--line); border-radius: 8px; background: var(--panel); }
+.evo-ic.on { border-color: var(--wc); box-shadow: 0 0 12px -1px var(--wc); }
+.evo-arr { color: var(--dim); display: flex; }
+.evo-nm { display: flex; flex-direction: column; margin-left: 4px; line-height: 1.2; min-width: 0; }
+.evo-nm b { font: 20px var(--font-display); }
+.evo-nm span { font-size: 13px; color: var(--dim); }
+.evo-cost { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.evo-cost svg { width: 22px; height: 22px; flex: none; }
+.evo-cost > b { font: 22px var(--font-display); color: var(--accent-ink); }
+.evo-cost > span { margin-left: auto; font-size: 13px; color: var(--dim); }
+.evo-cost > span b { font: 17px var(--font-display); color: var(--ink); }
+.evo-cost.short { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--panel)); }
+.evo-cost.short > b, .evo-cost.short > span b { color: var(--danger); }
+.evo-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; color: var(--ink); font-size: 14px; line-height: 1.35; }
+.modal.evom p.warn { margin: -4px 0 0; }
+.btn[disabled] { cursor: default; }
+.evofx { position: absolute; }
+.evofx .glow { position: absolute; inset: -6px; border-radius: 8px; background: color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 30px 10px color-mix(in srgb, var(--c) 80%, transparent); animation: upfade 1s ease-out forwards; }
+.evofx .ring { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 50%; border: 3px solid var(--c); animation: upring .9s ease-out forwards; }
+.evofx .ring.r2 { border-color: #fff; animation-delay: .18s; animation-duration: 1s; opacity: 0; animation-fill-mode: forwards; }
+.evofx b { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); font: 30px var(--font-display); color: var(--c); text-shadow: 0 0 8px var(--c), 0 1px 0 var(--shadow); animation: evostar 1.2s ease-out forwards; }
+.evofx s { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); animation: upspark .9s ease-out forwards; }
+@keyframes evostar { 0% { transform: translate(-50%, 18px) scale(.4); opacity: 0; } 25% { opacity: 1; transform: translate(-50%, -8px) scale(1.3); } 100% { transform: translate(-50%, -46px) scale(1); opacity: 0; } }
+.devofx { position: absolute; }
+.devofx .glow { position: absolute; inset: 0; border-radius: 6px; background: rgba(255, 93, 93, .4); box-shadow: 0 0 18px 4px rgba(255, 93, 93, .6); animation: upshake .45s linear, upfade .9s ease-out forwards; }
+.devofx u { position: absolute; left: 50%; top: 4px; width: 3px; height: calc(100% - 8px); margin-left: -1.5px; background: #fff; transform: skewX(-14deg); box-shadow: 0 0 6px var(--danger); animation: upfade .7s ease-out forwards; }
+.devofx s { position: absolute; left: 50%; top: 40%; width: 6px; height: 6px; margin: -3px; background: var(--danger); animation: upspark .8s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) { .evofx .ring, .evofx s, .devofx s, .skdot { animation: none; } .evofx b { animation: upfade 1.2s linear forwards; } .devofx .glow { animation: upfade .9s linear forwards; } }
+
+/* 스킬 창 */
+.modal.skm { gap: 9px; padding: 12px; }
+.skm .wm-head h2 { font: 22px/1 var(--font-display); }
+.skm .wm-head .st { font-size: 13px; }
+.skpts { flex: none; align-self: center; font-size: 12px; color: var(--dim); padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; white-space: nowrap; }
+.skpts b { font: 20px var(--font-display); color: var(--ink); margin-left: 2px; }
+.skpts.has { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+.skpts.has b { color: var(--accent-ink); }
+.skgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 6px 8px; border: 1px solid var(--line); border-radius: 6px; background-color: var(--bg);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 18px 18px; background-position: -1px -1px; }
+.skcol { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.sktiles { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.skc { display: block; width: 2px; height: 11px; background: var(--line); flex: none; }
+.skc.on { background: var(--wc); box-shadow: 0 0 5px var(--wc); }
+.skt { position: relative; width: 72px; height: 72px; max-width: 100%; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 3px;
+  border: 1.5px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); line-height: 1.1; }
+.skt .skn { font: 12.5px/1.15 var(--font-display); text-align: center; word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.skt .skr { font: 13px var(--font-display); color: var(--dim); font-variant-numeric: tabular-nums; }
+.skt.can { border-color: var(--accent); }
+.skt.has { border-color: var(--wc); background: color-mix(in srgb, var(--wc) 14%, var(--panel)); }
+.skt.has .skr { color: var(--ink); }
+.skt.full { border-color: var(--wc); background: color-mix(in srgb, var(--wc) 30%, var(--panel)); box-shadow: 0 0 8px -1px var(--wc); }
+.skt.full .skr { color: var(--ink); }
+.skt.cap { border-radius: 8px; outline: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent); outline-offset: 2px; }
+.skt.cap.full, .skt.cap.has { outline-color: var(--wc); }
+.skt.lock { opacity: .55; background: var(--shade); border-style: dashed; }
+.skt .skl { position: absolute; right: 3px; top: 3px; color: var(--dim); display: flex; }
+.skt.sel { box-shadow: 0 0 0 2.5px var(--accent); }
+.skt.got { animation: skgot .5s ease-out; }
+@keyframes skgot { 0% { transform: scale(1.18); box-shadow: 0 0 0 6px color-mix(in srgb, var(--wc) 60%, transparent); } 100% { transform: scale(1); } }
+.sklab { font: 14px var(--font-display); color: var(--ink); }
+.skdet { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; min-height: 104px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+.skhd { display: flex; align-items: baseline; gap: 6px; }
+.skhd b { font: 18px var(--font-display); color: var(--ink); }
+.skk { font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+.skrk { margin-left: auto; font: 16px var(--font-display); color: var(--accent-ink); }
+.skfx { font-size: 13px; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; word-break: keep-all; }
+.skfx.dim { color: var(--dim); }
+.skfx.nx { color: var(--ok); }
+.skarr { font-size: 9px; line-height: 1; color: var(--dim); text-align: center; }
+.skreq { font-size: 12.5px; line-height: 1.35; color: var(--accent-ink); overflow-wrap: anywhere; word-break: keep-all; }
+@media (max-height: 640px) { .skt { width: 64px; height: 64px; } .skdet { min-height: 92px; } }
+
 </style>
 </head>
 <body>
@@ -791,6 +878,8 @@ const CFG = {
   baseSlots: 4,              // 기지 파츠 칸 수
   baseHpPerLv: 4,            // 기지 강화 1단계마다 최대 체력
   basePartShare: 0.25,       // 파츠가 나올 때 기지 파츠일 확률
+  evoCost: 5000,             // 진화에 드는 조각 (100강 무기 하나)
+  evoCostMul: 5,             // 진화한 무기의 강화 비용 배수
 };
 
 // 난수는 세 갈래다. rndS는 '어떤 적이 어디에 나오는가'만, rndG는 '전리품과 성장'(생성, 파츠 굴림, 제조, 보스 보상, 증강 선택지, 강화 성공/절약)만 정하고,
@@ -835,6 +924,7 @@ const BAL = {
     return 0.10 + 0.90 * Math.pow(1 - x, 1.1);
   },
   lvMul(L) { return Math.pow(1.05, L); },
+  evoMul(L) { return Math.pow(1.03, L); },   // 진화한 무기: lvMul(100) x evoMul(진화 단계)
   // 적 체력 배수: 끊김 없는 식 하나. 초반에는 거의 오르지 않고, 이후 꾸준히 오르며 끝없이 계속된다
   hpMul(t) { return Math.pow(1 + Math.pow(t / 321, 3.1), 0.9) * Math.exp(0.0012 * t); },
   bossHp: 1.3,      // 모든 보스의 체력 배수 (일반 적과 같은 hpMul 곡선에 곱한다)
@@ -1013,6 +1103,144 @@ const val = (D, g) => [D.v[g], D.w ? D.w[g] : undefined];
 function partDesc(p) { const D = PARTS[p.id], x = val(D, p.g); return D.d(x[0], x[1]); }
 function augDesc(a) { const D = AUGS[a.id], x = val(D, a.g); return D.d(x[0], x[1]); }
 
+/* ---------- 진화와 스킬 ---------- */
+// 진화한 무기는 5강마다 스킬 포인트 1개를 받는다(모두 20개). 무기 종류마다 줄 3개, 줄마다 노드 3개(뿌리 5, 윗단 5, 마지막 1 = 11포인트).
+// 노드는 증강 효과를 그대로 쓴다. 뿌리는 랭크당 영웅 수치의 20%, 윗단은 25%, 마지막 노드는 전설 수치 그대로. '+1/랭크'는 랭크당 1씩 더한다.
+const SK = { root: 0.2, up: 0.25, max: { root: 5, up: 5, cap: 1 } };
+const r1 = (n) => +(Math.round(n * 100) / 100);
+const mkNode = (id, t, o) => Object.assign({ id, t, max: SK.max[t] }, o);
+const SR = (id, o) => mkNode(id, 'root', o), SU = (id, o) => mkNode(id, 'up', o), SC = (id, o) => mkNode(id, 'cap', o);
+// 새 노드: 이름, 설명 d(랭크), 효과 ap(s, 랭크)
+const NEWSK = {
+  gatling:  { name: '개틀링', d: () => '공격 간격 x0.5, 공격력 x0.65 (다른 효과를 모두 적용한 뒤)', ap: (s) => { s.gatling = 1; } },
+  breath:   { name: '용의 숨결', d: () => `산탄이 적중한 적에게 3초간 초당 공격력의 ${AUGS.l_burn.v[3]}% 화상 피해`, ap: (s) => { s.burn += AUGS.l_burn.v[3] / 100; } },
+  prism:    { name: '프리즘', d: () => '옆 빔이 양옆 2레인까지 닿고, 옆 빔 피해 +20%p', ap: (s) => { s.prism = 1; s.sideBeam += 0.2; } },
+  reson:    { name: '공명', d: () => '이중 파동의 두 번째 파동 피해 2배, 이중 파동 확률 +10%p', ap: (s) => { s.reson = 1; s.echo = Math.max(s.echo, Math.min(0.9, s.echo + 0.1)); } },
+  overload: { name: '과전류', d: () => '기절하거나 둔화된 적이 이 무기에게 받는 피해 +40%', ap: (s) => { s.overload = 0.4; } },
+  exec:     { name: '처형', d: () => '이 무기의 공격으로 체력이 20% 아래로 남은 일반 적은 즉시 처치', ap: (s) => { s.instakill = Math.max(s.instakill, 0.2); } },
+  rapid:    { name: '속사 저격', d: () => '공격 속도 +60%', ap: (s) => { s.ratePct += 0.6; } },
+  longacid: { name: '오래 남는 산', d: (k) => `웅덩이 지속 시간 +${r1(0.6 * k)}초`, ap: (s, k) => { s.aDur += 0.6 * k; } },
+  linger:   { name: '잔류', d: () => '웅덩이를 벗어난 적이 3초 동안 취약 효과와 지속 피해를 유지', ap: (s) => { s.linger = 3; } },
+};
+const SNW = (id, t) => mkNode(id, t, { nw: NEWSK[id] });
+const SKILLS = {
+  blaster: [{ name: '속사', nodes: [SR('a_rate'), SU('a_crit'), SNW('gatling', 'cap')] },
+            { name: '관통', nodes: [SR('b_pierce', { plus1: 1 }), SU('a_dmg'), SC('b_giant')] },
+            { name: '폭발', nodes: [SR('b_boom'), SU('a_boom'), SC('b_split')] }],
+  shotgun: [{ name: '탄막', nodes: [SR('a_rate'), SU('s_double'), SC('s_wide')] },
+            { name: '근접', nodes: [SR('s_close'), SU('s_knock'), SC('s_slug')] },
+            { name: '폭렬', nodes: [SR('s_blast'), SU('s_pierce', { plus1: 1 }), SNW('breath', 'cap')] }],
+  laser:   [{ name: '과충전', nodes: [SR('l_charge'), SU('a_dmg'), SC('l_hold')] },
+            { name: '분광', nodes: [SR('l_wide'), SU('l_orbit'), SNW('prism', 'cap')] },
+            { name: '소각', nodes: [SR('l_burn'), SU('l_exec'), SC('l_freeze')] }],
+  pulse:   [{ name: '확장', nodes: [SR('p_area'), SU('a_dmg'), SC('p_nova')] },
+            { name: '제어', nodes: [SR('p_frost'), SU('p_stun'), SC('p_orbs')] },
+            { name: '공명', nodes: [SR('a_rate'), SU('p_echo'), SNW('reson', 'cap')] }],
+  mortar:  [{ name: '대구경', nodes: [SR('m_big'), SU('a_dmg'), SC('m_nuke')] },
+            { name: '화염', nodes: [SR('m_fire'), SU('a_boom'), SC('m_cluster')] },
+            { name: '포격', nodes: [SR('a_rate'), SU('m_boss'), SC('m_barrage')] }],
+  tesla:   [{ name: '연쇄', nodes: [SR('t_chain', { plus1: 1 }), SU('t_grow'), SC('t_storm')] },
+            { name: '마비', nodes: [SR('t_stun'), SU('t_slow'), SNW('overload', 'cap')] },
+            { name: '광역', nodes: [SR('a_rate'), SU('a_dmg'), SC('t_wide')] }],
+  rail:    [{ name: '일격', nodes: [SR('a_dmg'), SU('a_crit'), SC('r_carry')] },
+            { name: '사냥', nodes: [SR('r_heavy'), SU('r_mark'), SNW('exec', 'cap')] },
+            { name: '다중', nodes: [SR('r_through'), SU('r_twin'), SNW('rapid', 'cap')] }],
+  acid:    [{ name: '부식', nodes: [SR('c_corrode'), SU('a_dmg'), SC('c_melt')] },
+            { name: '늪', nodes: [SR('c_range'), SU('c_pool'), SC('c_wide')] },
+            { name: '맹독', nodes: [SR('a_rate'), SNW('longacid', 'up'), SNW('linger', 'cap')] }],
+};
+// 노드 하나가 합산에서 넘지 못하는 값 (기존 증강의 상한과 같다: 둔화 80%, 확률 90%)
+const SK_CAP = { slow: 0.8, stun: 0.9, echo: 0.9, aSlow: 0.8 };
+const SK_CAPV = { b_frost: 80, t_slow: 80, p_frost: 80, c_pool: 80, t_stun: 90, p_stun: 90, p_echo: 90 };   // 표시용: 노드 값의 상한(%)
+const SK_MAXKEY = { vulnT: 1 };    // 더하지 않고 큰 값을 남기는 항목
+function skName(n) { return n.nw ? n.nw.name : AUGS[n.id].name; }
+// 랭크 k의 노드 수치 [v, w]
+function skVals(n, k) {
+  const A = AUGS[n.id];
+  if (n.t === 'cap') return [A.v[3], A.w ? A.w[3] : undefined];
+  if (n.plus1) return [k, undefined];
+  const f = (n.t === 'root' ? SK.root : SK.up) * k;
+  let v = r1(A.v[2] * f); if (SK_CAPV[n.id]) v = Math.min(SK_CAPV[n.id], v);
+  return [v, A.w ? r1(A.w[2] * f) : undefined];
+}
+function skDesc(n, k) {
+  if (n.nw) return n.nw.d(k);
+  const x = skVals(n, k); return AUGS[n.id].d(x[0], x[1]);
+}
+function skApply(s, n, k) {
+  if (k <= 0) return;
+  if (n.nw) { n.nw.ap(s, k); return; }
+  const base = blankStats(0, 0), t = blankStats(0, 0), x = skVals(n, k);
+  AUGS[n.id].ap(t, x[0], x[1]);
+  for (const key in t) {
+    if (typeof t[key] !== 'number') continue;
+    const dl = t[key] - base[key]; if (!dl) continue;
+    if (SK_MAXKEY[key] || (n.id === 'c_melt' && key === 'deathBoom')) { s[key] = Math.max(s[key], t[key]); continue; }
+    const nv = s[key] + dl;
+    s[key] = SK_CAP[key] ? Math.max(s[key], Math.min(SK_CAP[key], nv)) : nv;   // 이미 상한 위에 있으면 그대로 둔다
+  }
+}
+function applySkills(w, s) {
+  const tree = SKILLS[w.type], rk = w.sk;
+  if (!tree || !rk) return;
+  for (let l = 0; l < 3; l++) for (let t = 0; t < 3; t++) skApply(s, tree[l].nodes[t], rk[l][t] || 0);
+}
+function effLv(w) { return w.evo ? CFG.maxLv + w.lv : w.lv; }   // 진화한 무기는 100 + 단계로 센다
+function skillPoints(w) {
+  let spent = 0; if (w.sk) for (const l of w.sk) for (const r of l) spent += r;
+  const total = w.evo ? (w.skp || 0) : 0;
+  return { total, spent, left: total - spent };
+}
+function skillRank(w, line, tier) { return w.evo && w.sk ? w.sk[line][tier] || 0 : 0; }
+// 노드 상태: {node, rank, max, locked, can, reason}
+function skillInfo(w, line, tier) {
+  const n = SKILLS[w.type][line].nodes[tier], rank = skillRank(w, line, tier);
+  const o = { node: n, name: skName(n), rank, max: n.max, locked: false, can: false, reason: '' };
+  if (tier > 0 && skillRank(w, line, tier - 1) < SKILLS[w.type][line].nodes[tier - 1].max) { o.locked = true; o.reason = 'lock'; }
+  else if (rank >= n.max) o.reason = 'max';
+  else if (skillPoints(w).left <= 0) o.reason = 'points';
+  else o.can = true;
+  return o;
+}
+function skillText(w, line, tier, rank) { return rank <= 0 ? '' : skDesc(SKILLS[w.type][line].nodes[tier], rank); }
+function skillUp(slot, line, tier) {
+  const w = S.slots[slot];
+  if (!w || !w.evo || S.over) return { ok: false, reason: 'none' };
+  if (!(line >= 0 && line < 3 && tier >= 0 && tier < 3)) return { ok: false, reason: 'none' };
+  const i = skillInfo(w, line, tier);
+  if (!i.can) return { ok: false, reason: i.reason };
+  w.sk[line][tier]++; dirty(w);
+  return { ok: true, rank: w.sk[line][tier] };
+}
+function canEvolve(slot) {
+  const w = S && S.slots[slot], cost = CFG.evoCost, have = shardCount();
+  const o = { ok: false, reason: '', cost, have };
+  if (!w) o.reason = 'none';
+  else if (w.evo) o.reason = 'evo';
+  else if (w.lv < CFG.maxLv) o.reason = 'lv';
+  else if (S.over || S.pendingAug || S.pendingPact) o.reason = 'busy';
+  else if (have < cost) o.reason = 'shards';
+  else o.ok = true;
+  return o;
+}
+function evolve(slot) {
+  const c = canEvolve(slot); if (!c.ok) return c;
+  const w = S.slots[slot];
+  takeShards(CFG.evoCost);
+  w.evo = true; w.lv = 0; w.hi = 0; w.skp = 0; w.sk = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  dirty(w); S.slotDirty = true;
+  return { ok: true, cost: CFG.evoCost, have: shardCount() };
+}
+// 바깥 요인(부식, 도박사, 유물)으로 진화한 무기가 n단계를 잃는다. 0 아래로 내려가면 진화가 풀려 100강 일반 무기가 된다 (스킬과 포인트는 사라지고 조각은 돌려받지 못한다)
+function evoLose(w, n, slot) {
+  w.hi = Math.max(w.hi || 0, w.lv);
+  if (w.lv - n >= 0) { w.lv -= n; dirty(w); return { devo: false }; }
+  w.evo = false; w.lv = CFG.maxLv; w.hi = CFG.maxLv; w.skp = 0; delete w.sk; dirty(w);
+  if (S.evq) S.evq.push({ k: 'devo', slot, type: w.type });
+  S.slotDirty = true;
+  return { devo: true };
+}
+
 /* ---------- 적 ---------- */
 const ENEMIES = {
   basic:  { hp: 20,  speed: 0.068, r: 19, leak: 3,  gold: 2 },
@@ -1075,6 +1303,7 @@ function newGame(h) {
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
     shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
     pacts: [], pendingPact: null, bloodN: 0,     // 천칭의 거래: 받은 것, 제안 중인 것, 피의 계약의 처치 수
+    evq: [],                                      // 화면에 알릴 진화 사건 (진화가 풀림)
   };
   S.base = newBase();
   S.slots[2] = newWeapon('blaster');
@@ -1084,7 +1313,7 @@ function newGame(h) {
 function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.melt) S.melt = 0; if (!S.base) S.base = newBase();
   S.shards = S.shards || 0;   // 예전 저장의 강화 조각 아이템은 재화로 바꾼다
   for (let i = 0; i < S.inv.length; i++) if (S.inv[i] && S.inv[i].kind === 's') { S.shards += S.inv[i].n || 0; S.inv[i] = null; }
-  if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
+  if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
   if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
   syncMaxHp(); }
 function setH(h) {
@@ -1111,6 +1340,7 @@ function blankStats(lanes, chain) {
     shrap: 0, barrage: 0, nuke: 0, multi: 0, storm: 0,
     vuln: 0, vulnT: 0, through: 0, twin: 0, carry: 0, poolAcid: 0,
     aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0, aMelt: 0,   // 산성 웅덩이
+    gatling: 0, prism: 0, reson: 0, overload: 0, aDur: 0, linger: 0,   // 스킬 전용 효과
     };
 }
 function stats(w) {
@@ -1119,14 +1349,17 @@ function stats(w) {
   const s = blankStats(d.lanes, d.chain || 0);
   for (const p of w.parts) if (p) PARTS[p.id].ap(s, ...val(PARTS[p.id], p.g));
   for (const a of w.augs) if (a) AUGS[a.id].ap(s, ...val(AUGS[a.id], a.g));
+  if (w.evo) applySkills(w, s);           // 진화한 무기: 스킬 노드 (증강 뒤에 더한다)
   const bs = bstats();                    // 기지 파츠의 전체 효과
   s.dmgPct += bs.dmgAll; s.rangePct += bs.rangeAll;
   const rg = Math.max(0.4, 1 + s.rangePct);
-  s.dmg = d.dmg * BAL.lvMul(w.lv) * Math.max(0.2, 1 + s.dmgPct);
+  s.dmg = d.dmg * (w.evo ? BAL.lvMul(CFG.maxLv) * BAL.evoMul(w.lv) : BAL.lvMul(w.lv)) * Math.max(0.2, 1 + s.dmgPct);
   s.cd = d.cd / Math.max(0.4, 1 + s.ratePct);
   if (hasPact('glass')) s.dmg *= PACT.glassDmg;
   if (hasPact('focus')) s.dmg *= PACT.focusDmg;
   if (hasPact('overheat')) s.cd /= PACT.heatRate;
+  if (s.gatling) { s.cd *= 0.5; s.dmg *= 0.65; }   // 개틀링: 맨 마지막에 적용
+  s.evo = !!w.evo;
   s.range = Math.min(1, d.range * rg);
   s.lanes = Math.min(5, s.lanes);
   s.radius = (d.radius || 0) * (rg + s.areaPct);
@@ -1308,7 +1541,7 @@ function baseDetach(k) {
 }
 function meltSafe(it) { // 모두 분해에서 제외: 영웅 이상 파츠, 강화된 무기, 영웅 이상 파츠가 달린 무기
   if (it.kind === 'p') return it.g >= 2;
-  if (it.kind === 'w') return (it.lv || 0) >= 1 || (it.parts || []).some(p => p && p.g >= 2);
+  if (it.kind === 'w') return !!it.evo || (it.lv || 0) >= 1 || (it.parts || []).some(p => p && p.g >= 2);   // 진화한 무기는 늘 제외
   return true;
 }
 function meltAll() { // 인벤토리의 파츠와 무기를 전부 녹인다 (meltSafe 제외)
@@ -1320,7 +1553,7 @@ function meltValue(it) { // 녹였을 때 얻는 게이지: 파츠는 등급별,
   if (!it) return 0;
   if (it.kind === 'p') return CFG.meltPts[it.g];
   if (it.kind !== 'w') return 0;
-  const lv = it.lv || 0;
+  const lv = effLv(it);   // 진화한 무기는 100 + 단계
   let v = Math.round(30 + 4 * lv + 0.04 * lv * lv);
   for (const p of it.parts || []) if (p) v += CFG.meltPts[p.g];
   return v;
@@ -1364,7 +1597,7 @@ function pactSucc() { return (hasPact('overheat') ? PACT.heatSucc : 0) + (hasPac
 function upgradeInfo(t) { // t: 무기 또는 기지
   const next = t.lv + 1;
   const rate = Math.max(PACT.minSucc, Math.min(1, BAL.success(next) + bstats().luck + pactSucc()));   // 하한 3% (기존 곡선은 10% 이상이라 거래 없이는 그대로)
-  return { cost: next, rate, have: shardCount(), max: t.lv >= CFG.maxLv };
+  return { cost: next * (t.evo ? CFG.evoCostMul : 1), rate, have: shardCount(), max: t.lv >= CFG.maxLv };   // 진화한 무기는 비용 5배, 성공률은 진화 단계 기준 그대로
 }
 function tryUpgrade(t) {
   const info = upgradeInfo(t);
@@ -1376,12 +1609,17 @@ function tryUpgrade(t) {
   if (!saved) takeShards(info.cost);
   const success = u2 < info.rate;
   let drop = false;
-  if (!success && hasPact('gamble') && t.lv > 0 && rndG() < PACT.gambleDrop) {   // 도박사: 실패하면 10%로 1단계 하락
-    t.hi = Math.max(t.hi || 0, t.lv);   // 이미 받은 증강은 다시 받지 못하게 기록
-    t.lv--; drop = true;
-    if (t === S.base) bdirty(); else dirty(t);
+  let devo = false;
+  if (!success && hasPact('gamble') && (t.lv > 0 || t.evo) && rndG() < PACT.gambleDrop) {   // 도박사: 실패하면 10%로 1단계 하락 (진화한 무기는 0강에서도: 0 아래면 진화가 풀림)
+    if (t.evo) devo = evoLose(t, 1, S.slots.indexOf(t)).devo;
+    else {
+      t.hi = Math.max(t.hi || 0, t.lv);   // 이미 받은 증강은 다시 받지 못하게 기록
+      t.lv--;
+      if (t === S.base) bdirty(); else dirty(t);
+    }
+    drop = true;
   }
-  return { ok: true, success, saved, drop };
+  return { ok: true, success, saved, drop, devo };
 }
 function upgrade(slot) {
   const w = S.slots[slot];
@@ -1389,10 +1627,13 @@ function upgrade(slot) {
   const r = tryUpgrade(w); if (!r.ok) return r;
   if (r.success) {
     w.lv++; dirty(w);
-    if (w.lv > S.maxLv) S.maxLv = w.lv;
-    if (w.lv % CFG.augEvery === 0 && w.lv > (w.hi || 0)) S.pendingAug = { slot, lv: w.lv, options: rollAugs(w.augs, AUG_POOL[w.type], w.lv) };
+    if (effLv(w) > S.maxLv) S.maxLv = effLv(w);
+    if (w.lv % CFG.augEvery === 0 && w.lv > (w.hi || 0)) {
+      if (w.evo) { w.skp = (w.skp || 0) + 1; r.point = true; }   // 진화한 무기: 증강 대신 스킬 포인트
+      else S.pendingAug = { slot, lv: w.lv, options: rollAugs(w.augs, AUG_POOL[w.type], w.lv) };
+    }
   }
-  r.lv = w.lv; return r;
+  r.lv = w.lv; r.evo = !!w.evo; return r;
 }
 function upgradeBase() {
   const b = S.base;
@@ -1472,11 +1713,12 @@ function choosePact(i) {
     if (f >= 0) { S.inv[f] = item; res.got = 'inv'; } else { const pts = CFG.meltPts[3]; S.melt = (S.melt || 0) + pts; res.got = 'melt'; res.pts = pts; }
     res.item = item;
     let bk = -1;
-    for (let k = 0; k < S.slots.length; k++) { const w = S.slots[k]; if (w && w.lv > 0 && (bk < 0 || w.lv > S.slots[bk].lv)) bk = k; }
+    for (let k = 0; k < S.slots.length; k++) { const w = S.slots[k]; if (w && effLv(w) > 0 && (bk < 0 || effLv(w) > effLv(S.slots[bk]))) bk = k; }
     if (bk >= 0) {
-      const w = S.slots[bk], from = w.lv;
-      w.hi = Math.max(w.hi || 0, from); w.lv = Math.max(0, from - PACT.relicLoss); dirty(w);
-      res.lost = { slot: bk, type: w.type, from, to: w.lv };
+      const w = S.slots[bk], from = effLv(w);
+      if (w.evo) res.devo = evoLose(w, PACT.relicLoss, bk).devo;   // 진화한 무기: 모자라면 진화가 풀려 100강 일반 무기
+      else { w.hi = Math.max(w.hi || 0, from); w.lv = Math.max(0, from - PACT.relicLoss); dirty(w); }
+      res.lost = { slot: bk, type: w.type, from, to: effLv(w), evo: !!w.evo };
       S.slotDirty = true;
     }
     S.invDirty = true;
@@ -1611,6 +1853,7 @@ function hit(e, amt, st, noSplash, fixed) {
   if (e.vulnT > 0) d *= 1 + e.vulnPct;        // 취약: 받는 피해 증가
   if (e.dmgMul) d *= e.dmgMul;                // 천칭
   if (!fixed) {
+  if (st.overload && (e.stunT > 0 || e.slowT > 0)) d *= 1 + st.overload;   // 과전류: 기절하거나 둔화된 적
   if (st.instakill && !e.boss && (e.hp - d) / e.maxHp <= st.instakill) d = e.hp;
   if (e.type === 'shield' && st.w) {         // 방패체: 같은 레인의 무기가 쏜 공격은 대부분 막힌다
     const sl = S.slots.indexOf(st.w);
@@ -1719,12 +1962,13 @@ function fire(w, slot, st) {
       w.n++;
       const m = st.third && w.n % 3 === 0 ? 1 + st.third : 1;
       for (const e of list) hit(e, st.dmg * m, st);
-      fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9), c: st.color, g: 1 });
+      fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9) * (st.evo ? 1.2 : 1), c: st.color, g: 1 });
       if (st.sideBeam) {
-        const wide = { lanes: st.lanes + 1, range: st.range };
+        const reach = st.prism ? 2 : 1;      // 프리즘: 양옆 2레인까지
+        const wide = { lanes: st.lanes + reach, range: st.range };
         for (const e of S.enemies) if (inReach(e, wx, wide) && list.indexOf(e) < 0) hit(e, st.dmg * m * st.sideBeam, st);
-        for (const sx of [wx - (st.lanes + 1) * LW, wx + (st.lanes + 1) * LW]) {
-          if (sx > 0 && sx < W) fx({ k: 'beam', d: 0.16, x: sx, y0: H - st.range * H, y1: H, w: 5, c: st.color });
+        for (let j = 1; j <= reach; j++) for (const sx of [wx - (st.lanes + j) * LW, wx + (st.lanes + j) * LW]) {
+          if (sx > 0 && sx < W) fx({ k: 'beam', d: 0.16, x: sx, y0: H - st.range * H, y1: H, w: 5 * (st.evo ? 1.2 : 1), c: st.color });
         }
       }
       if (st.orbit) {                        // 궤도 포격: 적이 있는 다른 레인에 빔 낙하
@@ -1757,7 +2001,8 @@ function fire(w, slot, st) {
       }
       const times = st.echo && rnd() < st.echo ? 2 : 1;
       for (let k = 0; k < times; k++) {
-        for (const e of list) hit(e, st.dmg, st);
+        const pm = k && st.reson ? 2 : 1;     // 공명: 두 번째 파동은 피해 2배
+        for (const e of list) hit(e, st.dmg * pm, st);
         fx({ k: 'pulse', d: 0.34 + k * 0.12, x: wx, y: H, r: R, c: st.color });   // 이중 물결과 번쩍임
       }
       return true;
@@ -1890,7 +2135,7 @@ function railShoot(w, slot, st) {
 // 산성 웅덩이
 function acidPool(x, y, st) {
   const r = 75 * (1 + st.aRange + st.areaPct);
-  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: 4, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd() });
+  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: 4 + st.aDur, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd() });
   fx({ k: 'splat', d: 0.35, x, y, r, c: st.color });
   snd('splat');
 }
@@ -1900,11 +2145,13 @@ function acidTick(p, dt, seen) {
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
     if (e.dead || Math.hypot(e.x - p.x, e.y - p.y) > p.r + e.r * 0.5) continue;
-    e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, 1);   // 안에 있는 동안과 나간 뒤 1초
+    e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, st.linger || 1);   // 안에 있는 동안과 나간 뒤 1초 (잔류: 3초)
     if (p.slow) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
     if (!got.has(e)) {                     // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
       got.add(e);
-      dot(e, p.dps * dt * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1), st);
+      const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1);
+      if (st.linger) { e.lgT = st.linger; e.lgDps = dps; e.lgSt = st; e.inT = S.t; }   // 잔류: 나간 뒤에도 같은 피해
+      dot(e, dps * dt, st);
     }
     if (!e.dead && st.aMelt && !e.boss && e.hp / e.maxHp <= st.aMelt) { credit(st, e.hp, e); e.hp = 0; kill(e, st); }
   }
@@ -1920,7 +2167,7 @@ function orbPos(slot, st, i, t) {
 /* ---------- 보스 능력 ---------- */
 function note(text) { if (S.notes.length < 6) S.notes.push(text); }
 function itemName(it) {
-  if (it.kind === 'w') return WEAPONS[it.type].name + ' +' + it.lv;
+  if (it.kind === 'w') return WEAPONS[it.type].name + (it.evo ? ' ★+' : ' +') + it.lv;
   if (it.kind === 'p') return PARTS[it.id].name;
   return '강화 조각 ' + it.n + '개';
 }
@@ -1973,7 +2220,7 @@ function bossStep(dt) {
         if (e.abT <= 0) {
           e.abT += 12;
           if (!S.corr) {
-            let c = []; for (let k = 0; k < LANES; k++) if (S.slots[k] && S.slots[k].lv > 0) c.push(k);
+            let c = []; for (let k = 0; k < LANES; k++) if (S.slots[k] && effLv(S.slots[k]) > 0) c.push(k);
             if (!c.length) for (let k = 0; k < LANES; k++) if (S.slots[k]) c.push(k);
             if (c.length) { S.corr = { k: pick(c, rndS), t: WARN_T }; S.slotDirty = true; snd('alert'); }
           }
@@ -2010,7 +2257,12 @@ function bossStep(dt) {
       if (S.corr.t <= 0) {
         const w = S.slots[S.corr.k];
         abfx('corr', S.corr.k);
-        if (w) {
+        if (w && w.evo) {                    // 진화한 무기: 단계만 낮아지고, 0 아래면 진화가 풀린다 (무기는 사라지지 않는다)
+          const k0 = S.corr.k;
+          if (!evoLose(w, 5, k0).devo)       // 진화가 풀린 경우의 알림은 evq가 맡는다
+            note('<b>부식체</b>가 <b>' + WEAPONS[w.type].name + '</b>의 강화 단계를 낮췄습니다. (★+' + w.lv + ')');
+          snd('hitcorr');
+        } else if (w) {
           if (w.lv - 5 < 0) {
             S.slots[S.corr.k] = null;
             note('부식: ' + WEAPONS[w.type].name + ' 파괴됨');
@@ -2211,6 +2463,7 @@ function step(dt) {
     if (e.flash > 0) e.flash -= dt;
     if (e.vulnT > 0) { e.vulnT -= dt; if (e.vulnT <= 0) e.vulnPct = 0; }
     if (e.burnT > 0) { e.burnT -= dt; dot(e, e.burnDps * dt, e.burnSt); if (e.dead) continue; if (e.burnT <= 0) e.burnDps = 0; }
+    if (e.lgT > 0) { e.lgT -= dt; if (e.inT !== S.t) { dot(e, e.lgDps * dt, e.lgSt); if (e.dead) continue; } }   // 산성 잔류: 웅덩이 밖에서만 (안에서는 웅덩이가 이미 준다)
     if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0) e.ice = false; continue; }
     let sp = e.speed;
     if (e.spdMul) sp *= e.spdMul;
@@ -2268,6 +2521,7 @@ const Core = {
   attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
+  SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
@@ -2377,6 +2631,8 @@ let mode = 'start';            // start | play | pause | over
 let sel = null;                // 고른 것: {from:'inv', i} 또는 {from:'slot', k}
 let wmodal = -1, wpick = -1;   // 무기 창이 열린 칸, 그 안에서 파츠를 고르는 중인 칸
 let bmodal = false;            // 기지 창
+let evoK = -1;                 // 진화 창이 열린 칸
+let skK = -1, skSel = null, skGot = null;   // 스킬 창: 칸, 고른 노드 {l, t}, 방금 찍은 노드 {l, t}
 let meltMode = false, meltAllArm = false;   // 용해로 모드, 모두 분해 확인
 const meltSet = new Set();   // 용해로 모드에서 고른 인벤토리 칸 (여러 개)
 let augSel = -1, augRep = -1, augSkip = false, augIntro = false;   // 증강 비교 창: 고른 선택지, 교체할 칸, 건너뛰기 확인, 처음 뜨는 연출
@@ -2471,6 +2727,8 @@ const Snd = (function () {
     drop: [40, () => tone('triangle', 300, 150, 0.1, 0.08)],
     melt: [40, () => { hiss(0.25, 0.11, 900, 1); tone('sawtooth', 300, 90, 0.25, 0.05); }],
     over: [500, () => seq('triangle', [392, 330, 262, 196], 0.3, 0.14, 0.22)],
+    evolve: [400, () => { tone('sine', 110, 55, 0.5, 0.2); hiss(0.4, 0.14, 1400, 0.8, 'bandpass'); seq('triangle', [392, 523, 659, 784, 1047, 1319], 0.22, 0.1, 0.07); seq('sine', [1568, 2093], 0.5, 0.05, 0.3); }],   // 진화: 낮은 울림 뒤에 차오르는 음
+    skill: [60, () => seq('triangle', [659, 988], 0.12, 0.09, 0.06)],
   };
   function play(name) {
     if (!ac || muted || ac.state !== 'running') return;
@@ -2550,22 +2808,28 @@ function updateMark() {
   if (low !== markLow) { markLow = low; markEl.classList.toggle('low', low); }
 }
 
-function icon(type, size) {
+function icon(type, size, evo) {
   const c = C.WEAPONS[type].color;
+  const shape = (a) => {
+    switch (type) {
+      case 'blaster': return `<polygon points="12,3 21,21 3,21" ${a}/>`;
+      case 'shotgun': return `<polygon points="3,5 21,5 15,21 9,21" ${a}/><path d="M8.5 5l1.8 16M15.5 5l-1.8 16" stroke="${c}" stroke-width="1.2"/>`;
+      case 'laser': return `<rect x="9" y="2" width="6" height="20" rx="1" ${a}/><path d="M12 5.5v13" stroke="${c}" stroke-width="1.6"/>`;
+      case 'pulse': return `<circle cx="12" cy="12" r="9.5" ${a}/><circle cx="12" cy="12" r="4" fill="${c}"/>`;
+      case 'mortar': return `<polygon points="6.5,19.5 13.5,4 18,6 11,21" ${a}/><path d="M3 21.5h18M14.5 12l5 9.5" stroke="${c}" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.5" cy="2.8" r="1.6" fill="${c}"/>`;
+      case 'tesla': return `<polygon points="14,2 5,13.5 11,13.5 9,22 19,9.5 13,9.5" ${a}/>`;
+      case 'rail': return `<polygon points="12,2 15.5,10 15.5,22 8.5,22 8.5,10" ${a}/><path d="M12 8v11M3.5 17l5-3.5M20.5 17l-5-3.5" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/>`;
+      case 'acid': return `<path d="M12 2.5C16.5 8 19 11.5 19 15a7 7 0 0 1-14 0c0-3.5 2.5-7 7-12.5z" ${a}/><circle cx="9.5" cy="15.5" r="1.9" fill="${c}"/>`;
+    }
+    return '';
+  };
   const a = `fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="1.8" stroke-linejoin="round"`;
-  let p = '';
-  switch (type) {
-    case 'blaster': p = `<polygon points="12,3 21,21 3,21" ${a}/>`; break;
-    case 'shotgun': p = `<polygon points="3,5 21,5 15,21 9,21" ${a}/><path d="M8.5 5l1.8 16M15.5 5l-1.8 16" stroke="${c}" stroke-width="1.2"/>`; break;
-    case 'laser': p = `<rect x="9" y="2" width="6" height="20" rx="1" ${a}/><path d="M12 5.5v13" stroke="${c}" stroke-width="1.6"/>`; break;
-    case 'pulse': p = `<circle cx="12" cy="12" r="9.5" ${a}/><circle cx="12" cy="12" r="4" fill="${c}"/>`; break;
-    case 'mortar': p = `<polygon points="6.5,19.5 13.5,4 18,6 11,21" ${a}/><path d="M3 21.5h18M14.5 12l5 9.5" stroke="${c}" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.5" cy="2.8" r="1.6" fill="${c}"/>`; break;
-    case 'tesla': p = `<polygon points="14,2 5,13.5 11,13.5 9,22 19,9.5 13,9.5" ${a}/>`; break;
-    case 'rail': p = `<polygon points="12,2 15.5,10 15.5,22 8.5,22 8.5,10" ${a}/><path d="M12 8v11M3.5 17l5-3.5M20.5 17l-5-3.5" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/>`; break;
-    case 'acid': p = `<path d="M12 2.5C16.5 8 19 11.5 19 15a7 7 0 0 1-14 0c0-3.5 2.5-7 7-12.5z" ${a}/><circle cx="9.5" cy="15.5" r="1.9" fill="${c}"/>`; break;
-  }
-  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${p}</svg>`;
+  let p = shape(a);
+  // 진화한 무기: 바깥에 한 겹 더 굵은 윤곽과 빛무리
+  if (evo) p = `<g opacity=".6">${shape(`fill="none" stroke="${c}" stroke-width="5.2" stroke-linejoin="round"`)}</g>` + p;
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"${evo ? ` class="evoic" style="--wc:${c};overflow:visible"` : ''}>${p}</svg>`;
 }
+const lvTxt = (o) => (o.evo ? '★+' : '+') + o.lv;   // 진화한 무기는 ★+단계
 
 /* ---------- 파츠 그림 ---------- */
 const FILL = 'fill="currentColor" stroke="none"';
@@ -2635,16 +2899,16 @@ function renderWeapons() {
     const w = S.slots[k];
     const mine = sel && sel.from === 'slot' && sel.k === k;
     const lk = S.locks && S.locks[k], cr = S.corr && S.corr.k === k, closed = C.isClosed(k);
-    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
+    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
       (lk ? (lk.l > 0 ? ' locked' : ' warn-lock') : '') + (cr ? ' warn-corr' : '');
-    h += `<button type="button" class="${cls}" data-slot="${k}" aria-label="무기 칸 ${k + 1}${closed ? ' 폐쇄됨' : ''}">`;
+    h += `<button type="button" class="${cls}" data-slot="${k}"${w && w.evo ? ` style="--wc:${C.WEAPONS[w.type].color}"` : ''} aria-label="무기 칸 ${k + 1}${closed ? ' 폐쇄됨' : ''}">`;
     if (closed) h += `<svg class="xmark" viewBox="0 0 24 24" width="30" height="30" ${SVG_ATTR}><path d="M5 5l14 14M19 5L5 19" stroke-width="2.6"/></svg><small class="cl">폐쇄</small>`;
     else if (w) {
-      h += icon(w.type, 26) + `<b class="lv">+${w.lv}</b><span class="pips">` +
+      h += icon(w.type, 26, w.evo) + `<b class="lv">${lvTxt(w)}</b><span class="pips">` +
         w.parts.map(p => `<i class="pp"${p ? ` style="background:${GHEX[p.g]};border-color:${GHEX[p.g]}"` : ''}></i>`).join('') +
         '</span><span class="pips">' +
         w.augs.map(a => `<i class="pa"${a ? ` style="background:${GHEX[a.g]};border-color:${GHEX[a.g]}"` : ''}></i>`).join('') + '</span>' +
-        (upmode ? '<span class="upcue"><i></i><i></i></span>' : '');
+        (upmode ? '<span class="upcue"><i></i><i></i></span>' : '') + (w.evo && C.skillPoints(w).left > 0 ? '<i class="skdot" aria-label="남은 스킬 포인트"></i>' : '');
     } else h += '<span class="plus">+</span>';
     if (lk && lk.l > 0) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
     if (wl) h += `<span class="abic lk">${LOCK_SVG(18)}</span><i class="cd" style="${cdStyle(lk.w)}"></i>`;
@@ -2692,7 +2956,7 @@ function abHitFx(kind, i) {
   setTimeout(() => d.remove(), 800);
 }
 // 강화 결과 연출: 글자 없이 효과 위주. 성공하면 빛과 고리, 불꽃, 그리고 위로 올라가는 강화 단계. 실패하면 붉게 흔들리며 X 표시
-function burstAt(el, ok, lv, drop) {
+function burstAt(el, ok, lv, drop, evo) {
   if (!el) return;
   const app = $('#app'), r = el.getBoundingClientRect(), a = app.getBoundingClientRect();
   const d = document.createElement('div');
@@ -2702,7 +2966,7 @@ function burstAt(el, ok, lv, drop) {
   d.style.width = r.width + 'px'; d.style.height = r.height + 'px';
   let inner = '<i class="glow"></i>';
   if (ok) {
-    inner += `<i class="ring"></i><b>+${lv}</b>`;
+    inner += `<i class="ring"></i><b>${evo ? '★+' : '+'}${lv}</b>`;
     for (let i = 0; i < 10; i++) {
       const an = i / 10 * Math.PI * 2, dist = 34 + Math.random() * 22;
       inner += `<s style="--dx:${(Math.cos(an) * dist).toFixed(0)}px;--dy:${(Math.sin(an) * dist).toFixed(0)}px"></s>`;
@@ -2795,9 +3059,52 @@ function gaugeFlash() {
   g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash');
 }
 
+// 진화 연출: 칸에서 무기 색의 빛이 번지고, 고리 두 개가 퍼지며, 불꽃이 사방으로 튀고 별이 떠오른다
+function evoFx(el, color) {
+  if (!el) return;
+  const a = $('#app').getBoundingClientRect(), r = el.getBoundingClientRect(), d = document.createElement('div');
+  d.className = 'evofx'; d.style.setProperty('--c', color);
+  d.style.left = (r.left - a.left) + 'px'; d.style.top = (r.top - a.top) + 'px'; d.style.width = r.width + 'px'; d.style.height = r.height + 'px';
+  let inner = '<i class="glow"></i><i class="ring"></i><i class="ring r2"></i><b>★</b>';
+  for (let i = 0; i < 16; i++) {
+    const an = i / 16 * Math.PI * 2 + Math.random() * 0.3, dist = 40 + Math.random() * 40;
+    inner += `<s style="--dx:${(Math.cos(an) * dist).toFixed(0)}px;--dy:${(Math.sin(an) * dist - 14).toFixed(0)}px"></s>`;
+  }
+  d.innerHTML = inner;
+  while (fxLayer.children.length > 8) fxLayer.firstChild.remove();
+  fxLayer.appendChild(d);
+  setTimeout(() => d.remove(), 1300);
+}
+// 진화가 풀릴 때: 붉은 금이 가며 조각이 아래로 흩어진다
+function devoFx(el) {
+  if (!el) return;
+  const a = $('#app').getBoundingClientRect(), r = el.getBoundingClientRect(), d = document.createElement('div');
+  d.className = 'devofx';
+  d.style.left = (r.left - a.left) + 'px'; d.style.top = (r.top - a.top) + 'px'; d.style.width = r.width + 'px'; d.style.height = r.height + 'px';
+  let inner = '<i class="glow"></i><u></u>';
+  for (let i = 0; i < 8; i++) inner += `<s style="--dx:${((i - 3.5) * 9).toFixed(0)}px;--dy:${(18 + Math.random() * 18).toFixed(0)}px"></s>`;
+  d.innerHTML = inner;
+  while (fxLayer.children.length > 8) fxLayer.firstChild.remove();
+  fxLayer.appendChild(d);
+  setTimeout(() => d.remove(), 1000);
+}
+// 화면에 알릴 진화 사건 (진화가 풀림). quiet: 알림 글은 따로 알리므로 효과만
+function drainEvq(quiet) {
+  const S = C.S; if (!S || !S.evq || !S.evq.length) return;
+  for (const e of S.evq.splice(0)) {
+    if (e.k !== 'devo') continue;
+    if (skK === e.slot) { skK = -1; skSel = null; }
+    if (evoK === e.slot) evoK = -1;
+    renderWeapons(); renderOverlay();
+    Snd.play('hitcorr');
+    devoFx(elW.querySelector(`[data-slot="${e.slot}"]`));
+    if (!quiet) say(`<b>진화가 풀렸습니다</b> ${C.WEAPONS[e.type].name} +100`, true, 3200);
+  }
+}
+
 /* ---------- 하단 인벤토리 ---------- */
 function itemInfo(it) {
-  if (it.kind === 'w') { const d = C.WEAPONS[it.type]; return `<b style="color:${d.color}">${d.name} +${it.lv}</b> ${d.desc}`; }
+  if (it.kind === 'w') { const d = C.WEAPONS[it.type]; return `<b style="color:${d.color}">${d.name} ${lvTxt(it)}</b> ${d.desc}`; }
   if (it.kind === 'p') return (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it);
   return '';
 }
@@ -2812,7 +3119,7 @@ function infoHtml() {
   if (sel && sel.from === 'inv' && S.inv[sel.i]) return itemInfo(S.inv[sel.i]);
   if (sel && sel.from === 'slot' && S.slots[sel.k]) {
     const w = S.slots[sel.k], d = C.WEAPONS[w.type];
-    return `<b style="color:${d.color}">${d.name} +${w.lv}</b> 한 번 더 누르면 무기 창이 열립니다. 자리를 옮기려면 끌어다 놓으세요.`;
+    return `<b style="color:${d.color}">${d.name} ${lvTxt(w)}</b> 한 번 더 누르면 무기 창이 열립니다. 자리를 옮기려면 끌어다 놓으세요.`;
   }
   const b = S.base, u = C.upgradeInfo(b), n = b.parts.filter(Boolean).length;
   return `<button type="button" class="bbtn" data-act="bopen">${BASEICON(16)} 기지 파츠 <b>${n}/${C.CFG.baseSlots}</b></button>` +
@@ -2826,7 +3133,7 @@ function updateInfo() {
 function cellHtml(it, i) {
   let inner = '', cls = 'cell';
   if (!it) cls += ' empty';
-  else if (it.kind === 'w') { inner = icon(it.type, 20) + `<b>+${it.lv}</b>`; cls += ' kw'; }
+  else if (it.kind === 'w') { inner = icon(it.type, 20, it.evo) + `<b>${lvTxt(it)}</b>`; cls += ' kw' + (it.evo ? ' evo' : ''); }
   else if (it.kind === 'p') { inner = partIcon(it.id, 26); cls += ' kp g' + it.g + (isBasePart(it) ? ' kb' : ''); }
   const meltable = meltMode && !!it && (it.kind === 'p' || it.kind === 'w');
   if (meltMode) cls += meltable ? ' meltable' : ' dim';
@@ -2950,7 +3257,7 @@ function wmHtml(w) {
   const dealt = w.dealt || 0, share = S.dealt > 0 ? Math.round(dealt / S.dealt * 100) : 0;
   return `<div class="modal wm">
     <div class="wm-head">
-      <div><span class="nm" style="color:${d.color}">${d.name} +${w.lv}</span>
+      <div><span class="nm" style="color:${d.color}">${d.name} ${lvTxt(w)}</span>
       <span class="st">공격력 ${fmt(st.dmg)} · 간격 ${st.cd.toFixed(2)}초 · 치명 ${Math.round(st.crit * 100)}%</span></div>
       <button type="button" class="x" data-act="wclose">닫기</button>
     </div>
@@ -2959,7 +3266,7 @@ function wmHtml(w) {
       <svg class="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path d="M50 54L50 16M50 54L17 84M50 54L83 84" fill="none" stroke="${d.color}" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
       </svg>
-      <div class="core${coreCls()}" style="border-color:${d.color}">${icon(w.type, 46)}<b>+${w.lv}</b></div>
+      <div class="core${coreCls()}${w.evo ? ' evo' : ''}" style="border-color:${d.color};--wc:${d.color}">${icon(w.type, 46, w.evo)}<b>${lvTxt(w)}</b></div>
       ${partNodes(w.parts, 'p')}
     </div>
     <div class="wm-info" id="wmInfo">${wInfoHtml(modalInfoText())}</div>
@@ -2969,7 +3276,16 @@ function wmHtml(w) {
     <div class="d-acts">
       <button type="button" class="btn primary${!u.max && u.have >= u.cost ? '' : ' off'}" data-act="wup">강화 <small>${upText(w)}</small></button>
       <button type="button" class="btn" data-act="wunequip">장착 해제</button>
-    </div></div>`;
+    </div>${evoRow(w)}</div>`;
+}
+// 무기 창의 진화 / 스킬 버튼 줄
+function evoRow(w) {
+  if (w.evo) {
+    const n = C.skillPoints(w).left;
+    return `<div class="d-acts one"><button type="button" class="btn evob${n > 0 ? ' has' : ''}" data-act="skOpen" style="--wc:${C.WEAPONS[w.type].color}">★ 스킬 <small>${n > 0 ? `남은 포인트 <b>${n}</b>` : '남은 포인트 0'}</small></button></div>`;
+  }
+  if (w.lv >= C.CFG.maxLv) return `<div class="d-acts one"><button type="button" class="btn evob has" data-act="evoOpen" style="--wc:${C.WEAPONS[w.type].color}">★ 진화 <small>조각 ${C.CFG.evoCost}</small></button></div>`;
+  return '';
 }
 function bmHtml() {
   const S = C.S, b = S.base, bs = C.bstats(), u = C.upgradeInfo(b);
@@ -3000,6 +3316,49 @@ function bmHtml() {
       <button type="button" class="btn primary${!u.max && u.have >= u.cost ? '' : ' off'}" data-act="bup">강화 <small>${upText(b)} · 단계마다 체력 +${C.CFG.baseHpPerLv}</small></button>
     </div></div>`;
 }
+/* ---------- 진화 창과 스킬 창 ---------- */
+function evoHtml() {
+  const w = C.S.slots[evoK], d = C.WEAPONS[w.type], c = C.canEvolve(evoK), ok = c.ok;
+  return `<div class="modal evom"><h2>진화</h2>
+    <div class="evo-w" style="--wc:${d.color}"><span class="evo-ic">${icon(w.type, 40)}</span><span class="evo-arr">${ARROW}</span><span class="evo-ic on">${icon(w.type, 40, true)}</span>
+      <div class="evo-nm"><b style="color:${d.color}">${d.name}</b><span>+100 → ★+0</span></div></div>
+    <div class="evo-cost${c.reason === 'shards' ? ' short' : ''}">${SHARD}<b>조각 ${fmtInt(c.cost)}</b><span>보유 <b>${fmtInt(c.have)}</b></span></div>
+    <ul class="evo-list"><li>0강으로 돌아가지만 능력은 유지</li><li>강화 비용 5배, 5강마다 스킬 포인트</li><li>0강 아래로 떨어지면 진화가 풀림</li></ul>
+    ${c.reason === 'shards' ? `<p class="warn">조각이 ${fmtInt(c.cost - c.have)}개 모자랍니다.</p>` : ''}
+    <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="evoOk"${ok ? '' : ' disabled'}>진화한다</button><button type="button" class="btn" data-act="evoClose">닫기</button></div></div>`;
+}
+const SK_LOCK = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.6"/></svg>`;
+const SK_KIND = { root: '기본', up: '강화', cap: '최종' };
+function skFirst(w) {   // 열 때 고를 노드: 지금 찍을 수 있는 첫 노드 (없으면 첫 칸)
+  for (let l = 0; l < 3; l++) for (let t = 0; t < 3; t++) if (C.skillInfo(w, l, t).can) return { l, t };
+  return { l: 0, t: 0 };
+}
+function skillHtml() {
+  const w = C.S.slots[skK], d = C.WEAPONS[w.type], P = C.skillPoints(w), tree = C.SKILLS[w.type];
+  if (!skSel) skSel = skFirst(w);
+  const cols = tree.map((line, l) => {
+    const tiles = [2, 1, 0].map((t) => {
+      const i = C.skillInfo(w, l, t), nm = i.name;
+      const cls = 'skt ' + (t === 2 ? 'cap' : '') + (i.locked ? ' lock' : '') + (i.rank >= i.max ? ' full' : i.rank > 0 ? ' has' : '') + (i.can ? ' can' : '') +
+        (skSel.l === l && skSel.t === t ? ' sel' : '') + (skGot && skGot.l === l && skGot.t === t ? ' got' : '');
+      const conn = t > 0 ? `<i class="skc${C.skillInfo(w, l, t - 1).rank >= C.skillInfo(w, l, t - 1).max ? ' on' : ''}"></i>` : '';
+      return `<button type="button" class="${cls}" data-sk="${l}:${t}" aria-label="${nm} ${i.rank}/${i.max}${i.locked ? ' 잠김' : ''}"><span class="skn">${nm}</span><b class="skr">${i.rank}/${i.max}</b>${i.locked ? `<span class="skl">${SK_LOCK}</span>` : ''}</button>${conn}`;
+    });
+    return `<div class="skcol"><div class="sktiles">${tiles.join('')}</div><b class="sklab">${line.name}</b></div>`;
+  }).join('');
+  const i = C.skillInfo(w, skSel.l, skSel.t), cur = C.skillText(w, skSel.l, skSel.t, i.rank), nxt = i.rank < i.max ? C.skillText(w, skSel.l, skSel.t, i.rank + 1) : '';
+  const prev = skSel.t > 0 ? C.skillInfo(w, skSel.l, skSel.t - 1) : null;
+  let body;
+  if (i.locked) body = `<span class="skreq">${prev.name} ${prev.max}/${prev.max}을(를) 먼저 찍어야 합니다. (지금 ${prev.rank}/${prev.max})</span>` + (nxt ? `<span class="skfx dim">${nxt}</span>` : '');
+  else if (i.rank >= i.max) body = `<span class="skfx">${cur}</span><span class="skreq">최대 랭크입니다.</span>`;
+  else body = `<span class="skfx${i.rank ? '' : ' dim'}">${i.rank ? cur : '아직 찍지 않음'}</span><span class="skarr">▼</span><span class="skfx nx">${nxt}</span>`;
+  const why = i.can ? '' : i.locked ? '' : i.rank >= i.max ? '' : '<span class="skreq">남은 포인트가 없습니다.</span>';
+  return `<div class="modal skm" style="--wc:${d.color}"><div class="wm-head"><div><h2>스킬</h2><span class="st"><b style="color:${d.color}">${d.name} ${lvTxt(w)}</b></span></div>
+      <span class="skpts${P.left > 0 ? ' has' : ''}">남은 포인트 <b>${P.left}</b></span></div>
+    <div class="skgrid">${cols}</div>
+    <div class="skdet"><div class="skhd"><b>${i.name}</b><span class="skk">${SK_KIND[i.node.t]}</span><span class="skrk">${i.rank}/${i.max}</span></div>${body}${why}</div>
+    <div class="d-acts two"><button type="button" class="btn primary${i.can ? '' : ' off'}" data-act="skUp"${i.can ? '' : ' disabled'}>찍기</button><button type="button" class="btn" data-act="skClose">닫기</button></div></div>`;
+}
 // 비교 창: 왼쪽은 지금 장착한 것(바뀌는 것), 오른쪽은 새로 넣을 것. 글이 길면 줄바꿈한다
 const partItem = (p) => ({ g: p.g, pic: picHtml(p), nm: C.PARTS[p.id].name, ds: C.partDesc(p) });
 const augItem = (a) => ({ g: a.g, nm: C.AUGS[a.id].name, ds: C.augDesc(a) });
@@ -3024,7 +3383,7 @@ function statDeltaHtml(w, k, np) {
 // 파츠 고르기 창: 무기 창이나 기지 창에서 파츠 칸을 눌렀을 때
 function wpickHtml(k) {
   const S = C.S, holder = bmodal ? S.base : S.slots[wmodal], cur = holder.parts[k];
-  const name = bmodal ? `<b class="bcol">기지 +${holder.lv}</b>` : `<b style="color:${C.WEAPONS[holder.type].color}">${C.WEAPONS[holder.type].name} +${holder.lv}</b>`;
+  const name = bmodal ? `<b class="bcol">기지 +${holder.lv}</b>` : `<b style="color:${C.WEAPONS[holder.type].color}">${C.WEAPONS[holder.type].name} ${lvTxt(holder)}</b>`;
   if (cur && wpickNew >= 0 && S.inv[wpickNew]) {   // 이미 파츠가 있는 칸: 새것과 지금 것을 견주어 본다
     return `<div class="modal wm">
       <div class="wm-head"><div><span class="nm">파츠 교체</span><span class="st">${name}의 ${k + 1}번 파츠 칸</span></div></div>
@@ -3049,7 +3408,7 @@ function wpickHtml(k) {
 function swapHtml() {
   const S = C.S, it = S.inv[partSwap.i], isBase = partSwap.k === 'base';
   const holder = isBase ? S.base : S.slots[partSwap.k];
-  const name = isBase ? `<b class="bcol">기지 +${holder.lv}</b>` : `<b style="color:${C.WEAPONS[holder.type].color}">${C.WEAPONS[holder.type].name} +${holder.lv}</b>`;
+  const name = isBase ? `<b class="bcol">기지 +${holder.lv}</b>` : `<b style="color:${C.WEAPONS[holder.type].color}">${C.WEAPONS[holder.type].name} ${lvTxt(holder)}</b>`;
   const cur = partSwap.sel >= 0 ? holder.parts[partSwap.sel] : null;
   return `<div class="modal wm">
     <div class="wm-head"><div><span class="nm">파츠 교체</span><span class="st">${name}의 파츠 칸이 가득 찼습니다</span></div></div>
@@ -3114,7 +3473,7 @@ function pactToast(r) {
   if (r.id === 'relic') {
     const nm = C.PARTS[r.item.id].name;
     t = r.got === 'melt' ? `<b>유물 거래</b> 인벤토리가 가득 차 전설 파츠(${nm})를 게이지 +${r.pts}로 바꿨습니다.` : `<b>유물 거래</b> 전설 파츠 <b class="g3">${nm}</b> 획득.`;
-    if (r.lost) t += ` ${C.WEAPONS[r.lost.type].name} +${r.lost.from} → +${r.lost.to}`;
+    if (r.lost) t += ` ${C.WEAPONS[r.lost.type].name} ${r.lost.evo || r.devo ? `★+${r.lost.from - 100} → ${r.devo ? '진화가 풀려 +100' : '★+' + (r.lost.to - 100)}` : `+${r.lost.from} → +${r.lost.to}`}`;
   } else if (r.id === 'focus' && r.moved) {
     t += r.moved === 'melt' ? ` · 인벤토리가 가득 차 5번 칸 무기를 분해했습니다 (게이지 +${r.pts})` : ' · 5번 칸 무기를 인벤토리로 옮겼습니다';
   }
@@ -3164,7 +3523,7 @@ function augHtml() {
 function resultsHtml() {
   if (!lastRes) return '';
   const row = (ic, nm, k, d, pct) => `<div class="rrow"><span class="ri">${ic}</span><b class="rn">${nm}</b><span>${k}</span><span>${d}</span><span>${pct}</span></div>`;
-  const rows = lastRes.ws.map(w => row(icon(w.type, 18), `<span style="color:${C.WEAPONS[w.type].color}">${C.WEAPONS[w.type].name}</span> +${w.lv}`,
+  const rows = lastRes.ws.map(w => row(icon(w.type, 18), `<span style="color:${C.WEAPONS[w.type].color}">${C.WEAPONS[w.type].name}</span> ${lvTxt(w)}`,
     fmtInt(w.kills), fmt(w.dealt), (lastRes.total > 0 ? Math.round(w.dealt / lastRes.total * 100) : 0) + '%')).join('');
   const b = lastRes.base;
   return `<div class="wm-sec">무기별 결과</div><div class="res">
@@ -3267,10 +3626,13 @@ function helpHtml() {
   const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2') + hbox(icon('pulse', 20), 'slot'), '파츠 · 무기')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
   const meltNote = `<p class="hnote">쓰지 않는 파츠와 무기를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 녹일 물건은 눌러서 고릅니다.</p>`;
   const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 게임이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 기지 창(기지를 누르면 열리는 화면)에서 볼 수 있습니다.</p>`;
+  const evoNode = (w, cap) => hnode(hbox(icon('blaster', 22, w) + `<em class="bdg">${cap}</em>`, 'slot'), w ? '진화' : '100강');
+  const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>
+    <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(bossCard).join('')}</div>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
-    ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
+    ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
 }
 function renderOverlay() {
@@ -3326,6 +3688,14 @@ function renderOverlay() {
     const it = S.inv[partSwap.i], holder = partSwap.k === 'base' ? S.base : S.slots[partSwap.k];
     if (!it || it.kind !== 'p' || !holder) partSwap = null; else h = swapHtml();
   }
+  if (!h && mode === 'play' && S && skK >= 0) {         // 스킬 창
+    const w = S.slots[skK];
+    if (!w || !w.evo) { skK = -1; skSel = null; } else h = skillHtml();
+  }
+  if (!h && mode === 'play' && S && evoK >= 0) {        // 진화 창
+    const w = S.slots[evoK];
+    if (!w || w.evo || w.lv < C.CFG.maxLv) evoK = -1; else h = evoHtml();
+  }
   if (!h && mode === 'play' && S && (wmodal >= 0 || bmodal)) {
     if (!bmodal && !S.slots[wmodal]) { wmodal = -1; wpick = -1; }
     else {
@@ -3334,6 +3704,7 @@ function renderOverlay() {
     }
   }
   elO.classList.toggle('pactv', !!h && h.startsWith('<div class="pv'));
+  if (skGot) { const g = skGot; skGot = null; setTimeout(() => { const t = elO.querySelector(`[data-sk="${g.l}:${g.t}"]`); if (t) t.classList.remove('got'); }, 600); }
   if (h) {
     elO.innerHTML = h; elO.hidden = false;
     const mv = elO.querySelectorAll('.pv-emb [data-to]');   // 천칭 그림: 이전 기울기에서 새 기울기로
@@ -3344,7 +3715,7 @@ function renderOverlay() {
 
 /* ---------- 조작 ---------- */
 function resetUi() {
-  sel = null; partSwap = null; wmodal = -1; bmodal = false; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
+  sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = '';
 }
@@ -3352,7 +3723,7 @@ function startGame() { shareReset(); C.newGame(); resetUi(); mode = 'play'; acc 
 function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; confirmDrop = false; renderOverlay(); } }
 // 상태를 비우기 전에 무기별 결과와 받은 거래를 챙긴다. slots: 5칸 그대로 (무기, 빈 칸 null, 폐쇄 'closed')
 function captureRes(S) {
-  const one = (w) => ({ type: w.type, lv: w.lv, kills: w.kills || 0, dealt: w.dealt || 0 });
+  const one = (w) => ({ type: w.type, lv: w.lv, evo: !!w.evo, kills: w.kills || 0, dealt: w.dealt || 0 });
   return {
     total: S.dealt || 0, base: { kills: S.base.kills || 0, dealt: S.base.dealt || 0 },
     ws: S.slots.filter(Boolean).map(one).sort((a, b) => b.dealt - a.dealt),
@@ -3443,7 +3814,7 @@ async function buildShare() {
       const im = imgs[k];
       if (im) g.drawImage(im, 130, y + 8, 48, 48); else { g.fillStyle = C.WEAPONS[w.type].color; g.beginPath(); g.arc(154, y + h / 2, 18, 0, 7); g.fill(); }
       g.font = '36px ' + SHARE_FONT; g.fillStyle = C.WEAPONS[w.type].color; g.fillText(C.WEAPONS[w.type].name, 196, y + h / 2 + 1);
-      g.fillStyle = V['accent-ink']; g.font = '38px ' + SHARE_FONT; g.fillText('+' + w.lv, 470, y + h / 2 + 1);
+      g.fillStyle = V['accent-ink']; g.font = '38px ' + SHARE_FONT; g.fillText(lvTxt(w), 470, y + h / 2 + 1);
       g.textAlign = 'right'; g.font = '34px ' + SHARE_FONT;
       const dv = fmt(w.dealt), dw = g.measureText(dv).width;
       g.fillStyle = V.ink; g.fillText(dv, 984, y + h / 2 + 1);
@@ -3521,11 +3892,13 @@ function doUpgrade(k) {
   renderWeapons(); renderBottom();
   if (wmodal >= 0) lastUp = { ok: r.success, at: performance.now() };
   else {
-    burstAt(elW.querySelector(`[data-slot="${k}"]`), r.success, r.lv, r.drop);
+    burstAt(elW.querySelector(`[data-slot="${k}"]`), r.success, r.lv, r.drop, r.evo);
   }
   if (S.pendingAug) { augSel = -1; augRep = -1; augSkip = false; }
+  if (r.point) { skK = k; skSel = null; Snd.play('skill'); setTimeout(() => Snd.play('aug'), 90); }   // 진화한 무기가 포인트를 받으면 스킬 창이 열린다
   renderOverlay();
-  if (r.drop) { say(`강화 실패. 도박사의 대가로 단계가 1 내려갔습니다. (+${r.lv})`, true); updateWInfo(); }
+  if (r.drop && !r.devo) { say(`강화 실패. 도박사의 대가로 단계가 1 내려갔습니다. (${r.evo ? '★' : ''}+${r.lv})`, true); updateWInfo(); }
+  drainEvq();
 }
 function doBaseUpgrade() {
   const S = C.S, b = S.base;
@@ -3571,6 +3944,7 @@ function tapSlot(k) {
   if (C.isClosed(k)) { sel = null; renderWeapons(); renderBottom(); return say(CLOSED, true); }
   if (upMode && !sel) {                    // 강화 모드: 무기 칸을 누를 때마다 한 번씩 강화
     if (!w) return say(NO_WEAPON, true);
+    if (!w.evo && w.lv >= C.CFG.maxLv) { evoK = k; Snd.play('tap'); renderOverlay(); return; }   // 100강: 진화 창
     return doUpgrade(k);
   }
   upMode = false;
@@ -3656,7 +4030,7 @@ function endDrag(apply, x, y) {
 }
 $('#app').addEventListener('pointerdown', (ev) => {
   if (drag) endDrag(false);                // 이전 끌기가 비정상적으로 끝났다면 정리
-  if (mode !== 'play' || !C.S || C.S.pendingAug || C.S.pendingPact || wmodal >= 0 || bmodal || partSwap) return;
+  if (mode !== 'play' || !C.S || C.S.pendingAug || C.S.pendingPact || wmodal >= 0 || bmodal || partSwap || skK >= 0 || evoK >= 0) return;
   if ((sel || meltMode || upMode) && !ev.target.closest('button')) {   // 다른 곳(전장, 빈 공간)을 누르면 선택과 용해로 모드 취소
     sel = null; confirmDrop = false; msg = ''; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false;
     renderWeapons(); renderBottom(); return;
@@ -3758,7 +4132,8 @@ function act(name) {
       pactSel = -1; pactSkip = false; pactIntro = false; Snd.play('pact');
       renderAll(); legendScan();
       banner(C.PACTS[r.id].name);
-      if (r.id === 'relic' || (r.id === 'focus' && r.moved)) say(pactToast(r));   // 부수 결과(인벤토리 변화)는 알림으로 따로 알린다
+      if (r.id === 'relic' || (r.id === 'focus' && r.moved)) say(pactToast(r));
+      drainEvq(r.devo);   // 부수 결과(인벤토리 변화)는 알림으로 따로 알린다
       return;
     }
     case 'home': goHome(); return;
@@ -3835,6 +4210,33 @@ function act(name) {
     }
     case 'bequip': if (sel && sel.from === 'inv') equipBasePart(sel.i); return;
     case 'bopen': openB(); return;
+    case 'evoOpen': if (wmodal >= 0) { evoK = wmodal; Snd.play('tap'); renderOverlay(); } return;
+    case 'evoClose': evoK = -1; Snd.play('tap'); renderOverlay(); return;
+    case 'evoOk': {
+      if (evoK < 0) return;
+      const k = evoK, w = S.slots[k], r = C.evolve(k);
+      if (!r.ok) { if (r.reason === 'shards') say(`조각이 부족합니다. ${C.CFG.evoCost}개가 필요합니다.`, true); return; }
+      evoK = -1; upMode = false; Snd.play('evolve');
+      closeW();                                 // 무기 창에서 눌렀다면 닫고, 칸에서 연출을 보여 준다
+      evoFx(elW.querySelector(`[data-slot="${k}"]`), C.WEAPONS[w.type].color);
+      say(`<b style="color:${C.WEAPONS[w.type].color}">${C.WEAPONS[w.type].name}</b> 진화! ★+0`);
+      return;
+    }
+    case 'skOpen': {
+      const k = wmodal >= 0 ? wmodal : sel && sel.from === 'slot' ? sel.k : -1;
+      if (k < 0 || !S.slots[k] || !S.slots[k].evo) return;
+      skK = k; skSel = null; Snd.play('tap'); renderOverlay(); return;
+    }
+    case 'skClose': skK = -1; skSel = null; Snd.play('tap'); renderAll(); return;
+    case 'skUp': {
+      if (skK < 0 || !skSel) return;
+      const r = C.skillUp(skK, skSel.l, skSel.t);
+      if (!r.ok) return;
+      skGot = { l: skSel.l, t: skSel.t }; Snd.play('skill');
+      const ni = C.skillInfo(S.slots[skK], skSel.l, skSel.t);
+      if (ni.rank >= ni.max && skSel.t < 2) skSel = { l: skSel.l, t: skSel.t + 1 };   // 다 찍으면 새로 열린 윗 노드로 이동
+      renderWeapons(); renderOverlay(); return;
+    }
     case 'bup': doBaseUpgrade(); return;
     case 'wopen': if (sel && sel.from === 'slot') openW(sel.k); return;
     case 'wclose': closeW(); return;
@@ -3869,7 +4271,8 @@ function act(name) {
 $('#app').addEventListener('click', (ev) => {
   const S = C.S;
   // 무기 창이나 기지 창의 바깥 부분을 누르면 닫힌다
-  if (ev.target === elO && mode === 'play' && S && !S.pendingAug && !partSwap && (wmodal >= 0 || bmodal)) { closeW(); return; }
+  if (ev.target === elO && mode === 'play' && S && evoK >= 0) { evoK = -1; renderOverlay(); return; }   // 진화 창은 바깥을 눌러도 닫힌다
+  if (ev.target === elO && mode === 'play' && S && skK < 0 && !S.pendingAug && !partSwap && (wmodal >= 0 || bmodal)) { closeW(); return; }
   if (pactIntro && S && S.pendingPact && elO.contains(ev.target)) { pactIntro = false; renderOverlay(); return; }   // 등장 연출은 누르면 건너뛴다
   const b = ev.target.closest('button'); if (!b) return;
   Snd.ensure();
@@ -3877,6 +4280,7 @@ $('#app').addEventListener('click', (ev) => {
   if (b.id === 'pauseBtn') { pause(); return; }
   if (b.id === 'speedBtn') { speed = speed === 1 ? 2 : 1; b.textContent = speed + '배'; b.classList.toggle('on', speed === 2); abKey = ''; renderWeapons(); renderBottom(); return; }   // 예고 막대는 속도에 맞춰 다시 만든다
   const ds = b.dataset;
+  if (ds.sk != null) { if (skK < 0) return; const [l, t] = ds.sk.split(':').map(Number); skSel = { l, t }; Snd.play('tap'); renderOverlay(); return; }
   if (ds.theme) { const t = THEMES.find(x => x.id === ds.theme); if (t) { applyTheme(t, true); Snd.play('tap'); renderAll(); } return; }
   if (ds.act) { act(ds.act); return; }
   if (ds.aug != null || ds.rep != null) {
@@ -3894,7 +4298,7 @@ $('#app').addEventListener('click', (ev) => {
     partSwap.sel = +ds.prep; Snd.play('tap'); renderOverlay(); return;
   }
   if (partSwap) return;
-  const open = wmodal >= 0 || bmodal;
+  const open = wmodal >= 0 || bmodal || skK >= 0 || evoK >= 0;
   if (ds.wpart != null && open) { wpick = +ds.wpart; wpickNew = -1; msg = ''; renderOverlay(); return; }
   if (ds.wput != null && open && wpick >= 0) {
     const holder = bmodal ? S.base : S.slots[wmodal];
@@ -4444,31 +4848,33 @@ function draw() {
   }
   ctx.lineCap = 'round';
   for (const b of S.bullets) {
+    const ev = b.st && b.st.evo, k = ev ? 1.2 : 1;   // 진화한 무기의 탄은 20% 크고 더 밝다
     if (b.big) {                            // 거대탄, 슬러그탄
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fillStyle = rgba(b.c, 0.4); ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.45, 0, Math.PI * 2); ctx.fillStyle = b.c; ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * k, 0, Math.PI * 2); ctx.fillStyle = rgba(b.c, ev ? 0.55 : 0.4); ctx.fill();
+      ctx.lineWidth = 3 * k; ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.45 * k, 0, Math.PI * 2); ctx.fillStyle = b.c; ctx.fill();
       continue;
     }
     const ty = b.st && b.st.type;
     if (ty === 'blaster') {                 // 날카로운 탄과 짧게 빛나는 꼬리
-      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.05, b.y - b.vy * 0.05);
-      ctx.lineWidth = 7; ctx.strokeStyle = rgba(b.c, 0.25); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03);
-      ctx.lineWidth = 3; ctx.strokeStyle = b.c; ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(b.x + b.vx * 0.006, b.y + b.vy * 0.006); ctx.lineTo(b.x - b.vx * 0.008, b.y - b.vy * 0.008);
-      ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.05 * k, b.y - b.vy * 0.05 * k);
+      ctx.lineWidth = 7 * k; ctx.strokeStyle = rgba(b.c, ev ? 0.45 : 0.25); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.03 * k, b.y - b.vy * 0.03 * k);
+      ctx.lineWidth = 3 * k; ctx.strokeStyle = b.c; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b.x + b.vx * 0.006, b.y + b.vy * 0.006); ctx.lineTo(b.x - b.vx * 0.008 * k, b.y - b.vy * 0.008 * k);
+      ctx.lineWidth = 2 * k; ctx.strokeStyle = '#fff'; ctx.stroke();
       continue;
     }
     if (ty === 'shotgun') {                 // 짧은 줄무늬 산탄
-      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.026, b.y - b.vy * 0.026);
-      ctx.lineWidth = 4; ctx.strokeStyle = rgba(b.c, 0.3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.013, b.y - b.vy * 0.013);
-      ctx.lineWidth = 2.4; ctx.strokeStyle = b.c; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.026 * k, b.y - b.vy * 0.026 * k);
+      ctx.lineWidth = 4 * k; ctx.strokeStyle = rgba(b.c, ev ? 0.5 : 0.3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.013 * k, b.y - b.vy * 0.013 * k);
+      ctx.lineWidth = 2.4 * k; ctx.strokeStyle = ev ? '#fff' : b.c; ctx.stroke();
       continue;
     }
-    ctx.strokeStyle = b.c; ctx.lineWidth = b.r < 5 ? 2.5 : 4; ctx.beginPath();
-    ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.018, b.y - b.vy * 0.018); ctx.stroke();
+    ctx.strokeStyle = b.c; ctx.lineWidth = (b.r < 5 ? 2.5 : 4) * k; ctx.beginPath();
+    ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.018 * k, b.y - b.vy * 0.018 * k); ctx.stroke();
+    if (ev) { ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.008, b.y - b.vy * 0.008); ctx.stroke(); }
   }
   ctx.lineCap = 'butt';
   for (const s of S.shells) {
@@ -4479,13 +4885,15 @@ function draw() {
     if (s.acid) {                           // 산성 덩어리와 떨어질 자리
       const pr = 75 * (1 + s.st.aRange + s.st.areaPct);
       ctx.beginPath(); ctx.arc(s.tx, s.ty, pr * (0.5 + 0.5 * s.p), 0, Math.PI * 2); ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, 0.55); ctx.stroke(); ctx.setLineDash([]);
-      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fillStyle = s.st.color; ctx.fill();
-      ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, 0.5); ctx.beginPath(); ctx.arc(x, y, 10.5, 0, Math.PI * 2); ctx.stroke();
+      const sk = s.st.evo ? 1.2 : 1;
+      ctx.beginPath(); ctx.arc(x, y, 7 * sk, 0, Math.PI * 2); ctx.fillStyle = s.st.color; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, s.st.evo ? 0.8 : 0.5); ctx.beginPath(); ctx.arc(x, y, 10.5 * sk, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(x - 2.2, y - 2.4, 2, 0, Math.PI * 2); ctx.fill();
       continue;
     }
     ctx.beginPath(); ctx.arc(s.tx, s.ty, s.nuke ? 26 : 10, 0, Math.PI * 2); ctx.strokeStyle = s.nuke ? 'rgba(255,255,255,.8)' : rgba(s.st.color, 0.5); ctx.lineWidth = s.nuke ? 3 : 1.5; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, y, s.nuke ? 13 : 7, 0, Math.PI * 2); ctx.fillStyle = s.nuke ? '#fff' : s.st.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, (s.nuke ? 13 : 7) * (s.st.evo ? 1.2 : 1), 0, Math.PI * 2); ctx.fillStyle = s.nuke ? '#fff' : s.st.color; ctx.fill();
+    if (s.st.evo) { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.stroke(); }
   }
   for (const f of S.fx) drawFx(f, H);
   // 보스가 살아 있는 동안 위쪽에 체력 막대
@@ -4533,7 +4941,7 @@ let last = 0, acc = 0, lightAt = 0;
 function frame(ts) {
   const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
   const S = C.S;
-  if (mode === 'play' && S && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap) {
+  if (mode === 'play' && S && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0) {
     legendMark();
     acc += dt * speed; let n = 0;
     while (acc >= 1 / 60 && n < 12) { C.step(1 / 60); acc -= 1 / 60; n++; }
@@ -4543,6 +4951,7 @@ function frame(ts) {
     if (S.slotDirty) { S.slotDirty = false; renderWeapons(); }
     if (S.abfx && S.abfx.length) { for (const a of S.abfx.splice(0)) abHitFx(a.kind, a.i); }
     if (S.notes && S.notes.length) say(S.notes.splice(0).join('<br>'), true);
+    if (S.evq && S.evq.length) drainEvq();
     if (S.revived) { S.revived = false; say('<b>비상 방벽</b>이 기지를 지켰습니다. 방벽 파츠는 사라졌습니다.'); }
     if (S.newDrop) { S.newDrop = false; legendScan(); say('보스 보상이 인벤토리에 들어왔습니다.'); }
     if (S.over) gameOver();
@@ -4559,7 +4968,7 @@ function snapshot() {
   if (!S || (mode !== 'play' && mode !== 'pause') || S.over) return {};
   const copy = Object.assign({}, S, {
     bullets: [], shells: [], pools: [], beams: [], fx: [], snd: [], abfx: [], pendingAug: S.pendingAug,
-    enemies: S.enemies.map(e => Object.assign({}, e, { burnSt: null, burnT: 0, burnDps: 0 })),
+    enemies: S.enemies.map(e => Object.assign({}, e, { burnSt: null, burnT: 0, burnDps: 0, lgSt: null, lgT: 0 })),
   });
   return { S: JSON.parse(JSON.stringify(copy)) };
 }
