@@ -1,0 +1,362 @@
+{
+ "blaster,blaster,blaster,blaster,blaster|few": {
+  "M": 16.66,
+  "ratio": 0.465,
+  "noneLeak": 744,
+  "h": 2528611195
+ },
+ "blaster,blaster,blaster,blaster,blaster|mix": {
+  "M": 8.365,
+  "ratio": 0.436,
+  "noneLeak": 2046,
+  "h": 4006194819
+ },
+ "blaster,blaster,blaster,blaster,blaster|swarm": {
+  "M": 4.118,
+  "ratio": 0.444,
+  "noneLeak": 3503,
+  "h": 4166135748
+ },
+ "blaster,blaster,blaster,blaster,blaster|early": {
+  "M": 8.216,
+  "ratio": 0.452,
+  "noneLeak": 516,
+  "h": 3376996966
+ },
+ "blaster,blaster,blaster,blaster,blaster|boss": {
+  "M": 16.19,
+  "ratio": 0.456,
+  "noneLeak": 1075.3,
+  "h": 73260868
+ },
+ "blaster,shotgun,blaster,shotgun,blaster|few": {
+  "M": 16.66,
+  "ratio": 0.438,
+  "noneLeak": 744,
+  "h": 3411573909
+ },
+ "blaster,shotgun,blaster,shotgun,blaster|mix": {
+  "M": 9.287,
+  "ratio": 0.448,
+  "noneLeak": 2046,
+  "h": 1628400689
+ },
+ "blaster,shotgun,blaster,shotgun,blaster|swarm": {
+  "M": 6.333,
+  "ratio": 0.441,
+  "noneLeak": 3503,
+  "h": 228425906
+ },
+ "blaster,shotgun,blaster,shotgun,blaster|early": {
+  "M": 8.249,
+  "ratio": 0.436,
+  "noneLeak": 516,
+  "h": 1668796692
+ },
+ "blaster,shotgun,blaster,shotgun,blaster|boss": {
+  "M": 16.66,
+  "ratio": 0.436,
+  "noneLeak": 1075.3,
+  "h": 3224988642
+ },
+ "blaster,laser,blaster,laser,blaster|few": {
+  "M": 23.9,
+  "ratio": 0.438,
+  "noneLeak": 744,
+  "h": 161205016
+ },
+ "blaster,laser,blaster,laser,blaster|mix": {
+  "M": 15.54,
+  "ratio": 0.449,
+  "noneLeak": 2046,
+  "h": 1248616274
+ },
+ "blaster,laser,blaster,laser,blaster|swarm": {
+  "M": 13.72,
+  "ratio": 0.411,
+  "noneLeak": 3503,
+  "h": 1134438809
+ },
+ "blaster,laser,blaster,laser,blaster|boss": {
+  "M": 24.89,
+  "ratio": 0.46,
+  "noneLeak": 1075.3,
+  "h": 64205589
+ },
+ "blaster,laser,blaster,laser,blaster|early": {
+  "M": 9.59,
+  "ratio": 0.481,
+  "noneLeak": 516,
+  "h": 4278783353
+ },
+ "blaster,pulse,blaster,pulse,blaster|few": {
+  "M": 12.81,
+  "ratio": 0.454,
+  "noneLeak": 744,
+  "h": 4173266606
+ },
+ "blaster,pulse,blaster,pulse,blaster|mix": {
+  "M": 12.51,
+  "ratio": 0.447,
+  "noneLeak": 2046,
+  "h": 213687508
+ },
+ "blaster,pulse,blaster,pulse,blaster|boss": {
+  "M": 14.72,
+  "ratio": 0.437,
+  "noneLeak": 1075.3,
+  "h": 1849983247
+ },
+ "blaster,pulse,blaster,pulse,blaster|early": {
+  "M": 5.28,
+  "ratio": 0.438,
+  "noneLeak": 516,
+  "h": 4199558067
+ },
+ "blaster,pulse,blaster,pulse,blaster|swarm": {
+  "M": 24.13,
+  "ratio": 0.356,
+  "noneLeak": 3503,
+  "h": 2206988779
+ },
+ "blaster,mortar,blaster,mortar,blaster|few": {
+  "M": 16.66,
+  "ratio": 0.468,
+  "noneLeak": 744,
+  "h": 1103165868
+ },
+ "blaster,mortar,blaster,mortar,blaster|mix": {
+  "M": 8.365,
+  "ratio": 0.436,
+  "noneLeak": 2046,
+  "h": 758876318
+ },
+ "blaster,mortar,blaster,mortar,blaster|swarm": {
+  "M": 0.27,
+  "ratio": 0.5,
+  "noneLeak": 3503,
+  "h": 2695470109
+ },
+ "blaster,mortar,blaster,mortar,blaster|early": {
+  "M": 7.562,
+  "ratio": 0.428,
+  "noneLeak": 516,
+  "h": 2773309445
+ },
+ "blaster,mortar,blaster,mortar,blaster|boss": {
+  "M": 16.17,
+  "ratio": 0.464,
+  "noneLeak": 1075.3,
+  "h": 3174169745
+ },
+ "blaster,tesla,blaster,tesla,blaster|few": {
+  "M": 17.24,
+  "ratio": 0.452,
+  "noneLeak": 744,
+  "h": 1709169701
+ },
+ "blaster,tesla,blaster,tesla,blaster|mix": {
+  "M": 9.328,
+  "ratio": 0.448,
+  "noneLeak": 2046,
+  "h": 2515562081
+ },
+ "blaster,tesla,blaster,tesla,blaster|swarm": {
+  "M": 7.394,
+  "ratio": 0.461,
+  "noneLeak": 3503,
+  "h": 1453028514
+ },
+ "blaster,tesla,blaster,tesla,blaster|early": {
+  "M": 8.126,
+  "ratio": 0.446,
+  "noneLeak": 516,
+  "h": 1870926884
+ },
+ "blaster,tesla,blaster,tesla,blaster|boss": {
+  "M": 17.27,
+  "ratio": 0.441,
+  "noneLeak": 1075.3,
+  "h": 2248814130
+ },
+ "blaster,rail,blaster,rail,blaster|few": {
+  "M": 23.66,
+  "ratio": 0.57,
+  "noneLeak": 744,
+  "h": 1162987470
+ },
+ "blaster,rail,blaster,rail,blaster|mix": {
+  "M": 12.39,
+  "ratio": 0.553,
+  "noneLeak": 2046,
+  "h": 4005482100
+ },
+ "blaster,rail,blaster,rail,blaster|swarm": {
+  "M": 0.27,
+  "ratio": 0.578,
+  "noneLeak": 3503,
+  "h": 1074822091
+ },
+ "blaster,rail,blaster,rail,blaster|boss": {
+  "M": 21.39,
+  "ratio": 0.386,
+  "noneLeak": 1075.3,
+  "h": 3387087087
+ },
+ "blaster,rail,blaster,rail,blaster|early": {
+  "M": 13,
+  "ratio": 0.465,
+  "noneLeak": 516,
+  "h": 3373371347
+ },
+ "blaster,acid,blaster,acid,blaster|few": {
+  "M": 15.38,
+  "ratio": 0.454,
+  "noneLeak": 744,
+  "h": 562430016
+ },
+ "blaster,acid,blaster,acid,blaster|mix": {
+  "M": 12.15,
+  "ratio": 0.466,
+  "noneLeak": 2046,
+  "h": 3929847194
+ },
+ "blaster,acid,blaster,acid,blaster|boss": {
+  "M": 15.56,
+  "ratio": 0.453,
+  "noneLeak": 1075.3,
+  "h": 3347319341
+ },
+ "blaster,acid,blaster,acid,blaster|early": {
+  "M": 5.992,
+  "ratio": 0.436,
+  "noneLeak": 516,
+  "h": 721111857
+ },
+ "shotgun,blaster,laser,tesla,mortar|few": {
+  "M": 17.77,
+  "ratio": 0.462,
+  "noneLeak": 744,
+  "h": 3634880783
+ },
+ "blaster,acid,blaster,acid,blaster|swarm": {
+  "M": 17.5,
+  "ratio": 0.45,
+  "noneLeak": 3503,
+  "h": 308059137
+ },
+ "shotgun,blaster,laser,tesla,mortar|mix": {
+  "M": 11.02,
+  "ratio": 0.457,
+  "noneLeak": 2046,
+  "h": 210983119
+ },
+ "shotgun,blaster,laser,tesla,mortar|boss": {
+  "M": 17.37,
+  "ratio": 0.444,
+  "noneLeak": 1075.3,
+  "h": 1815980656
+ },
+ "shotgun,blaster,laser,tesla,mortar|swarm": {
+  "M": 11.08,
+  "ratio": 0.437,
+  "noneLeak": 3503,
+  "h": 2990263032
+ },
+ "shotgun,blaster,laser,tesla,mortar|early": {
+  "M": 8.443,
+  "ratio": 0.479,
+  "noneLeak": 516,
+  "h": 2198122898
+ },
+ "blaster,blaster,shotgun,blaster,blaster|few": {
+  "M": 16.73,
+  "ratio": 0.444,
+  "noneLeak": 744,
+  "h": 3411573909
+ },
+ "blaster,blaster,shotgun,blaster,blaster|mix": {
+  "M": 8.692,
+  "ratio": 0.428,
+  "noneLeak": 2046,
+  "h": 1628400689
+ },
+ "blaster,blaster,shotgun,blaster,blaster|swarm": {
+  "M": 4.118,
+  "ratio": 0.418,
+  "noneLeak": 3503,
+  "h": 228425906
+ },
+ "blaster,blaster,shotgun,blaster,blaster|early": {
+  "M": 8.417,
+  "ratio": 0.448,
+  "noneLeak": 516,
+  "h": 1668796692
+ },
+ "blaster,blaster,shotgun,blaster,blaster|boss": {
+  "M": 16.73,
+  "ratio": 0.435,
+  "noneLeak": 1075.3,
+  "h": 3224988642
+ },
+ "blaster,blaster,laser,blaster,blaster|few": {
+  "M": 18.53,
+  "ratio": 0.449,
+  "noneLeak": 744,
+  "h": 161205016
+ },
+ "blaster,blaster,laser,blaster,blaster|mix": {
+  "M": 9.615,
+  "ratio": 0.488,
+  "noneLeak": 2046,
+  "h": 1248616274
+ },
+ "blaster,blaster,laser,blaster,blaster|swarm": {
+  "M": 5.037,
+  "ratio": 0.475,
+  "noneLeak": 3503,
+  "h": 1134438809
+ },
+ "blaster,blaster,laser,blaster,blaster|boss": {
+  "M": 17.38,
+  "ratio": 0.449,
+  "noneLeak": 1075.3,
+  "h": 64205589
+ },
+ "blaster,blaster,laser,blaster,blaster|early": {
+  "M": 8.669,
+  "ratio": 0.426,
+  "noneLeak": 516,
+  "h": 4278783353
+ },
+ "blaster,blaster,pulse,blaster,blaster|few": {
+  "M": 15.33,
+  "ratio": 0.457,
+  "noneLeak": 744,
+  "h": 4173266606
+ },
+ "blaster,blaster,pulse,blaster,blaster|mix": {
+  "M": 10.43,
+  "ratio": 0.429,
+  "noneLeak": 2046,
+  "h": 213687508
+ },
+ "blaster,blaster,pulse,blaster,blaster|swarm": {
+  "M": 16.02,
+  "ratio": 0.472,
+  "noneLeak": 3503,
+  "h": 2206988779
+ },
+ "blaster,blaster,pulse,blaster,blaster|boss": {
+  "M": 16.7,
+  "ratio": 0.449,
+  "noneLeak": 1075.3,
+  "h": 1849983247
+ },
+ "blaster,blaster,pulse,blaster,blaster|early": {
+  "M": 7.313,
+  "ratio": 0.448,
+  "noneLeak": 516,
+  "h": 4199558067
+ }
+}
