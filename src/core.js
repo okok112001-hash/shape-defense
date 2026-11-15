@@ -272,7 +272,7 @@ const NEWSK = {
   twinslug: { name: '쌍열', d: () => '2번째 발사마다 슬러그. 정면과 양옆 3레인 모두에 발사', ap: (s) => { s.slugTwin = 1; s.slugEvery = 2; } },
   // 산탄포 - 용의 숨결
   flameb:   { name: '화염 산탄', d: (k, c) => `산탄이 부채꼴 불꽃으로 바뀜. 맞은 적은 3초간 초당 공격력의 ${pc(0.08 * k * c)}% 화상`, ap: (s, k, c) => { s.flame = 0.08 * k * c; } },
-  sea:      { name: '불바다', d: (k, c) => `사거리 끝에 2초간 불길이 남음. 불길 위의 적은 초당 공격력의 ${pc(0.06 * k * c)}% 피해`, ap: (s, k, c) => { s.sea = 0.06 * k * c; } },
+  sea:      { name: '불바다', d: (k, c) => `탄이 지나간 자리에 2초간 불길이 남음. 불길 위의 적은 초당 공격력의 ${pc(0.06 * k * c)}% 피해`, ap: (s, k, c) => { s.sea = 0.06 * k * c; } },
   fireburst:{ name: '폭염', d: () => '화상 중인 적이 죽으면 폭발 (반경 70, 공격력의 100%). 주변 적에게 화상을 옮김', ap: (s) => { s.fb = 1; } },
   // 산탄포 - 지뢰
   mineb:    { name: '산탄 지뢰', d: (k, c) => `4초마다 사거리 안에 지뢰를 깜. 밟으면 폭발 (반경 60, 공격력의 ${pc(0.6 * k * c)}%). 최대 3개, 12초 유지`, ap: (s, k, c) => { s.mine = 0.6 * k * c; s.mineMax += 3; s.mineCd += 4; } },
@@ -1017,7 +1017,7 @@ function kill(e, st) {
   if (fb && fb.fb && boomDepth < 2) {          // 폭염: 화상 중인 적이 죽으면 폭발, 주변 적에게 화상을 옮긴다 (맞은 적에게 화염 산탄의 화상이 붙는다)
     boomDepth++;
     const R = 70 * (1 + fb.areaPct);
-    fx({ k: 'boom', d: 0.34, x: e.x, y: e.y, r: R, c: '#ff7a2e' });
+    fx({ k: 'boom', d: 0.42, x: e.x, y: e.y, r: R, c: '#ff7a2e', fire: 1 });
     for (let i = 0, n = S.enemies.length; i < n; i++) {
       const o = S.enemies[i];
       if (o === e || o.dead || Math.hypot(o.x - e.x, o.y - e.y) > R + o.r * 0.5) continue;
@@ -1175,6 +1175,26 @@ function keepPool(kind, w, key, mk) {
   const p = { kind, wk: w, key, x: 0, y: 0, r: 0, t: 0, dps: 0, st: null, c: '#fff', sd: rnd() };
   mk(p); S.pools.push(p); return p;
 }
+// 불바다: 총구에서 조준한 쪽으로 사거리 끝까지 가는 탄 길의 먼 쪽 절반에 불길 띠(폭 36)를 남긴다. 레인마다 최대 3개, 넘치면 가장 오래된 것을 바꾼다
+const SEA_HW = 18, SEA_MAX = 3;
+function seaStrip(w, key, wx, wy, ang, st) {
+  const L = st.range * H, sx = Math.sin(ang), cy = -Math.cos(ang);
+  const p = { kind: 'fire', wk: w, key, x0: wx + sx * L * 0.5, y0: wy + cy * L * 0.5, x1: wx + sx * L, y1: wy + cy * L, hw: SEA_HW, t: 2, d: 2, dps: st.dmg * st.sea, st, c: '#ff7a2e' };
+  let n = 0, old = -1;
+  for (let i = 0, m = S.pools.length; i < m; i++) { const q = S.pools[i]; if (q.kind === 'fire' && q.wk === w && q.key === key) { n++; if (old < 0 || q.t < S.pools[old].t) old = i; } }
+  if (n >= SEA_MAX) S.pools[old] = p; else S.pools.push(p);
+  return p;
+}
+// 같은 무기의 불길은 겹쳐도 적 하나에게 한 스텝에 한 번만 피해를 준다
+function fireTick(p, dt, seen) {
+  let got = seen.get(p.wk); if (!got) seen.set(p.wk, got = new Set());
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const e = S.enemies[i];
+    if (e.dead || e.y + e.r <= 0 || got.has(e)) continue;
+    if (segDist(e.x, e.y, p.x0, p.y0, p.x1, p.y1) > p.hw + e.r * 0.5) continue;
+    got.add(e); dot(e, p.dps * dt, p.st);
+  }
+}
 function fire(w, slot, st) {
   const wx = (slot + 0.5) * LW, wy = H - 2;
   switch (w.type) {
@@ -1224,12 +1244,14 @@ function fire(w, slot, st) {
         const tx = t ? t.x : cx, ty = t ? t.y : H - st.range * H * 0.8;
         const ang = Math.atan2(tx - wx, wy - ty);
         for (let i = 0; i < n; i++) bullet(wx, wy, ang + (i === 0 ? 0 : (rnd() - 0.5) * 0.16), st.dmg * (i === 0 ? 1 : CFG.extraShotMul), st, dist, po);
-        if (st.sea) keepPool('fire', w, j, (p) => { p.x = cx; p.y = Math.max(30, H - st.range * H + 14); p.r = 40; p.t = 2; p.dps = st.dmg * st.sea; p.st = st; p.c = '#ff7a2e'; });   // 불바다: 사거리 끝에 불길
+        if (st.sea) seaStrip(w, j, wx, wy, ang, st);   // 불바다: 탄이 지나간 궤적에 불길
       }
       if (st.slug && w.n % st.slugEvery === 0) {      // 슬러그탄 (쌍열: 양옆 레인에도)
         const sd = { pierce: 99, r: 12, kn: st.slugKn, sl: st.slugSlow, big: 1 };
-        for (let j = st.slugTwin ? Math.max(0, slot - 1) : slot, je = st.slugTwin ? Math.min(LANES - 1, slot + 1) : slot; j <= je; j++)
+        for (let j = st.slugTwin ? Math.max(0, slot - 1) : slot, je = st.slugTwin ? Math.min(LANES - 1, slot + 1) : slot; j <= je; j++) {
           bullet((j + 0.5) * LW, wy, 0, st.dmg * st.slug, st, H + 120, sd);
+          fx({ k: 'slugf', d: 0.3, x: (j + 0.5) * LW, y: wy - 6, c: st.color });   // 발사 순간의 충격 고리
+        }
       }
       return true;
     }
@@ -1383,8 +1405,7 @@ function prismSplit(w, slot, st, first, m) {
 function novaBlast(slot, st, mult, flash) {
   const wx = (slot + 0.5) * LW, R2 = st.radius * st.novaR;
   for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, R2 + e.r * 0.5)) hit(e, st.dmg * st.nova * mult, st);
-  fx({ k: 'ring', d: 0.55, x: wx, y: H, r: R2, c: mult < 1 ? st.color : '#ffffff', fat: 1 });
-  if (flash) fx({ k: 'flash', d: 0.18 });
+  fx({ k: 'ring', d: 0.8, x: wx, y: H, r: R2, c: st.color, fat: 1, nova: flash ? 1 : 2 });   // nova: 1 첫 폭발, 2 쌍성의 두 번째 (화면이 따로 그린다)
   if (st.halo) keepPool('halo', st.w, slot, (p) => { p.x = wx; p.y = H; p.r = R2; p.t = 1.5; p.dps = st.dmg * st.halo; p.st = st; p.c = st.color; });
 }
 // 반격: 적이 기지에 닿을 때 파동 1회
@@ -1841,6 +1862,7 @@ function step(dt) {
   for (const p of S.pools) {
     p.t -= dt;
     if (p.acid) { acidTick(p, dt, aSeen); continue; }
+    if (p.kind === 'fire') { fireTick(p, dt, aSeen); continue; }
     if (p.kind) { poolTick(p, dt); continue; }
     for (let i = 0, n = S.enemies.length; i < n; i++) {
       const e = S.enemies[i];

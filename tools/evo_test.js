@@ -358,7 +358,23 @@ function scene(type, lines, secs, opt) {
     assert(S.bullets.every((b) => b.fl), '화염 산탄: 산탄이 불꽃'); assert(S.fx.some((f) => f.k === 'fcone') && !S.fx.some((f) => f.k === 'cone'));
     for (let i = 0; i < 40; i++) Core.step(1 / 60); assert(e.fT > 0 && Math.abs(e.fDps - st.dmg * 0.16) < 1e-6 * st.dmg, '3초 화상, 초당 공격력 8% x 랭크');
     w.sk[1] = [5, 5, 0]; Core.dirty(w); w.cd = 0; Core.step(1 / 60); const pf = S.pools.filter((p) => p.kind === 'fire'); assert(pf.length === 3 && pf.every((p) => Math.abs(p.t - 2) < 0.05), '불바다: 조준한 레인마다 2초 불길');
-    const pp = pf[1]; const e2 = foe2(pp.x, pp.y, { hp: 1e9, maxHp: 1e9 }); const h0 = e2.hp; for (let i = 0; i < 30; i++) Core.step(1 / 60); assert(e2.hp < h0, '불길 위의 적은 피해'); }
+    // 불길 띠: 총구(250, H-2)에서 조준한 쪽으로 사거리 끝까지 가는 길의 먼 쪽 절반, 폭 36
+    const st5 = Core.stats(w), Lr = st5.range * Core.H, mid = pf.find((p) => p.key === 2);
+    assert(mid && Math.abs(mid.x0 - 250) < 1e-6 && Math.abs(mid.x1 - 250) < 1e-6 && Math.abs(mid.y0 - (Core.H - 2 - Lr * 0.5)) < 1e-6 && Math.abs(mid.y1 - (Core.H - 2 - Lr)) < 1e-6 && mid.hw === 18, '불바다: 탄 길의 먼 쪽 절반에 띠');
+    assert(pf.every((p) => Math.abs(Math.hypot(p.x1 - p.x0, p.y1 - p.y0) - Lr * 0.5) < 1e-6) && pf.find((p) => p.key === 1).x1 < 250 && pf.find((p) => p.key === 3).x1 > 250, '옆 레인의 띠는 그쪽으로 기운다');
+    // 띠 위/밖의 적, 겹친 띠는 한 번만: 같은 자리에 띠를 세 겹 쌓아도 피해는 한 겹과 같다
+    S.enemies.length = 0; S.bullets.length = 0; w.cd = 99;
+    const mx = mid.x0, my = (mid.y0 + mid.y1) / 2, eIn = foe2(mx + 10, my, { hp: 1e9, maxHp: 1e9, speed: 0 }), eOut = foe2(mx + 18 + eIn.r * 0.5 + 30, my, { hp: 1e9, maxHp: 1e9, speed: 0 });
+    for (const q of [eIn, eOut]) { q.fT = 0; q.burnT = 0; }
+    let h0 = eIn.hp; const hOut = eOut.hp; Core.step(1 / 60); const d1 = h0 - eIn.hp;
+    assert(d1 > 0 && Math.abs(d1 - st5.dmg * st5.sea / 60) < 1e-6 * st5.dmg, '불길 위의 적은 초당 공격력 x sea 피해'); assert(eOut.hp === hOut, '띠 밖의 적은 피해 없음');
+    for (let k = 0; k < 2; k++) S.pools.push(Object.assign({}, mid));
+    h0 = eIn.hp; Core.step(1 / 60); assert(Math.abs((h0 - eIn.hp) - d1) < 1e-6 * st5.dmg, '같은 무기의 불길은 겹쳐도 한 번만');
+    // 레인당 최대 3개 (오래된 것부터 교체), 2초 뒤 사라진다
+    S.pools.length = 0; S.enemies.length = 0; foe2(250, 400, { hp: 1e9, maxHp: 1e9, speed: 0 });
+    for (let k = 0; k < 5; k++) { w.cd = 0; Core.step(1 / 60); for (let i = 0; i < 5; i++) { w.cd = 99; Core.step(1 / 60); } }
+    const pf2 = S.pools.filter((p) => p.kind === 'fire'); assert(pf2.length === 9 && [1, 2, 3].every((j) => pf2.filter((p) => p.key === j).length === 3), '불길 띠는 레인당 최대 3개'); assert(Math.min(...pf2.map((p) => p.t)) > 2 - 19 / 60, '오래된 띠부터 교체');
+    w.cd = 99; for (let i = 0; i < 125; i++) Core.step(1 / 60); assert(!S.pools.some((p) => p.kind === 'fire'), '2초 뒤 사라진다'); }
   { game(1); const w = put('shotgun', 2, 100, true); w.sk[1] = [5, 5, 1]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; w.cd = 99;
     const st = Core.stats(w), a = foe2(250, 400, { hp: 5, maxHp: 5, fT: 2, fDps: 1e6, fSt: st }), b = foe2(280, 400), c = foe2(450, 100);
     const hb = b.hp; Core.step(1 / 60); assert(a.dead, '화상 중 사망'); assert(b.hp < hb && b.fT > 0, '폭염: 주변 적이 피해와 화상'); assert(c.fT === 0, '범위 밖은 영향 없음');
