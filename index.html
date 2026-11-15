@@ -837,6 +837,63 @@ b { font-weight: 600; }
 .skreq { font-size: 12.5px; line-height: 1.35; color: var(--accent-ink); overflow-wrap: anywhere; word-break: keep-all; }
 @media (max-height: 640px) { .skt { width: 64px; height: 64px; } .skdet { min-height: 92px; } }
 
+/* ---- 분해 버튼, 제조 확률 줄 ---- */
+.acts.three2 { grid-template-columns: 1.15fr 1fr 1fr; }
+.acts.two2 .btn, .acts.three2 .btn { min-width: 0; white-space: nowrap; padding: 0 6px; }
+.btn.ember { color: var(--melt); border-color: color-mix(in srgb, var(--ember) 55%, transparent); }
+.btn.ember small { color: inherit; font-weight: 600; }
+.btn.armed { font-size: 12px; line-height: 1.15; white-space: normal; text-align: center; }
+.btn.ember.armed { background: color-mix(in srgb, var(--ember) 22%, transparent); border-color: var(--ember); }
+.info .odds { display: block; font-size: 11.5px; line-height: 15px; }
+.info .ml1 { display: flex; align-items: center; gap: 6px; height: 17px; white-space: nowrap; }
+.info .ml1 .gbar { flex: 1; margin: 0; }
+
+/* ---- 진화 연출 ---- */
+#evoCer { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px; overflow: hidden; }
+#evoCer.show { display: flex; animation: ecout .3s 1.5s ease-in forwards; }
+#evoCer > *, .ec-stage > * { position: relative; }
+.ec-dim { position: absolute !important; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(4, 8, 20, .62), rgba(4, 8, 20, .25) 70%); animation: ecin .25s ease-out backwards; }
+.ec-flash { position: absolute !important; inset: 0; background: radial-gradient(circle at 50% 50%, #fff, color-mix(in srgb, var(--c) 70%, transparent) 38%, transparent 70%); animation: ecflash .7s ease-out both; }
+.ec-stage { width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
+.ec-rays, .ec-ring { position: absolute !important; left: 50%; top: 50%; }
+.ec-rays { width: 460px; height: 460px; margin: -230px 0 0 -230px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c) 80%, transparent) 0 5deg, transparent 5deg 20deg);
+  -webkit-mask-image: radial-gradient(circle, #000 12%, transparent 66%); mask-image: radial-gradient(circle, #000 12%, transparent 66%);
+  animation: ecspin 5s linear infinite, ecrin .6s ease-out backwards; }
+.ec-rays.r2 { width: 340px; height: 340px; margin: -170px 0 0 -170px; opacity: .7; animation: ecspin 3.2s linear infinite reverse, ecrin .6s .1s ease-out backwards;
+  background: repeating-conic-gradient(from 8deg, #fff 0 2deg, transparent 2deg 15deg); }
+.ec-ring { width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; border: 3px solid var(--c); box-shadow: 0 0 24px var(--c), inset 0 0 18px var(--c); animation: ecring 1.4s ease-out infinite; }
+.ec-ring.r2 { animation-delay: .5s; border-width: 2px; }
+.ec-ic { display: flex; filter: drop-shadow(0 0 14px var(--c)) drop-shadow(0 0 30px var(--c)); animation: ecic .8s cubic-bezier(.2, 1.4, .4, 1) .1s backwards, ecpulse .9s ease-in-out .9s infinite alternate; }
+.ec-ic svg { overflow: visible; }
+.ec-t { font: 52px/1 var(--font-display); color: #fff; letter-spacing: 14px; text-indent: 14px; margin-top: 8px; text-shadow: 0 0 10px var(--c), 0 0 26px var(--c), 0 2px 0 rgba(0, 0, 0, .5); animation: ect .6s .45s cubic-bezier(.2, 1.3, .4, 1) backwards; }
+.ec-n { font: 20px/1.2 var(--font-display); color: var(--c); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 0, 0, .8), 0 1px 0 rgba(0, 0, 0, .6); animation: ecn .4s .8s ease-out backwards; }
+@keyframes ecin { from { opacity: 0; } }
+@keyframes ecout { to { opacity: 0; } }
+@keyframes ecflash { 0% { opacity: 0; } 14% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes ecspin { to { transform: rotate(360deg); } }
+@keyframes ecrin { from { opacity: 0; scale: .2; } }
+@keyframes ecring { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(3); } }
+@keyframes ecic { from { opacity: 0; transform: scale(.15) rotate(-40deg); } }
+@keyframes ecpulse { to { transform: scale(1.07); } }
+@keyframes ect { from { opacity: 0; transform: scale(2.2); letter-spacing: 34px; } }
+@keyframes ecn { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .ec-rays, .ec-ring, .ec-ic, .ec-t, .ec-n { animation: none; } .ec-flash, .ec-ring { display: none; } }
+
+/* ---- 보스 보상: 죽은 자리에서 떠올라 인벤토리 칸으로 ---- */
+#rewLayer { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
+.rw { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 3px;
+  transition: left .5s cubic-bezier(.5, 0, .75, .5), top .5s cubic-bezier(.5, 0, .75, .5), opacity .5s ease-in, transform .5s ease-in; animation: rwpop .35s cubic-bezier(.2, 1.5, .4, 1) backwards; }
+.rw-ic { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 9px; color: var(--c);
+  border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 22%, var(--panel)); box-shadow: 0 0 16px color-mix(in srgb, var(--c) 70%, transparent); }
+.rw-l { font: 600 11px var(--font-body); color: var(--ink); background: var(--toast); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; white-space: nowrap; transition: opacity .25s; }
+.rw.go .rw-l { opacity: 0; }
+.rw.fly { transform: translate(-50%, -50%) scale(.55); opacity: .9; }
+.rw.rise { opacity: 0; transform: translate(-50%, -170%); }
+.cell.incoming > * { opacity: 0; }
+@keyframes rwpop { from { opacity: 0; transform: translate(-50%, -20%) scale(.3); } }
+@media (prefers-reduced-motion: reduce) { .rw { animation: none; } }
+
 </style>
 </head>
 <body>
@@ -873,13 +930,14 @@ const CFG = {
   augEvery: 5,
   extraShotMul: 0.32,
   meltPts: [20, 50, 120, 300],   // 용해로: 등급별로 파츠를 녹여 얻는 게이지
-  craftCost: 100,            // 제조 1회에 드는 게이지
+  craftCost: 100,            // 제조 기본 게이지 (BAL.craftCost(k)의 기준)
   craftW: [0, 62, 30, 8],    // 제조한 파츠의 등급 비율 (희귀 이상만)
   baseSlots: 4,              // 기지 파츠 칸 수
   baseHpPerLv: 4,            // 기지 강화 1단계마다 최대 체력
   basePartShare: 0.25,       // 파츠가 나올 때 기지 파츠일 확률
   evoCost: 5000,             // 진화에 드는 조각 (100강 무기 하나)
   evoCostMul: 5,             // 진화한 무기의 강화 비용 배수
+  evoCostAdd: 100,           // 진화한 무기의 강화 비용에 더하는 고정값: 100 + 5 x 일반 비용
 };
 
 // 난수는 세 갈래다. rndS는 '어떤 적이 어디에 나오는가'만, rndG는 '전리품과 성장'(생성, 파츠 굴림, 제조, 보스 보상, 증강 선택지, 강화 성공/절약)만 정하고,
@@ -939,6 +997,8 @@ const BAL = {
   runnerTau: 300,   // 달리는 적(runner) 비중이 늘어나는 시간 상수(초)
   // 초반에는 넉넉하고(시작 +35%) 시간이 갈수록 완만하게 줄어든다
   goldMul(t) { return (1 + t / 80) * (0.63 + 0.72 * Math.exp(-t / 200)); },
+  // 제조 비용: 이번 판에서 제조한 횟수 k(0부터)가 늘수록 오른다. 비용/100 = m 은 등급 굴림의 '뽑는 횟수'(craftOdds)
+  craftCost(k) { return Math.round(CFG.craftCost * Math.pow(1 + 0.1 * k, 1.25)); },
   genCost(n) { return Math.round(10 * Math.pow(1 + 0.2 * n, 1.25)); },
   // 강화 조각 수는 낸 비용을 따라가되 비용보다 느리게 늘어난다 (비용이 10배면 조각은 약 8배)
   bundleExp: 0.9,
@@ -1269,7 +1329,7 @@ const PACTS = {
   greed:    { name: '탐욕',          up: '재화 획득 +40%',                   dn: '적 체력 +15%' },
   rush:     { name: '속전속결',       up: '적 체력 -20%',                    dn: '적 이동 속도 +18%' },
   hunt:     { name: '사냥철',        up: '보스 처치 보상 2배',                dn: '보스가 45초마다 등장' },
-  forge:    { name: '용광로의 축복',   up: '용해로 제작 비용 100 → 60',          dn: '생성에서 파츠가 나오지 않음' },
+  forge:    { name: '용광로의 축복',   up: '용해로 제작 비용 −40%',          dn: '생성에서 파츠가 나오지 않음' },
   focus:    { name: '집중',          up: '남은 무기 피해 +45%',               dn: '5번 무기 칸 영구 폐쇄' },
   gamble:   { name: '도박사',        up: '모든 강화 성공률 +15%p',            dn: '강화 실패 시 10% 확률로 1단계 하락' },
   relic:    { name: '유물 거래',      up: '전설 무기 파츠 1개 즉시 획득',        dn: '강화가 가장 높은 무기 -10강', instant: true },
@@ -1280,7 +1340,7 @@ const PACTS = {
 const PACT_IDS = Object.keys(PACTS);
 const PACT = {   // 수치는 한곳에
   glassDmg: 1.15, glassHp: 0.7, heatRate: 1.25, heatSucc: -0.08, minSucc: 0.03, greedGold: 0.4, greedHp: 1.15, rushHp: 0.8, rushSpd: 1.18,
-  huntEvery: 45, forgeCost: 60, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
+  huntEvery: 45, forgeMul: 0.6, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
   bloodEvery: 20, bloodHeal: 0.02, bloodDmg: 1.5, smuggleCost: 0.75, smuggleMiss: 0.08,
 };
 
@@ -1298,7 +1358,7 @@ function newGame(h) {
     v: 1, t: 0, hp: CFG.baseHp, maxHp: CFG.baseHp, gold: CFG.startGold, kills: 0, dealt: 0, bossKills: 0, gen: 0,
     slots: [null, null, null, null, null],
     inv: new Array(CFG.invSize).fill(null),
-    enemies: [], bullets: [], shells: [], pools: [], beams: [], fx: [], snd: [], abfx: [], drops: [], melt: 0,
+    enemies: [], bullets: [], shells: [], pools: [], beams: [], fx: [], snd: [], abfx: [], drops: [], rewq: [], crafts: 0, melt: 0,
     spawnAcc: 0, nextBoss: CFG.bossEvery, bossN: 0, pendingBoss: null,
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
     shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
@@ -1310,7 +1370,7 @@ function newGame(h) {
   syncMaxHp(); S.hp = S.maxHp;
   return S;
 }
-function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.melt) S.melt = 0; if (!S.base) S.base = newBase();
+function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.melt) S.melt = 0; if (!S.rewq) S.rewq = []; if (!S.crafts) S.crafts = 0; if (!S.base) S.base = newBase();
   S.shards = S.shards || 0;   // 예전 저장의 강화 조각 아이템은 재화로 바꾼다
   for (let i = 0; i < S.inv.length; i++) if (S.inv[i] && S.inv[i].kind === 's') { S.shards += S.inv[i].n || 0; S.inv[i] = null; }
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
@@ -1325,7 +1385,14 @@ function setH(h) {
 /* ---------- 거래 도우미 ---------- */
 function hasPact(id) { return !!S && !!S.pacts && S.pacts.indexOf(id) >= 0; }
 function isClosed(k) { return k === PACT.focusSlot && hasPact('focus'); }   // 집중: 5번 무기 칸 폐쇄
-function craftCost() { return hasPact('forge') ? PACT.forgeCost : CFG.craftCost; }
+function craftBase() { return BAL.craftCost((S && S.crafts) || 0); }   // 거래 할인 전 비용 (등급 굴림의 m은 이 값으로 정한다)
+function craftCost() { const c = craftBase(); return hasPact('forge') ? Math.round(c * PACT.forgeMul) : c; }
+// 제조 등급 확률(%): 기본 가중치의 누적분포 F에 대해 P(등급 <= g) = F(g)^m, m = 할인 전 비용 / 100 (m번 뽑아 가장 좋은 것)
+function craftCum() { let t = 0; for (const w of CFG.craftW) t += w; let a = 0; return CFG.craftW.map(w => (a += w / t)); }
+function craftOdds() {
+  const m = craftBase() / CFG.craftCost, F = craftCum(); let prev = 0;
+  return F.map(f => { const c = Math.pow(f, m), p = c - prev; prev = c; return p * 100; });
+}
 function bossInterval() { return hasPact('hunt') ? PACT.huntEvery : CFG.bossEvery; }
 
 /* ---------- 능력치 계산 ---------- */
@@ -1433,7 +1500,7 @@ const PART_W = [66, 25, 7.5, 1.5];   // 파츠 등급 가중치 (일반, 희귀,
 function rollPartGrade(boost, r) {
   const ws = PART_W;   // 시간과 무관한 고정 확률
   let g = wpick(ws, r);
-  if (boost) g = Math.max(1, g, wpick(ws, r));
+  if (boost) g = Math.max(1, g, wpick(ws, r), wpick(ws, r));   // 보스 보상: 세 번 굴려 가장 좋은 것, 최소 희귀
   return g;
 }
 function newPart(boost, r) {
@@ -1579,8 +1646,11 @@ function craftPart() { // 용해로: 게이지를 써서 희귀 이상 파츠를
   if ((S.melt || 0) < cc) return { ok: false, reason: 'gauge' };
   const i = freeSlot(); if (i < 0) return { ok: false, reason: 'full' };
   S.melt -= cc;
+  const m = craftBase() / CFG.craftCost, F = craftCum();
   const rg = subG();
-  const g = wpick(CFG.craftW, rg);
+  const c = Math.pow(rg(), 1 / m);          // 연속 최고값: u^(1/m)을 누적 값으로 쓴다. 굴림은 한 번
+  let g = F.findIndex(f => c < f); if (g < 0) g = F.length - 1;
+  S.crafts = (S.crafts || 0) + 1;
   const item = { kind: 'p', id: pick(PART_IDS.filter(id => PARTS[id].min <= g), rg), g };
   S.inv[i] = item;
   return { ok: true, item, i };
@@ -1597,7 +1667,7 @@ function pactSucc() { return (hasPact('overheat') ? PACT.heatSucc : 0) + (hasPac
 function upgradeInfo(t) { // t: 무기 또는 기지
   const next = t.lv + 1;
   const rate = Math.max(PACT.minSucc, Math.min(1, BAL.success(next) + bstats().luck + pactSucc()));   // 하한 3% (기존 곡선은 10% 이상이라 거래 없이는 그대로)
-  return { cost: next * (t.evo ? CFG.evoCostMul : 1), rate, have: shardCount(), max: t.lv >= CFG.maxLv };   // 진화한 무기는 비용 5배, 성공률은 진화 단계 기준 그대로
+  return { cost: t.evo ? CFG.evoCostAdd + CFG.evoCostMul * next : next, rate, have: shardCount(), max: t.lv >= CFG.maxLv };   // 진화한 무기는 100 + 5 x 일반 비용, 성공률은 진화 단계 기준 그대로
 }
 function tryUpgrade(t) {
   const info = upgradeInfo(t);
@@ -1813,8 +1883,8 @@ function kill(e, st) {
   if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
-    S.drops.push(bossDrop());
-    if (hasPact('hunt')) S.drops.push(bossDrop());   // 사냥철: 보스 보상 2배
+    const rn = hasPact('hunt') ? 2 : 1;      // 사냥철: 보스 보상 2배
+    for (let k = 0; k < rn; k++) { const d = bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn }); }   // rewq: 화면에 보여 줄 보상 사건
     if (e.type === 'scale') offerPact();
     if (e.type === 'split') for (let k = 0; k < 3; k++) spawn('heavy', e.lane, e.x + (k - 1) * 46, e.y - k * 14);
     if (e.type === 'thief') { S.steal = null; S.invDirty = true; }   // 훔친 물건은 돌아오지 않는다
@@ -2522,7 +2592,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
-  PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
+  PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
 else root.Core = Core;
@@ -2539,6 +2609,9 @@ const cv = $('#field'), ctx = cv.getContext('2d'), wrap = $('#fieldWrap');
 const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
 const fxLayer = document.createElement('div'); fxLayer.id = 'fxLayer'; $('#app').appendChild(fxLayer);
 const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.appendChild(toastEl);   // 알림은 전장 아래쪽에 잠깐 뜬다
+const rewLayer = document.createElement('div'); rewLayer.id = 'rewLayer'; $('#app').appendChild(rewLayer);   // 보스 보상 연출 (거래 창 위에도 보인다, 입력을 막지 않는다)
+const cerEl = document.createElement('div'); cerEl.id = 'evoCer'; wrap.appendChild(cerEl);   // 진화 연출 (입력을 막지 않는다)
+let cerUntil = 0;
 const bannerEl = document.createElement('div'); bannerEl.id = 'pactBanner'; wrap.appendChild(bannerEl);   // 거래 완료 배너 (입력을 막지 않는다)
 const markEl = document.createElement('button'); markEl.id = 'pactMark'; markEl.type = 'button'; markEl.dataset.act = 'pactMark'; markEl.hidden = true; markEl.setAttribute('aria-label', '맺은 거래 보기');
 markEl.innerHTML = '<svg viewBox="-1 0 26 20" width="18" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v15M7 17h10M3 5h18M3 5l-2.5 7M3 5l2.5 7M0.5 12q2.5 3 5 0M21 5l-2.5 7M21 5l2.5 7M18.5 12q2.5 3 5 0"/></svg><b></b>';
@@ -2637,7 +2710,9 @@ let meltMode = false, meltAllArm = false;   // 용해로 모드, 모두 분해 �
 const meltSet = new Set();   // 용해로 모드에서 고른 인벤토리 칸 (여러 개)
 let augSel = -1, augRep = -1, augSkip = false, augIntro = false;   // 증강 비교 창: 고른 선택지, 교체할 칸, 건너뛰기 확인, 처음 뜨는 연출
 let lastUp = null;             // 무기 창 안의 강화 결과 표시
-let confirmDrop = false, dropArmI = -1, dropArmAt = 0;   // 버리기: 첫 번째 누름으로 무장하고 두 번째에 버린다. 3초가 지나면 풀린다
+let confirmDrop = false, dropArmI = -1, dropArmAt = 0, armWhat = 'drop';   // armWhat: 무장한 버튼 (drop | melt)
+let downOnBtn = true;                       // 마지막 누름이 버튼 위에서 시작했는가 (아니면 그 뒤에 생긴 버튼이 받는 click은 무시한다)
+const incoming = new WeakSet();             // 보스 보상이 날아오는 중인 물건: 도착할 때까지 칸 안을 숨긴다   // 버리기: 첫 번째 누름으로 무장하고 두 번째에 버린다. 3초가 지나면 풀린다
 let upMode = false;            // 강화 모드: 무기 칸을 누를 때마다 한 번씩 강화
 let eqFx = null;               // 장착 직후 보여 줄 효과 {k: 칸 번호 또는 'base', g: 등급}
 let msg = '', msgWarn = false, msgUntil = 0, newCell = -1;
@@ -2727,7 +2802,14 @@ const Snd = (function () {
     drop: [40, () => tone('triangle', 300, 150, 0.1, 0.08)],
     melt: [40, () => { hiss(0.25, 0.11, 900, 1); tone('sawtooth', 300, 90, 0.25, 0.05); }],
     over: [500, () => seq('triangle', [392, 330, 262, 196], 0.3, 0.14, 0.22)],
-    evolve: [400, () => { tone('sine', 110, 55, 0.5, 0.2); hiss(0.4, 0.14, 1400, 0.8, 'bandpass'); seq('triangle', [392, 523, 659, 784, 1047, 1319], 0.22, 0.1, 0.07); seq('sine', [1568, 2093], 0.5, 0.05, 0.3); }],   // 진화: 낮은 울림 뒤에 차오르는 음
+    evolve: [400, () => {                                                                                                  // 진화 의식: 1초 넘게 차오르는 소리, 정점에서 낮은 울림과 화음
+      tone('sawtooth', 90, 700, 1.1, 0.05); tone('sine', 180, 1500, 1.15, 0.09); tone('triangle', 270, 2100, 1.1, 0.04, 0.05); hiss(1.0, 0.1, 2600, 1.4, 'bandpass');
+      tone('sine', 110, 40, 0.8, 0.26, 1.1); hiss(0.5, 0.16, 900, 0.7, 'lowpass', 1.1);
+      [523, 659, 784, 1047, 1319].forEach((f, i) => { tone('triangle', f, f, 0.55, 0.08, 1.12 + i * 0.07); });
+      tone('sine', 2093, 2093, 0.6, 0.04, 1.4);
+    }],
+    rewpop: [150, () => seq('triangle', [659, 988], 0.12, 0.08, 0.06)],   // 보스 보상이 떠오름
+    rewland: [60, () => tone('triangle', 520, 780, 0.09, 0.09)],          // 인벤토리에 닿음
     skill: [60, () => seq('triangle', [659, 988], 0.12, 0.09, 0.06)],
   };
   function play(name) {
@@ -3088,6 +3170,54 @@ function devoFx(el) {
   fxLayer.appendChild(d);
   setTimeout(() => d.remove(), 1000);
 }
+// 진화 연출: 전장 한가운데에서 약 1.8초. 무기 아이콘이 크게 뜨고 무기 색 광선과 고리가 돌며, 번쩍임 뒤에 '진화' 글자가 나온다. 끝나면 칸에서 기존 효과
+function evoCeremony(w, k) {
+  const d = C.WEAPONS[w.type], c = d.color;
+  Snd.play('evolve');
+  cerEl.style.setProperty('--c', c);
+  cerEl.innerHTML = `<i class="ec-dim"></i><i class="ec-flash"></i>
+    <div class="ec-stage"><i class="ec-rays"></i><i class="ec-rays r2"></i><i class="ec-ring"></i><i class="ec-ring r2"></i><div class="ec-ic">${icon(w.type, 120, true)}</div></div><b class="ec-t">진화</b><span class="ec-n">${d.name}</span>`;
+  cerEl.classList.remove('show'); void cerEl.offsetWidth; cerEl.classList.add('show');
+  cerUntil = performance.now() + 1800;
+  setTimeout(() => { if (performance.now() >= cerUntil - 20) cerEl.classList.remove('show'); }, 1850);
+  setTimeout(() => {                         // 연출이 끝난 뒤 칸 효과 (그 사이 무기가 바뀌었으면 하지 않는다)
+    const S = C.S; if (!S || S.slots[k] !== w || !w.evo || mode === 'over') return;
+    evoFx(elW.querySelector(`[data-slot="${k}"]`), c);
+  }, 1800);
+}
+// 보스 보상 연출: 죽은 자리에서 등급 색 아이콘이 떠올라 약 0.9초 머문 뒤 들어간 인벤토리 칸으로 날아간다. 칸이 없어 대기 중이면 위로 사라진다
+function bossRewards(list) {
+  const S = C.S, a = $('#app').getBoundingClientRect(), wr = wrap.getBoundingClientRect(), RMo = RM.matches;
+  for (const r of list) {
+    const it = r.item, inInv = S.inv.indexOf(it) >= 0;
+    if (inInv) { incoming.add(it); if (it.kind === 'p' && it.g === 3) legSeen.add(it); }   // 전설 금빛은 도착할 때 낸다
+    const col = it.kind === 'w' ? C.WEAPONS[it.type].color : GHEX[it.g];
+    const off = (r.k - (r.n - 1) / 2) * 56;
+    const x = Math.max(34, Math.min(a.width - 34, wr.left - a.left + r.x * sc + off)), y = Math.max(46, Math.min(wr.top - a.top + wr.height - 40, wr.top - a.top + r.y * sc));
+    const d = document.createElement('div');
+    d.className = 'rw'; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', col);
+    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : partIcon(it.id, 34)}</span><span class="rw-l">보스 보상</span>`;
+    d._item = it; d.dataset.until = performance.now() + 2600;
+    while (rewLayer.children.length > 6) { const f = rewLayer.firstChild; incoming.delete(f._item); f.remove(); }
+    rewLayer.appendChild(d);
+    Snd.play('rewpop');
+    const finish = () => { incoming.delete(it); const i = C.S.inv.indexOf(it); const cell = i >= 0 && elB.querySelector(`[data-inv="${i}"]`); if (cell) cell.classList.remove('incoming'); return cell; };
+    setTimeout(() => {                         // 머문 뒤: 날아가기
+      if (!d.isConnected) return;
+      const i = C.S === S ? S.inv.indexOf(it) : -1, cell = i >= 0 && elB.querySelector(`[data-inv="${i}"]`);
+      d.classList.add('go');
+      if (cell && !RMo) {
+        const cr = cell.getBoundingClientRect();
+        d.style.left = (cr.left - a.left + cr.width / 2) + 'px'; d.style.top = (cr.top - a.top + cr.height / 2) + 'px'; d.classList.add('fly');
+        setTimeout(() => { const c2 = finish(); d.remove(); if (c2) { Snd.play('rewland'); c2.classList.remove('new'); void c2.offsetWidth; c2.classList.add('new'); if (it.kind === 'p' && it.g === 3) legendFx(+c2.dataset.inv); } }, 520);
+      } else {
+        d.classList.add('rise');               // 대기 중(칸이 가득 참): 위로 사라진다
+        setTimeout(() => { finish(); d.remove(); }, 480);
+      }
+    }, 1150);
+    setTimeout(() => { finish(); d.remove(); }, 2700);   // 어떤 경우에도 멈춰 남지 않게
+  }
+}
 // 화면에 알릴 진화 사건 (진화가 풀림). quiet: 알림 글은 따로 알리므로 효과만
 function drainEvq(quiet) {
   const S = C.S; if (!S || !S.evq || !S.evq.length) return;
@@ -3108,13 +3238,20 @@ function itemInfo(it) {
   if (it.kind === 'p') return (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it);
   return '';
 }
+// 제조 확률을 정수 %로 (합이 정확히 100이 되도록 가장 큰 나머지부터 올린다)
+function oddsPct() {
+  const raw = C.craftOdds(), fl = raw.map(Math.floor); let rest = 100 - fl.reduce((a, b) => a + b, 0);
+  raw.map((v, i) => [v - Math.floor(v), i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (rest > 0) { fl[i]++; rest--; } });
+  return fl;
+}
 function bupText(u) { return u.max ? '최대' : `필요 ${u.cost} · ${Math.round(u.rate * 100)}%`; }
 // 설명 줄. 아무것도 고르지 않았을 때는 기지 파츠, 기지 강화 버튼이 들어간다
 function infoHtml() {
   const S = C.S;
   if (meltMode) {
-    const cc = C.craftCost(), pct = Math.min(100, (S.melt || 0) / cc * 100);
-    return `<span class="gbar"><i style="width:${pct}%"></i></span><b class="mtag">용해로 켜짐</b> <b>게이지 ${S.melt || 0}/${cc}</b> 녹일 물건을 눌러 고르세요.`;
+    const cc = C.craftCost(), pct = Math.min(100, (S.melt || 0) / cc * 100), od = oddsPct();
+    return `<span class="ml1"><b class="mtag">용해로 켜짐</b><b>게이지 ${fmtInt(S.melt || 0)} / ${fmtInt(cc)}</b><span class="gbar"><i style="width:${pct}%"></i></span></span>` +
+      `<span class="odds"><span class="g1">희귀 ${od[1]}%</span> · <span class="g2">영웅 ${od[2]}%</span> · <span class="g3">전설 ${od[3]}%</span></span>`;
   }
   if (sel && sel.from === 'inv' && S.inv[sel.i]) return itemInfo(S.inv[sel.i]);
   if (sel && sel.from === 'slot' && S.slots[sel.k]) {
@@ -3141,6 +3278,7 @@ function cellHtml(it, i) {
   else if (meltable) inner += '<span class="mcue"><i></i><i></i></span>';
   if (!meltMode && sel && sel.from === 'inv' && sel.i === i) cls += ' sel';
   if (i === newCell) cls += ' new';
+  if (it && incoming.has(it)) cls += ' incoming';
   const st = C.S.steal && C.S.steal.i === i;
   if (st) { cls += ' warn-steal'; inner += `<span class="abic st">${HAND_SVG(13)}</span><i class="cd" style="${cdStyle(C.S.steal.t)}"></i>`; }
   return `<button type="button" class="${cls}" data-inv="${i}" aria-label="인벤토리 ${i + 1}번 칸${meltable && meltSet.has(i) ? ' 선택됨' : ''}">${inner}</button>`;
@@ -3169,10 +3307,11 @@ function invHtml() {
       <button type="button" class="btn melt${(S.melt || 0) >= C.craftCost() ? ' ready' : ''}" data-act="meltOn"><span class="mlb">${FLAME}<span>용해로</span><b data-n="${String(fmtInt(S.melt || 0)).length}">${fmtInt(S.melt || 0)}</b></span></button>`;
   } else if (sel.from === 'inv') {
     const it = S.inv[sel.i];
-    const armed = confirmDrop && dropArmI === sel.i;
+    const armed = confirmDrop && dropArmI === sel.i && armWhat === 'drop', marm = confirmDrop && dropArmI === sel.i && armWhat === 'melt';
     const drop = `<button type="button" class="btn${armed ? ' armed' : ''}" data-act="drop">${armed ? '한 번 더 누르면 버림' : '버리기'}</button>`;
-    if (isBasePart(it)) { cols = ' two2'; acts = '<button type="button" class="btn primary" data-act="bequip">기지에 장착</button>' + drop; }
-    else acts = drop;
+    const melt = it && (it.kind === 'p' || it.kind === 'w') ? `<button type="button" class="btn ember${marm ? ' armed' : ''}" data-act="meltOne">${marm ? '한 번 더 누르면 분해' : `분해 <small>+${C.meltValue(it)}</small>`}</button>` : '';
+    if (it && isBasePart(it)) { cols = ' three2'; acts = '<button type="button" class="btn primary" data-act="bequip">기지에 장착</button>' + melt + drop; }
+    else { cols = melt ? ' two2' : ''; acts = melt + drop; }
   } else {
     acts = '<button type="button" class="btn" data-act="wopen">무기 창 열기</button>';
   }
@@ -3201,9 +3340,13 @@ function lightUpdate() {
   const S = C.S; if (!S) return;
   updateChips(); updateMark();
   if (bannerEl.classList.contains('show') && performance.now() > bannerUntil) bannerEl.classList.remove('show');
+  if (cerEl.classList.contains('show') && performance.now() > cerUntil) cerEl.classList.remove('show');      // 진화 연출이 멈춰 남지 않게
+  for (const d of rewLayer.children) if (performance.now() > +d.dataset.until) { incoming.delete(d._item); d.remove(); }
   if (confirmDrop && performance.now() - dropArmAt > 3000) {      // 3초가 지나면 버리기 무장 해제 (버튼을 새로 만들지 않고 그 자리에서 되돌린다)
     confirmDrop = false;
-    const b = elB.querySelector('[data-act="drop"]'); if (b) { b.classList.remove('armed'); b.textContent = '버리기'; }
+    const b = elB.querySelector('[data-act="drop"].armed'); if (b) { b.classList.remove('armed'); b.textContent = '버리기'; }
+    const m = elB.querySelector('[data-act="meltOne"].armed'); const it = sel && sel.from === 'inv' ? C.S.inv[sel.i] : null;
+    if (m && it) { m.classList.remove('armed'); m.innerHTML = `분해 <small>+${C.meltValue(it)}</small>`; }
   }
   if (toastEl.classList.contains('show') && performance.now() > msgUntil) {
     toastEl.classList.remove('show');
@@ -3323,7 +3466,7 @@ function evoHtml() {
     <div class="evo-w" style="--wc:${d.color}"><span class="evo-ic">${icon(w.type, 40)}</span><span class="evo-arr">${ARROW}</span><span class="evo-ic on">${icon(w.type, 40, true)}</span>
       <div class="evo-nm"><b style="color:${d.color}">${d.name}</b><span>+100 → ★+0</span></div></div>
     <div class="evo-cost${c.reason === 'shards' ? ' short' : ''}">${SHARD}<b>조각 ${fmtInt(c.cost)}</b><span>보유 <b>${fmtInt(c.have)}</b></span></div>
-    <ul class="evo-list"><li>0강으로 돌아가지만 능력은 유지</li><li>강화 비용 5배, 5강마다 스킬 포인트</li><li>0강 아래로 떨어지면 진화가 풀림</li></ul>
+    <ul class="evo-list"><li>0강으로 돌아가지만 능력은 유지</li><li>강화 비용 100 + 일반의 5배, 5강마다 스킬 포인트</li><li>0강 아래로 떨어지면 진화가 풀림</li></ul>
     ${c.reason === 'shards' ? `<p class="warn">조각이 ${fmtInt(c.cost - c.have)}개 모자랍니다.</p>` : ''}
     <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="evoOk"${ok ? '' : ' disabled'}>진화한다</button><button type="button" class="btn" data-act="evoClose">닫기</button></div></div>`;
 }
@@ -3624,11 +3767,11 @@ function helpHtml() {
   const augs = `<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`;
   const up = `<div class="hflow">${hnode(SHARD.replace('width="15" height="15"', 'width="28" height="28"'), '강화 조각')}${HARR}${hnode(hbox(icon('blaster', 22) + '<em class="bdg">+5</em>', 'slot'), '강화')}${HARR}${hnode(augs, '5단계마다 증강')}</div>`;
   const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2') + hbox(icon('pulse', 20), 'slot'), '파츠 · 무기')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
-  const meltNote = `<p class="hnote">쓰지 않는 파츠와 무기를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 녹일 물건은 눌러서 고릅니다.</p>`;
+  const meltNote = `<p class="hnote">쓰지 않는 파츠와 무기를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 제작할 때마다 게이지는 더 들지만 좋은 등급이 나올 확률이 높아집니다. 녹일 물건은 눌러서 고릅니다.</p>`;
   const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 게임이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 기지 창(기지를 누르면 열리는 화면)에서 볼 수 있습니다.</p>`;
   const evoNode = (w, cap) => hnode(hbox(icon('blaster', 22, w) + `<em class="bdg">${cap}</em>`, 'slot'), w ? '진화' : '100강');
   const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>
-    <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
+    <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 100 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(bossCard).join('')}</div>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
@@ -3716,7 +3859,7 @@ function renderOverlay() {
 /* ---------- 조작 ---------- */
 function resetUi() {
   sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
-  augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
+  augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); cerEl.classList.remove('show'); rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = '';
 }
 function startGame() { shareReset(); C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
@@ -4029,6 +4172,7 @@ function endDrag(apply, x, y) {
   }
 }
 $('#app').addEventListener('pointerdown', (ev) => {
+  downOnBtn = !!(ev.target.closest && ev.target.closest('button'));
   if (drag) endDrag(false);                // 이전 끌기가 비정상적으로 끝났다면 정리
   if (mode !== 'play' || !C.S || C.S.pendingAug || C.S.pendingPact || wmodal >= 0 || bmodal || partSwap || skK >= 0 || evoK >= 0) return;
   if ((sel || meltMode || upMode) && !ev.target.closest('button')) {   // 다른 곳(전장, 빈 공간)을 누르면 선택과 용해로 모드 취소
@@ -4142,7 +4286,7 @@ function act(name) {
   }
   if (mode !== 'play' || S.pendingAug || S.pendingPact) return;
   if (name !== 'meltBulk') meltAllArm = false;
-  if (name !== 'drop') confirmDrop = false;
+  if (name !== 'drop' && name !== 'meltOne') confirmDrop = false;
   switch (name) {
     case 'gen': {
       const pre = S.inv.slice();
@@ -4202,11 +4346,20 @@ function act(name) {
     case 'drop': {                           // 버리기: 첫 번째 누름은 무장만, 두 번째 누름에 버린다 (모든 종류의 물건)
       if (!sel || sel.from !== 'inv') return;
       const it = S.inv[sel.i]; if (!it) return;
-      if (!(confirmDrop && dropArmI === sel.i)) { confirmDrop = true; dropArmI = sel.i; dropArmAt = performance.now(); Snd.play('tap'); renderBottom(); return; }
+      if (!(confirmDrop && dropArmI === sel.i && armWhat === 'drop')) { confirmDrop = true; armWhat = 'drop'; dropArmI = sel.i; dropArmAt = performance.now(); Snd.play('tap'); renderBottom(); return; }
       C.discard(sel.i); sel = null; confirmDrop = false; msg = ''; Snd.play('drop');
       renderWeapons(); renderBottom();
       say('버렸습니다.');
       return;
+    }
+    case 'meltOne': {                        // 분해: 고른 물건 하나를 녹인다 (등급과 강화 단계와 상관없이, 직접 골랐으므로). 버리기와 같은 두 번 누르기
+      if (!sel || sel.from !== 'inv') return;
+      const it = S.inv[sel.i]; if (!it || (it.kind !== 'p' && it.kind !== 'w')) return;
+      if (!(confirmDrop && dropArmI === sel.i && armWhat === 'melt')) { confirmDrop = true; armWhat = 'melt'; dropArmI = sel.i; dropArmAt = performance.now(); Snd.play('tap'); renderBottom(); return; }
+      const rc = elB.querySelector(`[data-inv="${sel.i}"]`)?.getBoundingClientRect();
+      const pts = C.meltPart(sel.i); sel = null; confirmDrop = false; msg = ''; Snd.play('melt');
+      renderWeapons(); renderBottom(); if (rc) meltFx(null, rc); gaugeFlash();
+      return say(`<b>분해했습니다.</b> 게이지 +${pts} (현재 ${S.melt})`);
     }
     case 'bequip': if (sel && sel.from === 'inv') equipBasePart(sel.i); return;
     case 'bopen': openB(); return;
@@ -4216,10 +4369,9 @@ function act(name) {
       if (evoK < 0) return;
       const k = evoK, w = S.slots[k], r = C.evolve(k);
       if (!r.ok) { if (r.reason === 'shards') say(`조각이 부족합니다. ${C.CFG.evoCost}개가 필요합니다.`, true); return; }
-      evoK = -1; upMode = false; Snd.play('evolve');
-      closeW();                                 // 무기 창에서 눌렀다면 닫고, 칸에서 연출을 보여 준다
-      evoFx(elW.querySelector(`[data-slot="${k}"]`), C.WEAPONS[w.type].color);
-      say(`<b style="color:${C.WEAPONS[w.type].color}">${C.WEAPONS[w.type].name}</b> 진화! ★+0`);
+      evoK = -1; upMode = false;
+      closeW();                                 // 무기 창에서 눌렀다면 닫고, 전장 가운데에서 진화 연출을 한 뒤 칸에서 효과를 보여 준다
+      evoCeremony(w, k);
       return;
     }
     case 'skOpen': {
@@ -4275,6 +4427,7 @@ $('#app').addEventListener('click', (ev) => {
   if (ev.target === elO && mode === 'play' && S && skK < 0 && !S.pendingAug && !partSwap && (wmodal >= 0 || bmodal)) { closeW(); return; }
   if (pactIntro && S && S.pendingPact && elO.contains(ev.target)) { pactIntro = false; renderOverlay(); return; }   // 등장 연출은 누르면 건너뛴다
   const b = ev.target.closest('button'); if (!b) return;
+  if (!downOnBtn && ev.detail > 0) return;           // 버튼이 아닌 곳을 눌렀는데 그 때문에 화면이 바뀌어 같은 자리에 버튼이 새로 생겼다면, 그 버튼은 반응하지 않는다
   Snd.ensure();
   if (performance.now() < suppressClick) return;   // 끌기가 끝난 직후의 누름은 무시
   if (b.id === 'pauseBtn') { pause(); return; }
@@ -4947,13 +5100,14 @@ function frame(ts) {
     while (acc >= 1 / 60 && n < 12) { C.step(1 / 60); acc -= 1 / 60; n++; }
     if (n === 12) acc = 0;
     if (S.snd && S.snd.length) { for (const n of S.snd) Snd.play(n); S.snd.length = 0; }
+    if (S.rewq && S.rewq.length) bossRewards(S.rewq.splice(0));     // 인벤토리를 다시 그리기 전에: 날아오는 물건의 칸을 먼저 가린다
     if (S.invDirty) { S.invDirty = false; renderBottom(); }
     if (S.slotDirty) { S.slotDirty = false; renderWeapons(); }
     if (S.abfx && S.abfx.length) { for (const a of S.abfx.splice(0)) abHitFx(a.kind, a.i); }
     if (S.notes && S.notes.length) say(S.notes.splice(0).join('<br>'), true);
     if (S.evq && S.evq.length) drainEvq();
     if (S.revived) { S.revived = false; say('<b>비상 방벽</b>이 기지를 지켰습니다. 방벽 파츠는 사라졌습니다.'); }
-    if (S.newDrop) { S.newDrop = false; legendScan(); say('보스 보상이 인벤토리에 들어왔습니다.'); }
+    if (S.newDrop) { S.newDrop = false; legendScan(); }                 // 기다리던 보상이 늦게 들어올 때도 알림 글은 없다
     if (S.over) gameOver();
     else if (S.pendingPact) { renderAll(); }   // 천칭이 쓰러짐: 거래 제안 창을 연다
   }
@@ -4967,7 +5121,7 @@ function snapshot() {
   const S = C.S;
   if (!S || (mode !== 'play' && mode !== 'pause') || S.over) return {};
   const copy = Object.assign({}, S, {
-    bullets: [], shells: [], pools: [], beams: [], fx: [], snd: [], abfx: [], pendingAug: S.pendingAug,
+    bullets: [], shells: [], pools: [], beams: [], fx: [], snd: [], abfx: [], rewq: [], pendingAug: S.pendingAug,
     enemies: S.enemies.map(e => Object.assign({}, e, { burnSt: null, burnT: 0, burnDps: 0, lgSt: null, lgT: 0 })),
   });
   return { S: JSON.parse(JSON.stringify(copy)) };
