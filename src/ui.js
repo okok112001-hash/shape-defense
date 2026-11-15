@@ -21,6 +21,7 @@ const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f
   summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', thief: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5' };
 const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
+const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
 
 /* ---------- 테마 ---------- */
 // v: :root의 CSS 변수, cv: 전장(canvas)에서 쓰는 색, wc: 무기 색 (없으면 원래 색)
@@ -121,6 +122,7 @@ let abKey = '';                  // 지금 떠 있는 보스 능력 예고 칩�
 const RM = matchMedia('(prefers-reduced-motion: reduce)');   // 움직임 줄이기
 let drag = null, suppressClick = 0, needRender = false;   // 끌어서 옮기기
 let pauseView = '';              // 일시정지 화면의 하위 화면: '' | confirm
+let testView = false, testMsg = '';   // 테스트 창 (열려 있는 동안 mode 는 pause), 방금 한 일
 let helpFrom = '';               // 도움말을 연 화면: '' | start | pause (뒤로를 누르면 그 화면으로 돌아간다)
 let pactView = false, pactResume = false, bannerUntil = 0;   // 맺은 거래 보기 창, 닫을 때 게임을 이어갈지, 완료 배너가 사라질 시각
 const PACT_LINES = ['원하는 것을 주지. 대신 그만한 것을 내놓아라.', '저울은 한쪽으로만 기울지 않는다. 골라라.', '공짜는 없다. 무엇을 걸겠나?', '힘을 원하나? 값은 네가 치른다.'];   // 천칭이 건네는 말
@@ -263,7 +265,7 @@ function fmtDmg(n) {
   if (n >= 1e5) return Math.round(n / 1e4) + '만';
   return String(Math.max(1, Math.round(n)));   // 소수점 없이
 }
-function fmtInt(n) { n = Math.floor(n); return n >= 1e5 ? fmt(n) : String(n); }
+function fmtInt(n) { if (n === Infinity) return '∞'; n = Math.floor(n); return n >= 1e5 ? fmt(n) : String(n); }   // ∞: 테스트 모드의 무한
 const rgbaCache = {};
 function rgba(hex, a) {
   a = Math.round(a * 32) / 32;   // 알파를 잘게 나눠 캐시가 끝없이 늘어나지 않게 한다
@@ -647,8 +649,8 @@ function bupText(u) { return u.max ? '최대' : `필요 ${u.cost} · ${Math.roun
 function infoHtml() {
   const S = C.S;
   if (meltMode) {
-    const cc = C.craftCost(), pct = Math.min(100, (S.melt || 0) / cc * 100), od = oddsPct();
-    return `<span class="ml1"><b class="mtag">용해로 켜짐</b><b>게이지 ${fmtInt(S.melt || 0)} / ${fmtInt(cc)}</b><span class="gbar"><i style="width:${pct}%"></i></span></span>` +
+    const cc = C.craftCost(), pct = Math.min(100, C.meltCount() / cc * 100), od = oddsPct();
+    return `<span class="ml1"><b class="mtag">용해로 켜짐</b><b>게이지 ${fmtInt(C.meltCount())} / ${fmtInt(cc)}</b><span class="gbar"><i style="width:${pct}%"></i></span></span>` +
       `<span class="odds"><span class="g1">희귀 ${od[1]}%</span> · <span class="g2">영웅 ${od[2]}%</span> · <span class="g3">전설 ${od[3]}%</span></span>`;
   }
   if (sel && sel.from === 'inv' && S.inv[sel.i]) return itemInfo(S.inv[sel.i]);
@@ -694,15 +696,15 @@ function invHtml() {
     cols = ' three';
     const cc = C.craftCost(), n = meltSet.size, v = n ? [...meltSet].reduce((a, i) => a + C.meltValue(S.inv[i]), 0) : C.meltAllValue().pts;
     const label = n ? `선택 분해 ${n}개` : meltAllArm ? '정말 모두 분해' : '모두 분해';
-    acts = `<button type="button" class="btn primary${(S.melt || 0) >= cc ? '' : ' off'}" data-act="craft">제조 <small>게이지 ${cc}</small></button>
+    acts = `<button type="button" class="btn primary${C.meltCount() >= cc ? '' : ' off'}" data-act="craft">제조 <small>게이지 ${cc}</small></button>
       <button type="button" class="btn ember stk${meltAllArm && !n ? ' danger' : ''}" data-act="meltBulk"><span>${label}</span><small>게이지 +${v}</small></button>
       <button type="button" class="btn" data-act="meltOff">닫기</button>`;
   } else if (!sel) {
     cols = ' three3';
-    const canGen = S.gold >= C.genCost() && C.freeSlot() >= 0;
-    acts = `<button type="button" class="btn primary gen${canGen ? ' hint' : ' off'}" id="genBtn" data-act="gen"><span class="gc"><b id="genHave">◆ ${fmtInt(S.gold)}</b><small id="genCost">비용 ${C.genCost()}</small></span><span>생성</span></button>
-      <button type="button" class="btn up${upMode ? ' on' : ''}${canUp() ? ' hint' : ''}" id="upBtn" data-act="upMode"><span class="gc"><b class="shb">${SHARD}<span id="upHave">${fmtInt(S.shards || 0)}</span></b></span><span>강화</span></button>
-      <button type="button" class="btn melt${(S.melt || 0) >= C.craftCost() ? ' ready' : ''}" data-act="meltOn"><span class="mlb">${FLAME}<span>용해로</span><b data-n="${String(fmtInt(S.melt || 0)).length}">${fmtInt(S.melt || 0)}</b></span></button>`;
+    const canGen = C.goldCount() >= C.genCost() && C.freeSlot() >= 0;
+    acts = `<button type="button" class="btn primary gen${canGen ? ' hint' : ' off'}" id="genBtn" data-act="gen"><span class="gc"><b id="genHave">◆ ${fmtInt(C.goldCount())}</b><small id="genCost">비용 ${C.genCost()}</small></span><span>생성</span></button>
+      <button type="button" class="btn up${upMode ? ' on' : ''}${canUp() ? ' hint' : ''}" id="upBtn" data-act="upMode"><span class="gc"><b class="shb">${SHARD}<span id="upHave">${fmtInt(C.shardCount())}</span></b></span><span>강화</span></button>
+      <button type="button" class="btn melt${C.meltCount() >= C.craftCost() ? ' ready' : ''}" data-act="meltOn"><span class="mlb">${FLAME}<span>용해로</span><b data-n="${String(fmtInt(C.meltCount())).length}">${fmtInt(C.meltCount())}</b></span></button>`;
   } else if (sel.from === 'inv') {
     const it = S.inv[sel.i];
     const armed = confirmDrop && dropArmI === sel.i && armWhat === 'drop', marm = confirmDrop && dropArmI === sel.i && armWhat === 'melt';
@@ -732,7 +734,8 @@ function renderBottom() {
   elB.innerHTML = invHtml();
   updateInfo();
 }
-function renderAll() { abKey = ''; renderWeapons(); renderBottom(); renderOverlay(); updateChips(); updateMark(); }
+function meltNow() { const m = C.meltCount(); return m === Infinity ? '∞' : m; }
+function renderAll() { abKey = ''; syncTest(); renderWeapons(); renderBottom(); renderOverlay(); updateChips(); updateMark(); }
 // 자주 바뀌는 숫자만 가볍게 갱신 (버튼을 새로 만들지 않아 누르는 도중에 끊기지 않는다)
 function lightUpdate() {
   const S = C.S; if (!S) return;
@@ -758,13 +761,13 @@ function lightUpdate() {
   }
   const g = $('#genBtn');
   if (g) {
-    const can = S.gold >= C.genCost() && C.freeSlot() >= 0;
+    const can = C.goldCount() >= C.genCost() && C.freeSlot() >= 0;
     g.classList.toggle('off', !can); g.classList.toggle('hint', can);
-    const h = $('#genHave'), ht = '◆ ' + fmtInt(S.gold); if (h.textContent !== ht) h.textContent = ht;
+    const h = $('#genHave'), ht = '◆ ' + fmtInt(C.goldCount()); if (h.textContent !== ht) h.textContent = ht;
     const c = $('#genCost'), t = '비용 ' + C.genCost(); if (c.textContent !== t) c.textContent = t;
   }
   const ub = $('#upBtn');
-  if (ub) { const h = $('#upHave'), t = fmtInt(S.shards || 0); if (h.textContent !== t) h.textContent = t; ub.classList.toggle('hint', canUp()); }
+  if (ub) { const h = $('#upHave'), t = fmtInt(C.shardCount()); if (h.textContent !== t) h.textContent = t; ub.classList.toggle('hint', canUp()); }
   const bu = $('#bupBtn');
   if (bu) {
     const u = C.upgradeInfo(S.base), t = bupText(u), el = $('#bupTxt');
@@ -1078,6 +1081,80 @@ function resultsHtml() {
     ${rows || '<p>장착한 무기가 없었습니다.</p>'}
     <div class="rrow rb"><span class="ri">${BASEICON(16)}</span><b class="rn bcol">기지</b><span>${fmtInt(b.kills)}</span><span>${fmt(b.dealt)}</span><span></span></div></div>`;
 }
+/* ---------- 테스트 모드 ---------- */
+// 테스트 게임인지는 상태(C.S.cheat)로만 판단한다. 일반 게임에는 cheat 가 없다.
+const isTest = () => !!(C.S && C.S.cheat);
+const TEST_LABEL = { gold: '재화 무한', shards: '조각 무한', succ: '강화 100% 성공', god: '기지 무적', melt: '용해로 무한' };
+const TCHECK = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.500 4.500L19 7.500"/></svg>';
+function loadTest() {
+  try { const o = JSON.parse(localStorage.getItem(TEST_KEY) || 'null'); if (o && typeof o === 'object') return o; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
+  return {};
+}
+function saveTest() { if (isTest()) { try { localStorage.setItem(TEST_KEY, JSON.stringify(C.S.cheat)); } catch (e) { /* 무시 */ } } }
+function syncTest() {              // 상단의 테스트 버튼은 테스트 게임에서만 보인다
+  const t = isTest(), b = $('#testBtn');
+  if (b && b.hidden === t) { b.hidden = !t; $('#app').classList.toggle('test', t); }
+}
+// 증강 뽑기의 대상: 고른 무기 칸, 없으면 첫 장착 무기 (-1 = 없음)
+function testSlot() { const S = C.S; return sel && sel.from === 'slot' && S.slots[sel.k] ? sel.k : S.slots.findIndex(Boolean); }
+function testHtml() {
+  const S = C.S, ch = S.cheat, full = C.freeSlot() < 0, k = testSlot(), any = k >= 0, evo = S.slots.some(w => w && w.evo);
+  const off = (x) => x ? ' off' : '';
+  const chk = C.test.KEYS.map(key => `<button type="button" class="tchk${ch[key] ? ' on' : ''}" data-tc="${key}" aria-pressed="${!!ch[key]}"><i class="tbox">${ch[key] ? TCHECK : ''}</i><span>${TEST_LABEL[key]}</span></button>`).join('');
+  const ws = C.WEAPON_IDS.map(id => `<button type="button" class="twb${off(full)}" data-tw="${id}">${icon(id, 22)}<small>${C.WEAPONS[id].name}</small></button>`).join('');
+  const wn = any ? `<small style="color:${C.WEAPONS[S.slots[k].type].color}">${C.WEAPONS[S.slots[k].type].name}</small>` : '';
+  return `<div class="modal testm">
+    <div class="wm-head"><h2>테스트</h2><span class="tmsg">${testMsg}</span><button type="button" class="x" data-act="testExit">끝내기</button></div>
+    <div class="tgrid">${chk}</div>
+    <div class="wm-sec">무기 받기</div>
+    <div class="twp">${ws}</div>
+    <div class="wm-sec">장착한 무기</div>
+    <div class="tgrid">
+      <button type="button" class="btn${off(!any)}" data-act="testMax">모두 100강</button>
+      <button type="button" class="btn${off(!any)}" data-act="testEvo">모두 진화</button>
+      <button type="button" class="btn${off(!evo)}" data-act="testSkReset">스킬 초기화</button>
+      <button type="button" class="btn${off(!any)}" data-act="testAug">증강 뽑기 ${wn}</button>
+    </div>
+    <div class="wm-sec">전장 <b class="tnow">${fmtTime(S.t)}</b></div>
+    <div class="tgrid">
+      <button type="button" class="btn" data-act="testT1">시간 +1분</button>
+      <button type="button" class="btn" data-act="testT5">시간 +5분</button>
+      <button type="button" class="btn${off(!!S.pendingBoss)}" data-act="testBoss">보스 부르기</button>
+      <button type="button" class="btn" data-act="testClear">적 지우기</button>
+    </div>
+    <div class="d-acts one"><button type="button" class="btn primary" data-act="testClose">닫기</button></div></div>`;
+}
+function testClose() { testView = false; testMsg = ''; if (mode === 'pause') { mode = 'play'; last = 0; } }
+// 테스트 창의 바로 실행 버튼 (Core.test 가 실제 일을 한다)
+function testRun(name, arg) {
+  const S = C.S, T = C.test;
+  if (!testView || !isTest() || mode !== 'pause') return;
+  let m = '', ok = true;
+  switch (name) {
+    case 'give': {
+      const i = T.give(arg); if (i < 0) return;
+      m = C.WEAPONS[arg].name + ' 받음';
+      newCell = i; setTimeout(() => { if (newCell === i) newCell = -1; }, 500);
+      break;
+    }
+    case 'testMax': ok = T.maxAll() > 0; m = '모두 100강'; break;
+    case 'testEvo': ok = T.evolveAll() > 0; m = '모두 진화'; break;
+    case 'testSkReset': ok = T.resetSkills() > 0; m = '스킬 초기화'; break;
+    case 'testT1': case 'testT5': ok = T.addTime(name === 'testT1' ? 60 : 300); m = '시간 ' + fmtTime(S.t); break;
+    case 'testBoss': ok = T.boss(); m = '보스 예고'; break;
+    case 'testClear': T.clear(); m = '적 지움'; break;
+    case 'testAug': {                        // 선택지 창은 기존 증강 흐름 그대로: 테스트 창을 닫고 띄운다
+      const k = testSlot();
+      if (k < 0 || !T.aug(k)) return;
+      testClose(); augSel = -1; augRep = -1; augSkip = false; renderAll(); return;
+    }
+    default: return;
+  }
+  if (!ok) return;
+  testMsg = m; Snd.play('pick');
+  S.invDirty = false; S.slotDirty = false;   // 바로 아래에서 모두 다시 그린다
+  renderAll();
+}
 // 소리, 도움말, 테마를 고르는 아이콘 한 줄 (시작 화면과 일시정지 화면)
 const SPK = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" stroke="none"/>';
 const SND_ON = `<svg viewBox="0 0 24 24" width="22" height="22" ${SVG_ATTR}>${SPK}<path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>`;
@@ -1166,8 +1243,8 @@ function helpHtml() {
   const ctlIntro = `<p class="hnote">누르기와 끌기로 파츠를 장착하고, 무기 자리를 바꾸고, 무기와 기지의 상태를 살펴보는 방법입니다.</p>`;
   const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>`;
   const grades = `<div class="hchips">${GR.map((n, g) => `<span class="hchip g${g}">${n}</span>`).join('')}</div>`;
-  const parts = `<div class="hgrid2"><div class="hp"><span class="pic g1">${partIcon(wp, 28)}</span><span><b>무기 파츠</b><small>무기 하나에 장착</small></span></div>
-    <div class="hp"><span class="pic g1 bp">${partIcon(bp, 28)}</span><span><b>기지 파츠</b><small>기지에 장착, 전체 적용</small></span></div></div>`;
+  const parts = `<div class="hgrid2"><div class="hpt"><span class="pic g1">${partIcon(wp, 28)}</span><span><b>무기 파츠</b><small>무기 하나에 장착</small></span></div>
+    <div class="hpt"><span class="pic g1 bp">${partIcon(bp, 28)}</span><span><b>기지 파츠</b><small>기지에 장착, 전체 적용</small></span></div></div>`;
   const augs = `<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`;
   const up = `<div class="hflow">${hnode(SHARD.replace('width="15" height="15"', 'width="28" height="28"'), '강화 조각')}${HARR}${hnode(hbox(icon('blaster', 22) + '<em class="bdg">+5</em>', 'slot'), '강화')}${HARR}${hnode(augs, '5단계마다 증강')}</div>`;
   const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2') + hbox(icon('pulse', 20), 'slot'), '파츠 · 무기')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
@@ -1185,7 +1262,9 @@ function helpHtml() {
 function renderOverlay() {
   const S = C.S;
   let h = '';
-  if (mode === 'pause' && pactView && S && S.pacts && S.pacts.length) {
+  if (mode === 'pause' && testView && isTest()) {
+    h = testHtml();
+  } else if (mode === 'pause' && pactView && S && S.pacts && S.pacts.length) {
     h = pactViewHtml();
   } else if ((mode === 'start' || mode === 'pause') && helpFrom) {
     h = helpHtml();
@@ -1193,7 +1272,8 @@ function renderOverlay() {
     h = `<div class="modal start"><h1>도형 <span>디펜스</span></h1>
       ${best ? '<p class="bestl">최고 기록</p>' + recHtml(best) : '<p class="bestl">기록 없음</p>'}
       ${iconRow()}
-      <button type="button" class="btn primary" data-act="start">시작</button></div>`;
+      <button type="button" class="btn primary" data-act="start">시작</button>
+      <button type="button" class="tlink" data-act="testStart">테스트 모드</button></div>`;
   } else if (mode === 'pause' && pauseView === 'confirm') {
     h = `<div class="modal"><h2>처음부터 다시</h2><p>지금까지의 진행이 모두 사라지고 새 게임이 시작됩니다. 다시 시작할까요?</p>
       <button type="button" class="btn danger" data-act="restartOk">다시 시작</button>
@@ -1208,12 +1288,13 @@ function renderOverlay() {
       <button type="button" class="btn primary" data-act="shareClose">닫기</button></div>`;
   } else if (mode === 'over') {
     h = `<div class="modal"><h2>기지가 무너졌습니다</h2>
-      ${newRec ? '<p class="newrec">최고 기록을 새로 썼습니다.</p>' : '<p>이번 기록</p>'}${recHtml(lastRec)}
-      ${best && !newRec ? '<p>최고 기록</p>' + recHtml(best) : ''}
+      ${isTest() ? '<p class="testnote">테스트 게임 · 기록 저장 안 함</p>' : newRec ? '<p class="newrec">최고 기록을 새로 썼습니다.</p>' : '<p>이번 기록</p>'}${recHtml(lastRec)}
+      ${best && !newRec && !isTest() ? '<p>최고 기록</p>' + recHtml(best) : ''}
       ${resultsHtml()}
       ${lastRes && lastRes.pacts.length ? `<div class="wm-sec">받은 거래</div><p class="pnames">${lastRes.pacts.join(', ')}</p>` : ''}
       <div class="d-acts one"><button type="button" class="btn primary" data-act="restart">다시 하기</button></div>
-      <div class="d-acts two"><button type="button" class="btn" data-act="home">처음으로</button><button type="button" class="btn" data-act="share">기록 공유</button></div></div>`;
+      ${isTest() ? '<div class="d-acts one"><button type="button" class="btn" data-act="home">처음으로</button></div>'
+        : '<div class="d-acts two"><button type="button" class="btn" data-act="home">처음으로</button><button type="button" class="btn" data-act="share">기록 공유</button></div>'}</div>`;
   } else if (S && S.pendingAug) {
     if (!S.pendingAug.base && !S.slots[S.pendingAug.slot]) C.skipAug(true);
     else {
@@ -1264,9 +1345,10 @@ function renderOverlay() {
 function resetUi() {
   sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); cerEl.classList.remove('show'); rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
-  toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = '';
+  toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = ''; testView = false; testMsg = '';
 }
-function startGame() { shareReset(); C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
+// test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작)
+function startGame(test) { shareReset(); if (test === true) C.test.newGame(loadTest()); else C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
 function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; confirmDrop = false; renderOverlay(); } }
 // 상태를 비우기 전에 무기별 결과와 받은 거래를 챙긴다. slots: 5칸 그대로 (무기, 빈 칸 null, 폐쇄 'closed')
 function captureRes(S) {
@@ -1282,11 +1364,12 @@ function gameOver() {
   const S = C.S;
   lastRec = { t: S.t, kills: S.kills, lv: S.maxLv, boss: S.bossKills || 0 };
   lastRes = captureRes(S);
-  newRec = !best || lastRec.t > best.t;
+  const test = isTest();              // 테스트 게임: 최고 기록을 저장하지 않고 공유 이미지도 만들지 않는다
+  newRec = !test && (!best || lastRec.t > best.t);
   if (newRec) saveBest(lastRec);
   shareReset(); shareDate = new Date();
   mode = 'over'; resetUi(); renderAll(); Snd.play('over');
-  prepareShare();     // 버튼을 누르기 전에 이미지를 미리 만들어 둔다 (누르는 순간 바로 공유 창을 띄우기 위해)
+  if (!test) prepareShare();     // 버튼을 누르기 전에 이미지를 미리 만들어 둔다 (누르는 순간 바로 공유 창을 띄우기 위해)
 }
 // 처음으로: 앱을 켰을 때 처음 보이는 화면
 function goHome() { shareReset(); C.newGame(); resetUi(); mode = 'start'; renderAll(); Snd.play('tap'); }
@@ -1631,8 +1714,16 @@ function act(name) {
   switch (name) {
     case 'restart':
       if (mode === 'pause') { pauseView = 'confirm'; renderOverlay(); return; }   // 일시정지 중에는 한 번 더 묻는다
-      startGame(); Snd.play('pick'); return;
-    case 'start': case 'restartOk': startGame(); Snd.play('pick'); return;
+      startGame(isTest()); Snd.play('pick'); return;   // 테스트 게임에서 다시 하면 테스트 게임
+    case 'restartOk': startGame(isTest()); Snd.play('pick'); return;
+    case 'start': startGame(); Snd.play('pick'); return;
+    case 'testStart': if (mode === 'start') { startGame(true); Snd.play('pick'); } return;
+    case 'testOpen':
+      if (mode !== 'play' || !isTest() || S.over || S.pendingAug || S.pendingPact) return;
+      testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
+    case 'testClose': if (testView) { testClose(); Snd.play('tap'); renderAll(); } return;
+    case 'testExit': if (testView) goHome(); return;
+    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': testRun(name); return;
     case 'help': helpFrom = mode; renderOverlay(); return;
     case 'helpBack': helpFrom = ''; renderOverlay(); return;
     case 'pauseBack': pauseView = ''; renderOverlay(); return;
@@ -1685,7 +1776,7 @@ function act(name) {
       return;
     }
     case 'home': goHome(); return;
-    case 'share': doShare(); return;
+    case 'share': if (!isTest()) doShare(); return;
     case 'shareClose': shareShow = false; renderOverlay(); return;
   }
   if (mode !== 'play' || S.pendingAug || S.pendingPact) return;
@@ -1731,7 +1822,7 @@ function act(name) {
       const r = picked.length ? C.meltList(picked) : C.meltAll();
       meltAllArm = false; meltSet.clear(); Snd.play('melt');
       renderBottom(); rects.forEach(rc => rc && meltFx(null, rc)); gaugeFlash();
-      return say(`<b>${r.n}개를 분해했습니다.</b> 게이지 +${r.pts} (현재 ${S.melt})`);
+      return say(`<b>${r.n}개를 분해했습니다.</b> 게이지 +${r.pts} (현재 ${meltNow()})`);
     }
     case 'craft': {
       legendMark();
@@ -1763,7 +1854,7 @@ function act(name) {
       const rc = elB.querySelector(`[data-inv="${sel.i}"]`)?.getBoundingClientRect();
       const pts = C.meltPart(sel.i); sel = null; confirmDrop = false; msg = ''; Snd.play('melt');
       renderWeapons(); renderBottom(); if (rc) meltFx(null, rc); gaugeFlash();
-      return say(`<b>분해했습니다.</b> 게이지 +${pts} (현재 ${S.melt})`);
+      return say(`<b>분해했습니다.</b> 게이지 +${pts} (현재 ${meltNow()})`);
     }
     case 'bequip': if (sel && sel.from === 'inv') equipBasePart(sel.i); return;
     case 'bopen': openB(); return;
@@ -1839,6 +1930,11 @@ $('#app').addEventListener('click', (ev) => {
   const ds = b.dataset;
   if (ds.sk != null) { if (skK < 0) return; const [l, t] = ds.sk.split(':').map(Number); skSel = { l, t }; Snd.play('tap'); renderOverlay(); return; }
   if (ds.theme) { const t = THEMES.find(x => x.id === ds.theme); if (t) { applyTheme(t, true); Snd.play('tap'); renderAll(); } return; }
+  if (ds.tc) {                                       // 테스트 창의 체크 항목
+    if (!testView || !isTest() || !C.test.set(ds.tc, !S.cheat[ds.tc])) return;
+    saveTest(); Snd.play('tap'); renderAll(); return;
+  }
+  if (ds.tw) { testRun('give', ds.tw); return; }     // 테스트 창의 무기 받기
   if (ds.act) { act(ds.act); return; }
   if (ds.aug != null || ds.rep != null) {
     if (!S || !S.pendingAug || performance.now() - augOpenAt < 400) return; // 연타 중 잘못 누르는 것 방지

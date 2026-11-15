@@ -595,12 +595,12 @@ b { font-weight: 600; }
 .hstat { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .hstat .hv { min-height: 52px; }
 .hgrid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.hw, .hp, .hb { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 7px; min-width: 0; background: color-mix(in srgb, var(--panel-2) 45%, transparent); }
+.hw, .hpt, .hb { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 7px; min-width: 0; background: color-mix(in srgb, var(--panel-2) 45%, transparent); }
 .hw svg, .hb svg { flex: none; }
-.hw span, .hp > span:last-child, .hb span { display: flex; flex-direction: column; min-width: 0; }
-.hw b, .hp b, .hb b { font: 13px/1.2 var(--font-display); color: var(--ink); }
-.hw small, .hp small, .hb small { font-size: 10.5px; line-height: 1.3; color: var(--dim); }
-.hp .pic { width: 38px; height: 38px; }
+.hw span, .hpt > span:last-child, .hb span { display: flex; flex-direction: column; min-width: 0; }
+.hw b, .hpt b, .hb b { font: 13px/1.2 var(--font-display); color: var(--ink); }
+.hw small, .hpt small, .hb small { font-size: 10.5px; line-height: 1.3; color: var(--dim); }
+.hpt .pic { width: 38px; height: 38px; }
 .hchips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .hchip { text-align: center; font: 600 12.5px/1 var(--font-body); padding: 7px 0; border-radius: 6px; border: 1.5px solid currentColor; background: color-mix(in srgb, currentColor 12%, var(--panel)); }
 .hmini { display: inline-flex; gap: 3px; }
@@ -876,3 +876,27 @@ b { font-weight: 600; }
 .cell.incoming > * { opacity: 0; }
 @keyframes rwpop { from { opacity: 0; transform: translate(-50%, -20%) scale(.3); } }
 @media (prefers-reduced-motion: reduce) { .rw { animation: none; } }
+
+/* ---- 테스트 모드 ---- */
+#testBtn { width: 44px; height: 34px; padding: 0; border: 1px dashed var(--accent); border-radius: 4px; font-size: 12px; font-weight: 600; color: var(--accent-ink); white-space: nowrap; }
+#testBtn[hidden] { display: none; }
+#app.test #hud { grid-template-columns: minmax(0, 1fr) 54px 50px 44px 38px 38px; }   /* 체력 | 시간 | 처치 | 테스트 | 속도 | 정지 */
+.tlink { align-self: center; height: 36px; padding: 0 18px; margin-top: -2px; font-size: 12px; color: var(--dim); border: 1px dashed var(--line); border-radius: 5px; }
+.tlink:active, .tchk:active, .twb:active { transform: translateY(1px); }
+.modal.testm { gap: 8px; padding: 12px; }
+.testm .wm-head { align-items: center; }
+.testm .wm-head h2 { font: 22px/1 var(--font-display); flex: none; }
+.tmsg { flex: 1; min-width: 0; font-size: 12px; color: var(--accent-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tnow { margin-left: 4px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tgrid .btn { height: 40px; min-width: 0; white-space: nowrap; }
+.tchk { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; min-width: 0; border: 1.5px solid var(--line); border-radius: 5px; background: var(--panel-2); font: 600 13.5px var(--font-body); white-space: nowrap; text-align: left; }
+.tbox { flex: none; width: 18px; height: 18px; border: 1.5px solid var(--dim); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--on-accent); }
+.tchk.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--panel-2)); }
+.tchk.on .tbox { background: var(--accent); border-color: var(--accent); }
+.twp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.twb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 50px; min-width: 0; border: 1.5px solid var(--line); border-radius: 5px; background: var(--panel-2); }
+.twb small { font-size: 11px; line-height: 1.1; white-space: nowrap; }
+.twb.off { opacity: .42; }
+.modal p.testnote { color: var(--accent-ink); font-weight: 600; }
+@media (max-height: 660px) { .tgrid .btn, .tchk { height: 36px; } .twb { height: 44px; } .modal.testm { gap: 7px; } }

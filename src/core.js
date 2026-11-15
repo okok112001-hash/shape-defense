@@ -608,9 +608,11 @@ function bestDps() { // 가장 강한 무기의 초당 화력 (기지 포탑 등
 
 /* ---------- 인벤토리 ---------- */
 function freeSlot() { return S.inv.indexOf(null); }
-function shardCount() { return S.shards || 0; }   // 강화 조각은 인벤토리가 아니라 재화다
+function shardCount() { return S.cheat && S.cheat.shards ? Infinity : S.shards || 0; }   // 강화 조각은 인벤토리가 아니라 재화다 (테스트: 조각 무한)
 function addShards(n) { S.shards = (S.shards || 0) + n; }
-function takeShards(n) { S.shards = Math.max(0, (S.shards || 0) - n); }
+function takeShards(n) { if (S.cheat && S.cheat.shards) return; S.shards = Math.max(0, (S.shards || 0) - n); }
+function goldCount() { return S.cheat && S.cheat.gold ? Infinity : S.gold; }            // 테스트: 재화 무한 (줄지 않는다)
+function meltCount() { return S.cheat && S.cheat.melt ? Infinity : S.melt || 0; }       // 테스트: 용해로 무한 (게이지가 줄지 않는다)
 function addItem(item) {
   const i = freeSlot(); if (i < 0) return -1;
   S.inv[i] = item; return i;
@@ -651,9 +653,10 @@ function randomWeapon(preferNew, r) {
 function generate() {
   if (!S || S.over || S.pendingAug || S.pendingPact) return { ok: false, reason: 'busy' };
   const c = genCost();
-  if (S.gold < c) return { ok: false, reason: 'gold' };
+  if (goldCount() < c) return { ok: false, reason: 'gold' };
   if (freeSlot() < 0) return { ok: false, reason: 'full' };
-  S.gold -= c; S.gen++;
+  if (!(S.cheat && S.cheat.gold)) S.gold -= c;
+  S.gen++;
   const nW = weaponCount();
   const pw = nW < 1 ? 1 : 0.08 + 0.92 * Math.exp(-(nW - 1) / 1.8);  // 무기를 많이 가질수록 연속적으로 줄어든다
   const rg = subG(), r = rg();
@@ -777,9 +780,9 @@ function meltAllValue() { // 모두 분해가 얻을 게이지와 개수 (미리
 }
 function craftPart() { // 용해로: 게이지를 써서 희귀 이상 파츠를 만든다
   const cc = craftCost();
-  if ((S.melt || 0) < cc) return { ok: false, reason: 'gauge' };
+  if (meltCount() < cc) return { ok: false, reason: 'gauge' };
   const i = freeSlot(); if (i < 0) return { ok: false, reason: 'full' };
-  S.melt -= cc;
+  if (!(S.cheat && S.cheat.melt)) S.melt -= cc;
   const m = craftBase() / CFG.craftCost, F = craftCum();
   const rg = subG();
   const c = Math.pow(rg(), 1 / m);          // 연속 최고값: u^(1/m)을 누적 값으로 쓴다. 굴림은 한 번
@@ -800,7 +803,8 @@ function detachPart(slot, k) {
 function pactSucc() { return (hasPact('overheat') ? PACT.heatSucc : 0) + (hasPact('gamble') ? PACT.gambleSucc : 0); }
 function upgradeInfo(t) { // t: 무기 또는 기지
   const next = t.lv + 1;
-  const rate = Math.max(PACT.minSucc, Math.min(1, BAL.success(next) + bstats().luck + pactSucc()));   // 하한 3% (기존 곡선은 10% 이상이라 거래 없이는 그대로)
+  let rate = Math.max(PACT.minSucc, Math.min(1, BAL.success(next) + bstats().luck + pactSucc()));   // 하한 3% (기존 곡선은 10% 이상이라 거래 없이는 그대로)
+  if (S.cheat && S.cheat.succ) rate = 1;   // 테스트: 강화 100% 성공
   return { cost: t.evo ? CFG.evoCostAdd + CFG.evoCostMul * next : next, rate, have: shardCount(), max: t.lv >= CFG.maxLv };   // 진화한 무기는 100 + 5 x 일반 비용, 성공률은 진화 단계 기준 그대로
 }
 function tryUpgrade(t) {
@@ -811,7 +815,7 @@ function tryUpgrade(t) {
   const u1 = rndG(), u2 = rndG();      // 절약 파츠가 있든 없든 항상 두 번 뽑아, 성공 굴림이 같은 순서에 놓이게 한다
   const saved = bs.save > 0 && u1 < bs.save;
   if (!saved) takeShards(info.cost);
-  const success = u2 < info.rate;
+  const success = (S.cheat && S.cheat.succ) || u2 < info.rate;   // 테스트: 뽑는 횟수는 그대로 두고 판정만 덮어쓴다
   let drop = false;
   let devo = false;
   if (!success && hasPact('gamble') && (t.lv > 0 || t.evo) && rndG() < PACT.gambleDrop) {   // 도박사: 실패하면 10%로 1단계 하락 (진화한 무기는 0강에서도: 0 아래면 진화가 풀림)
@@ -1914,7 +1918,8 @@ function step(dt) {
     if (e.y + e.r * 0.3 >= H) {
       e.dead = true;
       const dmg = Math.round(e.leak * (1 - bs.shield) * (1 - bs.dmgRed) * (hasPact('blood') ? PACT.bloodDmg : 1) * 10) / 10;
-      S.hp -= dmg; S.hitFlash = 0.3;
+      if (!(S.cheat && S.cheat.god)) S.hp -= dmg;   // 테스트: 기지 무적
+      S.hitFlash = 0.3;
       fx({ k: 'leak', d: 0.5, x: e.x, n: dmg });
       snd('leak');
       for (let q = 0; q < LANES; q++) {      // 반격: 기지에 닿을 때마다 파동 (0.5초에 한 번)
@@ -1959,15 +1964,99 @@ function step(dt) {
   }
 }
 
+/* ---------- 테스트 모드 ---------- */
+// S.cheat 는 테스트 게임에만 있다. 일반 게임에서는 아래 함수가 아무 일도 하지 않고, 본문의 분기도 `S.cheat &&` 뒤에만 있다.
+const CHEAT_KEYS = ['gold', 'shards', 'succ', 'god', 'melt'];   // 재화 무한, 조각 무한, 강화 100%, 기지 무적, 용해로 무한
+const SK_TOTAL = CFG.maxLv / CFG.augEvery;                      // 진화 100강까지 받는 스킬 포인트 (20)
+function testOn() { return !!S && !!S.cheat && !S.over; }
+function testIdle() { return testOn() && !S.pendingAug && !S.pendingPact; }
+function testWeapons() { const a = []; if (testOn()) for (let k = 0; k < S.slots.length; k++) if (S.slots[k]) a.push(k); return a; }
+function testTop(w) { w.lv = CFG.maxLv; w.hi = CFG.maxLv; dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w); }   // hi 를 맞춰 건너뛴 증강은 다시 받지 못한다
+const test = {
+  KEYS: CHEAT_KEYS,
+  // 테스트 게임 시작. flags: { gold, shards, succ, god, melt }
+  newGame(flags, h) {
+    newGame(h);
+    S.cheat = {};
+    for (const k of CHEAT_KEYS) S.cheat[k] = !!(flags && flags[k]);
+    return S;
+  },
+  set(key, on) {
+    if (!S || !S.cheat || CHEAT_KEYS.indexOf(key) < 0) return false;
+    S.cheat[key] = !!on; return true;
+  },
+  // 무기 받기: 인벤토리에 넣는다 (가득 차면 -1)
+  give(type) {
+    if (!testOn() || !WEAPONS[type]) return -1;
+    const i = addItem(newWeapon(type));
+    if (i >= 0) S.invDirty = true;
+    return i;
+  },
+  // 모두 100강: 장착한 무기 전부 (진화한 무기는 진화 100강과 그만큼의 스킬 포인트). 증강은 주지 않는다
+  maxAll() {
+    const ks = testWeapons();
+    for (const k of ks) { const w = S.slots[k]; testTop(w); if (w.evo) w.skp = Math.max(w.skp || 0, SK_TOTAL); }
+    if (ks.length) S.slotDirty = true;
+    return ks.length;
+  },
+  // 모두 진화: 장착한 무기 전부 진화 + 진화 100강 + 스킬 포인트 20 (조각을 쓰지 않는다. 이미 찍은 스킬은 그대로)
+  evolveAll() {
+    const ks = testWeapons();
+    for (const k of ks) {
+      const w = S.slots[k];
+      w.evo = true; if (!w.sk) w.sk = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+      w.skp = SK_TOTAL; testTop(w);
+    }
+    if (ks.length) S.slotDirty = true;
+    return ks.length;
+  },
+  // 스킬 초기화: 장착한 진화 무기의 스킬을 모두 되돌린다 (포인트는 그대로 남으므로 다시 찍을 수 있다)
+  resetSkills() {
+    let n = 0;
+    for (const k of testWeapons()) { const w = S.slots[k]; if (!w.evo) continue; w.sk = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; dirty(w); n++; }
+    if (n) S.slotDirty = true;
+    return n;
+  },
+  // 증강 뽑기: 그 칸의 무기에 100강 기준 선택지를 띄운다 (진화한 무기도)
+  aug(slot) {
+    const w = testIdle() ? S.slots[slot] : null;
+    if (!w) return false;
+    S.pendingAug = { slot, lv: CFG.maxLv, options: rollAugs(w.augs, AUG_POOL[w.type], CFG.maxLv) };
+    return true;
+  },
+  // 시간 건너뛰기: 적 체력과 등장 곡선이 그만큼 진행한다. 그 사이의 보스는 건너뛴다
+  addTime(sec) {
+    if (!testOn() || !(sec > 0)) return false;
+    S.t += sec;
+    while (S.nextBoss <= S.t) S.nextBoss += bossInterval();
+    return true;
+  },
+  // 보스 부르기: 다음 보스를 지금 예고한다 (다음 정기 보스는 지금부터 한 주기 뒤)
+  boss() {
+    if (!testIdle() || S.pendingBoss) return false;
+    spawnBoss(); S.nextBoss = S.t + bossInterval();
+    return true;
+  },
+  // 적 지우기: 보상 없이 모두 없앤다
+  clear() {
+    if (!testOn()) return 0;
+    const n = S.enemies.length;
+    for (const e of S.enemies) e.dead = true;
+    S.enemies = [];
+    return n;
+  },
+};
+
 const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
   attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel,
-  bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, freeSlot,
+  bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
+  test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
 else root.Core = Core;

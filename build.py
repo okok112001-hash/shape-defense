@@ -1,4 +1,6 @@
-import os, json
+import os, json, builtins
+# 윈도우에서도 같은 결과가 나오게: 항상 UTF-8, 줄바꿈은 \n
+def open(p, m='r'): return builtins.open(p, m, encoding='utf-8', newline='\n' if 'w' in m else None)
 BASE=os.path.dirname(os.path.abspath(__file__))+'/'
 d=BASE+'src/'
 page=open(d+'page.html').read()
