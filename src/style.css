@@ -1,31 +1,32 @@
 :root {
-  /* 설계도 콘셉트: 짙은 청색 도면 위에 선으로 그린 도형. 세로 4단(상태, 전장, 무기 5칸, 인벤토리) */
-  color-scheme: dark;
-  --bg: #1b3a72;
-  --panel: #23498a;
-  --panel-2: #2c569f;
-  --line: rgba(190, 215, 255, .28);
-  --ink: #e9f0ff;
-  --dim: #b4c6e6;
-  --accent: #ffd166;
-  --accent-ink: #ffd166;   /* 밝은 바탕 위의 글자용 강조색 */
+  /* 설계도 콘셉트: 도면 위에 선으로 그린 도형. 세로 4단(상태, 전장, 무기 5칸, 인벤토리) */
+  /* 아래 색은 기본 테마(밝은 종이)와 같다. 스크립트가 테마를 입히기 전 첫 화면에 쓰인다 (ui.js THEMES 의 paper 와 맞출 것) */
+  color-scheme: light;
+  --bg: #eef1f5;
+  --panel: #ffffff;
+  --panel-2: #e3e8ef;
+  --line: rgba(30, 50, 90, .22);
+  --ink: #1c2740;
+  --dim: #5b6a85;
+  --accent: #e09a00;
+  --accent-ink: #8a5600;   /* 밝은 바탕 위의 글자용 강조색 */
   --on-accent: #1c1503;
-  --backdrop: #132c5a;
-  --shade: rgba(0, 0, 0, .18);
-  --overlay: rgba(10, 24, 54, .78);
-  --toast: rgba(22, 48, 98, .92);
-  --shadow: #000;
-  --hatch: rgba(255, 255, 255, .07);
-  --sheen: rgba(255, 244, 214, .55);
-  --melt: #ffb37a;
-  --melt-fill: #ff9f5a;
-  --ember: #ff3d2e;        /* 용해로 모드 표시색: 붉은 불씨 (등급 네 색, 강화 모드의 금색과 다르다) */
-  --danger: #ff5d5d;
-  --ok: #7af0c1;
-  --g0: #aab6cc;
-  --g1: #5cb8ff;
-  --g2: #c48bff;
-  --g3: #ffa63d;
+  --backdrop: #d9dee6;
+  --shade: rgba(30, 50, 90, .07);
+  --overlay: rgba(28, 39, 64, .55);
+  --toast: rgba(255, 255, 255, .97);
+  --shadow: #fff;
+  --hatch: rgba(30, 50, 90, .07);
+  --sheen: rgba(255, 255, 255, .95);
+  --melt: #b4540a;
+  --melt-fill: #e5731a;
+  --ember: #d4260f;        /* 용해로 모드 표시색: 붉은 불씨 (등급 네 색, 강화 모드의 금색과 다르다) */
+  --danger: #e03a3a;
+  --ok: #0f9d76;
+  --g0: #6b7688;
+  --g1: #1f7fe0;
+  --g2: #8a4be0;
+  --g3: #e07a00;
   --font-display: 'Do Hyeon', 'IBM Plex Sans KR', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
   --slot-h: 76px;
@@ -265,6 +266,10 @@ b { font-weight: 600; }
 .curpart.g0 { border-color: var(--g0); } .curpart.g1 { border-color: var(--g1); } .curpart.g2 { border-color: var(--g2); } .curpart.g3 { border-color: var(--g3); }
 .curpart .tx { font-size: 12.5px; color: var(--ink); }
 .plist { display: flex; flex-direction: column; gap: 6px; }
+/* 파츠 고르기 창: 제목과 지금 장착한 파츠는 그대로 두고 목록만 스크롤한다 (목록이 길어도 위쪽이 눌려 잘리지 않게) */
+.modal.wpk { overflow: hidden; }
+.modal.wpk > * { flex: none; }
+.modal.wpk > .plist { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 3px; margin: -3px; }
 .modal p.warn { color: var(--accent-ink); }
 
 /* 증강, 파츠 목록: 고른 것 표시 */
@@ -285,6 +290,8 @@ b { font-weight: 600; }
 
 /* 강화 결과 연출 */
 #fxLayer { position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; }
+#aimLayer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+#aimLayer[hidden] { display: none; }
 .upfx { position: absolute; --tx: -50%; }
 .upfx .glow { position: absolute; inset: 0; border-radius: 6px; animation: upfade .9s ease-out forwards; }
 .upfx.ok .glow { background: rgba(122, 240, 193, .5); box-shadow: 0 0 26px 8px rgba(122, 240, 193, .75); }
@@ -562,7 +569,7 @@ b { font-weight: 600; }
 .ib b { font: 21px/1 var(--font-display); }
 .ib.off { color: var(--dim); }
 .ib:active { transform: translateY(1px); }
-.pal { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.pal { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 2px 3px; border-radius: 6px; border: 1.5px solid transparent; min-width: 0; }
 .tile small { font-size: 10.5px; line-height: 1.1; color: var(--dim); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .mini { position: relative; display: block; width: 100%; height: 34px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px rgba(128, 128, 128, .5); overflow: hidden; }

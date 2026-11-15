@@ -8,6 +8,8 @@ const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
 const fxLayer = document.createElement('div'); fxLayer.id = 'fxLayer'; $('#app').appendChild(fxLayer);
 const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.appendChild(toastEl);   // 알림은 전장 아래쪽에 잠깐 뜬다
 const rewLayer = document.createElement('div'); rewLayer.id = 'rewLayer'; $('#app').appendChild(rewLayer);   // 보스 보상 연출 (거래 창 위에도 보인다, 입력을 막지 않는다)
+const aimCv = document.createElement('canvas'); aimCv.id = 'aimLayer'; aimCv.hidden = true; $('#app').appendChild(aimCv);   // 전장 밖(무기 칸, 인벤토리 위)까지 이어지는 예고선 (입력을 막지 않는다)
+const aimCtx = aimCv.getContext('2d');
 const cerEl = document.createElement('div'); cerEl.id = 'evoCer'; wrap.appendChild(cerEl);   // 진화 연출 (입력을 막지 않는다)
 let cerUntil = 0;
 const bannerEl = document.createElement('div'); bannerEl.id = 'pactBanner'; wrap.appendChild(bannerEl);   // 거래 완료 배너 (입력을 막지 않는다)
@@ -41,29 +43,6 @@ const BLUE_CV = {
 const LIGHT_WC = { blaster: '#0a9fc4', shotgun: '#d99400', laser: '#d8409f', pulse: '#12a579', mortar: '#e56a1f', tesla: '#7257e0', rail: '#4a5568', acid: '#5f9e12' };
 const DARK_CV = (rgb, g, l) => Object.assign({}, BLUE_CV, { grid: `rgba(${rgb},${g})`, lane: `rgba(${rgb},${l})` });
 const THEMES = [
-  { id: 'navy', name: '짙은 남색',
-    v: Object.assign({}, BLUE_V, { bg: '#0e1c3a', panel: '#13264d', 'panel-2': '#1a3263', line: 'rgba(150,190,255,.18)', dim: '#93a8cf',
-      backdrop: '#081226', overlay: 'rgba(4, 10, 26, .8)', toast: 'rgba(14, 28, 58, .94)' }),
-    cv: BLUE_CV },
-  { id: 'black', name: '블랙',
-    v: Object.assign({}, BLUE_V, { bg: '#0b0b0d', panel: '#151518', 'panel-2': '#1f1f24', line: 'rgba(255,255,255,.14)', ink: '#ececf0', dim: '#9d9da8',
-      accent: '#f2f2f5', 'accent-ink': '#f2f2f5', 'on-accent': '#0b0b0d', g0: '#a4a4b0',
-      backdrop: '#000000', overlay: 'rgba(0, 0, 0, .84)', toast: 'rgba(21, 21, 24, .95)' }),
-    cv: DARK_CV('255,255,255', '.05', '.18') },
-  { id: 'charcoal', name: '차콜',
-    v: Object.assign({}, BLUE_V, { bg: '#222428', panel: '#2c2f35', 'panel-2': '#373b43', line: 'rgba(255,255,255,.16)', dim: '#a9afba',
-      backdrop: '#17181b', overlay: 'rgba(8, 9, 11, .8)', toast: 'rgba(26, 28, 32, .94)' }),
-    cv: DARK_CV('255,255,255', '.06', '.20') },
-  { id: 'forest', name: '숲',
-    v: Object.assign({}, BLUE_V, { bg: '#13241b', panel: '#1b3326', 'panel-2': '#244232', line: 'rgba(160,230,190,.2)', ink: '#e6f5ea', dim: '#9dbba8',
-      accent: '#f2d16b', 'accent-ink': '#f2d16b', g0: '#a9bcae', danger: '#ff6b5d',
-      backdrop: '#0b1a12', overlay: 'rgba(5, 16, 10, .8)', toast: 'rgba(18, 38, 27, .95)' }),
-    cv: DARK_CV('160,230,190', '.07', '.24') },
-  { id: 'plum', name: '자주',
-    v: Object.assign({}, BLUE_V, { bg: '#281a2e', panel: '#372440', 'panel-2': '#463053', line: 'rgba(230,190,255,.22)', ink: '#f5e9fb', dim: '#c1a6cf',
-      accent: '#ff9fd2', 'accent-ink': '#ff9fd2', 'on-accent': '#2a0f20', g0: '#b9a9c4',
-      backdrop: '#1b1120', overlay: 'rgba(20, 8, 26, .82)', toast: 'rgba(40, 24, 48, .95)' }),
-    cv: DARK_CV('230,190,255', '.07', '.26') },
   { id: 'paper', name: '밝은 종이', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#eef1f5', panel: '#ffffff', 'panel-2': '#e3e8ef', line: 'rgba(30,50,90,.22)', ink: '#1c2740', dim: '#5b6a85',
       accent: '#e09a00', 'accent-ink': '#8a5600', 'on-accent': '#1c1503', ok: '#0f9d76', danger: '#e03a3a',
@@ -94,9 +73,18 @@ const THEMES = [
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '22,48,79',
       bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)' },
     wc: LIGHT_WC },
+  { id: 'navy', name: '짙은 남색',
+    v: Object.assign({}, BLUE_V, { bg: '#0e1c3a', panel: '#13264d', 'panel-2': '#1a3263', line: 'rgba(150,190,255,.18)', dim: '#93a8cf',
+      backdrop: '#081226', overlay: 'rgba(4, 10, 26, .8)', toast: 'rgba(14, 28, 58, .94)' }),
+    cv: BLUE_CV },
+  { id: 'charcoal', name: '차콜',
+    v: Object.assign({}, BLUE_V, { bg: '#222428', panel: '#2c2f35', 'panel-2': '#373b43', line: 'rgba(255,255,255,.16)', dim: '#a9afba',
+      backdrop: '#17181b', overlay: 'rgba(8, 9, 11, .8)', toast: 'rgba(26, 28, 32, .94)' }),
+    cv: DARK_CV('255,255,255', '.06', '.20') },
 ];
-let theme = THEMES[0];
-let TC = Object.assign({ bg: BLUE_V.bg }, BLUE_CV);   // 지금 테마의 전장 색
+const DEF_THEME = THEMES.find(t => t.id === 'paper');   // 기본 테마
+let theme = DEF_THEME;
+let TC = Object.assign({ bg: DEF_THEME.v.bg }, DEF_THEME.cv);   // 지금 테마의 전장 색
 const WC0 = {}; for (const t in C.WEAPONS) WC0[t] = C.WEAPONS[t].color;   // 무기 원래 색
 
 let mode = 'start';            // start | play | pause | over
@@ -244,6 +232,7 @@ function applyTheme(th, save) {
   rs.colorScheme = th.scheme || 'dark';
   for (let g = 0; g < 4; g++) GHEX[g] = th.v['g' + g];
   TC = Object.assign({ bg: th.v.bg }, th.cv);
+  const tm = document.querySelector('meta[name="theme-color"]'); if (tm) tm.setAttribute('content', th.v.bg);   // 주소창, 상태 표시줄 색
   for (const t in WC0) C.WEAPONS[t].color = (th.wc && th.wc[t]) || WC0[t];   // 무기 색이 바뀌면 캐시된 능력치를 버린다
   const S = C.S;
   if (S) { for (const w of S.slots) if (w) C.dirty(w); for (const it of S.inv) if (it && it.kind === 'w') C.dirty(it); }
@@ -251,7 +240,7 @@ function applyTheme(th, save) {
 }
 function loadTheme() {
   try { const id = localStorage.getItem(THEME_KEY); const t = THEMES.find(x => x.id === id); if (t) return t; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
-  return THEMES[0];
+  return DEF_THEME;   // 저장된 것이 없거나 지금은 없는 테마면 기본으로
 }
 function fmtTime(t) { const s = Math.floor(t); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function fmt(n) {
@@ -943,7 +932,7 @@ function wpickHtml(k) {
       <div class="d-acts two"><button type="button" class="btn primary" data-act="wputOk">교체</button><button type="button" class="btn" data-act="wputBack">뒤로</button></div></div>`;
   }
   const rows = S.inv.map((it, i) => it && it.kind === 'p' && isBasePart(it) === bmodal ? partRow(it, `data-wput="${i}"`) : '').join('');
-  return `<div class="modal wm">
+  return `<div class="modal wm wpk">
     <div class="wm-head">
       <div><span class="nm">파츠 고르기</span><span class="st">${name}의 ${k + 1}번 파츠 칸</span></div>
       <button type="button" class="x" data-act="wpickBack">뒤로</button>
@@ -1508,15 +1497,15 @@ function askPartSwap(i, k) { partSwap = { i, k, sel: -1 }; pswapAt = performance
 function openW(k) { wmodal = k; bmodal = false; wpick = -1; wpickNew = -1; lastUp = null; msg = ''; sel = null; upMode = false; confirmDrop = false; meltMode = false; renderAll(); }
 function openB() { bmodal = true; wmodal = -1; wpick = -1; wpickNew = -1; lastUp = null; msg = ''; sel = null; upMode = false; confirmDrop = false; meltMode = false; renderAll(); }
 function closeW() { wmodal = -1; bmodal = false; wpick = -1; wpickNew = -1; msg = ''; last = 0; renderAll(); }
-function upgradeFail(r, lv) {
-  if (r.reason === 'shards') say(`강화 조각이 부족합니다. ${lv + 1}개가 필요합니다.`, true);
+function upgradeFail(r, t) {   // t: 무기 또는 기지. 필요한 개수는 규칙 쪽 계산을 그대로 쓴다 (진화한 무기는 비용이 다르다)
+  if (r.reason === 'shards') say(`강화 조각이 부족합니다. ${fmtInt(C.upgradeInfo(t).cost)}개가 필요합니다.`, true);
   else if (r.reason === 'max') say('이미 최대 강화입니다.', true);
   updateWInfo();
 }
 function doUpgrade(k) {
   const S = C.S, w = S.slots[k]; if (!w) return;
   const r = C.upgrade(k);
-  if (!r.ok) return upgradeFail(r, w.lv);
+  if (!r.ok) return upgradeFail(r, w);
   Snd.play(r.success ? 'ok' : 'fail');
   msg = '';
   renderWeapons(); renderBottom();
@@ -1533,7 +1522,7 @@ function doUpgrade(k) {
 function doBaseUpgrade() {
   const S = C.S, b = S.base;
   const r = C.upgradeBase();
-  if (!r.ok) return upgradeFail(r, b.lv);
+  if (!r.ok) return upgradeFail(r, b);
   Snd.play(r.success ? 'ok' : 'fail');
   msg = '';
   renderBottom();
@@ -1608,9 +1597,20 @@ function dragSource(el) {
   if (b.dataset.inv != null) { const i = +b.dataset.inv; return S.inv[i] ? { from: 'inv', i, el: b } : null; }
   const k = +b.dataset.slot; return S.slots[k] ? { from: 'slot', k, el: b } : null;
 }
-function dropTarget(x, y) {
+const DROP_NEAR = 0.35;                    // 칸 밖에 놓아도 받아 주는 거리: 칸 크기(가로, 세로의 기하 평균)의 35%
+function dropTarget(x, y, src) {
   const el = document.elementFromPoint(x, y);
-  const b = el && el.closest && el.closest('[data-inv],[data-slot],.bbtn'); if (!b) return null;
+  let b = el && el.closest && el.closest('[data-inv],[data-slot],.bbtn');
+  if (!b) {                                // 칸 밖: 가장 가까운 칸 하나만 보고, 그 칸의 테두리에서 가까우면 그 칸으로 친다
+    const it = src && src.from === 'inv' ? C.S.inv[src.i] : null;
+    let bd = Infinity, br = null;
+    for (const c of document.querySelectorAll('#weapons [data-slot], #bottom [data-inv]' + (it && isBasePart(it) ? ', #bottom .bbtn' : ''))) {
+      const r = c.getBoundingClientRect(); if (!r.width) continue;
+      const d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+      if (d < bd) { bd = d; b = c; br = r; }
+    }
+    if (!b || bd > DROP_NEAR * Math.sqrt(br.width * br.height)) return null;
+  }
   if (b.classList.contains('bbtn')) return { from: 'base', el: b };
   return b.dataset.inv != null ? { from: 'inv', i: +b.dataset.inv, el: b } : { from: 'slot', k: +b.dataset.slot, el: b };
 }
@@ -1650,7 +1650,7 @@ function endDrag(apply, x, y) {
   $('#app').classList.remove('dragging');
   if (d.active) {
     suppressClick = performance.now() + 400;
-    const t = apply ? dropTarget(x, y) : null;
+    const t = apply ? dropTarget(x, y, d.src) : null;
     if (t && !sameSpot(d.src, t) && applyDrop(d.src, t)) Snd.play('equip');
     needRender = false; renderWeapons(); renderBottom();
     if (eqFx) { const f = eqFx; eqFx = null; equipFx(f.k, f.g); }
@@ -1690,7 +1690,7 @@ window.addEventListener('pointermove', (ev) => {
     drag.ghost = g; drag.active = true;
   }
   drag.ghost.style.left = ev.clientX + 'px'; drag.ghost.style.top = ev.clientY + 'px';
-  const t = dropTarget(ev.clientX, ev.clientY);
+  const t = dropTarget(ev.clientX, ev.clientY, drag.src);
   const over = t && !sameSpot(drag.src, t) ? t.el : null;
   if (over !== drag.over) {
     if (drag.over) drag.over.classList.remove('over');
@@ -2128,23 +2128,30 @@ function drawEnemy(e) {
 }
 function hash(n) { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }   // 흔들림이 일정한 가짜 난수
 // 보스 소환진: 예고 동안 등장 자리에서 이중 고리가 천천히 돌며 안쪽으로 좁혀든다
+// 소환진 밖의 전장은 살짝 어두워지고(적과 탄은 이 뒤에 그려져 그대로 보인다), 고리는 천천히 맥동한다
 function drawSummon(pb, H) {
   const u = 1 - Math.max(0, pb.t) / C.WARN_T, col = ECOL[pb.type] || '#ff3d3d', r = C.ENEMIES[pb.type].r, x = pb.x, y = pb.y * H;
   const al = Math.min(1, u * 5) * (u > 0.85 ? 0.75 + 0.25 * Math.sin(u * 90) : 1);
   const ro = r * 1.15 + 18 * (1 - u) + 4, ri = ro * 0.74, rot = RM.matches ? 0 : u * 2.2;
+  const pu = RM.matches ? 0.5 : 0.5 - 0.5 * Math.cos(u * C.WARN_T * Math.PI * 2 / 1.2);   // 1.2초에 한 번 (게임 시간 기준: 멈추면 같이 멈춘다)
+  const light = theme.scheme === 'light', dk = Math.min(1, u * 4) * Math.min(1, (1 - u) * 8) * (light ? 0.3 : 0.5);
+  const sh = ctx.createRadialGradient(x, y, ro, x, y, ro + 70), dc = light ? '24,34,58' : '0,0,0';
+  sh.addColorStop(0, `rgba(${dc},0)`); sh.addColorStop(1, `rgba(${dc},${dk})`);
+  ctx.fillStyle = sh; ctx.fillRect(0, 0, C.W, H);
   ctx.save(); ctx.translate(x, y);
-  ctx.beginPath(); ctx.arc(0, 0, ro, 0, Math.PI * 2); ctx.fillStyle = rgba(col, 0.07 + 0.1 * u); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, ro, 0, Math.PI * 2); ctx.fillStyle = rgba(col, 0.1 + 0.1 * u); ctx.fill();
+  ctx.lineWidth = 7 + 5 * pu; ctx.strokeStyle = rgba(col, (0.16 + 0.2 * pu) * al); ctx.stroke();   // 맥동하는 빛무리
   const ring = (R, n, tk, dir, w) => {
     ctx.save(); ctx.rotate(rot * dir);
-    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.lineWidth = w; ctx.strokeStyle = rgba(col, 0.9 * al); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.lineWidth = w + 0.8 * pu; ctx.strokeStyle = rgba(col, al); ctx.stroke();
     ctx.beginPath();
     for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n, c = Math.cos(a), sn = Math.sin(a), l = i % 3 ? tk : tk * 1.7; ctx.moveTo(c * R, sn * R); ctx.lineTo(c * (R - l), sn * (R - l)); }
-    ctx.lineWidth = 2; ctx.strokeStyle = rgba(col, 0.85 * al); ctx.stroke(); ctx.restore();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = rgba(col, 0.95 * al); ctx.stroke(); ctx.restore();
   };
-  ring(ro, 24, 6, 1, 2.5); ring(ri, 16, 5, -1, 1.6);
+  ring(ro, 24, 6, 1, 3.6); ring(ri, 16, 5, -1, 2.4);
   ctx.save(); ctx.rotate(-rot * 1.4);   // 안쪽 삼각형 두 개: 별 모양
   ctx.beginPath(); for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3, rr = ri * 0.86; k ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
-  ctx.closePath(); ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(col, 0.5 * al); ctx.stroke(); ctx.restore();
+  ctx.closePath(); ctx.lineWidth = 1.9; ctx.strokeStyle = rgba(col, (0.6 + 0.2 * pu) * al); ctx.stroke(); ctx.restore();
   ctx.restore();
 }
 // 보스 처치 연출: 보스 모양이 하얗게 번쩍, 고리 둘, 조각들 (흔들림은 draw 에서)
@@ -2467,6 +2474,51 @@ function drawRange(w, rk) {
     ctx.fillRect(x0, y0, x1 - x0, H - y0); ctx.strokeRect(x0 + 1, y0 + 1, x1 - x0 - 2, H - y0 + 4);
   }
 }
+// 보스 능력 예고선: 보스에서 대상까지 굵은 점선 빔, 끝에 맥동하는 표시와 남은 시간
+// out: 대상이 전장 밖(인벤토리 칸)이다. 표시는 칸 안의 그림을 가리지 않게 작게, 남은 시간은 전장 아래쪽 선 옆에 쓴다
+function aimBeam(g, x0, y0, tx, ty, c, rem, nowW, out, H) {
+  const pu = RM.matches ? 0.6 : 0.5 + 0.5 * Math.sin(nowW / 110), al = 0.7 + 0.3 * pu;
+  g.lineCap = 'butt';
+  g.beginPath(); g.moveTo(x0, y0); g.lineTo(tx, ty);
+  g.lineWidth = 12; g.strokeStyle = `rgba(${c},.2)`; g.stroke();
+  g.setLineDash([14, 9]); g.lineDashOffset = RM.matches ? 0 : -nowW / 22;
+  g.lineWidth = 7; g.strokeStyle = `rgba(${c},${al})`; g.stroke();
+  g.lineWidth = 2; g.strokeStyle = `rgba(255,255,255,${0.55 + 0.4 * pu})`; g.stroke();
+  g.setLineDash([]); g.lineDashOffset = 0;
+  let nx = tx, ny = ty - 24;
+  if (out) {
+    g.beginPath(); g.arc(tx, ty, 11 + 8 * pu, 0, Math.PI * 2); g.lineWidth = 3.5; g.strokeStyle = `rgba(${c},${1 - 0.5 * pu})`; g.stroke();
+    g.beginPath(); g.arc(tx, ty, 5, 0, Math.PI * 2); g.fillStyle = `rgba(${c},1)`; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#fff'; g.stroke();
+    const q = ty > y0 ? Math.min(1, Math.max(0, (H - 30 - y0) / (ty - y0))) : 1;   // 선이 전장 아래쪽을 지나는 자리
+    nx = Math.min(C.W - 22, Math.max(22, x0 + (tx - x0) * q + 26)); ny = y0 + (ty - y0) * q;
+  } else {
+    g.beginPath(); g.arc(tx, ty, 12 + 12 * pu, 0, Math.PI * 2); g.lineWidth = 4; g.strokeStyle = `rgba(${c},${1 - 0.5 * pu})`; g.stroke();
+    g.beginPath(); g.arc(tx, ty, 8, 0, Math.PI * 2); g.fillStyle = `rgba(${c},1)`; g.fill();
+    g.lineWidth = 2; g.strokeStyle = '#fff'; g.beginPath(); g.moveTo(tx - 5, ty); g.lineTo(tx + 5, ty); g.moveTo(tx, ty - 5); g.lineTo(tx, ty + 5); g.stroke();
+  }
+  g.font = '17px "Do Hyeon", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,.75)';
+  const tt = Math.max(0, rem).toFixed(1); g.strokeText(tt, nx, ny); g.fillStyle = '#fff'; g.fillText(tt, nx, ny);
+}
+// 훔칠 인벤토리 칸의 가운데를 전장 좌표로 (전장 아래로 벗어난 값). 칸이 화면에 없으면 null
+function stealAim(i) {
+  const el = elB.querySelector(`[data-inv="${i}"]`); if (!el) return null;
+  const r = el.getBoundingClientRect(), f = cv.getBoundingClientRect(); if (!r.width || !f.width) return null;
+  return [(r.left + r.width / 2 - f.left) / sc, (r.top + r.height / 2 - f.top) / sc];
+}
+// 전장 canvas 밖으로 나간 예고선의 나머지를 화면 전체를 덮는 겹 canvas에 그린다 (같은 좌표계, 전장 아래만)
+function drawAimOut(a, nowW, H) {
+  if (!a) { if (!aimCv.hidden) aimCv.hidden = true; return; }
+  const ar = $('#app').getBoundingClientRect(), f = cv.getBoundingClientRect();
+  const w = Math.round(ar.width * dpr), h = Math.round(ar.height * dpr);
+  if (aimCv.width !== w || aimCv.height !== h) { aimCv.width = w; aimCv.height = h; }
+  if (aimCv.hidden) aimCv.hidden = false;
+  const g = aimCtx;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
+  g.setTransform(dpr * sc, 0, 0, dpr * sc, (f.left - ar.left) * dpr, (f.top - ar.top) * dpr);
+  g.save(); g.beginPath(); g.rect(-C.W, H, C.W * 3, H * 3); g.clip();
+  aimBeam(g, a[0], a[1], a[2], a[3], a[4], a[5], nowW, true, H);
+  g.restore();
+}
 function draw() {
   const S = C.S, H = C.H, W = C.W;
   ctx.setTransform(dpr * sc, 0, 0, dpr * sc, 0, 0);
@@ -2531,27 +2583,22 @@ function draw() {
   const nowW = performance.now();
   for (const m of S.mines) drawMine(m, nowW);
   if (S.pendingBoss) drawSummon(S.pendingBoss, H);
-  for (const e of S.enemies) {              // 봉쇄, 약탈, 부식 예고: 보스에서 대상 칸(약탈은 아래 가운데)까지 굵은 점선 빔과 맥동하는 표시
+  let aimOut = null;                         // 전장 아래로 이어지는 예고선 (약탈: 훔칠 인벤토리 칸까지)
+  for (const e of S.enemies) {              // 봉쇄, 약탈, 부식 예고: 보스에서 대상 칸까지 굵은 점선 빔과 맥동하는 표시
     if (e.dead || !e.boss || e.y <= 0) continue;
-    let tx = -1, c = '', rem = 0;
+    let tx = -1, ty = H - 24, c = '', rem = 0, out = false;
     if (e.type === 'jammer') { for (const j of Object.keys(S.locks)) if (S.locks[j].w > 0) { tx = (+j + 0.5) * C.LW; c = '255,61,90'; rem = S.locks[j].w; break; } }
     else if (e.type === 'corrode' && S.corr) { tx = (S.corr.k + 0.5) * C.LW; c = '200,90,255'; rem = S.corr.t; }
-    else if (e.type === 'thief' && S.steal) { tx = W / 2; c = '255,79,163'; rem = S.steal.t; }
+    else if (e.type === 'thief' && S.steal) {
+      c = '255,79,163'; rem = S.steal.t;
+      const a = stealAim(S.steal.i);
+      if (a) { tx = a[0]; ty = a[1]; out = true; } else tx = W / 2;
+    }
     if (tx < 0) continue;
-    const pu = RM.matches ? 0.6 : 0.5 + 0.5 * Math.sin(nowW / 110), ty = H - 24, al = 0.7 + 0.3 * pu;
-    ctx.lineCap = 'butt';
-    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(tx, ty);
-    ctx.lineWidth = 12; ctx.strokeStyle = `rgba(${c},.2)`; ctx.stroke();
-    ctx.setLineDash([14, 9]); ctx.lineDashOffset = RM.matches ? 0 : -nowW / 22;
-    ctx.lineWidth = 7; ctx.strokeStyle = `rgba(${c},${al})`; ctx.stroke();
-    ctx.lineWidth = 2; ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.4 * pu})`; ctx.stroke();
-    ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    ctx.beginPath(); ctx.arc(tx, ty, 12 + 12 * pu, 0, Math.PI * 2); ctx.lineWidth = 4; ctx.strokeStyle = `rgba(${c},${1 - 0.5 * pu})`; ctx.stroke();
-    ctx.beginPath(); ctx.arc(tx, ty, 8, 0, Math.PI * 2); ctx.fillStyle = `rgba(${c},1)`; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(tx - 5, ty); ctx.lineTo(tx + 5, ty); ctx.moveTo(tx, ty - 5); ctx.lineTo(tx, ty + 5); ctx.stroke();
-    ctx.font = '17px "Do Hyeon", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(0,0,0,.75)';
-    const tt = Math.max(0, rem).toFixed(1); ctx.strokeText(tt, tx, ty - 24); ctx.fillStyle = '#fff'; ctx.fillText(tt, tx, ty - 24);
+    aimBeam(ctx, e.x, e.y, tx, ty, c, rem, nowW, out, H);
+    if (out) aimOut = [e.x, e.y, tx, ty, c, rem];
   }
+  drawAimOut(aimOut, nowW, H);
   for (const e of S.enemies) {
     const age = e.boss && e.born != null ? S.t - e.born : 9;
     if (age < 0.3) {                         // 보스 등장: 작게 시작해 살짝 넘쳤다가 제 크기로 (보이는 효과만)

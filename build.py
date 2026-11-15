@@ -11,7 +11,7 @@ os.makedirs(BASE+'dist',exist_ok=True)
 open(BASE+'dist/artifact.html','w').write(out)   # PWA 설정이 없는 단일 파일(미리보기용)
 # ---- GitHub Pages용 (홈 화면 추가, 전체 화면, 오프라인) ----
 site=BASE   # 저장소 루트가 곧 GitHub Pages 사이트
-head='''<meta name="theme-color" content="#1b3a72">
+head='''<meta name="theme-color" content="#eef1f5">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -31,7 +31,7 @@ open(site+'index.html','w').write(s)
 json.dump({
  "name":"도형 디펜스","short_name":"도형 디펜스","description":"도형으로 막는 무한 디펜스",
  "start_url":"./","scope":"./","display":"standalone","orientation":"portrait",
- "background_color":"#1b3a72","theme_color":"#1b3a72","lang":"ko",
+ "background_color":"#eef1f5","theme_color":"#eef1f5","lang":"ko",
  "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
           {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
           {"src":"icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]

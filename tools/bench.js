@@ -28,6 +28,7 @@ function init() {
   Core = require(process.env.BENCH_CORE || path.join(__dirname, '..', 'src', 'core.js'));   // BENCH_CORE: 다른 core.js 로 가정 실험(probe)할 때
   makeBot = require(path.join(__dirname, 'bot.js')).makeBot;
   DEFW = Core.BAL.spawnWeights(600);          // 600초 시점의 기본 가중치를 고정해 둔다
+  Core.BAL.leakMul = () => 1;                 // 벤치는 기지 체력 변화로 leak 을 센다. 시간에 따라 커지는 기지 피해 배수(BAL.leakMul)를 꺼서 leak 단위와 보정 캐시를 예전과 같게 둔다
   ORIG = { hpMul: Core.BAL.hpMul, spawnRate: Core.BAL.spawnRate, spawnWeights: Core.BAL.spawnWeights, bossHp: Core.BAL.bossHp, bossSpd: Core.BAL.bossSpd, bossEvery: Core.CFG.bossEvery };
 }
 function restoreBal() { Object.assign(Core.BAL, { hpMul: ORIG.hpMul, spawnRate: ORIG.spawnRate, spawnWeights: ORIG.spawnWeights, bossHp: ORIG.bossHp, bossSpd: ORIG.bossSpd }); Core.CFG.bossEvery = ORIG.bossEvery; }

@@ -1,7 +1,7 @@
 'use strict';
 /* 시드 고정 생존 측정 (표준 봇이 기지가 죽을 때까지 전체 게임을 플레이)
    사용: node tools/surv.js <core.js> <K> <시드수> [옵션]
-     K            BAL.hpMul 의 시간 상수 (적 체력 식 pow(1+pow(t/K,3.1),0.9)*exp(0.0012t))
+     K            BAL.hpMul 의 시간 상수 BAL.hpK (적 체력 식 pow(1+pow(t/K,3.1),0.9)*exp(0.0012t+(t/3400)^2). 식은 core.js 에만 있다)
    옵션
      --noevo      봇이 진화하지 않는다 (진화 도입 전의 봇과 같은 행동). 기본은 100강이 되면 진화하고 스킬을 바로 찍는다
      --runner C   BAL.runnerTau(달리는 적 등장 비율 증가 시간 상수) 를 C 초로 (가정 실험)
@@ -32,7 +32,7 @@ let Core = null, makeBot = null;
 function init() {
   Core = require(CORE);
   ({ makeBot } = require(path.join(__dirname, 'bot.js')));
-  Core.BAL.hpMul = (t) => Math.pow(1 + Math.pow(t / K, 3.1), 0.9) * Math.exp(0.0012 * t);
+  Core.BAL.hpK = K;   // 식은 core.js 의 BAL.hpMul 한 곳에만 있다. 여기서는 시간 상수만 바꾼다
   if (RUNNER != null) Core.BAL.runnerTau = +RUNNER;
   if (EVAL) new Function('Core', EVAL)(Core);
 }

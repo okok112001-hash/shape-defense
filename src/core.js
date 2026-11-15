@@ -68,9 +68,13 @@ const BAL = {
   lvMul(L) { return Math.pow(1.05, L); },
   evoMul(L) { return Math.pow(1.03, L); },   // 진화한 무기: lvMul(100) x evoMul(진화 단계)
   // 적 체력 배수: 끊김 없는 식 하나. 초반에는 거의 오르지 않고, 이후 꾸준히 오르며 끝없이 계속된다
-  hpMul(t) { return Math.pow(1 + Math.pow(t / 321, 3.1), 0.9) * Math.exp(0.0012 * t); },
-  bossHp: 1.3,      // 모든 보스의 체력 배수 (일반 적과 같은 hpMul 곡선에 곱한다)
+  // 지수 안의 (t/2400)^2 항은 후반 긴장감용: 10분 +6%, 20분 +28%, 30분 +75%, 40분 x2.7
+  hpK: 321,         // hpMul 의 시간 상수(초). 전체 난이도는 이 값 하나로 맞춘다 (tools/surv.js 의 K 인자가 이 값을 바꾼다)
+  hpMul(t) { return Math.pow(1 + Math.pow(t / BAL.hpK, 3.1), 0.9) * Math.exp(0.0012 * t + Math.pow(t / 3400, 2)); },
+  bossHp: 1.43,     // 모든 보스의 체력 배수 (일반 적과 같은 hpMul 곡선에 곱한다)
   bossSpd: 0.85,    // 모든 보스의 이동 속도 배수
+  // 기지가 받는 피해 배수: 적이 기지에 닿는 순간의 시간으로 곱한다 (5분 x1.27, 10분 x1.76, 20분 x3.15, 30분 x4.95)
+  leakMul(t) { return 1 + Math.pow(t / 720, 1.5); },
   bossY: 0.14,      // 보스가 나타나는 높이 (전장 높이의 비율). 예고 동안 이 자리에 고정된다
   spawnRate(t) { return 0.5 + 5.5 * (1 - Math.exp(-t / 340)); },
   // 적 종류별 등장 가중치 [basic, runner, swarm, heavy]. 해금 뒤 서서히 늘어난다
@@ -1917,7 +1921,7 @@ function step(dt) {
     e.y += sp * H * dt;
     if (e.y + e.r * 0.3 >= H) {
       e.dead = true;
-      const dmg = Math.round(e.leak * (1 - bs.shield) * (1 - bs.dmgRed) * (hasPact('blood') ? PACT.bloodDmg : 1) * 10) / 10;
+      const dmg = Math.round(e.leak * BAL.leakMul(S.t) * (1 - bs.shield) * (1 - bs.dmgRed) * (hasPact('blood') ? PACT.bloodDmg : 1) * 10) / 10;
       if (!(S.cheat && S.cheat.god)) S.hp -= dmg;   // 테스트: 기지 무적
       S.hitFlash = 0.3;
       fx({ k: 'leak', d: 0.5, x: e.x, n: dmg });
