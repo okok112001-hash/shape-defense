@@ -257,7 +257,8 @@ const mkNode = (id, t, o) => Object.assign({ id, t, max: SK.max[t] }, o);
 const SR = (id, o) => mkNode(id, 'root', o), SU = (id, o) => mkNode(id, 'up', o), SC = (id, o) => mkNode(id, 'cap', o);
 // 새 노드: 이름, 설명 d(랭크, 배율), 효과 ap(s, 랭크, 배율). 배율(sc)은 줄마다 하나, 피해 같은 세기 수치에만 곱한다(메커니즘은 그대로)
 const pc = (x) => r1(x * 100);   // 0.12 -> 12
-const BAY = [1, 1, 2, 2, 3];      // 폭탄창: 랭크별 더하는 발수
+const BAY = [1, 1, 1, 2, 2];      // 폭탄창: 랭크별 더하는 발수
+const MIRV = [1, 1, 2, 2, 3];     // 분리 탄두: 랭크별 탄두 수
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
@@ -306,17 +307,17 @@ const NEWSK = {
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
   counter:  { name: '반격', d: () => '적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번)', ap: (s) => { s.counter = 1; } },
   // 박격포 - 핵탄두
-  nukeb:    { name: '핵탄두', d: (k, c) => `4번째 포탄마다 핵탄두: 폭발 범위 x${r1(1.5 + 0.2 * k)}, 피해 x${r1(1 + 0.4 * k * c)}`, ap: (s, k, c) => { s.nuke = 1 + 0.4 * k * c; s.nukeR = 1.5 + 0.2 * k; s.nukeEvery = 4; } },
+  nukeb:    { name: '핵탄두', d: (k, c) => `4번째 포탄마다 핵탄두: 폭발 범위 x${r1(1.5 + 0.1 * k)}, 피해 x${r1(1 + 0.1 * k * c)}`, ap: (s, k, c) => { s.nuke = 1 + 0.1 * k * c; s.nukeR = 1.5 + 0.1 * k; s.nukeEvery = 4; } },
   shockw:   { name: '충격파', d: (k, c) => `핵탄두가 터지면 폭발 범위의 2배까지 충격파: 바깥의 적을 밀어내고 (세기 ${10 + 4 * k}, 보스 제외) 공격력의 ${pc(0.1 * k * c)}% 피해`, ap: (s, k, c) => { s.nShock = 0.1 * k * c; s.nShockKn = 10 + 4 * k; } },
   chainuke: { name: '연쇄 핵', d: () => '2번째 포탄마다 핵탄두. 터질 때 화면이 흔들림', ap: (s) => { s.nukeEvery = 2; s.nukeQuake = 1; } },
   // 박격포 - 융단 폭격
-  carpet:   { name: '융단 폭격', d: (k, c) => `포탄이 표적 레인을 따라 세로 한 줄로 떨어지는 3발로 나뉨. 한 발 피해 공격력의 ${pc((0.3 + 0.08 * k) * c)}%, 폭발 범위 80% (핵탄두는 나뉘지 않음)`, ap: (s, k, c) => { s.carpet = 3; s.carpetD = (0.3 + 0.08 * k) * c; } },
-  bombbay:  { name: '폭탄창', d: (k, c) => `발수 +${BAY[k - 1]} (${3 + BAY[k - 1]}발), 한 발 피해 +${pc(0.03 * k * c)}%p`, ap: (s, k, c) => { s.carpet += BAY[k - 1]; s.carpetD += 0.03 * k * c; } },
-  airstrike: { name: '공습', d: (k, c) => `10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 폭격. 레인마다 1발, 한 발 피해 공격력의 ${pc(1.5 * c)}%`, ap: (s, k, c) => { s.air = 1.5 * c; } },
+  carpet:   { name: '융단 폭격', d: (k, c) => `포탄이 표적 레인을 따라 세로 한 줄로 떨어지는 3발로 나뉨. 한 발 피해 공격력의 ${pc((0.3 + 0.03 * k) * c)}%, 폭발 범위 80% (핵탄두는 나뉘지 않음)`, ap: (s, k, c) => { s.carpet = 3; s.carpetD = (0.3 + 0.03 * k) * c; } },
+  bombbay:  { name: '폭탄창', d: (k, c) => `발수 +${BAY[k - 1]} (${3 + BAY[k - 1]}발), 한 발 피해 +${pc(0.01 * k * c)}%p`, ap: (s, k, c) => { s.carpet += BAY[k - 1]; s.carpetD += 0.01 * k * c; } },
+  airstrike: { name: '공습', d: (k, c) => `10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 폭격. 레인마다 1발, 한 발 피해 공격력의 ${pc(1 * c)}%`, ap: (s, k, c) => { s.air = 1 * c; } },
   // 박격포 - 미사일
-  missile:  { name: '추적 미사일', d: (k, c) => `포탄이 표적을 따라가는 미사일로 바뀜 (빗나가지 않음). 직격한 표적에게 공격력의 ${pc(0.2 * k * c)}% 추가 피해`, ap: (s, k, c) => { s.msl = 0.2 * k * c; } },
-  mirv:     { name: '분리 탄두', d: (k, c) => `착탄 직전에 소형 탄두 ${k}개가 갈라져 주변의 다른 적에게 날아감 (피해 공격력의 ${pc(0.4 * c)}%, 폭발 범위 50%)`, ap: (s, k, c) => { s.mirv = k; s.mirvD = 0.4 * c; } },
-  twinm:    { name: '쌍발', d: (k, c) => `미사일 2발 동시 발사. 둘째는 다른 적을 노림 (피해 ${pc(0.7 * c)}%)`, ap: (s, k, c) => { s.mslTwin = 0.7 * c; } },
+  missile:  { name: '추적 미사일', d: (k) => `포탄이 표적을 따라가는 미사일로 바뀜 (빗나가지 않음). 공격 속도 +${15 * k}%`, ap: (s, k) => { s.msl = 1; s.ratePct += 0.15 * k; } },
+  mirv:     { name: '분리 탄두', d: (k, c) => `착탄 직전에 소형 탄두 ${MIRV[k - 1]}개가 갈라져 주변의 다른 적에게 날아감 (피해 공격력의 ${pc((0.1 + 0.01 * k) * c)}%, 폭발 범위 50%)`, ap: (s, k, c) => { s.mirv = MIRV[k - 1]; s.mirvD = (0.1 + 0.01 * k) * c; } },
+  twinm:    { name: '쌍발', d: (k, c) => `미사일 2발 동시 발사. 둘째는 다른 적을 노림 (피해 ${pc(0.3 * c)}%)`, ap: (s, k, c) => { s.mslTwin = 0.3 * c; } },
   // 2차분 무기(전격기, 저격포, 산성 분사기)가 쓰는 옛 노드
   overload: { name: '과전류', d: () => '기절하거나 둔화된 적이 이 무기에게 받는 피해 +40%', ap: (s) => { s.overload = 0.4; } },
   exec:     { name: '처형', d: () => '이 무기의 공격으로 체력이 20% 아래로 남은 일반 적은 즉시 처치', ap: (s) => { s.instakill = Math.max(s.instakill, 0.2); } },
@@ -340,8 +341,8 @@ const SKILLS = {
   pulse:   [LINE('초신성', [SNW('novab', 'root'), SNW('afterg', 'up'), SNW('twinstar', 'cap')]),
             LINE('위성 구체', [SNW('orbb', 'root'), SNW('orbit', 'up'), SNW('orbchain', 'cap')], 1.8),
             LINE('역장', [SNW('fieldb', 'root'), SNW('weaken', 'up'), SNW('counter', 'cap')])],
-  mortar:  [LINE('핵탄두', [SNW('nukeb', 'root'), SNW('shockw', 'up'), SNW('chainuke', 'cap')]),
-            LINE('융단 폭격', [SNW('carpet', 'root'), SNW('bombbay', 'up'), SNW('airstrike', 'cap')]),
+  mortar:  [LINE('핵탄두', [SNW('nukeb', 'root'), SNW('shockw', 'up'), SNW('chainuke', 'cap')], 0.6),
+            LINE('융단 폭격', [SNW('carpet', 'root'), SNW('bombbay', 'up'), SNW('airstrike', 'cap')], 0.8),
             LINE('미사일', [SNW('missile', 'root'), SNW('mirv', 'up'), SNW('twinm', 'cap')])],
   // 2차분: 아직 예전 트리 (증강 효과를 그대로 쓴다)
   tesla:   [{ name: '연쇄', nodes: [SR('t_chain', { plus1: 1 }), SU('t_grow'), SC('t_storm')] },
@@ -1157,7 +1158,6 @@ function explode(x, y, R, dmg, st, n) {
 // 박격포 포탄 하나가 터진다. R: 폭발 반경 (없으면 무기의 폭발 범위)
 function shellBlast(s) {
   const st = s.st, R = s.R || st.blast;
-  if (s.hb && s.tg && !s.tg.dead) hit(s.tg, s.hb, st, true);   // 추적 미사일: 직격한 표적에게 추가 피해
   const n0 = S.fx.length;
   explode(s.tx, s.ty, R, s.dmg, st, st.cap);
   if ((s.cb > 1 || s.mini || s.air) && S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].lt = 1;   // 화면용: 작은 폭발 (가볍게 그린다)
@@ -1203,7 +1203,7 @@ function missile(wx, wy, e, st, m, nuke, side) {
   const carpet = !nuke && st.carpet > 0;
   const o = { ms: 1, x0: wx + side * 8, y0: wy - 6, tx: e.x, ty: e.y, p: 0, dur: 0.62, st, side, nuke: nuke ? 1 : 0,
     dmg: st.dmg * m * (nuke ? st.nuke : carpet ? st.carpetD : 1), R: st.blast * (nuke ? st.nukeR : carpet ? 0.8 : 1),
-    hb: st.dmg * st.msl * m, mirv: st.mirv, mdm: st.dmg * st.mirvD * m, cw: carpet ? st.carpet - 1 : 0, cdm: st.dmg * st.carpetD * m };
+    mirv: st.mirv, mdm: st.dmg * st.mirvD * m, cw: carpet ? st.carpet - 1 : 0, cdm: st.dmg * st.carpetD * m };
   o.cx = o.x0 + side * 60; o.cy = o.ty + (o.y0 - o.ty) * 0.35;
   setTarget(o, e);
   S.shells.push(o);

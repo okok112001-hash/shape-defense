@@ -249,13 +249,12 @@ function model(st, ref, c, lay, PP) {
       // 보통 차례 한 발: 피해 합(D 단위)과, 파편·집속·화염이 따라붙는 폭발의 피해 합(sc)
       let one = nb, sc = 1;
       if (st.carpet) { const Rc = R * 0.8; one = st.carpetD * (1 + around(Rc) + (st.carpet - 1) * lane(Rc) * pm.carpet); sc = st.carpetD * st.carpet; hsz = st.carpetD; }   // 한 발이 작아 처치 타수가 는다
-      if (st.msl) one += st.msl;                          // 추적 미사일: 직격 추가 피해
       const mirv = st.mirv ? st.mirv * st.mirvD * (1 + around(R * 0.5)) * occ(nIn(lam, Math.PI * 260 * 260 / 2)) : 0;   // 분리 탄두 (주변에 적이 있을 때)
       const tw = 1 + st.mslTwin;                          // 쌍발: 둘째 미사일
       let shell = (one + mirv) * tw; sc *= tw;
       if (st.nuke) {                                      // 핵탄두 차례 (nukeEvery 번째마다, 미사일이어도 1발)
         const e = st.nukeEvery, Rn = R * st.nukeR;
-        const nk = st.nuke * (1 + around(Rn)) + st.msl + mirv + (st.nShock ? st.nShock * capE(Math.max(0, splashN(2 * Rn) - splashN(Rn)) * 0.6, N) : 0);
+        const nk = st.nuke * (1 + around(Rn)) + mirv + (st.nShock ? st.nShock * capE(Math.max(0, splashN(2 * Rn) - splashN(Rn)) * 0.6, N) : 0);
         shell = ((e - 1) * shell + nk) / e; sc = ((e - 1) * sc + st.nuke) / e; hsz = ((e - 1) * hsz + st.nuke) / e;
         if (st.nShock) sig.push(Math.min(0.6, st.nShockKn / (cb.v * tau * e * 1.5)) * 0.5 * pm.shock * (1 - bb));   // 충격파 밀어내기: 앞쪽 적의 절반쯤
       }
