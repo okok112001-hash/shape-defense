@@ -36,7 +36,8 @@ function fnv(h, x) { return Math.imul(h ^ x, 16777619) >>> 0; }
 function strHash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) h = fnv(h, str.charCodeAt(i)); return h >>> 0; }
 
 // spec: 길이 5 배열, 항목 = null | {t:무기, p:[[파츠,등급]], a:[[증강,등급]]}
-function runSim(spec, sk, seed, M) {
+// jit(선택, 기본 없음): 적마다 체력에 exp(jit*u), u는 -1..1 을 곱한다. u는 등장 정보(시각, 종류, 레인, 위치)와 시드의 해시라 구성이 달라도 같은 적이면 같다 (tools/skill_eq.js 가 계단 현상을 줄이려고 쓴다)
+function runSim(spec, sk, seed, M, jit) {
   const sc = SCEN[sk];
   Core.seed(seed);
   Core.newGame(520);
@@ -73,6 +74,12 @@ function runSim(spec, sk, seed, M) {
       ns++;
       h = fnv(h, step); h = fnv(h, e.type.length * 31 + e.type.charCodeAt(0)); h = fnv(h, e.lane);
       h = fnv(h, Math.round(e.x * 1000)); h = fnv(h, Math.round(e.y * 1000));
+      if (jit) {
+        let q = fnv(fnv(fnv(fnv(fnv(fnv(2166136261, seed), step), e.type.length * 31 + e.type.charCodeAt(0)), e.lane), Math.round(e.x * 1000)), Math.round(e.y * 1000));
+        q = Math.imul(q ^ (q >>> 16), 0x45d9f3b); q = Math.imul(q ^ (q >>> 16), 0x45d9f3b); q = (q ^ (q >>> 16)) >>> 0;
+        const f = Math.exp(jit * ((q / 4294967296) * 2 - 1));
+        e.hp *= f; e.maxHp *= f;
+      }
       return Array.prototype.push.call(this, e);
     } });
   };
@@ -163,6 +170,12 @@ function runFull(sj, seed) {
   };
   Core.seed(null);
   return res;
+}
+
+/* ---------- 다른 도구가 불러 쓸 때 (예: tools/skill_eq.js): 시뮬레이션 함수만 내보내고 여기서 멈춘다 ---------- */
+if (require.main !== module) {
+  module.exports = { SCEN, SC, TARGET, CS, WARM, DUR, T0, DT, NONE, init, restoreBal, runSim, runSeeds, calibrateTeam, teamKey, strHash, fnv, core: () => Core };
+  return;
 }
 
 /* ---------- 워커 ---------- */
