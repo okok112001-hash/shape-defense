@@ -1,5 +1,5 @@
 // 오프라인 실행용. 온라인이면 항상 최신 파일을 먼저 받는다.
-const CACHE = 'shape-defense-d4f4b32b';
+const CACHE = 'shape-defense-d05e4e83';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-180.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {

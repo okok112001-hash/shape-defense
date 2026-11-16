@@ -10,8 +10,6 @@ const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.append
 const rewLayer = document.createElement('div'); rewLayer.id = 'rewLayer'; $('#app').appendChild(rewLayer);   // 보스 보상 연출 (거래 창 위에도 보인다, 입력을 막지 않는다)
 const aimCv = document.createElement('canvas'); aimCv.id = 'aimLayer'; aimCv.hidden = true; $('#app').appendChild(aimCv);   // 전장 밖(무기 칸, 인벤토리 위)까지 이어지는 예고선 (입력을 막지 않는다)
 const aimCtx = aimCv.getContext('2d');
-const cerEl = document.createElement('div'); cerEl.id = 'evoCer'; wrap.appendChild(cerEl);   // 진화 연출 (입력을 막지 않는다)
-let cerUntil = 0;
 const bannerEl = document.createElement('div'); bannerEl.id = 'pactBanner'; wrap.appendChild(bannerEl);   // 거래 완료 배너 (입력을 막지 않는다)
 const markEl = document.createElement('button'); markEl.id = 'pactMark'; markEl.type = 'button'; markEl.dataset.act = 'pactMark'; markEl.hidden = true; markEl.setAttribute('aria-label', '맺은 거래 보기');
 markEl.innerHTML = '<svg viewBox="-1 0 26 20" width="18" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v15M7 17h10M3 5h18M3 5l-2.5 7M3 5l2.5 7M0.5 12q2.5 3 5 0M21 5l-2.5 7M21 5l2.5 7M18.5 12q2.5 3 5 0"/></svg><b></b>';
@@ -153,6 +151,23 @@ const Snd = (function () {
     src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t + dur + 0.03);
   }
   const seq = (type, notes, dur, vol, gap) => notes.forEach((f, i) => tone(type, f, f, dur, vol, gap * i));
+  // 서서히 커지다 끝에서 끊기는 소리. 저역 필터가 함께 열린다. type 이 'noise' 면 걸러 낸 잡음
+  function swell(type, f0, f1, dur, vol, lp0, lp1) {
+    const t = ac.currentTime, f = ac.createBiquadFilter(), g = ac.createGain();
+    let o;
+    if (type === 'noise') { o = ac.createBufferSource(); o.buffer = noise; o.loop = true; }
+    else { o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); }
+    f.type = 'lowpass'; f.Q.value = 0.8; f.frequency.setValueAtTime(lp0, t); f.frequency.exponentialRampToValueAtTime(lp1, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.92); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+    o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.1);
+  }
+  // 진화: 낮은 울림이 T초 동안 차오르다 "쿵" (톱니파 배음이 있어 휴대폰 스피커에서도 들린다), 묵직한 여운
+  const evoSnd = (T) => () => {
+    swell('sawtooth', 52, 66, T, 0.08, 160, 560); swell('sine', 104, 132, T, 0.05, 2000, 2000); swell('noise', 0, 0, T, 0.09, 170, 650);
+    tone('sine', 150, 40, 0.55, 0.34, T); tone('triangle', 96, 45, 0.35, 0.16, T);
+    hiss(0.3, 0.22, 600, 0.7, 'lowpass', T); hiss(0.07, 0.05, 2400, 1, 'bandpass', T);
+    tone('sine', 73.4, 73.4, 1.1, 0.09, T + 0.04); tone('sine', 110, 110, 0.9, 0.05, T + 0.04);
+  };
   // [최소 간격(ms), 재생 함수]
   const DEF = {
     blaster: [70, () => tone('square', 880, 420, 0.06, 0.045)],
@@ -191,12 +206,8 @@ const Snd = (function () {
     drop: [40, () => tone('triangle', 300, 150, 0.1, 0.08)],
     melt: [40, () => { hiss(0.25, 0.11, 900, 1); tone('sawtooth', 300, 90, 0.25, 0.05); }],
     over: [500, () => seq('triangle', [392, 330, 262, 196], 0.3, 0.14, 0.22)],
-    evolve: [400, () => {                                                                                                  // 진화 의식: 1초 넘게 차오르는 소리, 정점에서 낮은 울림과 화음
-      tone('sawtooth', 90, 700, 1.1, 0.05); tone('sine', 180, 1500, 1.15, 0.09); tone('triangle', 270, 2100, 1.1, 0.04, 0.05); hiss(1.0, 0.1, 2600, 1.4, 'bandpass');
-      tone('sine', 110, 40, 0.8, 0.26, 1.1); hiss(0.5, 0.16, 900, 0.7, 'lowpass', 1.1);
-      [523, 659, 784, 1047, 1319].forEach((f, i) => { tone('triangle', f, f, 0.55, 0.08, 1.12 + i * 0.07); });
-      tone('sine', 2093, 2093, 0.6, 0.04, 1.4);
-    }],
+    evolve: [400, evoSnd(0.95)],                                                                            // 진화 (쿵: 1.5초 중 63%)
+    evolveq: [400, evoSnd(0.38)],                                                                           // 진화, 움직임 줄이기 (0.6초)
     rewpop: [150, () => seq('triangle', [659, 988], 0.12, 0.08, 0.06)],   // 보스 보상이 떠오름
     rewland: [60, () => tone('triangle', 520, 780, 0.09, 0.09)],          // 인벤토리에 닿음
     skill: [60, () => seq('triangle', [659, 988], 0.12, 0.09, 0.06)],
@@ -367,20 +378,24 @@ function renderWeapons() {
   const upmode = upMode && !picked;
   const target = !!picked && !isBasePart(picked);
   let h = '';
+  const now = performance.now();
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k];
     const mine = sel && sel.from === 'slot' && sel.k === k;
     const lk = S.locks && S.locks[k], cr = S.corr && S.corr.k === k, closed = C.isClosed(k);
-    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
+    const ev = w && w.evo && !closed ? evoSlotHtml(w, now) : null;   // 진화하는 중
+    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
       (lk ? (lk.l > 0 ? ' locked' : ' warn-lock') : '') + (cr ? ' warn-corr' : '');
-    h += `<button type="button" class="${cls}" data-slot="${k}"${w && w.evo ? ` style="--wc:${C.WEAPONS[w.type].color}"` : ''} aria-label="무기 칸 ${k + 1}${closed ? ' 폐쇄됨' : ''}">`;
+    // 남는 빛의 숨 위상: 진화가 끝난 때부터 (다시 그려도 이어진다)
+    const st = w && w.evo ? `--wc:${C.WEAPONS[w.type].color};--eb:-${(((now - (evoBorn.get(w) || 0)) / 1000) % 8.8).toFixed(2)}s${ev ? ev.style : ''}` : '';
+    h += `<button type="button" class="${cls}" data-slot="${k}"${st ? ` style="${st}"` : ''} aria-label="무기 칸 ${k + 1}${closed ? ' 폐쇄됨' : ''}">`;
     if (closed) h += `<svg class="xmark" viewBox="0 0 24 24" width="30" height="30" ${SVG_ATTR}><path d="M5 5l14 14M19 5L5 19" stroke-width="2.6"/></svg><small class="cl">폐쇄</small>`;
     else if (w) {
-      h += icon(w.type, 26, w.evo) + `<b class="lv">${lvTxt(w)}</b><span class="pips">` +
+      h += (ev ? ev.html : icon(w.type, 26, w.evo) + `<b class="lv">${lvTxt(w)}</b>`) + '<span class="pips">' +
         w.parts.map(p => `<i class="pp"${p ? ` style="background:${GHEX[p.g]};border-color:${GHEX[p.g]}"` : ''}></i>`).join('') +
         '</span><span class="pips">' +
         w.augs.map(a => `<i class="pa"${a ? ` style="background:${GHEX[a.g]};border-color:${GHEX[a.g]}"` : ''}></i>`).join('') + '</span>' +
-        (upmode ? '<span class="upcue"><i></i><i></i></span>' : '') + (w.evo && C.skillPoints(w).left > 0 ? '<i class="skdot" aria-label="남은 스킬 포인트"></i>' : '');
+        (upmode ? '<span class="upcue"><i></i><i></i></span>' : '') + (w.evo && C.skillPoints(w).left > 0 ? '<i class="skdot" aria-label="남은 스킬 포인트"></i>' : '') + (ev ? ev.ring : '');
     } else h += '<span class="plus">+</span>';
     if (lk && lk.l > 0) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
     if (wl) h += `<span class="abic lk">${LOCK_SVG(18)}</span><i class="cd" style="${cdStyle(lk.w)}"></i>`;
@@ -531,22 +546,6 @@ function gaugeFlash() {
   g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash');
 }
 
-// 진화 연출: 칸에서 무기 색의 빛이 번지고, 고리 두 개가 퍼지며, 불꽃이 사방으로 튀고 별이 떠오른다
-function evoFx(el, color) {
-  if (!el) return;
-  const a = $('#app').getBoundingClientRect(), r = el.getBoundingClientRect(), d = document.createElement('div');
-  d.className = 'evofx'; d.style.setProperty('--c', color);
-  d.style.left = (r.left - a.left) + 'px'; d.style.top = (r.top - a.top) + 'px'; d.style.width = r.width + 'px'; d.style.height = r.height + 'px';
-  let inner = '<i class="glow"></i><i class="ring"></i><i class="ring r2"></i><b>★</b>';
-  for (let i = 0; i < 16; i++) {
-    const an = i / 16 * Math.PI * 2 + Math.random() * 0.3, dist = 40 + Math.random() * 40;
-    inner += `<s style="--dx:${(Math.cos(an) * dist).toFixed(0)}px;--dy:${(Math.sin(an) * dist - 14).toFixed(0)}px"></s>`;
-  }
-  d.innerHTML = inner;
-  while (fxLayer.children.length > 8) fxLayer.firstChild.remove();
-  fxLayer.appendChild(d);
-  setTimeout(() => d.remove(), 1300);
-}
 // 진화가 풀릴 때: 붉은 금이 가며 조각이 아래로 흩어진다
 function devoFx(el) {
   if (!el) return;
@@ -560,20 +559,80 @@ function devoFx(el) {
   fxLayer.appendChild(d);
   setTimeout(() => d.remove(), 1000);
 }
-// 진화 연출: 전장 한가운데에서 약 1.8초. 무기 아이콘이 크게 뜨고 무기 색 광선과 고리가 돌며, 번쩍임 뒤에 '진화' 글자가 나온다. 끝나면 칸에서 기존 효과
-function evoCeremony(w, k) {
-  const d = C.WEAPONS[w.type], c = d.color;
-  Snd.play('evolve');
-  cerEl.style.setProperty('--c', c);
-  cerEl.innerHTML = `<i class="ec-dim"></i><i class="ec-flash"></i>
-    <div class="ec-stage"><i class="ec-rays"></i><i class="ec-rays r2"></i><i class="ec-ring"></i><i class="ec-ring r2"></i><div class="ec-ic">${icon(w.type, 120, true)}</div></div><b class="ec-t">진화</b><span class="ec-n">${d.name}</span>`;
-  cerEl.classList.remove('show'); void cerEl.offsetWidth; cerEl.classList.add('show');
-  cerUntil = performance.now() + 1800;
-  setTimeout(() => { if (performance.now() >= cerUntil - 20) cerEl.classList.remove('show'); }, 1850);
-  setTimeout(() => {                         // 연출이 끝난 뒤 칸 효과 (그 사이 무기가 바뀌었으면 하지 않는다)
-    const S = C.S; if (!S || S.slots[k] !== w || !w.evo || mode === 'over') return;
-    evoFx(elW.querySelector(`[data-slot="${k}"]`), c);
-  }, 1800);
+/* ---------- 진화하는 순간: 무기 칸에서 약 1.5초 (게임은 멈추지 않는다) ----------
+   칸이 어두워지며 아이콘이 빨려 들고(낮은 울림) → 테두리를 따라 무기 색 빛이 한 바퀴 차오르고 → 쿵: 칸이 눌렸다 튀고,
+   전장이 아주 약하게 흔들리고, 그 레인에 빛기둥이 솟고, ★ 가 찍힌다. 그 뒤로 칸 둘레에 은은한 빛이 남는다(.slot.evo::after).
+   칸 안의 움직임은 CSS 이고 지난 시간(--ea)에서 이어지므로 칸을 다시 그려도 끊기지 않는다. 무기 객체를 따라가서 연출 중에 칸을 옮겨도 된다 */
+const EVO_HIT = 0.63;                        // 쿵 하는 순간 (전체 길이에 대한 비율, style.css 의 63% 와 같다)
+const evoRun = [];                           // 진행 중인 연출 {w, t0, D, P, path}. 빛기둥이 사라질 때까지 남는다
+const evoBorn = new WeakMap();               // 무기별 연출이 끝난 시각: 남는 빛이 그때부터 숨 쉰다 (다시 그려도 위상이 이어진다)
+function evoStart(w, k) {
+  const el = elW.querySelector(`[data-slot="${k}"]`), D = RM.matches ? 0.6 : 1.5, P = RM.matches ? 0.45 : 0.75, t0 = performance.now();   // P: 빛기둥 길이
+  // 테두리 빛이 지나갈 길: 칸 위쪽 가운데에서 시작해 시계 방향으로 한 바퀴 (전장 쪽에서 끝나 빛기둥으로 이어진다)
+  const bw = el ? el.offsetWidth : 70, bh = el ? el.offsetHeight : 76, i = 0.75, R = 5.25, x1 = bw - i, y1 = bh - i, f = (v) => +v.toFixed(2);
+  const path = `M${f(bw / 2)} ${i}H${f(x1 - R)}A${R} ${R} 0 0 1 ${f(x1)} ${i + R}V${f(y1 - R)}A${R} ${R} 0 0 1 ${f(x1 - R)} ${f(y1)}H${i + R}A${R} ${R} 0 0 1 ${i} ${f(y1 - R)}V${i + R}A${R} ${R} 0 0 1 ${i + R} ${i}Z`;
+  for (let j = evoRun.length - 1; j >= 0; j--) if (evoRun[j].w === w) evoRun.splice(j, 1);
+  evoRun.push({ w, t0, D, P, path });
+  evoBorn.set(w, t0 + D * 1000);
+  Snd.play(RM.matches ? 'evolveq' : 'evolve');
+  renderWeapons();
+  setTimeout(() => {                         // 빛기둥까지 끝나면 연출용 요소를 걷어 낸다 (칸 요소는 그때까지 마지막 모습으로 멈춰 있다. 끄는 중이면 renderWeapons 가 끝날 때까지 미룬다)
+    const j = evoRun.findIndex(e => e.w === w && e.t0 === t0); if (j < 0) return;
+    evoRun.splice(j, 1); renderWeapons();
+  }, Math.max(D, D * EVO_HIT + P) * 1000 + 60);
+}
+// 무기 칸 안의 연출 요소 (진행 중이면). 어둠, 가운데에 모이는 빛, 빨려 드는 옛 아이콘과 튀어나오는 새 아이콘, 찍히는 ★, 테두리를 도는 빛
+function evoSlotHtml(w, now) {
+  const e = evoRun.find(o => o.w === w), u = e ? (now - e.t0) / 1000 : 0;
+  if (!e || u >= e.D) return null;
+  return { style: `;--ed:${e.D}s;--ea:-${u.toFixed(3)}s`,
+    html: `<i class="evdk"></i><i class="evcg"></i><span class="evic"><span class="evo-a">${icon(w.type, 26)}</span>${icon(w.type, 26, true)}</span>` +
+      `<b class="lv"><i class="evst">★</i>+${w.lv}</b>`,
+    ring: `<svg class="evol" aria-hidden="true"><path class="l1" d="${e.path}" pathLength="100" fill="none"/><path class="l2" d="${e.path}" pathLength="100" fill="none"/><path class="l3" d="${e.path}" pathLength="100" fill="none"/></svg>` };
+}
+// 진화의 빛기둥: 쿵 하는 순간 그 레인의 밑에서 위까지 빠르게 솟고, 밑동부터 떨어져 위로 흩어지며 사라진다 (실제 시간 기준)
+function drawEvoPillars(H) {
+  const S = C.S, now = performance.now(), rm = RM.matches;
+  for (const e of evoRun) {
+    const k = S.slots.indexOf(e.w); if (k < 0) continue;
+    const p = ((now - e.t0) / 1000 - e.D * EVO_HIT) / e.P;
+    if (p < 0 || p >= 1) continue;
+    const col = C.WEAPONS[e.w.type].color, hot = VX.hot(col), x = (k + 0.5) * C.LW, sd = e.t0 % 97;
+    const len = H * 1.25, top = H - len * (rm ? 1 : VX.ease(p / 0.24, 3));                              // 0.18초 만에 위까지
+    const bot = H + len * 0.25 - (rm ? 0 : H * 0.75 * Math.pow(Math.max(0, (p - 0.3) / 0.7), 1.6));   // 끝에는 밑동이 떨어져 위로
+    const a = rm ? Math.sin(p * Math.PI) : p < 0.1 ? 0.6 + 4 * p : VX.fade((p - 0.1) / 0.9);
+    const wb = Math.sin(now / 53 + sd) * 1.6, nar = 1 - 0.45 * p;
+    VX.add();
+    VX.pillar(x + wb, top, bot, C.LW * 0.56 * nar, col, (VX.light ? 0.5 : 0.42) * a);   // 넓은 겉빛 (살짝 흔들린다)
+    VX.pillar(x - wb * 0.7, top + 14, bot, C.LW * 0.2 * nar, col, 0.85 * a);
+    VX.pillar(x, top + 30, bot - 8, 4 * nar, '#ffffff', 0.9 * a);                         // 속빛 (밝은 테마에서도 흰색: 둘레의 색 속에서 빛나 보인다)
+    VX.glow(x, H - 4, C.LW * (0.85 - 0.3 * p), col, 0.85 * a * (1 - p), 22);            // 기지 쪽 밑동
+    if (!rm) {                               // 기둥을 타고 오르는 빛 알갱이: 옅은 꼬리를 끌며 저마다 다른 빠르기로 (상태 없이 시간으로 계산)
+      const mc = VX.light ? '#ffffff' : hot;
+      ctx.strokeStyle = VX.light ? col : hot; ctx.fillStyle = mc; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+      for (let pass = 0; pass < 2; pass++) {
+        ctx.beginPath();
+        for (let j = 0; j < 9; j++) {
+          const h1 = hash(sd + j * 7.3), h2 = hash(sd * 3.1 + j * 1.7), q = p * (0.65 + 0.7 * h1) + 0.15 * h2;
+          const y = H * (0.92 - q), sw = Math.sin(now / 170 + j * 2.1), xx = x + (h2 - 0.5) * C.LW * 0.6 + sw * 3, r = (1 + 1 * h1) * (1 - 0.5 * p);
+          if (y < -10) continue;
+          if (pass) { ctx.moveTo(xx + r, y); ctx.arc(xx, y, r, 0, TAU); } else { ctx.moveTo(xx, y); ctx.lineTo(xx - sw * 1.5, y + 8 + 18 * h1 * (1 - p)); }
+        }
+        ctx.globalAlpha = a * (pass ? 0.95 : 0.3); if (pass) ctx.fill(); else ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+    }
+    VX.norm();
+  }
+}
+// 진화의 쿵: 전장이 아주 약하게 흔들린다 (0.24초)
+function evoShake() {
+  if (RM.matches) return;
+  const now = performance.now();
+  for (const e of evoRun) {
+    const T = (now - e.t0) / 1000 - e.D * EVO_HIT;
+    if (T >= 0 && T < 0.24) { const q = 1 - T / 0.24; ctx.translate(Math.sin(T * 120) * 2.4 * q, Math.cos(T * 97) * 1.6 * q); }
+  }
 }
 // 보스 보상 연출: 죽은 자리에서 등급 색 아이콘이 떠올라 약 0.9초 머문 뒤 들어간 인벤토리 칸으로 날아간다. 칸이 없어 대기 중이면 위로 사라진다
 function bossRewards(list) {
@@ -737,7 +796,6 @@ function lightUpdate() {
     else if (cell.classList.contains('heat')) { cell.classList.remove('heat'); cell.style.removeProperty('--heat'); }
   }
   if (bannerEl.classList.contains('show') && performance.now() > bannerUntil) bannerEl.classList.remove('show');
-  if (cerEl.classList.contains('show') && performance.now() > cerUntil) cerEl.classList.remove('show');      // 진화 연출이 멈춰 남지 않게
   for (const d of rewLayer.children) if (performance.now() > +d.dataset.until) { incoming.delete(d._item); d.remove(); }
   if (confirmDrop && performance.now() - dropArmAt > 3000) {      // 3초가 지나면 버리기 무장 해제 (버튼을 새로 만들지 않고 그 자리에서 되돌린다)
     confirmDrop = false;
@@ -1391,7 +1449,7 @@ function renderOverlay() {
 /* ---------- 조작 ---------- */
 function resetUi() {
   sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
-  augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); cerEl.classList.remove('show'); rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
+  augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); evoRun.length = 0; rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = ''; testView = false; testMsg = '';
 }
 // test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작)
@@ -1923,8 +1981,8 @@ function act(name) {
       const k = evoK, w = S.slots[k], r = C.evolve(k);
       if (!r.ok) { if (r.reason === 'shards') say(`조각이 부족합니다. ${C.CFG.evoCost}개가 필요합니다.`, true); return; }
       evoK = -1; upMode = false;
-      closeW();                                 // 무기 창에서 눌렀다면 닫고, 전장 가운데에서 진화 연출을 한 뒤 칸에서 효과를 보여 준다
-      evoCeremony(w, k);
+      closeW();                                 // 무기 창에서 눌렀다면 닫고, 그 무기 칸에서 진화 연출을 한다
+      evoStart(w, k);
       return;
     }
     case 'skOpen': {
@@ -2294,6 +2352,20 @@ const VX = (() => {
   v.column = (x, y0, y1, hw, col, a) => {
     if (!(a > 0.012)) return;
     ctx.globalAlpha = a > 1 ? 1 : a; ctx.drawImage(SPR['c' + col] || colSpr(col), x - hw, y0, hw * 2, y1 - y0); ctx.globalAlpha = 1;
+  };
+  const PIL1 = [[0, 0], [0.12, 0.05], [0.28, 0.28], [0.42, 0.7], [0.5, 0.9], [0.58, 0.7], [0.72, 0.28], [0.88, 0.05], [1, 0]];
+  function pilSpr(col) {                       // 진화 빛기둥: 단면이 기둥보다 넓게 번지고 위아래 끝이 흐려진다
+    const s = document.createElement('canvas'); s.width = 32; s.height = 128;
+    const g = s.getContext('2d'), c = rgbOf(col); let gr = g.createLinearGradient(0, 0, 32, 0);
+    for (const st of PIL1) gr.addColorStop(st[0], `rgba(${c},${st[1]})`);
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 128);
+    gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.3, 'rgba(0,0,0,1)'); gr.addColorStop(0.8, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, 32, 128);
+    return bake('p' + col, s);
+  }
+  v.pillar = (x, y0, y1, hw, col, a) => {
+    if (!(a > 0.012) || y1 <= y0) return;
+    ctx.globalAlpha = a > 1 ? 1 : a; ctx.drawImage(SPR['p' + col] || pilSpr(col), x - hw, y0, hw * 2, y1 - y0); ctx.globalAlpha = 1;
   };
   v.column2 = (x, y0, y1, hw, col, a) => {          // 겉빛과 속빛을 겹친 기둥 한 장 (hw = 겉빛 반폭)
     if (!(a > 0.012)) return;
@@ -3474,6 +3546,7 @@ function draw() {
     if (f.k !== 'bosskill' || RM.matches) continue;
     const T = f.d - f.t; if (T < 0.35) ctx.translate(Math.sin(T * 130) * 7 * (1 - T / 0.35), Math.cos(T * 110) * 5 * (1 - T / 0.35));
   }
+  if (evoRun.length) evoShake();             // 진화의 쿵 (실제 시간 기준)
   // 모눈
   ctx.strokeStyle = TC.grid; ctx.lineWidth = 1; ctx.beginPath();
   for (let x = 25; x < W; x += 25) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
@@ -3628,6 +3701,7 @@ function draw() {
   }
   drawDragons(H);                            // 용 머리와 몸통 불길
   VX.draw();                                 // 잔상과 입자 (피해 숫자보다 아래)
+  if (evoRun.length) drawEvoPillars(H);     // 진화의 빛기둥
   for (const f of S.fx) drawFx(f, H);
   // 보스가 살아 있는 동안 위쪽에 체력 막대
   let boss = null;

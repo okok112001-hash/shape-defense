@@ -740,7 +740,12 @@ b { font-weight: 600; }
 #pactMark b { font: 12px/1 var(--font-display); color: #f0e8d6; }
 
 /* ---- 진화 ---- */
-.slot.evo { border-color: var(--wc); box-shadow: 0 0 7px -1px var(--wc); }
+.slot.evo { border-color: var(--wc); }
+/* 진화한 무기 칸: 둘레에 은은한 무기 색 빛이 남아 천천히 숨 쉰다. 등급처럼 칠한 테두리가 아니라 안팎으로 번지는 빛 (--eb: 숨의 위상) */
+.slot.evo::after { content: ''; position: absolute; inset: -1.5px; border-radius: 6px; pointer-events: none;
+  box-shadow: 0 0 9px 1px color-mix(in srgb, var(--wc) 70%, transparent), inset 0 0 9px color-mix(in srgb, var(--wc) 42%, transparent);
+  animation: evbreath 4.4s var(--eb, 0s) ease-in-out infinite alternate; }
+@keyframes evbreath { to { opacity: .55; } }
 .slot.heat { border-color: color-mix(in srgb, #ff5a2a calc(var(--heat) * 100%), var(--wc, var(--line))); box-shadow: 0 0 calc(4px + 14px * var(--heat)) calc(1px + 2px * var(--heat)) rgba(255, 80, 40, calc(.25 + .5 * var(--heat))); background: color-mix(in srgb, #ff5a2a calc(var(--heat) * 28%), transparent); }
 .slot.evo .lv { color: var(--wc); text-shadow: 0 0 5px color-mix(in srgb, var(--wc) 60%, transparent); }
 .evoic { filter: drop-shadow(0 0 2.5px var(--wc)); }
@@ -771,18 +776,11 @@ b { font-weight: 600; }
 .evo-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; color: var(--ink); font-size: 14px; line-height: 1.35; }
 .modal.evom p.warn { margin: -4px 0 0; }
 .btn[disabled] { cursor: default; }
-.evofx { position: absolute; }
-.evofx .glow { position: absolute; inset: -6px; border-radius: 8px; background: color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 30px 10px color-mix(in srgb, var(--c) 80%, transparent); animation: upfade 1s ease-out forwards; }
-.evofx .ring { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px; border-radius: 50%; border: 3px solid var(--c); animation: upring .9s ease-out forwards; }
-.evofx .ring.r2 { border-color: #fff; animation-delay: .18s; animation-duration: 1s; opacity: 0; animation-fill-mode: forwards; }
-.evofx b { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); font: 30px var(--font-display); color: var(--c); text-shadow: 0 0 8px var(--c), 0 1px 0 var(--shadow); animation: evostar 1.2s ease-out forwards; }
-.evofx s { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); animation: upspark .9s ease-out forwards; }
-@keyframes evostar { 0% { transform: translate(-50%, 18px) scale(.4); opacity: 0; } 25% { opacity: 1; transform: translate(-50%, -8px) scale(1.3); } 100% { transform: translate(-50%, -46px) scale(1); opacity: 0; } }
 .devofx { position: absolute; }
 .devofx .glow { position: absolute; inset: 0; border-radius: 6px; background: rgba(255, 93, 93, .4); box-shadow: 0 0 18px 4px rgba(255, 93, 93, .6); animation: upshake .45s linear, upfade .9s ease-out forwards; }
 .devofx u { position: absolute; left: 50%; top: 4px; width: 3px; height: calc(100% - 8px); margin-left: -1.5px; background: #fff; transform: skewX(-14deg); box-shadow: 0 0 6px var(--danger); animation: upfade .7s ease-out forwards; }
 .devofx s { position: absolute; left: 50%; top: 40%; width: 6px; height: 6px; margin: -3px; background: var(--danger); animation: upspark .8s ease-in forwards; }
-@media (prefers-reduced-motion: reduce) { .evofx .ring, .evofx s, .devofx s, .skdot { animation: none; } .evofx b { animation: upfade 1.2s linear forwards; } .devofx .glow { animation: upfade .9s linear forwards; } }
+@media (prefers-reduced-motion: reduce) { .devofx s, .skdot { animation: none; } .devofx .glow { animation: upfade .9s linear forwards; } }
 
 /* 스킬 창 */
 .modal.skm { gap: 9px; padding: 12px; }
@@ -849,37 +847,53 @@ b { font-weight: 600; }
 .info .ml1 { display: flex; align-items: center; gap: 6px; height: 17px; white-space: nowrap; }
 .info .ml1 .gbar { flex: 1; margin: 0; }
 
-/* ---- 진화 연출 ---- */
-#evoCer { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px; overflow: hidden; }
-#evoCer.show { display: flex; animation: ecout .3s 1.5s ease-in forwards; }
-#evoCer > *, .ec-stage > * { position: relative; }
-.ec-dim { position: absolute !important; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(4, 8, 20, .62), rgba(4, 8, 20, .25) 70%); animation: ecin .25s ease-out backwards; }
-.ec-flash { position: absolute !important; inset: 0; background: radial-gradient(circle at 50% 50%, #fff, color-mix(in srgb, var(--c) 70%, transparent) 38%, transparent 70%); animation: ecflash .7s ease-out both; }
-.ec-stage { width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
-.ec-rays, .ec-ring { position: absolute !important; left: 50%; top: 50%; }
-.ec-rays { width: 460px; height: 460px; margin: -230px 0 0 -230px; border-radius: 50%;
-  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c) 80%, transparent) 0 5deg, transparent 5deg 20deg);
-  -webkit-mask-image: radial-gradient(circle, #000 12%, transparent 66%); mask-image: radial-gradient(circle, #000 12%, transparent 66%);
-  animation: ecspin 5s linear infinite, ecrin .6s ease-out backwards; }
-.ec-rays.r2 { width: 340px; height: 340px; margin: -170px 0 0 -170px; opacity: .7; animation: ecspin 3.2s linear infinite reverse, ecrin .6s .1s ease-out backwards;
-  background: repeating-conic-gradient(from 8deg, #fff 0 2deg, transparent 2deg 15deg); }
-.ec-ring { width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; border: 3px solid var(--c); box-shadow: 0 0 24px var(--c), inset 0 0 18px var(--c); animation: ecring 1.4s ease-out infinite; }
-.ec-ring.r2 { animation-delay: .5s; border-width: 2px; }
-.ec-ic { display: flex; filter: drop-shadow(0 0 14px var(--c)) drop-shadow(0 0 30px var(--c)); animation: ecic .8s cubic-bezier(.2, 1.4, .4, 1) .1s backwards, ecpulse .9s ease-in-out .9s infinite alternate; }
-.ec-ic svg { overflow: visible; }
-.ec-t { font: 52px/1 var(--font-display); color: #fff; letter-spacing: 14px; text-indent: 14px; margin-top: 8px; text-shadow: 0 0 10px var(--c), 0 0 26px var(--c), 0 2px 0 rgba(0, 0, 0, .5); animation: ect .6s .45s cubic-bezier(.2, 1.3, .4, 1) backwards; }
-.ec-n { font: 20px/1.2 var(--font-display); color: var(--c); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 0, 0, .8), 0 1px 0 rgba(0, 0, 0, .6); animation: ecn .4s .8s ease-out backwards; }
-@keyframes ecin { from { opacity: 0; } }
-@keyframes ecout { to { opacity: 0; } }
-@keyframes ecflash { 0% { opacity: 0; } 14% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes ecspin { to { transform: rotate(360deg); } }
-@keyframes ecrin { from { opacity: 0; scale: .2; } }
-@keyframes ecring { from { opacity: 1; transform: scale(.3); } to { opacity: 0; transform: scale(3); } }
-@keyframes ecic { from { opacity: 0; transform: scale(.15) rotate(-40deg); } }
-@keyframes ecpulse { to { transform: scale(1.07); } }
-@keyframes ect { from { opacity: 0; transform: scale(2.2); letter-spacing: 34px; } }
-@keyframes ecn { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) { .ec-rays, .ec-ring, .ec-ic, .ec-t, .ec-n { animation: none; } .ec-flash, .ec-ring { display: none; } }
+/* ---- 진화하는 순간: 무기 칸 안에서 약 1.5초 (ui.js 의 evoStart). --ed 길이, --ea 지난 시간(음수: 다시 그려도 이어진다). 63% 가 "쿵" ---- */
+.slot.evoing { animation: evpress var(--ed) var(--ea) linear both; }
+.evdk, .evcg { position: absolute; inset: 0; border-radius: 5px; pointer-events: none; }
+.evdk { background: rgba(4, 9, 22, .46); animation: evdk var(--ed) var(--ea) linear both; }
+.evcg { background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--wc) 80%, transparent), color-mix(in srgb, var(--wc) 25%, transparent) 34%, transparent 62%); animation: evcg var(--ed) var(--ea) linear both; }
+.evic { position: relative; z-index: 1; display: flex; }
+.evo-a { position: absolute; inset: 0; display: flex; animation: evia var(--ed) var(--ea) linear both; }
+.slot.evoing .evic > .evoic { animation: evib var(--ed) var(--ea) linear both; }
+.slot.evoing .lv { position: relative; z-index: 1; animation: evlv var(--ed) var(--ea) linear both; }
+.evst { display: inline-block; font-style: normal; animation: evst var(--ed) var(--ea) linear both; }
+.evol { position: absolute; left: -1.5px; top: -1.5px; width: calc(100% + 3px); height: calc(100% + 3px); overflow: visible; pointer-events: none; z-index: 2; }
+.evol path { stroke: var(--wc); }
+.evol .l1 { stroke-dasharray: 100; animation: evfill var(--ed) var(--ea) linear both, evglow var(--ed) var(--ea) linear both; }
+.evol .l2 { stroke-width: 2.2; stroke-dasharray: 100; animation: evfill var(--ed) var(--ea) linear both, evline var(--ed) var(--ea) linear both; }
+.evol .l3 { stroke: color-mix(in srgb, var(--wc) 78%, var(--ink)); stroke-width: 3.4; stroke-linecap: round; stroke-dasharray: 3 97; animation: evtip var(--ed) var(--ea) linear both, evtipo var(--ed) var(--ea) linear both; }
+.slot.evo.evoing::after { animation: evhalo var(--ed) var(--ea) linear both; }
+.ghost .evdk, .ghost .evcg, .ghost .evol, .ghost .evo-a { display: none; }
+/* 1. 어두워지며 아이콘이 빨려 든다 (살짝 떨린다) */
+@keyframes evdk { 0% { opacity: 0; animation-timing-function: ease-out; } 30%, 62% { opacity: 1; } 63% { opacity: .5; } 78%, 100% { opacity: 0; } }
+@keyframes evia { 0% { transform: none; opacity: 1; animation-timing-function: cubic-bezier(.55, 0, .8, .45); } 36% { transform: scale(.36) rotate(-14deg); opacity: .85; }
+  44% { transform: scale(.34) rotate(-15deg) translateX(.6px); } 50% { transform: scale(.33) rotate(-15deg) translateX(-.6px); } 56% { transform: scale(.32) rotate(-16deg) translateX(.5px); }
+  62% { transform: scale(.3) rotate(-16deg); opacity: .9; } 63%, 100% { transform: scale(.2); opacity: 0; } }
+/* 2. 가운데에 빛이 모이고, 테두리를 따라 빛이 한 바퀴 차오른다 (앞머리가 밝다) */
+@keyframes evcg { 0%, 18% { opacity: 0; transform: scale(.45); animation-timing-function: ease-in; } 62% { opacity: .9; transform: scale(1); }
+  63% { opacity: 1; transform: scale(1.08); animation-timing-function: ease-out; } 84%, 100% { opacity: 0; transform: scale(1.55); } }
+@keyframes evfill { 0%, 20% { stroke-dashoffset: 100; animation-timing-function: cubic-bezier(.5, .05, .75, .75); } 62%, 100% { stroke-dashoffset: 0; } }
+@keyframes evtip { 0%, 20% { stroke-dashoffset: 3; animation-timing-function: cubic-bezier(.5, .05, .75, .75); } 62%, 100% { stroke-dashoffset: -97; } }
+@keyframes evtipo { 0%, 21% { opacity: 0; } 25%, 60% { opacity: 1; } 63%, 100% { opacity: 0; } }
+/* 3. 쿵: 눌렸다 튀고, 새 아이콘이 튀어나오고, ★ 가 찍힌다. 테두리 빛은 번졌다가 남는 빛으로 넘어간다 */
+@keyframes evpress { 0%, 62% { transform: none; border-color: var(--line); } 63% { border-color: var(--wc); } 65% { transform: scale(.9); } 72% { transform: scale(1.06); } 80% { transform: scale(.985); } 88%, 100% { transform: none; border-color: var(--wc); } }
+@keyframes evib { 0%, 62.9% { opacity: 0; transform: scale(.4); } 63% { opacity: 1; transform: scale(.5); animation-timing-function: cubic-bezier(.2, .9, .3, 1); }
+  71% { transform: scale(1.22); animation-timing-function: ease-in-out; } 80% { transform: scale(.95); } 88% { transform: scale(1.02); } 100% { opacity: 1; transform: none; } }
+@keyframes evlv { 0%, 62.9% { opacity: 0; } 63%, 100% { opacity: 1; } }
+@keyframes evst { 0%, 63% { transform: scale(2.6); animation-timing-function: ease-in; } 68% { transform: scale(.88); animation-timing-function: ease-out; } 75% { transform: scale(1.08); } 83%, 100% { transform: none; } }
+@keyframes evline { 0%, 63% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes evglow { 0% { stroke-width: 5; stroke-opacity: .25; } 62% { stroke-width: 6; stroke-opacity: .4; } 63% { stroke-width: 9; stroke-opacity: .6; animation-timing-function: ease-out; } 100% { stroke-width: 5; stroke-opacity: 0; } }
+/* 4. 남는 빛이 서서히 켜진다 */
+@keyframes evhalo { 0%, 63% { opacity: 0; } 100% { opacity: 1; } }
+/* 움직임 줄이기: 0.6초, 크기와 위치는 바꾸지 않고 밝기만 */
+@media (prefers-reduced-motion: reduce) {
+  .slot.evoing, .evst, .slot.evo::after { animation: none; }
+  .slot.evoing { animation: evqbd var(--ed) var(--ea) linear both; }
+  .evo-a { animation-name: evqout; } .slot.evoing .evic > .evoic { animation-name: evlv; } .evcg { animation-name: evqcg; }
+}
+@keyframes evqbd { 0%, 62.9% { border-color: var(--line); } 63%, 100% { border-color: var(--wc); } }
+@keyframes evqout { 0%, 50% { opacity: 1; } 63%, 100% { opacity: 0; } }
+@keyframes evqcg { 0%, 18% { opacity: 0; } 62% { opacity: .9; } 84%, 100% { opacity: 0; } }
 
 /* ---- 보스 보상: 죽은 자리에서 떠올라 인벤토리 칸으로 ---- */
 #rewLayer { position: absolute; inset: 0; z-index: 12; pointer-events: none; overflow: hidden; }
