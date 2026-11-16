@@ -215,7 +215,9 @@ function capOf(pts) {
   const hash = digest.toString(16);
 
   /* ---------- JSON ---------- */
-  const jsonRows = rows.map((r) => ({ team: r.team, kind: r.kind, id: r.id, g: r.g, name: r.name,
+  // v, w: 측정할 때의 그 항목 수치 (등급 0..3). 나중에 core.js 수치를 바꿔도 value.js 가 측정 당시 수치로 영점을 맞춘다
+  const valsOf = (r) => { if (r.kind !== 'part' && r.kind !== 'aug') return {}; const D = r.kind === 'aug' ? Core.AUGS[r.id] : Core.PARTS[r.id]; return D.w ? { v: D.v.slice(), w: D.w.slice() } : { v: D.v.slice() }; };
+  const jsonRows = rows.map((r) => Object.assign({ team: r.team, kind: r.kind, id: r.id, g: r.g, name: r.name }, valsOf(r), {
     sc: Object.fromEntries(SC.map((sk) => { const o = Object.assign({}, r.sc[sk]); delete o.mark; return [sk, o]; })) }));
   const meta = {
     created: new Date().toISOString(), runs: N, from: S0, jit: JIT, target: T, minutes: +mins.toFixed(2), workers: os.cpus().length, hash,

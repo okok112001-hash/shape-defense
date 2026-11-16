@@ -471,10 +471,11 @@ function scene(type, lines, secs, opt) {
   // 집광: 빔에 맞은 적 중 기지에 가장 가까운 적만 +v% (지속 빔 틱에도)
   game(1); const L = put('laser', 2, 50); L.augs[0] = { id: 'l_lens', g: 2 }; Core.dirty(L); Core.S.spawnAcc = -1e9; const st = Core.stats(L); st.crit = 0;
   const near = foe2(250, 470), far = foe2(250, 350); L.cd = 0; Core.step(1 / 60);
-  assert(Math.abs((1e12 - near.hp) - st.dmg * 1.5) < 1e-3 && Math.abs((1e12 - far.hp) - st.dmg) < 1e-3, '집광 영웅 50%: 가장 가까운 적만');
+  const LV = Core.AUGS.l_lens.v;   // 수치는 정의에서 읽는다 (T3 에서 바뀜)
+  assert(Math.abs((1e12 - near.hp) - st.dmg * (1 + LV[2] / 100)) < 1e-3 && Math.abs((1e12 - far.hp) - st.dmg) < 1e-3, `집광 영웅 ${LV[2]}%: 가장 가까운 적만`);
   game(1); const H2 = put('laser', 2, 100, true); H2.augs[0] = { id: 'l_lens', g: 3 }; H2.sk[0] = [1, 0, 0]; Core.dirty(H2); Core.S.spawnAcc = -1e9; const s2 = Core.stats(H2); s2.crit = 0;
   const n2 = foe2(250, 470), f2 = foe2(250, 350); H2.cd = 99; Core.S.beams.push({ k: 2, t: 0.25, tick: 0.1, st: s2 }); for (let i = 0; i < 8; i++) Core.step(1 / 60);
-  assert(Math.abs((1e12 - n2.hp) / (1e12 - f2.hp) - 2.25) < 1e-6, '지속 빔 틱에도 집광 (전설 125%)');
+  assert(Math.abs((1e12 - n2.hp) / (1e12 - f2.hp) - (1 + LV[3] / 100)) < 1e-6, `지속 빔 틱에도 집광 (전설 ${LV[3]}%)`);
   ok('증강 정리: 빠진 증강 5개, 예전 저장 정리, 집광');
 }
 

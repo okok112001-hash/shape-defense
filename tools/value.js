@@ -352,7 +352,9 @@ function loadItemEq(file) {
     if (r.kind !== 'part' && r.kind !== 'aug') continue;
     const o = r.kind === 'part' ? { p: [[r.id, r.g]] } : { a: [[r.id, r.g]] };
     const wts = r.team === 'P5' ? PART_TEAM : [r.team.split(':')[1]];
-    const sts = wts.map((t) => ({ t, st: statsOf(t, o), ref: statsOf(t, {}) }));
+    const D = r.kind === 'part' ? PARTS[r.id] : AUGS[r.id];
+    // 측정 당시 수치(r.v, r.w)로 능력치를 만든다 (그 뒤 core.js 수치를 바꿔도 영점이 어긋나지 않게)
+    const sts = withVal(D, r.g, r.v ? r.v[r.g] : null, r.w ? r.w[r.g] : null, () => wts.map((t) => ({ t, st: statsOf(t, o), ref: statsOf(t, {}) })));
     for (const c of CTX) {
       const m = r.sc[c];
       if (!m || m.eq == null || !isFinite(m.eq)) continue;
@@ -360,7 +362,7 @@ function loadItemEq(file) {
       const share = r.team === 'P5' ? 1 : nz && nz.share != null ? nz.share : 0.4;
       const src = r.team.split(':')[0], ck = d50[r.team] && d50[r.team].sc[c];
       const wt = ck && ck.eq != null && Math.abs(ck.eq - 0.5) <= 0.05 ? 1 : 0.3;   // 가중치: 검증(가짜 +50%) 실패 칸은 0.3. 천장 칸(sat)은 하한으로 쓴다
-      cells.push({ src, team: r.team, id: r.id, g: r.g, kind: r.kind, c, meas: m.eq, wt, sat: !!m.sat, sts, lay: Object.assign({}, LAY[src], { share }), types: wts });
+      cells.push({ src, team: r.team, id: r.id, g: r.g, vv: r.v ? r.v[r.g] : null, kind: r.kind, c, meas: m.eq, wt, sat: !!m.sat, sts, lay: Object.assign({}, LAY[src], { share }), types: wts });
     }
   }
   return cells;
@@ -689,7 +691,7 @@ function fitAll() {
   o.push(`생성: ${new Date().toISOString()}  자료: tools/item_eq.json ${cells.length}칸, 스킬 ${sk.length}칸 (${[...new Set(sk.map((x) => x.file))].join(', ')}), 소요 ${meta.minutes}분`);
   o.push('셀 = 측정 / 예측 (가치 %, ">" = 측정이 천장에 닿아 하한). 비 = (1+예측)/(1+측정) 의 기하평균 (1 이면 맞음). 맞춤에 쓴 자료와 비교하는 자료가 같다(표본 안 비교). 스킬 줄은 기구 계수 4개만 스킬 자료로 맞췄다.');
   const groups = new Map();
-  for (const x of cells.concat(sk)) { const k = x.src === 'SK' ? `SK|${x.id}|${x.mode}` : `${x.team}|${x.id}|${x.g}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
+  for (const x of cells.concat(sk)) { const k = x.src === 'SK' ? `SK|${x.id}|${x.mode}` : `${x.team}|${x.id}|${x.g}|${x.vv}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
   const rows = [];
   for (const [k, xs] of groups) {
     const pr = xs.map((x) => predCell(x, P));
@@ -701,7 +703,7 @@ function fitAll() {
   for (const r of rows) {
     const [team] = r.k.split('|');
     if (team !== lastTeam) { o.push(''); o.push(`[${team === 'SK' ? '진화 스킬 줄 (같은 무기 다섯 자루)' : team}]`); o.push(head); lastTeam = team; }
-    const x0 = r.xs[0], lab = x0.src === 'SK' ? `${x0.id} ${SKILLS[x0.types[0]][+x0.id.split('.')[1]].name} ${x0.mode === 'full' ? '완성' : '뿌리'}` : `${x0.id} ${(x0.kind === 'part' ? PARTS : AUGS)[x0.id].name} ${GR[x0.g]}`;
+    const x0 = r.xs[0], lab = x0.src === 'SK' ? `${x0.id} ${SKILLS[x0.types[0]][+x0.id.split('.')[1]].name} ${x0.mode === 'full' ? '완성' : '뿌리'}` : `${x0.id} ${(x0.kind === 'part' ? PARTS : AUGS)[x0.id].name} ${GR[x0.g]}${x0.vv != null ? ' (' + x0.vv + ')' : ''}`;
     const cellsTxt = CTX.map((c) => { const i = r.xs.findIndex((x) => x.c === c); return lpad(i < 0 ? '-' : `${r.xs[i].sat ? '>' : ''}${Math.round(r.xs[i].meas * 100)}/${Math.round(r.pr[i] * 100)}`, 11); }).join('');
     o.push('  ' + pad(lab, 34) + cellsTxt + lpad(`${Math.round(r.mAll * 100)}/${Math.round(r.pAll * 100)}`, 11) + lpad(r.rr.toFixed(2), 6) + (r.rr > 1.25 || r.rr < 0.8 ? '  !' : ''));
   }
