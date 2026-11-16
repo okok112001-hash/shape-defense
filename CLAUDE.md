@@ -10,7 +10,7 @@
 - `build.py` `src/` 를 한 파일로 묶어 저장소 루트의 `index.html`, `manifest.webmanifest`, `sw.js`, 아이콘을 만든다(Pillow 필요). `dist/artifact.html` 은 PWA 설정 없는 미리보기용.
 - `tools/` 밸런스 도구. 사용법은 `tools/README.md`, 수치를 바꾼 기록은 `tools/balance_log.md`.
 - `tests/smoke.py` 브라우저 스모크 테스트(Playwright). `tests/evo_shots.py` 진화 연출을 0.1배로 늦춰 0.1초 간격으로 찍는다. `tests/example_*.py` 는 화면 캡처 스크립트 예시(경로는 옛 작업 환경 기준이라 고쳐 써야 함).
-- `docs/evolution.md` 진화 스킬 설계서(1차분과 2차분 박격포·전격기 구현됨, 저격포·산성 미구현). 줄 세기는 T6 에서 맞췄다(완성 R 약 3, 뿌리 약 1.5). `docs/tasks.md` 남은 일을 나눈 태스크 목록.
+- `docs/evolution.md` 진화 스킬 설계서(1차분과 2차분 박격포·전격기·저격포 구현됨, 산성 미구현). 줄 세기는 T6 에서 맞췄다(완성 R 약 3, 뿌리 약 1.5). `docs/tasks.md` 남은 일을 나눈 태스크 목록.
 - `docs/value.md` 수치 가치 환산표 설명(공격력 +1% 단위, 환산 식, 계수).
 
 ## 명령

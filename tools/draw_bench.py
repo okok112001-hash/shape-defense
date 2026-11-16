@@ -44,12 +44,12 @@ window.__game = {'''
         await pg.locator('[data-act="testStart"]').first.tap(); await pg.wait_for_timeout(300)
         await pg.evaluate('window.__tick(3)')
         await pg.evaluate('''(team) => { const S = Core.S; S.cheat.god = true;
-          const T = team === 'mortar' || team === 'tesla' ? [team, team, team, team, team] : ['blaster','shotgun','laser','pulse','blaster'];
+          const T = team === 'mortar' || team === 'tesla' || team === 'rail' ? [team, team, team, team, team] : ['blaster','shotgun','laser','pulse','blaster'];
           T.forEach((t, k) => { const i = Core.test.give(t); Core.equipWeapon(i, k); });
           Core.test.evolveAll();
           const SK = { blaster: [[5,5,1],[0,0,0],[5,4,0]], shotgun: [[0,0,0],[5,4,0],[5,5,1]], laser: [[5,5,1],[0,0,0],[5,4,0]], pulse: [[0,0,0],[5,5,1],[5,4,0]] };
           const MK = [[[5,5,1],[5,4,0],[0,0,0]], [[0,0,0],[5,5,1],[5,4,0]], [[5,4,0],[0,0,0],[5,5,1]], [[5,5,1],[0,0,0],[5,4,0]], [[0,0,0],[5,4,0],[5,5,1]]];
-          S.slots.forEach((w, k) => { w.skp = 20; w.sk = (w.type === 'mortar' || w.type === 'tesla' ? MK[k] : SK[w.type]).map(r => r.slice()); Core.dirty(w); });
+          S.slots.forEach((w, k) => { w.skp = 20; w.sk = (w.type === 'mortar' || w.type === 'tesla' || w.type === 'rail' ? MK[k] : SK[w.type]).map(r => r.slice()); Core.dirty(w); });
           S.slotDirty = true; S.invDirty = true; }''', os.environ.get('DRAW_TEAM', ''))
         await pg.evaluate(FOE)
         cdp = await c.new_cdp_session(pg)

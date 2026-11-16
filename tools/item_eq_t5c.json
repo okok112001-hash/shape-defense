@@ -1,0 +1,981 @@
+{
+ "meta": {
+  "created": "2026-11-16T19:42:09.302Z",
+  "runs": 4,
+  "from": 1,
+  "jit": 0.2,
+  "target": 0.45,
+  "minutes": 0.44,
+  "workers": 4,
+  "hash": "cd1eda00",
+  "sims": 2344,
+  "errors": 0,
+  "only": [
+   "rail",
+   "r_twin",
+   "r_through"
+  ],
+  "grades": [
+   2,
+   3
+  ],
+  "nofake": false,
+  "caps": {
+   "blaster": 0,
+   "shotgun": 6,
+   "laser": 6,
+   "pulse": 8,
+   "mortar": 8,
+   "tesla": 6,
+   "rail": 0,
+   "acid": 6
+  },
+  "teams": {
+   "X2:rail": {
+    "weapons": [
+     "blaster",
+     "rail",
+     "blaster",
+     "rail",
+     "blaster"
+    ],
+    "carry": [
+     1,
+     3
+    ],
+    "curves": {
+     "few": {
+      "pts": [
+       [
+        0,
+        3.0990726723563573
+       ],
+       [
+        0.25,
+        3.2586271767089654
+       ],
+       [
+        1,
+        3.607622900488562
+       ],
+       [
+        3,
+        3.8546069545406074
+       ]
+      ],
+      "cap": 3
+     },
+     "swarm": {
+      "pts": null,
+      "cap": null
+     },
+     "mix": {
+      "pts": [
+       [
+        0,
+        2.350592005612738
+       ],
+       [
+        0.25,
+        2.5270039600806222
+       ],
+       [
+        1,
+        2.7639935022184683
+       ],
+       [
+        3,
+        2.7639935022184683
+       ]
+      ],
+      "cap": 1
+     },
+     "boss": {
+      "pts": [
+       [
+        0,
+        3.0211402090340265
+       ],
+       [
+        0.25,
+        3.1688543429119216
+       ],
+       [
+        1,
+        3.346319501829109
+       ],
+       [
+        3,
+        3.773112816424446
+       ]
+      ],
+      "cap": 3
+     },
+     "early": {
+      "pts": [
+       [
+        0,
+        2.5342026615089863
+       ],
+       [
+        0.25,
+        2.5805699362498395
+       ],
+       [
+        1,
+        2.7030754827097487
+       ],
+       [
+        3,
+        3.308153722309029
+       ]
+      ],
+      "cap": 3
+     }
+    }
+   }
+  },
+  "note": "eq = 운반 무기 공격력 +eq 어치 (0.25 = +25%). R = M*(대상)/M*(기준). share = M* 에서 운반 칸 피해 / 팀 전체 피해. kills, dealt = M* 에서 측정 120초 동안의 시드 평균. lnM = ln M*. cap = 가짜 꺾은선이 평평해지기 전 마지막 마디의 공격력 (팀 x 시나리오, teams.*.curves 에 마디 [공격력, lnM]). sat = 대상이 평평한 구간(천장)에 닿아 eq 는 하한일 뿐. why = eq 가 null 인 사유"
+ },
+ "rows": [
+  {
+   "team": "X2:rail",
+   "kind": "none",
+   "id": null,
+   "g": null,
+   "name": "기준 (대상 없음)",
+   "sc": {
+    "few": {
+     "lnM": 3.0990726723563573,
+     "se": 0.0007213938165988337,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6223711438138706,
+     "kills": 71.25,
+     "dealt": 174748.69749050197,
+     "R": 1,
+     "eq": 0,
+     "cap": 3,
+     "sat": false,
+     "ms": 2055,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 2960,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.350592005612738,
+     "se": 0.0025431223677818446,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.5325682793744965,
+     "kills": 358.5,
+     "dealt": 131799.26254214457,
+     "R": 1,
+     "eq": 0,
+     "cap": 1,
+     "sat": false,
+     "ms": 3756,
+     "sims": 60
+    },
+    "boss": {
+     "lnM": 3.0211402090340265,
+     "se": 0.003059374455592525,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6367048464127663,
+     "kills": 195,
+     "dealt": 171109.41682342035,
+     "R": 1,
+     "eq": 0,
+     "cap": 3,
+     "sat": false,
+     "ms": 2862,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.5342026615089863,
+     "se": 0.006276782549670253,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6145812191064215,
+     "kills": 98.75,
+     "dealt": 30539.144520598526,
+     "R": 1,
+     "eq": 0,
+     "cap": 3,
+     "sat": false,
+     "ms": 1088,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "fake",
+   "id": "_eq_d25",
+   "g": null,
+   "name": "가짜: 공격력 +25%",
+   "sc": {
+    "few": {
+     "lnM": 3.2586271767089654,
+     "se": 0.0024253956569625238,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6673501968066119,
+     "kills": 72,
+     "dealt": 202479.2235860312,
+     "R": 1.1729881934405477,
+     "eq": 0.25,
+     "cap": 3,
+     "sat": false,
+     "ms": 1347,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 2639,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.5270039600806222,
+     "se": 0.0008734194433615201,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6013618349565729,
+     "kills": 365,
+     "dealt": 163508.12762355164,
+     "R": 1.1929293900327362,
+     "eq": 0.25,
+     "cap": 1,
+     "sat": false,
+     "ms": 3365,
+     "sims": 60
+    },
+    "boss": {
+     "lnM": 3.1688543429119216,
+     "se": 0.0054516657929030736,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6706927944724307,
+     "kills": 187.75,
+     "dealt": 197355.52204686162,
+     "R": 1.159181478280618,
+     "eq": 0.25,
+     "cap": 3,
+     "sat": false,
+     "ms": 2965,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.5805699362498395,
+     "se": 0.0043891147192568255,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.630498110683563,
+     "kills": 95.5,
+     "dealt": 31627.933353178,
+     "R": 1.0474590455688406,
+     "eq": 0.25,
+     "cap": 3,
+     "sat": false,
+     "ms": 1568,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "fake",
+   "id": "_eq_d50",
+   "g": null,
+   "name": "가짜: 공격력 +50%",
+   "sc": {
+    "few": {
+     "lnM": 3.396435414008573,
+     "se": 0.0019474225799147695,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7011765495129412,
+     "kills": 73.5,
+     "dealt": 229013.79103773413,
+     "R": 1.3463035712663056,
+     "eq": 0.5049117864463619,
+     "cap": 3,
+     "sat": false,
+     "ms": 1264,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 2649,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.660710529813891,
+     "se": 0.003741436653485604,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6628055191287229,
+     "kills": 352.5,
+     "dealt": 195395.57493506232,
+     "R": 1.363586722581729,
+     "eq": 0.6295661083742261,
+     "cap": 1,
+     "sat": false,
+     "ms": 3263,
+     "sims": 60
+    },
+    "boss": {
+     "lnM": 3.2695376626963046,
+     "se": 0.005560109063853233,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6921376443973966,
+     "kills": 186.75,
+     "dealt": 217741.66859026402,
+     "R": 1.2819693543662822,
+     "eq": 0.6319833213815413,
+     "cap": 3,
+     "sat": false,
+     "ms": 2774,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.5887406215890514,
+     "se": 0.0033490517724805266,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6318283188736235,
+     "kills": 95.75,
+     "dealt": 31943.38620093556,
+     "R": 1.0560525634927287,
+     "eq": 0.2898051055175417,
+     "cap": 3,
+     "sat": false,
+     "ms": 1534,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "fake",
+   "id": "_eq_d100",
+   "g": null,
+   "name": "가짜: 공격력 +100%",
+   "sc": {
+    "few": {
+     "lnM": 3.607622900488562,
+     "se": 0.007087390258383689,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7500380158763338,
+     "kills": 77,
+     "dealt": 275990.71639861,
+     "R": 1.6628786518608785,
+     "eq": 1,
+     "cap": 3,
+     "sat": false,
+     "ms": 1460,
+     "sims": 68
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 2697,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.7639935022184683,
+     "se": 0.0017780236928431402,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7046333387674067,
+     "kills": 335,
+     "dealt": 224310.72863821787,
+     "R": 1.5119519476623475,
+     "eq": 1,
+     "cap": 1,
+     "sat": true,
+     "ms": 3084,
+     "sims": 60,
+     "why": "천장 위: eq 는 하한 (= 환산 상한, 평평한 구간을 늘려 쓰면 값이 터무니없이 커진다)"
+    },
+    "boss": {
+     "lnM": 3.346319501829109,
+     "se": 0.0054261209197530615,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7130959302791766,
+     "kills": 177.25,
+     "dealt": 234143.52543097286,
+     "R": 1.3842788149505387,
+     "eq": 1,
+     "cap": 3,
+     "sat": false,
+     "ms": 2407,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.7030754827097487,
+     "se": 0.004793773102415327,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6712795683481642,
+     "kills": 93.75,
+     "dealt": 36131.83403262933,
+     "R": 1.1839695535223862,
+     "eq": 0.9999999999999998,
+     "cap": 3,
+     "sat": false,
+     "ms": 1310,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "fake",
+   "id": "_eq_d300",
+   "g": null,
+   "name": "가짜: 공격력 +300%",
+   "sc": {
+    "few": {
+     "lnM": 3.8546069545406074,
+     "se": 0.006815862345146375,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7915924984618553,
+     "kills": 73.25,
+     "dealt": 339248.3179026474,
+     "R": 2.128748572012604,
+     "eq": 3,
+     "cap": 3,
+     "sat": false,
+     "ms": 1273,
+     "sims": 68
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 2680,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.7639935022184683,
+     "se": 0.0017780236928431402,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7046333387674067,
+     "kills": 335,
+     "dealt": 224310.72863821787,
+     "R": 1.5119519476623475,
+     "eq": 1,
+     "cap": 1,
+     "sat": true,
+     "ms": 3119,
+     "sims": 60,
+     "why": "천장 위: eq 는 하한 (= 환산 상한, 평평한 구간을 늘려 쓰면 값이 터무니없이 커진다)"
+    },
+    "boss": {
+     "lnM": 3.773112816424446,
+     "se": 0.00242675023298881,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.8197410366775824,
+     "kills": 158.25,
+     "dealt": 383731.5657529681,
+     "R": 2.1211801480145414,
+     "eq": 3.000000000000001,
+     "cap": 3,
+     "sat": false,
+     "ms": 2253,
+     "sims": 68
+    },
+    "early": {
+     "lnM": 3.308153722309029,
+     "se": 0.002881631628854966,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.8259570212704402,
+     "kills": 94.5,
+     "dealt": 68487.76869466394,
+     "R": 2.168316501719149,
+     "eq": 3,
+     "cap": 3,
+     "sat": false,
+     "ms": 1316,
+     "sims": 68
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "aug",
+   "id": "r_through",
+   "g": 2,
+   "name": "관통 저격",
+   "v": [
+    0,
+    0,
+    250,
+    625
+   ],
+   "sc": {
+    "few": {
+     "lnM": 3.408817395990555,
+     "se": 0.004500975046056817,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7222018851849666,
+     "kills": 74.75,
+     "dealt": 247271.0761344812,
+     "R": 1.3630771083447146,
+     "eq": 0.5302169019736087,
+     "cap": 3,
+     "sat": false,
+     "ms": 1565,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 1953,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.778466005609908,
+     "se": 0.005042551934975025,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6923045220969409,
+     "kills": 351,
+     "dealt": 216682.90899234437,
+     "R": 1.533992785694894,
+     "eq": 1,
+     "cap": 1,
+     "sat": true,
+     "ms": 2935,
+     "sims": 60,
+     "why": "천장 위: eq 는 하한 (= 환산 상한, 평평한 구간을 늘려 쓰면 값이 터무니없이 커진다)"
+    },
+    "boss": {
+     "lnM": 3.3429419605359056,
+     "se": 0.007301181114888117,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7250592804029845,
+     "kills": 205.75,
+     "dealt": 249609.1778472469,
+     "R": 1.3796112429874792,
+     "eq": 0.9821894307514212,
+     "cap": 3,
+     "sat": false,
+     "ms": 2065,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.678550607162572,
+     "se": 0.004493400763471808,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7088185536238427,
+     "kills": 97,
+     "dealt": 38999.29497165735,
+     "R": 1.1552860153476816,
+     "eq": 0.8203982090165949,
+     "cap": 3,
+     "sat": false,
+     "ms": 1276,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "aug",
+   "id": "r_through",
+   "g": 3,
+   "name": "관통 저격",
+   "v": [
+    0,
+    0,
+    250,
+    625
+   ],
+   "sc": {
+    "few": {
+     "lnM": 3.428074586414663,
+     "se": 0.004626145716698448,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7257970126778254,
+     "kills": 76.25,
+     "dealt": 250989.83571063814,
+     "R": 1.3895805153231922,
+     "eq": 0.5704210396400109,
+     "cap": 3,
+     "sat": false,
+     "ms": 1551,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 1943,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.778466005609908,
+     "se": 0.005042551934975025,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6923045220969409,
+     "kills": 351,
+     "dealt": 216682.90899234437,
+     "R": 1.533992785694894,
+     "eq": 1,
+     "cap": 1,
+     "sat": true,
+     "ms": 3109,
+     "sims": 60,
+     "why": "천장 위: eq 는 하한 (= 환산 상한, 평평한 구간을 늘려 쓰면 값이 터무니없이 커진다)"
+    },
+    "boss": {
+     "lnM": 3.364274209752326,
+     "se": 0.0063706794332888915,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7332783836886341,
+     "kills": 214,
+     "dealt": 255549.49788529795,
+     "R": 1.4093576042049722,
+     "eq": 1.059178448418547,
+     "cap": 3,
+     "sat": false,
+     "ms": 2007,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.678550607162572,
+     "se": 0.004493400763471808,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7088185536238427,
+     "kills": 97,
+     "dealt": 38999.29497165735,
+     "R": 1.1552860153476816,
+     "eq": 0.8203982090165949,
+     "cap": 3,
+     "sat": false,
+     "ms": 1271,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "aug",
+   "id": "r_twin",
+   "g": 2,
+   "name": "이중 저격",
+   "v": [
+    0,
+    0,
+    45,
+    110
+   ],
+   "sc": {
+    "few": {
+     "lnM": 3.2708201057706225,
+     "se": 0.003954137291900677,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7262232242770343,
+     "kills": 75.75,
+     "dealt": 228790.77711416545,
+     "R": 1.1873779033563425,
+     "eq": 0.2706952050706761,
+     "cap": 3,
+     "sat": false,
+     "ms": 1979,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 1996,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.5790381779695943,
+     "se": 0.0013491202476032822,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.6625912226961835,
+     "kills": 362.5,
+     "dealt": 189903.75587458402,
+     "R": 1.2566458810253107,
+     "eq": 0.3858852745770569,
+     "cap": 1,
+     "sat": false,
+     "ms": 3919,
+     "sims": 60
+    },
+    "boss": {
+     "lnM": 3.2035101398433707,
+     "se": 0.0018514056563045146,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7209412330865765,
+     "kills": 191.75,
+     "dealt": 222446.84850282795,
+     "R": 1.2000580502225175,
+     "eq": 0.3701591777826583,
+     "cap": 3,
+     "sat": false,
+     "ms": 2311,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.6302267414204974,
+     "se": 0.0024137694850655837,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7279214792374115,
+     "kills": 94.25,
+     "dealt": 39275.66019541244,
+     "R": 1.1007855704939706,
+     "eq": 0.5123373739166177,
+     "cap": 3,
+     "sat": false,
+     "ms": 1163,
+     "sims": 60
+    }
+   }
+  },
+  {
+   "team": "X2:rail",
+   "kind": "aug",
+   "id": "r_twin",
+   "g": 3,
+   "name": "이중 저격",
+   "v": [
+    0,
+    0,
+    45,
+    110
+   ],
+   "sc": {
+    "few": {
+     "lnM": 3.4935492054185158,
+     "se": 0.00669921416115782,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7994218406897694,
+     "kills": 76.5,
+     "dealt": 304923.17688587774,
+     "R": 1.4836073682121533,
+     "eq": 0.715184253250635,
+     "cap": 3,
+     "sat": false,
+     "ms": 1910,
+     "sims": 60
+    },
+    "swarm": {
+     "lnM": null,
+     "se": null,
+     "clamped": null,
+     "moved": null,
+     "fail": "low",
+     "share": null,
+     "kills": null,
+     "dealt": null,
+     "R": null,
+     "eq": null,
+     "cap": null,
+     "sat": null,
+     "ms": 1994,
+     "sims": 16,
+     "why": "기준 못버팀"
+    },
+    "mix": {
+     "lnM": 2.836474588762241,
+     "se": 0.00170068031589149,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7574585786530652,
+     "kills": 334,
+     "dealt": 262628.42413301684,
+     "R": 1.625609111103032,
+     "eq": 1,
+     "cap": 1,
+     "sat": true,
+     "ms": 4134,
+     "sims": 68,
+     "why": "천장 위: eq 는 하한 (= 환산 상한, 평평한 구간을 늘려 쓰면 값이 터무니없이 커진다)"
+    },
+    "boss": {
+     "lnM": 3.44964801686437,
+     "se": 0.002533729466426657,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.7803636279074695,
+     "kills": 190.25,
+     "dealt": 293631.0179645308,
+     "R": 1.5349653505155427,
+     "eq": 1.3654330744140668,
+     "cap": 3,
+     "sat": false,
+     "ms": 2177,
+     "sims": 60
+    },
+    "early": {
+     "lnM": 2.8432316329273326,
+     "se": 0.0026966023372880263,
+     "clamped": false,
+     "moved": 0,
+     "fail": null,
+     "share": 0.8090771000208725,
+     "kills": 98,
+     "dealt": 53400.343351207695,
+     "R": 1.3621018319537959,
+     "eq": 1.348326655083822,
+     "cap": 3,
+     "sat": false,
+     "ms": 1206,
+     "sims": 60
+    }
+   }
+  }
+ ]
+}

@@ -156,17 +156,6 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
 function foe(x, y, hp) { const e = { type: 'basic', lane: Math.floor(x / 100), x, y, r: 19, hp: hp || 1e9, maxHp: hp || 1e9, speed: 0, leak: 1, gold: 0, boss: false, born: 0, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0 }; Core.S.enemies.push(e); return e; }
 function maxNodes(w, l) { SKILLS[w.type][l].nodes.forEach((nd, t) => { w.sk[l][t] = nd.max; }); Core.dirty(w); }
 {
-  // 처형: 20% 아래로 남으면 즉사
-  game(1); const rl = put('rail', 2, 100, true); rl.sk[1] = [5, 5, 1]; Core.dirty(rl);
-  const rs = Core.stats(rl); assert(Math.abs(rs.instakill - 0.2) < 1e-9);
-  const er = foe(250, 300, 100); er.hp = 100; er.maxHp = 100 / 0.85 * 1.0;   // 한 방에 약 80% 뎀: 남는 체력이 20% 아래
-  er.hp = er.maxHp * 0.99; const dmgNeeded = er.hp - er.maxHp * 0.15;
-  rs.crit = 0; rs.dmg = dmgNeeded; rs.bossPct = 0; rs.vuln = 0; Core.S.enemies = [er]; Core.hit; // hit는 내부 함수: 아래 step으로 확인
-  rl.cd = 0; Core.step(1 / 60); for (let i = 0; i < 30; i++) Core.step(1 / 60);
-  assert(er.dead || er.hp <= 0, '처형: 20% 아래로 남은 적은 즉사');
-  // 속사 저격 +60%
-  game(); const rp = put('rail', 0, 100, true); const a1 = Core.stats(rp); rp.sk[2] = [0, 0, 1]; Core.dirty(rp);
-  assert(Math.abs(Core.stats(rp).cd - a1.cd / 1.6) < 1e-9, '속사 저격 +60%');
   // 오래 남는 산, 잔류
   game(1); const ac = put('acid', 2, 100, true); ac.sk[2] = [5, 0, 0]; Core.dirty(ac); const d0 = Core.stats(ac).aDur;
   ac.sk[2][1] = 5; Core.dirty(ac); assert(Math.abs(Core.stats(ac).aDur - d0 - 3) < 1e-9, '랭크당 +0.6초');
@@ -182,7 +171,7 @@ function maxNodes(w, l) { SKILLS[w.type][l].nodes.forEach((nd, t) => { w.sk[l][t
   const hpOut = eB.hp; for (let i = 0; i < 60; i++) Core.step(1 / 60);
   assert(eB.hp < hpOut, '웅덩이 밖에서도 피해'); assert(eB.vulnT > 1.0, '취약 유지(3초)');
   for (let i = 0; i < 200; i++) Core.step(1 / 60); const hpEnd = eB.hp; Core.step(1 / 60); assert(eB.lgT <= 0 && eB.hp === hpEnd - 0 || eB.hp >= hpEnd - 1e-6, '3초 뒤 끝남');
-  ok('2차분 노드 동작 유지: 처형, 속사 저격, 오래 남는 산, 잔류');
+  ok('2차분 노드 동작 유지: 오래 남는 산, 잔류');
 }
 
 /* 8. 진화 해제 */
@@ -253,7 +242,7 @@ function maxNodes(w, l) { SKILLS[w.type][l].nodes.forEach((nd, t) => { w.sk[l][t
 /* 11. 새 스킬 줄(블래스터, 산탄포, 레이저, 펄스)의 동작: 모든 노드 x 모든 랭크가 눈에 보이는 변화를 만든다 */
 const FOE_KEYS = { type: 'basic', r: 19, speed: 0, leak: 1, gold: 0, boss: false, born: 0, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0, fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9 };
 function foe2(x, y, o) { const e = Object.assign({ lane: Math.max(0, Math.min(4, Math.floor(x / 100))), x, y, hp: 1e12, maxHp: 1e12 }, FOE_KEYS, o || {}); Core.S.enemies.push(e); return e; }
-function layout(type, speed) {
+function layout(type, speed, line) {
   const L = [];
   if (type === 'pulse') { for (const r of [45, 70, 95, 120, 135, 150, 165]) for (const a of [35, 60, 90, 120, 145]) L.push([250 + r * Math.cos(a * Math.PI / 180), 520 - r * Math.sin(a * Math.PI / 180)]); }
   else {
@@ -262,6 +251,11 @@ function layout(type, speed) {
     for (const y of [300, 420]) { L.push([50, y]); L.push([450, y]); }
   }
   const hpOf = (y) => (y >= 440 ? 1e4 : y >= 400 ? 2.5e4 : y >= 360 ? 6e4 : y >= 300 ? 2e5 : 1e12);   // 기지에 가까운 적일수록 죽기 쉽다. 안쪽 적은 안 죽는다
+  if (type === 'rail') {   // 저격포는 체력이 가장 많은 적을 노린다. 과잉 살상: 한 발에 죽는 적 / 조준 레이저: 한 적(표식)을 여러 번 쏴서 잡고 둘레에 약한 적 / 도탄: 단단한 적
+    if (line === 0) for (let y = 150; y <= 450; y += 50) for (let x = 50; x <= 450; x += 100) L.push([x + 20, y + 13]);   // 과잉 살상: 한 발에 여럿이 죽으므로 5번째 탄(횡단탄)까지 남게 적을 더 둔다
+    const hp = (i) => (line === 0 ? 1200 + i * 45 : line === 1 ? (i === 6 ? 1.6e5 : 3000 + i * 300) : 3e4 + i * 7e3);
+    return L.map(([x, y], i) => foe2(x, y, { speed: speed || 0, hp: hp(i), maxHp: hp(i) }));
+  }
   return L.map(([x, y]) => foe2(x, y, { speed: speed || 0, hp: hpOf(y), maxHp: hpOf(y) }));
 }
 // 장면: 무기를 2번 칸에 놓고 secs초 돌린 뒤 눈에 보이는 결과를 모은다
@@ -271,7 +265,7 @@ function scene(type, lines, secs, opt) {
   w.sk = lines.map((r) => r.slice()); Core.dirty(w);
   if (opt.setup) opt.setup(w);
   S.hp = S.maxHp = 1e9; S.spawnAcc = -1e9; S.nextBoss = 1e9;
-  const foes = layout(type, opt.speed);
+  const foes = layout(type, opt.speed, opt.line);
   const seenB = new WeakSet(), seenM = new WeakSet(), seenP = new WeakSet(), seenF = new WeakSet(), seenBeam = new WeakSet();
   const o = { b: 0, bsm: 0, bbig: 0, m: 0, mini: 0, p: {}, beams: 0, fx: {}, shots: [], tb: 0, mt: [] };
   const N = Math.round(secs * 60); let nPrev = 0; o.cds = [];
@@ -285,7 +279,7 @@ function scene(type, lines, secs, opt) {
     for (const f of S.fx) if (!seenF.has(f)) { seenF.add(f); o.fx[f.k] = (o.fx[f.k] || 0) + 1; }
   }
   o.dealt = +(w.dealt || 0).toPrecision(9); o.n = w.n;
-  o.foes = foes.map((e) => [+Math.max(0, e.hp).toPrecision(9), +e.y.toFixed(3), +e.x.toFixed(3), +e.slowPct.toFixed(4), e.stunT > 0 ? 1 : 0, e.fT > 0 ? 1 : 0, +(e.vulnT > 0 ? e.vulnPct : 0).toFixed(4), e.dead ? 1 : 0]);
+  o.foes = foes.map((e) => [+e.hp.toPrecision(9), +e.y.toFixed(3), +e.x.toFixed(3), +e.slowPct.toFixed(4), e.stunT > 0 ? 1 : 0, e.fT > 0 ? 1 : 0, +(e.vulnT > 0 ? e.vulnPct : 0).toFixed(4), e.dead ? 1 : 0]);
   finite(num(Core.stats(w)), type + ' scene stats');
   for (const e of foes) assert(Number.isFinite(e.hp) && Number.isFinite(e.y), type + ' scene enemy');
   assert(Number.isFinite(S.dealt) && Number.isFinite(S.gold));
@@ -293,14 +287,14 @@ function scene(type, lines, secs, opt) {
 }
 {
   let cnt = 0;
-  const spd = { shotgun: 0.04, laser: 0, blaster: 0, pulse: 0.05, mortar: 0.03, tesla: 0.03 };
-  for (const t of ['blaster', 'shotgun', 'laser', 'pulse', 'mortar', 'tesla']) {
+  const spd = { shotgun: 0.04, laser: 0, blaster: 0, pulse: 0.05, mortar: 0.03, tesla: 0.03, rail: 0.02 };
+  for (const t of ['blaster', 'shotgun', 'laser', 'pulse', 'mortar', 'tesla', 'rail']) {
     SKILLS[t].forEach((line, l) => {
       line.nodes.forEach((node, tier) => {
         for (let r = 1; r <= node.max; r++) {
           const mk = (rank) => { const L = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; for (let q = 0; q < tier; q++) L[l][q] = SKILLS[t][l].nodes[q].max; L[l][tier] = rank; return L; };
-          const secs = t === 'blaster' ? 10 : t === 'mortar' ? 12 : 8;   // 박격포: 핵탄두(4번째)와 공습(3초)이 들어가게
-          const A = JSON.stringify(scene(t, mk(r - 1), secs, { speed: spd[t] }).o), B = JSON.stringify(scene(t, mk(r), secs, { speed: spd[t] }).o);
+          const secs = t === 'blaster' ? 10 : t === 'mortar' || t === 'rail' ? 12 : 8;   // 박격포: 핵탄두(4번째)와 공습(3초)이 들어가게. 저격포: 횡단탄(5번째)
+          const A = JSON.stringify(scene(t, mk(r - 1), secs, { speed: spd[t], line: l }).o), B = JSON.stringify(scene(t, mk(r), secs, { speed: spd[t], line: l }).o);
           assert(A !== B, `${t} ${line.name} ${node.id} 랭크 ${r}: 장면에서 눈에 보이는 변화 없음`);
           cnt++;
         }
@@ -607,9 +601,53 @@ function scene(type, lines, secs, opt) {
   ok('전격기 새 줄 3개: 낙뢰(3번째, 전기장, 먹구름), 전류 사슬(줄, 긴 방전, 고압 방전), 구전(4번째, 대형, 쌍구전)과 줄 조합');
 }
 
+/* 7e. 저격포 새 줄: 과잉 살상(넘어가는 피해, 증폭 전달, 횡단탄), 조준 레이저(겹, 표식 폭발, 처형), 도탄(튕김, 탄성, 삼연사) */
+{
+  const mk = (sk) => { game(1); const w = put('rail', 2, 100, true); w.sk = sk; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; w.cd = 99; const st = Core.stats(w); st.crit = 0; return { w, S, st, D: st.dmg }; };
+  const shoot = (w) => { const n0 = w.n; w.cd = 0; Core.step(1 / 60); w.cd = 99; assert.strictEqual(w.n, n0 + 1, '한 번 조준'); for (let i = 0; i < 16; i++) Core.step(1 / 60); assert(!(w.aimT > 0), '발사함'); };
+  const near = (a, b, what) => assert(Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b)), `${what}: ${a} != ${b}`);
+  const foeH = (x, y, hp, o) => foe2(x, y, Object.assign({ hp, maxHp: 1e12 }, o || {}));   // 최대 체력을 크게 두면 처형 문턱과 무관하고, 받은 피해 = 처음 체력 - 지금 체력 (죽어도 음수로 남는다)
+  const cO = SKILLS.rail[0].nodes[0].sc, cM = SKILLS.rail[1].nodes[0].sc, cR = SKILLS.rail[2].nodes[0].sc;
+  // 과잉 살상 2: 처치하고 남은 피해 (적어도 0.4c D)가 다음으로 체력이 많은 적에게, 처치할 때마다 이어서 (최대 2회)
+  { const { w, S, D } = mk([[2, 0, 0], [0, 0, 0], [0, 0, 0]]); const A = foeH(250, 300, 0.5 * D), B = foeH(150, 300, 0.4 * D), C = foeH(350, 300, 0.35 * D), E = foeH(50, 300, 0.2 * D);
+    shoot(w); const o1 = Math.max(0.5, 0.4 * cO) * D;
+    assert(A.dead && B.dead, '표적과 다음 적 처치'); near(0.4 * D - B.hp, o1, '첫 번째로 넘어간 피해'); near(0.35 * D - C.hp, Math.max(o1 - 0.4 * D, 0.4 * cO * D), '두 번째 (적어도 0.4c D)');
+    assert.strictEqual(E.hp, 0.2 * D, '최대 2회'); assert(S.fx.filter((f) => f.k === 'rail' && f.ri).length >= 2, '넘어가는 선'); }
+  // 증폭 전달 5: 넘어갈 때마다 +75%
+  { const { w, D } = mk([[5, 5, 0], [0, 0, 0], [0, 0, 0]]); foeH(250, 300, 0.5 * D); const B = foeH(150, 300, 0.4 * D); shoot(w); near(0.4 * D - B.hp, Math.max(0.5, 0.4 * cO) * D * 1.75, '증폭 전달 x1.75'); }
+  // 횡단탄: 5번째 탄은 표적 높이의 모든 적을 관통 (D x 3c), 다른 높이는 그대로
+  { const { w, S, D } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); foeH(250, 300, 1e11); const a = foeH(50, 300, 1e6), b = foeH(450, 304, 1e6), off = foeH(150, 200, 1e6);
+    w.n = 3; shoot(w); assert.strictEqual(a.hp, 1e6, '4번째는 그대로'); shoot(w);
+    near(1e6 - a.hp, 3 * D * cO, '횡단탄 왼쪽'); near(1e6 - b.hp, 3 * D * cO, '횡단탄 오른쪽'); assert.strictEqual(off.hp, 1e6, '다른 높이는 그대로'); assert.strictEqual(S.fx.filter((f) => f.k === 'rail' && f.cr).length, 2, '가로 저격선 둘'); }
+  // 조준 레이저 1: 같은 표적을 쏠 때마다 겹 +1 (최대 5), 피해 x (1 + 겹 x 0.1c). 표적이 바뀌면 처음부터. 표적 참조는 저장되지 않는다
+  { const { w, D } = mk([[0, 0, 0], [1, 0, 0], [0, 0, 0]]); const A = foeH(250, 300, 1e11); const got = [];
+    for (let k = 0; k < 6; k++) { const h = A.hp; shoot(w); got.push(+((h - A.hp) / D).toFixed(6)); }
+    assert.deepStrictEqual(got, [1, 2, 3, 4, 5, 5].map((n) => +(1 + n * 0.1 * cM).toFixed(6)), '겹마다 피해 ' + got); assert(w.mk === A && w.mkN === 5 && !Object.keys(w).includes('mk'));
+    const B = foeH(150, 300, 2e11); shoot(w); assert(w.mk === B && w.mkN === 1, '표적이 바뀌면 처음부터'); }
+  // 표식 폭발 3: 표식 대상이 죽으면 반경 90 에 D x 1.8c
+  { const { w, D } = mk([[0, 0, 0], [5, 3, 0], [0, 0, 0]]); const A = foeH(250, 300, 1e11); shoot(w); A.hp = 1;
+    const p1 = foeH(310, 300, 0.5), p2 = foeH(250, 380, 0.5), far = foeH(250, 420, 0.5); shoot(w);
+    assert(A.dead, '표식 대상 처치'); near(0.5 - p1.hp, D * 1.8 * cM, '폭발 피해'); near(0.5 - p2.hp, D * 1.8 * cM, '폭발 피해 2'); assert.strictEqual(far.hp, 0.5, '반경 90 밖'); }
+  // 처형: 표식 대상의 체력이 30% (보스 5%) 이하가 되면 바로 처치
+  { const { w, S } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); const A = foe2(250, 300, { hp: 1e11, maxHp: 1e11 }); shoot(w);
+    A.hp = 0.31e11; Core.step(1 / 60); assert(!A.dead); A.hp = 0.3e11; Core.step(1 / 60); assert(A.dead && S.fx.some((f) => f.k === 'mkexec'), '30% 에서 처형');
+    const bo = foe2(250, 300, { hp: 1e11, maxHp: 1e11, boss: true, type: 'giant' }); shoot(w); assert(w.mk === bo); bo.hp = 0.06e11; Core.step(1 / 60); assert(!bo.dead, '보스는 30% 로는 아님'); bo.hp = 0.05e11; Core.step(1 / 60); assert(bo.dead, '보스는 5%'); }
+  // 도탄 3: 맞힌 자리에서 가까운 적에게 차례로 (260 안), 튕길 때마다 x0.15. 탄성 5: x0.4
+  { const { w, S, D } = mk([[0, 0, 0], [0, 0, 0], [3, 0, 0]]); foeH(250, 300, 1e11); const b1 = foeH(350, 300, 1e6), b2 = foeH(350, 120, 1e6), far = foeH(50, 520, 1e6);
+    shoot(w); near(1e6 - b1.hp, 0.15 * D, '첫 튕김'); near(1e6 - b2.hp, 0.0225 * D, '둘째 튕김'); assert.strictEqual(far.hp, 1e6, '260 밖'); assert.strictEqual(S.fx.filter((f) => f.k === 'rail' && f.ri).length, 2);
+    w.sk[2] = [5, 5, 0]; Core.dirty(w); Core.stats(w).crit = 0; const h = b1.hp; shoot(w); near(h - b1.hp, 0.4 * D, '탄성 5: x0.4'); }
+  // 삼연사: 체력이 많은 순서로 다른 적 둘을 더 (D x 0.5c), 서로 멀면 튕기지 않는다
+  { const { w, D } = mk([[0, 0, 0], [0, 0, 0], [5, 5, 1]]); const A = foeH(50, 100, 3e11), B = foeH(450, 100, 2e11), C = foeH(250, 450, 1e11);
+    shoot(w); near(3e11 - A.hp, D, '표적'); near(2e11 - B.hp, 0.5 * cR * D, '둘째'); near(1e11 - C.hp, 0.5 * cR * D, '셋째'); }
+  // 증강 이중 저격, 관통 저격: 설명대로 v% (T5c 에서 100 으로 두 번 나누던 버그를 고침)
+  { game(1); const w = put('rail', 2, 50); w.augs[0] = { id: 'r_twin', g: 2 }; w.augs[1] = { id: 'r_through', g: 2 }; Core.dirty(w); Core.S.spawnAcc = -1e9; const st = Core.stats(w); st.crit = 0; w.cd = 99;
+    foeH(250, 300, 1e11); const B = foeH(50, 100, 1e10), C = foeH(250, 200, 1e6); shoot(w);
+    near(1e10 - B.hp, st.dmg * Core.AUGS.r_twin.v[2] / 100, '이중 저격 v%'); assert(1e6 - C.hp >= st.dmg * Core.AUGS.r_through.v[2] / 100 * (1 - 1e-6), '관통 저격 v%'); }
+  ok('저격포 새 줄 3개: 과잉 살상(넘어가는 피해, 증폭 전달, 횡단탄), 조준 레이저(겹, 표식 폭발, 처형), 도탄(튕김, 탄성, 삼연사), 이중/관통 저격 버그 수정');
+}
 /* 6c. 증강 정리 (2026-11): 진화 스킬과 겹치는 증강을 빼고 집광을 넣었다 */
 {
-  const GONE = ['b_pierce', 'l_exec', 'l_wide', 'b_rico', 'm_barrage', 'm_nuke', 't_storm'];   // m_nuke: 박격포 핵탄두 줄로 옮김 (T5a), t_storm: 전격기 낙뢰 줄로 옮김 (T5b)
+  const GONE = ['b_pierce', 'l_exec', 'l_wide', 'b_rico', 'm_barrage', 'm_nuke', 't_storm', 'r_carry'];   // m_nuke: 박격포 핵탄두 줄로 옮김 (T5a), t_storm: 전격기 낙뢰 줄로 옮김 (T5b)
   for (const t of WEAPON_IDS) for (const id of GONE) assert(!Core.AUG_POOL[t].includes(id), '증강 목록에서 빠짐 ' + id);
   assert(Core.AUG_POOL.laser.includes('l_lens') && Core.AUGS.l_lens.min === 0);
   // 예전 저장에 달린 빠진 증강은 불러올 때 지운다 (칸, 인벤토리, 고르던 증강)
@@ -629,8 +667,8 @@ function scene(type, lines, secs, opt) {
   game(1); const H2 = put('laser', 2, 100, true); H2.augs[0] = { id: 'l_lens', g: 3 }; H2.sk[0] = [1, 0, 0]; Core.dirty(H2); Core.S.spawnAcc = -1e9; const s2 = Core.stats(H2); s2.crit = 0;
   const n2 = foe2(250, 470), f2 = foe2(250, 350); H2.cd = 99; Core.S.beams.push({ k: 2, t: 0.25, tick: 0.1, st: s2 }); for (let i = 0; i < 8; i++) Core.step(1 / 60);
   assert(Math.abs((1e12 - n2.hp) / (1e12 - f2.hp) - (1 + LV[3] / 100)) < 1e-6, `지속 빔 틱에도 집광 (전설 ${LV[3]}%)`);
-  assert(!Core.AUGS.m_barrage && !Core.AUGS.m_nuke && !Core.AUGS.t_storm, '옮긴 증강은 정의에서도 지웠다');
-  ok('증강 정리: 빠진 증강 7개, 예전 저장 정리, 집광');
+  assert(!Core.AUGS.m_barrage && !Core.AUGS.m_nuke && !Core.AUGS.t_storm && !Core.AUGS.r_carry, '옮긴 증강은 정의에서도 지웠다');
+  ok('증강 정리: 빠진 증강 8개, 예전 저장 정리, 집광');
 }
 
 /* 6d. 최대 타격 수 (T4): 범위 공격은 한 번에 cap 명까지, 기지에 가까운 적부터. 다중 타격기 +v명, 제한 해제기는 제한 없음 */

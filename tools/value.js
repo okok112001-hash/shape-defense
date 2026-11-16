@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, efield: 1, arc: 1, ball: 1, ovk: 1, cross: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.131, cross: 5.362, mk: 0.281, exec: 1.836, rico: 3.908, mkb: 4.751 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -311,16 +311,16 @@ function model(st, ref, c, lay, PP) {
       // 주 표적 한 발: 조준 레이저 표식 겹수 (같은 표적을 X0 번 쏠 때 평균, 보스는 오래 쏜다), 처형 (일반 20%, 보스 5% 에서 끝)
       const fX = (x) => (x <= 5 ? (x + 1) / 2 : (15 + 5 * (x - 5)) / x);
       let main = 1;
-      if (st.mkD) main *= 1 + st.mkD * ((1 - beta) * fX(Math.max(1, X0)) + beta * fX(Math.max(1, X0 * 8)));
-      if (st.mkExec) main *= (1 - beta) / (1 - st.mkExec) + beta / (1 - 0.05);
+      if (st.mkD) main *= 1 + st.mkD * ((1 - beta) * fX(Math.max(1, X0)) + beta * fX(Math.max(1, X0 * 8))) * pm.mk;
+      if (st.mkExec) main *= 1 + ((1 - beta) * (1 / (1 - st.mkExec) - 1) + beta * (1 / 0.95 - 1)) * pm.exec;
       // 도탄: 가까운 적에게 튕길 때마다 rkK 배 (탄마다)
-      let bounce = 0; if (st.rRico) { const pr = occ(nIn(lam, Math.PI * 260 * 260) * 0.6); let f = 1; for (let j = 0; j < st.rRico; j++) { f *= st.rRicoK * pr; bounce += f; } }
+      let bounce = 0; if (st.rRico) { const pr = occ(nIn(lam, Math.PI * 260 * 260) * 0.6); let f = 1; for (let j = 0; j < st.rRico; j++) { f *= st.rRicoK * pr; bounce += f; } bounce *= pm.rico; }
       const side = (st.twin || 0) + 2 * (st.triple || 0);   // 이중 저격, 삼연사 (주 표적 아닌 탄)
       let hits = (main + side) * (1 + bounce) + (st.through ? st.through * behind : 0);
       if (st.carry && st.carryMin) { let a = 0, f = 1; for (let j = 0; j < st.carry; j++) { f *= 1 + st.carryAmp; a += f * st.carryMin; } hits += kpS * (1 - bb) * a * pm.ovk; }   // 과잉 살상의 최소 피해 몫 (낭비 회수는 killRate 의 carry)
       if (st.cross) hits += st.cross / 5 * nIn(lam, LANES * LW * 39) * pm.cross;   // 횡단탄: 5번째마다 그 높이의 모든 적
       dir = rate * hits;
-      if (st.mkBoom) dir += rate * kpS * st.mkBoom * splashN(90 * (1 + st.areaPct));   // 표식 폭발: 표식 대상이 죽을 때
+      if (st.mkBoom) dir += rate * kpS * st.mkBoom * splashN(90 * (1 + st.areaPct)) * pm.mkb;   // 표식 폭발: 표식 대상이 죽을 때
       burnN = rate * (1 + (st.twin ? 1 : 0) + (st.triple ? 2 : 0));
       ccHit(tau, st.knock);
       break;
@@ -431,7 +431,7 @@ function loadSkillEq(files) {
     let mode = null;
     for (const ln of fs.readFileSync(f, 'utf8').split('\n')) {
       if (ln.startsWith('[줄 측정: 완성')) mode = 'full'; else if (ln.startsWith('[줄 측정: 뿌리만')) mode = 'root'; else if (ln.startsWith('[')) mode = null;
-      const m = mode && ln.match(/^\s+(\w+)\.(\d)\s+\S+(?:\s\S+)?\s+((?:[\d.]+[*!]?|포화|못버팀)\s+(?:[\d.]+[*!]?|포화|못버팀)\s+(?:[\d.]+[*!]?|포화|못버팀)\s+(?:[\d.]+[*!]?|포화|못버팀)\s+(?:[\d.]+[*!]?|포화|못버팀))/);
+      const m = mode && ln.match(/^\s+(\w+)\.(\d)\s+\S+(?:\s\S+)?\s+((?:[\d.]+[*!]?|포화|못버팀|n\/a)\s+(?:[\d.]+[*!]?|포화|못버팀|n\/a)\s+(?:[\d.]+[*!]?|포화|못버팀|n\/a)\s+(?:[\d.]+[*!]?|포화|못버팀|n\/a)\s+(?:[\d.]+[*!]?|포화|못버팀|n\/a))/);
       if (!m) continue;
       const v = m[3].trim().split(/\s+/).map((x) => (/^[\d.]/.test(x) ? parseFloat(x) : null));
       got[`${m[1]}.${m[2]}|${mode}`] = { t: m[1], l: +m[2], mode, R: v, file: path.basename(f) };
@@ -737,7 +737,9 @@ function reportText(T, PP, fitInfo) {
 
 /* ---------- 영점 맞춤과 비교 ---------- */
 // 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t5b.txt'];   // t5b: 전격기 새 줄 (T5b)
+// 2차분 무기: 첫 값으로 한 번 재서 기구 계수를 맞춘 뒤 계산기로 값을 바꿨으므로, 그 측정은 지금 값과 맞지 않아 fit 에 넣지 않고 맞춘 계수를 defaults() 에 고정한다
+//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.cross, m.mk, m.exec, m.rico, m.mkb)
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};
