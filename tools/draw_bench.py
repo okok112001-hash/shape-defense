@@ -7,6 +7,7 @@
      python tools/draw_bench.py paper index.html none none none none
      python tools/draw_bench.py paper index.html none none drawFireStrip VX.glow   # 함수를 꺼 보며 범인 찾기
      DRAW_TEAM=mortar python tools/draw_bench.py paper index.html none none none   # 박격포 다섯 자루 (줄마다 무거운 조합, T5a)
+     DRAW_TEAM=tesla python tools/draw_bench.py paper index.html none none none    # 전격기 다섯 자루 (같은 조합, T5b)
    읽는 법: 첫 측정은 준비(JIT, 스프라이트 생성) 때문에 늘 느리니 버리고, 나머지 평균을 기준과 비교한다. 잡음이 +-10% 쯤이다.
    알게 된 것: 이 환경에서는 넓이보다 drawImage 호출 수가 비용을 정한다(빛 번짐 한 장에 약 0.3ms). 큰 빛 번짐을 여러 장 겹치지 말 것."""
 import asyncio, os, pathlib, sys
@@ -43,12 +44,12 @@ window.__game = {'''
         await pg.locator('[data-act="testStart"]').first.tap(); await pg.wait_for_timeout(300)
         await pg.evaluate('window.__tick(3)')
         await pg.evaluate('''(team) => { const S = Core.S; S.cheat.god = true;
-          const T = team === 'mortar' ? ['mortar','mortar','mortar','mortar','mortar'] : ['blaster','shotgun','laser','pulse','blaster'];
+          const T = team === 'mortar' || team === 'tesla' ? [team, team, team, team, team] : ['blaster','shotgun','laser','pulse','blaster'];
           T.forEach((t, k) => { const i = Core.test.give(t); Core.equipWeapon(i, k); });
           Core.test.evolveAll();
           const SK = { blaster: [[5,5,1],[0,0,0],[5,4,0]], shotgun: [[0,0,0],[5,4,0],[5,5,1]], laser: [[5,5,1],[0,0,0],[5,4,0]], pulse: [[0,0,0],[5,5,1],[5,4,0]] };
           const MK = [[[5,5,1],[5,4,0],[0,0,0]], [[0,0,0],[5,5,1],[5,4,0]], [[5,4,0],[0,0,0],[5,5,1]], [[5,5,1],[0,0,0],[5,4,0]], [[0,0,0],[5,4,0],[5,5,1]]];
-          S.slots.forEach((w, k) => { w.skp = 20; w.sk = (w.type === 'mortar' ? MK[k] : SK[w.type]).map(r => r.slice()); Core.dirty(w); });
+          S.slots.forEach((w, k) => { w.skp = 20; w.sk = (w.type === 'mortar' || w.type === 'tesla' ? MK[k] : SK[w.type]).map(r => r.slice()); Core.dirty(w); });
           S.slotDirty = true; S.invDirty = true; }''', os.environ.get('DRAW_TEAM', ''))
         await pg.evaluate(FOE)
         cdp = await c.new_cdp_session(pg)

@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, efield: 1, arc: 1, ball: 1, ovk: 1, cross: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -274,17 +274,54 @@ function model(st, ref, c, lay, PP) {
       let N1 = 0, f = 1, p = 1; for (let j = 0; j <= st.chain; j++) { N1 += f * p; f *= d; p *= pHop; }
       let hits = N1;
       if (st.multi) for (let k = 1; k <= st.multi; k++) hits += 0.5 * N1 * atLeast(reach, k + 1);
-      if (st.storm) hits += st.storm * 0.8 / 3;
       dir = rate * hits * busy * tf;
       burnN = rate * hits * busy * tf;
+      // 전격기 스킬 (T5b). 낙뢰와 먹구름, 쌍구전 폭발은 직접 피해, 전기장, 줄, 구체는 지속 피해
+      const allN = lam * LANES, Rv = cb.v;                     // 전장 전체의 적 수, 적의 속도 (px/초)
+      const fire = rate * busy;                                // 초당 공격 수 (사거리 안에 적이 있을 때만 쏜다)
+      const strikes = (st.th ? fire / 3 * capE(allN, st.th) : 0) + (st.cloud ? occ(allN) : 0);
+      if (st.th) dir += fire / 3 * capE(allN, st.th) * st.thD;
+      if (st.cloud) dir += occ(allN) * st.cloud;
+      if (st.efD) {                                            // 전기장: 낙뢰 자리 반경 45, 2초. 맞은 적이 빠져나갈 때까지 + 지나가는 적
+        const Re = 45 * (1 + st.areaPct) + 9.5;
+        dot += strikes * st.efD * (Math.min(2, Re / Rv) + 2 * capE(nIn(lam, Math.PI * Re * Re), N)) * pm.efield;
+      }
+      if (st.arc) {                                            // 전기 줄: 연쇄된 적 사이 (같은 두 적이면 시간만 새로). 끝의 적과 줄에 닿는 적
+        let cnt = 0, pp = 1; for (let j = 0; j <= st.chain; j++) { cnt += pp; pp *= pHop; }
+        const segs = Math.max(0, cnt - 1), wd = 2 * (7 * st.arcW + 9.5), by = nIn(lam, st.jump * 0.6 * wd);
+        const on = busy * Math.min(1, st.arcT / tau), dps = st.arc * (1 + st.arcHv);
+        dot += on * dps * capE(cnt + segs * by, N * Math.max(1, segs)) * pm.arc;
+        if (st.arcHv) dot += segs / Math.max(st.arcT, 2 * tau) * busy * dps * (0.5 + by) * pm.arc;   // 고압 방전: 사라질 때 닿아 있던 적
+      }
+      if (st.ball) {                                           // 구전: 4번째 공격마다 (쌍구전: 둘). 닿는 범위 안 적 수 x 지속 시간
+        const nb = st.ballTwin ? 2 : 1, Rb = st.ballR * (1 + st.areaPct) + 9.5, per = fire / 4 * nb;
+        dot += per * st.ballT * st.ball * capE(nIn(lam, Math.PI * Rb * Rb), N) * pm.ball;
+        if (st.ballTwin) {
+          const nB = capE(splashN(Core.BALL_BOOM_R * (1 + st.areaPct)), N);
+          dir += per * st.ballBoom * nB;
+          sig.push(Math.min(0.5, per * 0.8 * nB / Math.max(1, allN)) * (1 - bb));
+        }
+      }
       ccHit(tau * 1.3, st.knock);
       break;
     }
     case 'rail': {
       const behind = nIn(lam, 1.0 * H * 60) * 0.5;   // 표적 뒤 일직선 위 (폭 약 60)
-      let hits = 1 + (st.twin ? st.twin / 100 : 0) + (st.through ? st.through / 100 * behind : 0);   // core.js 그대로: twin, through 를 두 번 100 으로 나눈다
+      const X0 = pc.K * pw.kw * (13 / W0.dmg) * (ref.dmg * q0) / (st.dmg * q), kpS = 1 / Math.max(1, X0);   // 표적 하나를 잡는 타수 (아래 X 와 같은 식), 한 발에 잡는 표적 수
+      // 주 표적 한 발: 조준 레이저 표식 겹수 (같은 표적을 X0 번 쏠 때 평균, 보스는 오래 쏜다), 처형 (일반 20%, 보스 5% 에서 끝)
+      const fX = (x) => (x <= 5 ? (x + 1) / 2 : (15 + 5 * (x - 5)) / x);
+      let main = 1;
+      if (st.mkD) main *= 1 + st.mkD * ((1 - beta) * fX(Math.max(1, X0)) + beta * fX(Math.max(1, X0 * 8)));
+      if (st.mkExec) main *= (1 - beta) / (1 - st.mkExec) + beta / (1 - 0.05);
+      // 도탄: 가까운 적에게 튕길 때마다 rkK 배 (탄마다)
+      let bounce = 0; if (st.rRico) { const pr = occ(nIn(lam, Math.PI * 260 * 260) * 0.6); let f = 1; for (let j = 0; j < st.rRico; j++) { f *= st.rRicoK * pr; bounce += f; } }
+      const side = (st.twin || 0) + 2 * (st.triple || 0);   // 이중 저격, 삼연사 (주 표적 아닌 탄)
+      let hits = (main + side) * (1 + bounce) + (st.through ? st.through * behind : 0);
+      if (st.carry && st.carryMin) { let a = 0, f = 1; for (let j = 0; j < st.carry; j++) { f *= 1 + st.carryAmp; a += f * st.carryMin; } hits += kpS * (1 - bb) * a * pm.ovk; }   // 과잉 살상의 최소 피해 몫 (낭비 회수는 killRate 의 carry)
+      if (st.cross) hits += st.cross / 5 * nIn(lam, LANES * LW * 39) * pm.cross;   // 횡단탄: 5번째마다 그 높이의 모든 적
       dir = rate * hits;
-      burnN = rate * (1 + (st.twin ? 1 : 0));
+      if (st.mkBoom) dir += rate * kpS * st.mkBoom * splashN(90 * (1 + st.areaPct));   // 표식 폭발: 표식 대상이 죽을 때
+      burnN = rate * (1 + (st.twin ? 1 : 0) + (st.triple ? 2 : 0));
       ccHit(tau, st.knock);
       break;
     }
@@ -700,7 +737,7 @@ function reportText(T, PP, fitInfo) {
 
 /* ---------- 영점 맞춤과 비교 ---------- */
 // 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt'];
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t5b.txt'];   // t5b: 전격기 새 줄 (T5b)
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};

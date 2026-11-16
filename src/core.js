@@ -105,7 +105,7 @@ const WEAPONS = {
     desc: '무기 주변 원형 범위의 적을 한 번에 타격' },
   mortar: { name: '박격포', dmg: 41, cd: 2.0, range: 1, lanes: 5, blast: 62, cap: 8, color: '#ff9f5a',
     desc: '모든 레인 대상. 기지에 가장 가까운 적에게 폭발탄' },
-  tesla: { name: '전격기', dmg: 10.5, cd: 0.7, range: 0.55, lanes: 1, chain: 2, color: '#b9a2ff',
+  tesla: { name: '전격기', dmg: 10.5, cd: 0.7, range: 0.55, lanes: 1, chain: 2, cap: 6, capSk: 1, color: '#b9a2ff',
     desc: '3레인 안의 가까운 적을 공격하고 주변 2명에게 연쇄' },
   rail: { name: '저격포', dmg: 120, cd: 1.9, range: 1, lanes: 5, color: '#f2f2ff',
     desc: '모든 레인에서 체력이 가장 많은 적을 저격' },
@@ -115,7 +115,7 @@ const WEAPONS = {
 const WEAPON_IDS = Object.keys(WEAPONS);
 const CAP_NONE = 1e9;   // 최대 타격 수 제한 없음 (능력치를 유한한 수로 두려고 Infinity 대신)
 // cap: 범위 공격(빔, 파동, 폭발, 웅덩이, 바닥 효과)이 한 번에 피해를 주는 최대 적 수. 기지에 가까운 적부터 고른다.
-//   연쇄, 관통처럼 개수가 정해진 공격과 폭발탄, 처치 폭발, 지뢰는 제한하지 않는다. capSk: 스킬의 바닥 효과(산탄포 불바다)에만 쓴다
+//   연쇄, 관통처럼 개수가 정해진 공격과 폭발탄, 처치 폭발, 지뢰는 제한하지 않는다. capSk: 스킬의 바닥 효과(산탄포 불바다, 전격기 전기장·전기 줄·구전)에만 쓴다
 
 /* ---------- 파츠 (어느 무기에나 장착, 수치 보정) ---------- */
 const pct = (k) => (s, v) => { s[k] += v / 100; };
@@ -214,7 +214,6 @@ const AUGS = {
   m_shrap:   { name: '파편탄',   min: 2, for: 'mortar',  v: [0, 0, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 25%)` },
   t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 35, 70, 80],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
   t_multi:   { name: '다중 방전', min: 2, for: 'tesla',   v: [0, 0, 1, 2],      ap: add('multi'),  d: v => `처음 노리는 적이 ${v}명 늘어남 (각각 연쇄, 추가된 적의 연쇄는 피해 50%)` },
-  t_storm:   { name: '번개 폭풍', min: 3, for: 'tesla',   v: [0, 0, 0, 5],      ap: add('storm'),  d: v => `3번째 공격마다 무작위 적 ${v}명에게 낙뢰 (피해 80%)` },
   // 저격포
   r_heavy:   { name: '철갑탄',   abbr: '철갑', min: 0, for: 'rail', v: [18, 35, 70, 180], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
   r_mark:    { name: '표식',     abbr: '표식', min: 0, for: 'rail', v: [4.5, 9, 18, 45], ap: (s, v) => { s.vuln = Math.max(s.vuln, v / 100); s.vulnT = 4; }, d: v => `맞은 적이 4초간 받는 모든 피해 +${v}%` },
@@ -318,8 +317,19 @@ const NEWSK = {
   missile:  { name: '추적 미사일', d: (k) => `포탄이 표적을 따라가는 미사일로 바뀜 (빗나가지 않음). 공격 속도 +${15 * k}%`, ap: (s, k) => { s.msl = 1; s.ratePct += 0.15 * k; } },
   mirv:     { name: '분리 탄두', d: (k, c) => `착탄 직전에 소형 탄두 ${MIRV[k - 1]}개가 갈라져 주변의 다른 적에게 날아감 (피해 공격력의 ${pc((0.1 + 0.01 * k) * c)}%, 폭발 범위 50%)`, ap: (s, k, c) => { s.mirv = MIRV[k - 1]; s.mirvD = (0.1 + 0.01 * k) * c; } },
   twinm:    { name: '쌍발', d: (k, c) => `미사일 2발 동시 발사. 둘째는 다른 적을 노림 (피해 ${pc(0.3 * c)}%)`, ap: (s, k, c) => { s.mslTwin = 0.3 * c; } },
-  // 2차분 무기(전격기, 저격포, 산성 분사기)가 쓰는 옛 노드
-  overload: { name: '과전류', d: () => '기절하거나 둔화된 적이 이 무기에게 받는 피해 +40%', ap: (s) => { s.overload = 0.4; } },
+  // 전격기 - 낙뢰
+  thunderb: { name: '낙뢰', d: (k, c) => `3번째 공격마다 무작위 적 ${k}명에게 낙뢰 (피해 공격력의 ${pc(0.8 * c)}%)`, ap: (s, k, c) => { s.th = k; s.thD = 0.8 * c; } },
+  efield:   { name: '전기장', d: (k, c) => `낙뢰 자리에 2초간 전기장 (반경 45). 안의 적은 초당 공격력의 ${pc(0.05 * k * c)}% 피해`, ap: (s, k, c) => { s.efD = 0.05 * k * c; } },
+  cloud:    { name: '먹구름', d: (k, c) => `전장 위의 먹구름이 1초마다 무작위 적 1명에게 낙뢰 (피해 공격력의 ${pc(1 * c)}%, 전기장도 남김)`, ap: (s, k, c) => { s.cloud = 1 * c; } },
+  // 전격기 - 전류 사슬
+  arcb:     { name: '전류 사슬', d: (k, c) => `연쇄된 적 사이에 전기 줄이 1초 남음 (적을 따라 움직임). 줄에 닿는 적은 초당 공격력의 ${pc(0.12 * k * c)}% 피해`, ap: (s, k, c) => { s.arc = 0.12 * k * c; s.arcT = 1; } },
+  longarc:  { name: '긴 방전', d: (k) => `줄 유지 +${r1(0.3 * k)}초, 줄이 닿는 폭 +${20 * k}%, 줄 피해 +${10 * k}%`, ap: (s, k) => { s.arcT += 0.3 * k; s.arcW = 1 + 0.2 * k; s.arc *= 1 + 0.1 * k; } },
+  hvarc:    { name: '고압 방전', d: () => '줄 피해 2배. 줄이 사라질 때 줄을 따라 방전해 닿아 있던 적에게 줄 피해 1초어치', ap: (s) => { s.arcHv = 1; } },
+  // 전격기 - 구전
+  ballb:    { name: '구전', d: (k, c) => `4번째 공격마다 천천히 떠가는 번개 구체를 표적 쪽으로 띄움 (4초). 닿는 적은 초당 공격력의 ${pc(0.3 * k * c)}% 피해`, ap: (s, k, c) => { s.ball = 0.3 * k * c; s.ballR = 46; s.ballT = 4; } },
+  bigball:  { name: '대형 구전', d: (k) => `구체 크기 +${5 * k}%, 지속 +${r1(0.3 * k)}초`, ap: (s, k) => { s.ballR = 46 * (1 + 0.05 * k); s.ballT = 4 + 0.3 * k; } },
+  twinball: { name: '쌍구전', d: (k, c) => `구체 2개 (하나의 피해 70%)가 좌우로 갈라져 나가고, 사라질 때 터짐 (반경 110, 공격력의 ${pc(2 * c)}%, 0.8초 기절, 보스 제외)`, ap: (s, k, c) => { s.ballTwin = 1; s.ball *= 0.7; s.ballBoom = 2 * c; } },
+  // 2차분 무기(저격포, 산성 분사기)가 쓰는 옛 노드
   exec:     { name: '처형', d: () => '이 무기의 공격으로 체력이 20% 아래로 남은 일반 적은 즉시 처치', ap: (s) => { s.instakill = Math.max(s.instakill, 0.2); } },
   rapid:    { name: '속사 저격', d: () => '공격 속도 +60%', ap: (s) => { s.ratePct += 0.6; } },
   longacid: { name: '오래 남는 산', d: (k) => `웅덩이 지속 시간 +${r1(0.6 * k)}초`, ap: (s, k) => { s.aDur += 0.6 * k; } },
@@ -344,10 +354,10 @@ const SKILLS = {
   mortar:  [LINE('핵탄두', [SNW('nukeb', 'root'), SNW('shockw', 'up'), SNW('chainuke', 'cap')], 0.6),
             LINE('융단 폭격', [SNW('carpet', 'root'), SNW('bombbay', 'up'), SNW('airstrike', 'cap')], 0.8),
             LINE('미사일', [SNW('missile', 'root'), SNW('mirv', 'up'), SNW('twinm', 'cap')])],
+  tesla:   [LINE('낙뢰', [SNW('thunderb', 'root'), SNW('efield', 'up'), SNW('cloud', 'cap')]),
+            LINE('전류 사슬', [SNW('arcb', 'root'), SNW('longarc', 'up'), SNW('hvarc', 'cap')], 0.7),
+            LINE('구전', [SNW('ballb', 'root'), SNW('bigball', 'up'), SNW('twinball', 'cap')], 0.4)],
   // 2차분: 아직 예전 트리 (증강 효과를 그대로 쓴다)
-  tesla:   [{ name: '연쇄', nodes: [SR('t_chain', { plus1: 1 }), SU('t_grow'), SC('t_storm')] },
-            { name: '마비', nodes: [SR('t_stun'), SU('t_slow'), SNW('overload', 'cap')] },
-            { name: '광역', nodes: [SR('a_rate'), SU('a_dmg'), SC('t_wide')] }],
   rail:    [{ name: '일격', nodes: [SR('a_dmg'), SU('a_crit'), SC('r_carry')] },
             { name: '사냥', nodes: [SR('r_heavy'), SU('r_mark'), SNW('exec', 'cap')] },
             { name: '다중', nodes: [SR('r_through'), SU('r_twin'), SNW('rapid', 'cap')] }],
@@ -554,10 +564,10 @@ function blankStats(lanes, chain) {
     chain, chainGrow: 0, closePct: 0, third: 0, lens: 0, instakill: 0, cluster: 0, pool: 0, echo: 0,
     farPct: 0, gamble: 0, shield: 0, magnet: 0, ramp: 0, deathBoom: 0,
     rico: 0, split: 0, again: 0, slug: 0, freeze: 0, orbit: 0, orbs: 0, nova: 0,
-    shrap: 0, multi: 0, storm: 0,
+    shrap: 0, multi: 0,
     vuln: 0, vulnT: 0, through: 0, twin: 0, carry: 0, poolAcid: 0,
     aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0, aMelt: 0,   // 산성 웅덩이
-    overload: 0, aDur: 0, linger: 0,   // 스킬 전용 효과 (2차분 무기)
+    aDur: 0, linger: 0,   // 스킬 전용 효과 (2차분 무기)
     spread: 0, nolimit: 0,             // 범위 공격의 최대 타격 수 (다중 타격기, 제한 해제기)
     // 블래스터 스킬: 개틀링, 예열, 삼연장 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
     gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, gntEvery: 4, tur: 0, turD: 0, turRate: 0, turTwin: 0,
@@ -569,6 +579,8 @@ function blankStats(lanes, chain) {
     novaR: 0, novaEvery: 0, halo: 0, twinStar: 0, orbDps: 0, orbRad: 1, orbSize: 1, orbChain: 0, orbChainD: 0, fld: 0, fldDps: 0, fldVuln: 0, counter: 0,
     // 박격포 스킬: 핵탄두 / 융단 폭격 / 미사일
     nuke: 0, nukeR: 0, nukeEvery: 0, nShock: 0, nShockKn: 0, nukeQuake: 0, carpet: 0, carpetD: 0, air: 0, msl: 0, mirv: 0, mirvD: 0, mslTwin: 0,
+    // 전격기 스킬: 낙뢰, 전기장, 먹구름 / 전류 사슬, 긴 방전, 고압 방전 / 구전, 대형 구전, 쌍구전
+    th: 0, thD: 0, efD: 0, cloud: 0, arc: 0, arcT: 0, arcW: 1, arcHv: 0, ball: 0, ballR: 0, ballT: 0, ballTwin: 0, ballBoom: 0,
     };
 }
 function stats(w) {
@@ -592,7 +604,7 @@ function stats(w) {
   s.lanes = Math.min(5, s.lanes);
   s.radius = (d.radius || 0) * (rg + s.areaPct);
   s.blast = (d.blast || 0) * (rg + s.areaPct);
-  s.capOn = !!d.cap && (!d.capSk || s.sea > 0);   // 화면용: 이 무기에 제한이 걸리는 범위 공격이 있다
+  s.capOn = !!d.cap && (!d.capSk || s.sea > 0 || s.efD > 0 || s.arc > 0 || s.ball > 0);   // 화면용: 이 무기에 제한이 걸리는 범위 공격이 있다
   s.cap = d.cap && !s.nolimit ? d.cap + s.spread : CAP_NONE;
   s.jump = 140 * rg;
   s.crit = Math.min(1, s.crit);
@@ -1093,7 +1105,6 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   if (e.vulnT > 0) d *= 1 + e.vulnPct;        // 취약: 받는 피해 증가
   if (e.dmgMul) d *= e.dmgMul;                // 천칭
   if (!fixed) {
-  if (st.overload && (e.stunT > 0 || e.slowT > 0)) d *= 1 + st.overload;   // 과전류: 기절하거나 둔화된 적
   if (st.instakill && !e.boss && (e.hp - d) / e.maxHp <= st.instakill) d = e.hp;
   if (st.vap && !e.boss && (e.hp - d) / e.maxHp <= st.vap) { if (d < e.hp) vaporize(e); d = Math.max(d, e.hp); }   // 소멸: 빔에 체력 15% 이하가 된 일반 적은 증발
   if (e.type === 'shield' && st.w) {         // 방패체: 같은 레인의 무기가 쏜 공격은 대부분 막힌다
@@ -1465,9 +1476,9 @@ function fire(w, slot, st) {
       const done = starts.slice();
       for (const s0 of starts) {
         let cur = s0, dmg = s0 === first ? st.dmg : st.dmg * 0.5, px = wx, py = wy;
-        const pts = [[px, py]];
+        const pts = [[px, py]], seq = [];
         for (let j = 0; j <= st.chain && cur; j++) {
-          pts.push([cur.x, cur.y]);
+          pts.push([cur.x, cur.y]); seq.push(cur);
           hit(cur, dmg, st);
           dmg *= st.chainGrow ? 1 + st.chainGrow : 0.8;
           px = cur.x; py = cur.y;
@@ -1480,15 +1491,13 @@ function fire(w, slot, st) {
           cur = nx; if (cur) done.push(cur);
         }
         fx({ k: 'bolt', d: 0.14, pts, c: st.color });
+        if (st.arc) for (let j = 1; j < seq.length; j++) arcLink(w, seq[j - 1], seq[j], st);   // 전류 사슬: 연쇄된 적 사이에 남는 줄
       }
-      if (st.storm && w.n % 3 === 0) {        // 번개 폭풍
+      if (st.th && w.n % 3 === 0) {          // 낙뢰: 3번째 공격마다 무작위 적에게
         const pool = S.enemies.filter(e => !e.dead && e.y + e.r > 0);
-        for (let k = 0; k < st.storm && pool.length; k++) {
-          const e = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
-          fx({ k: 'bolt', d: 0.22, pts: [[e.x + (rnd() - 0.5) * 60, 0], [e.x, e.y]], c: '#ffffff' });
-          hit(e, st.dmg * 0.8, st);
-        }
+        for (let k = 0; k < st.th && pool.length; k++) strike(w, pool.splice(Math.floor(rnd() * pool.length), 1)[0], st.dmg * st.thD, st, null);
       }
+      if (st.ball && w.n % 4 === 0) launchBall(w, wx, wy, first, st);   // 구전: 4번째 공격마다
       return true;
     }
     case 'rail': {                             // 저격포: 체력이 가장 많은 적을 고르고, 0.25초 조준선을 보인 뒤 발사
@@ -1510,6 +1519,110 @@ function fire(w, slot, st) {
     }
   }
   return false;
+}
+
+/* ---------- 전격기 스킬: 낙뢰, 전기장, 먹구름, 전기 줄, 구전 ---------- */
+// 저장되지 않는 참조 (미사일의 표적과 같은 방식)
+function hide(o, k, v) { Object.defineProperty(o, k, { value: v, writable: true, configurable: true, enumerable: false }); }
+const EF_R = 45, EF_T = 2;                  // 전기장 반경, 유지 시간
+// 먹구름의 자리: 전장 위쪽에서 무기 레인 둘레를 천천히 오간다 (화면 표시와 낙뢰의 출발점이 같은 식을 쓴다)
+function cloudPos(slot, t, out) {
+  out = out || [0, 0];
+  out[0] = Math.max(60, Math.min(W - 60, (slot + 0.5) * LW + Math.sin(t * 0.23 + slot * 1.7) * LW * 1.1));
+  out[1] = 34 + 6 * Math.sin(t * 0.41 + slot);
+  return out;
+}
+// 낙뢰 한 줄기: 피해, 연출, 전기장. from: 출발점 [x, y] (없으면 하늘 위)
+function strike(w, e, dmg, st, from) {
+  const x = e.x, y = e.y;
+  hit(e, dmg, st);
+  fx({ k: 'thunder', d: 0.36, x, y, x0: from ? from[0] : x + (rnd() - 0.5) * 70, y0: from ? from[1] : -10, c: st.color, cl: from ? 1 : 0 });
+  snd('thunder');
+  if (st.efD) S.pools.push({ kind: 'efield', wk: w, x, y, r: EF_R * (1 + st.areaPct), t: EF_T, d: EF_T, dps: st.dmg * st.efD, st, c: st.color, sd: rnd() });
+}
+// 같은 무기의 전기장, 줄, 구체는 (종류마다) 겹쳐도 적 하나에게 한 스텝에 한 번만 피해를 준다. 한 틱에 때리는 적은 최대 타격 수까지
+function gotOf(seen, w) { let g = seen.get(w); if (!g) seen.set(w, g = new Set()); return g; }
+function fieldTick(p, dt, seen) {
+  const got = gotOf(seen, p.wk), list = CAND, m = p.r + 40; list.length = 0;   // m: 가장 큰 적의 반지름 절반보다 넉넉히. 먼 적은 집합 조회 전에 거른다
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const e = S.enemies[i], dx = e.x - p.x, dy = e.y - p.y;
+    if (dx > m || dx < -m || dy > m || dy < -m) continue;
+    if (!e.dead && e.y + e.r > 0 && within(dx, dy, p.r + e.r * 0.5) && !got.has(e)) list.push(e);
+  }
+  capPick(list, p.st.cap);
+  for (let i = 0, n = list.length; i < n; i++) { const e = list[i]; got.add(e); dot(e, p.dps * dt, p.st); }
+}
+// 전기 줄: 연쇄된 두 적을 잇고 따라 움직인다 (적이 죽으면 그 자리에 남는다). 같은 두 적을 다시 이으면 시간만 새로. 무기마다 최대 ARC_MAX 개
+const ARC_MAX = 16, ARC_HW = 7;
+function arcLink(w, a, b, st) {
+  const T = st.arcT, dps = st.dmg * st.arc * (st.arcHv ? 2 : 1), hw = ARC_HW * st.arcW;
+  let n = 0, old = -1;
+  for (let i = 0, m = S.pools.length; i < m; i++) {
+    const q = S.pools[i]; if (q.kind !== 'arc' || q.wk !== w) continue;
+    if ((q.ea === a && q.eb === b) || (q.ea === b && q.eb === a)) { q.t = q.d = T; q.dps = dps; q.hw = hw; q.st = st; q.hv = st.arcHv; return q; }
+    n++; if (old < 0 || q.t < S.pools[old].t) old = i;
+  }
+  const p = { kind: 'arc', wk: w, x0: a.x, y0: a.y, x1: b.x, y1: b.y, t: T, d: T, dps, hw, st, c: st.color, hv: st.arcHv, sd: rnd() };
+  hide(p, 'ea', a); hide(p, 'eb', b);
+  if (n >= ARC_MAX) S.pools[old] = p; else S.pools.push(p);
+  return p;
+}
+function arcTouch(p, got) {                 // 줄에 닿은 적 (got 에 있는 적은 뺀다), 최대 타격 수까지
+  const m = p.hw + 40, list = CAND; list.length = 0;
+  const x0 = Math.min(p.x0, p.x1) - m, x1 = Math.max(p.x0, p.x1) + m, y0 = Math.min(p.y0, p.y1) - m, y1 = Math.max(p.y0, p.y1) + m;
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const e = S.enemies[i];
+    if (e.x < x0 || e.x > x1 || e.y < y0 || e.y > y1) continue;
+    if (e.dead || e.y + e.r <= 0) continue;
+    if (segDist(e.x, e.y, p.x0, p.y0, p.x1, p.y1) <= p.hw + e.r * 0.5 && !(got && got.has(e))) list.push(e);
+  }
+  capPick(list, p.st.cap);
+  return list;
+}
+function arcTick(p, dt, seen) {
+  const a = p.ea, b = p.eb;
+  if (a && !a.dead) { p.x0 = a.x; p.y0 = a.y; }
+  if (b && !b.dead) { p.x1 = b.x; p.y1 = b.y; }
+  const got = gotOf(seen, p.wk), list = arcTouch(p, got);
+  for (let i = 0, n = list.length; i < n; i++) { const e = list[i]; got.add(e); dot(e, p.dps * dt, p.st); }
+  if (p.t <= 0 && p.hv) {                   // 고압 방전: 사라질 때 줄을 따라 한 번에 (줄 피해 1초어치)
+    const all = arcTouch(p, null).slice();
+    for (const e of all) hit(e, p.dps, p.st, true);
+    fx({ k: 'arcz', d: 0.3, x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1, c: p.st.color });
+  }
+}
+// 구전: 천천히 떠가는 번개 구체. 벽에 닿으면 튕긴다. 쌍구전이면 둘이 좌우로 갈라지고 사라질 때 터진다
+const BALL_SPD = 70, BALL_BOOM_R = 110, BALL_SPLIT = 0.42;
+function launchBall(w, wx, wy, tg, st) {
+  const a0 = Math.atan2(tg.x - wx, wy - 10 - tg.y), n = st.ballTwin ? 2 : 1;   // 0 = 위쪽
+  for (let k = 0; k < n; k++) {
+    const a = a0 + (n > 1 ? (k ? BALL_SPLIT : -BALL_SPLIT) : 0);
+    S.pools.push({ kind: 'ball', wk: w, x: wx, y: wy - 10, vx: Math.sin(a) * BALL_SPD, vy: -Math.cos(a) * BALL_SPD, r: st.ballR * (1 + st.areaPct), t: st.ballT, d: st.ballT,
+      dps: st.dmg * st.ball, st, c: st.color, boom: st.ballTwin ? st.dmg * st.ballBoom : 0, sd: rnd() });
+  }
+  snd('ball');
+}
+function ballTick(p, dt, seen) {
+  p.x += p.vx * dt; p.y += p.vy * dt;
+  const m = p.r * 0.5;
+  if (p.x < m) { p.x = m; p.vx = Math.abs(p.vx); } else if (p.x > W - m) { p.x = W - m; p.vx = -Math.abs(p.vx); }
+  if (p.y < m) { p.y = m; p.vy = Math.abs(p.vy); } else if (p.y > H - m) { p.y = H - m; p.vy = -Math.abs(p.vy); }
+  const got = gotOf(seen, p.wk), list = CAND, mm = p.r + 40; list.length = 0;
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const e = S.enemies[i], dx = e.x - p.x, dy = e.y - p.y;
+    if (dx > mm || dx < -mm || dy > mm || dy < -mm) continue;
+    if (!e.dead && e.y + e.r > 0 && within(dx, dy, p.r + e.r * 0.5) && !got.has(e)) list.push(e);
+  }
+  capPick(list, p.st.cap);
+  for (let i = 0, n = list.length; i < n; i++) { const e = list[i]; got.add(e); dot(e, p.dps * dt, p.st); }
+  if (p.t <= 0 && p.boom) {                 // 쌍구전: 사라질 때 터진다 (최대 타격 수까지, 기절은 보스 제외)
+    const st = p.st, R = BALL_BOOM_R * (1 + st.areaPct), all = [];
+    for (let i = 0, n = S.enemies.length; i < n; i++) { const o = S.enemies[i]; if (!o.dead && o.y + o.r > 0 && within(o.x - p.x, o.y - p.y, R + o.r * 0.5)) all.push(o); }
+    capPick(all, st.cap);
+    for (const o of all) { hit(o, p.boom, st, true); if (!o.boss && !o.dead) o.stunT = Math.max(o.stunT, 0.8); }
+    fx({ k: 'ballboom', d: 0.55, x: p.x, y: p.y, r: R, c: st.color });
+    snd('zap');
+  }
 }
 
 // 프리즘: 빔이 첫 적에 닿는 자리에서 양옆으로 갈라져 옆 레인의 윗쪽 적을 맞힌다. 무지개: 한 번 더 갈라져 바깥 레인까지
@@ -1694,6 +1807,16 @@ function skillStep(w, i, st, dt) {
       for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, st)) list.push(e); }
       capPick(list, st.cap);
       for (const e of list) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1) * (e === lf ? 1 + st.lens : 1), st, !full, false, !full);
+      break;
+    }
+    case 'tesla': {                          // 먹구름: 1초마다 무작위 적 1명에게 낙뢰
+      if (!st.cloud) break;
+      w.cl = (w.cl == null ? 1 : w.cl) - dt;
+      if (w.cl > 0) break;
+      const pool = S.enemies.filter(e => !e.dead && e.y + e.r > 0);
+      if (!pool.length) { w.cl = 0.25; break; }
+      w.cl = 1;
+      strike(w, pool[Math.floor(rnd() * pool.length)], st.dmg * st.cloud, st, cloudPos(i, S.t));
       break;
     }
     case 'mortar': {                         // 공습: 10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 (레인마다 1발, 왼쪽부터 차례로)
@@ -2025,10 +2148,16 @@ function step(dt) {
 
   // 화염 지대
   const aSeen = new Map();
+  let eSeen = null, rSeen = null, bSeen = null;   // 전격기: 전기장, 줄, 구체 (종류마다 따로)
   for (const p of S.pools) {
     p.t -= dt;
     if (p.acid) { acidTick(p, dt, aSeen); continue; }
-    if (p.kind === 'fire') { fireTick(p, dt, aSeen); continue; }
+    switch (p.kind) {
+      case 'fire': fireTick(p, dt, aSeen); continue;
+      case 'efield': fieldTick(p, dt, eSeen || (eSeen = new Map())); continue;
+      case 'arc': arcTick(p, dt, rSeen || (rSeen = new Map())); continue;
+      case 'ball': ballTick(p, dt, bSeen || (bSeen = new Map())); continue;
+    }
     poolTick(p, dt);                         // 용융선, 잔광, 박격포 화염 지대
   }
 
@@ -2239,7 +2368,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, cloudPos, ARC_MAX, BALL_BOOM_R,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
