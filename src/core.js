@@ -168,7 +168,6 @@ const AUGS = {
   a_rate: { name: '속사',     abbr: '속사', min: 0, for: 'all', v: [9, 18, 36, 72],  ap: pct('ratePct'), d: v => `공격 속도 +${v}%` },
   a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, for: 'all', v: [12, 24, 48, 90],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
   // 블래스터
-  b_pierce: { name: '관통탄', abbr: '관통', min: 0, for: 'blaster', v: [1, 2, 3, 4], ap: add('pierce'), d: v => `탄환이 적 ${v}명을 추가로 관통 (관통할 때마다 피해 -45%)` },
   b_multi:  { name: '연발',   abbr: '연발', min: 2, for: 'blaster', v: [0, 0, 1, 2], ap: add('shots'),  d: v => `탄환 ${v}발 추가 발사 (추가 탄 피해 ${Math.round(CFG.extraShotMul * 100)}%)` },
   b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 25, 63], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
   b_seek:   { name: '유도탄', abbr: '유도', min: 2, for: 'blaster', v: [0, 0, 2, 4], w: [0, 0, 25, 63], ap: (s, v, w) => { s.lanes += v; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v)}, 공격력 +${w}%` },
@@ -181,9 +180,8 @@ const AUGS = {
   s_pierce: { name: '철갑 산탄', abbr: '철갑', min: 1, for: 'shotgun', v: [0, 1, 2, 4], ap: add('pierce'), d: v => `산탄이 적 ${v}명을 추가로 관통 (관통할 때마다 피해 -45%)` },
   // 레이저
   l_burn:   { name: '잔열',     abbr: '잔열', min: 0, for: 'laser', v: [8.8, 18, 35, 88], ap: mx('burn'), d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
-  l_wide:   { name: '광폭 빔',  abbr: '광폭', min: 2, for: 'laser', v: [0, 0, 12, 30], ap: pct('sideBeam'), d: v => `양옆 레인의 적에게도 ${v}% 피해` },
   l_charge: { name: '과충전',   abbr: '충전', min: 0, for: 'laser', v: [40, 80, 160, 400], ap: pct('third'), d: v => `3번째 발사마다 피해 +${v}%` },
-  l_exec:   { name: '소멸 광선', abbr: '소멸', min: 2, for: 'laser', v: [0, 0, 12, 30], ap: mx('instakill'), d: v => `체력이 ${v}% 이하로 떨어진 일반 적을 즉시 처치` },
+  l_lens:   { name: '집광',     abbr: '집광', min: 0, for: 'laser', v: [12.5, 25, 50, 125], ap: pct('lens'), d: v => `빔에 맞은 적 중 기지에 가장 가까운 적에게 피해 +${v}%` },
   // 펄스
   p_area:   { name: '범위 증폭', abbr: '증폭', min: 0, for: 'pulse', v: [11, 23, 45, 55], ap: pct('areaPct'), d: v => `파동 범위 +${v}%` },
   p_knock:  { name: '충격파',   abbr: '충격', min: 0, for: 'pulse', v: [2.5, 5, 10, 15], ap: add('knock'), d: v => `범위 안의 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
@@ -201,7 +199,6 @@ const AUGS = {
   t_wide:  { name: '광역 방전', abbr: '광역', min: 2, for: 'tesla', v: [0, 0, 2, 4], w: [0, 0, 20, 20], ap: (s, v, w) => { s.lanes += v; s.chain += v / 2 + 1; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v + 1)}, 연쇄 +${v / 2 + 1}, 공격력 +${w}%` },
   // 눈에 보이는 변화가 큰 증강 (대부분 영웅 이상)
   a_boom:    { name: '연쇄 폭발', min: 2, for: 'all',     v: [0, 0, 15, 38],   ap: mx('deathBoom'), d: v => `이 무기로 처치한 적이 폭발해 주변에 공격력의 ${v}% 피해` },
-  b_rico:    { name: '도탄',     min: 2, for: 'blaster', v: [0, 0, 1, 2],      ap: add('rico'),   d: v => `탄환이 적중 후 가까운 다른 적에게 ${v}번 튕김 (튕길 때마다 피해 -50%)` },
   b_split:   { name: '분열탄',   min: 2, for: 'blaster', v: [0, 0, 2, 3],      ap: add('split'),  d: v => `탄환이 적중하면 작은 탄 ${v}개로 갈라져 날아감 (피해 35%)` },
   s_double:  { name: '2연발',    min: 2, for: 'shotgun', v: [0, 0, 37, 80],  ap: mx('again'),   d: v => `발사 직후 한 번 더 발사 (피해 ${v}%)` },
   s_blast:   { name: '폭렬 산탄', min: 2, for: 'shotgun', v: [0, 0, 21, 53],    ap: pct('splash'), d: v => `산탄이 적중하면 폭발해 주변에 피해의 ${v}%` },
@@ -209,7 +206,7 @@ const AUGS = {
   l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 23, 58],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
   p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 18, 35, 70],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
   m_shrap:   { name: '파편탄',   min: 2, for: 'mortar',  v: [0, 0, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 25%)` },
-  m_barrage: { name: '연속 포격', min: 2, for: 'mortar',  v: [0, 0, 1, 2],      ap: add('barrage'), d: v => `다른 적을 노리는 포탄 ${v}발 추가 발사 (피해 33%)` },
+  m_barrage: { name: '연속 포격', min: 2, for: 'mortar',  pool: false, v: [0, 0, 1, 2], ap: add('barrage'), d: v => `다른 적을 노리는 포탄 ${v}발 추가 발사 (피해 33%)` },
   m_nuke:    { name: '핵탄두',   min: 3, for: 'mortar',  v: [0, 0, 0, 3],      ap: add('nuke'),   d: v => `4번째 포탄마다 핵탄두: 폭발 범위 2.5배, 피해 ${v}배` },
   t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 35, 70, 80],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
   t_multi:   { name: '다중 방전', min: 2, for: 'tesla',   v: [0, 0, 1, 2],      ap: add('multi'),  d: v => `처음 노리는 적이 ${v}명 늘어남 (각각 연쇄, 추가된 적의 연쇄는 피해 50%)` },
@@ -238,7 +235,8 @@ const AUGS = {
   h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 35],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
 };
 const AUG_POOL = {};
-for (const wid of WEAPON_IDS) AUG_POOL[wid] = Object.keys(AUGS).filter(id => AUGS[id].for === 'all' || AUGS[id].for === wid);
+// pool: false 는 증강으로는 나오지 않는 항목 (m_barrage: 박격포 옛 스킬 트리 전용, T5a 에서 정리)
+for (const wid of WEAPON_IDS) AUG_POOL[wid] = Object.keys(AUGS).filter(id => AUGS[id].pool !== false && (AUGS[id].for === 'all' || AUGS[id].for === wid));
 AUG_POOL.base = Object.keys(AUGS).filter(id => AUGS[id].for === 'base');
 
 // 항목의 g등급 수치: 둘째 수치(w)가 있는 항목은 둘 다 넘긴다
@@ -268,12 +266,12 @@ const NEWSK = {
   twinturr: { name: '쌍포탑', d: () => '반대쪽에 포탑 하나 더. 포탑 탄이 맞으면 작은 폭발 (반경 45, 탄 피해 40%)', ap: (s) => { s.turTwin = 1; } },
   // 산탄포 - 슬러그
   slugb:    { name: '슬러그탄', d: (k, c) => `3번째 발사마다 정면에 대형 탄: 피해 공격력의 ${pc((0.4 + 0.2 * k) * c)}%, 모든 적 관통, 밀어냄 12`, ap: (s, k, c) => { s.slug = (0.4 + 0.2 * k) * c; s.slugKn += 12; s.slugEvery = 3; } },
-  heavyb:   { name: '묵직한 탄', d: (k) => `슬러그 밀어내는 세기 +${4 * k}, 맞은 적을 1초간 ${10 * k}% 둔화`, ap: (s, k) => { s.slugKn += 4 * k; s.slugSlow = 0.1 * k; } },
+  heavyb:   { name: '묵직한 탄', d: (k) => `슬러그에 맞은 적이 ${r1(0.15 * k)}초 기절 (보스 제외)`, ap: (s, k) => { s.slugStun = 0.15 * k; } },
   twinslug: { name: '쌍열', d: () => '2번째 발사마다 슬러그. 정면과 양옆 3레인 모두에 발사', ap: (s) => { s.slugTwin = 1; s.slugEvery = 2; } },
   // 산탄포 - 용의 숨결
   flameb:   { name: '화염 산탄', d: (k, c) => `산탄이 부채꼴 불꽃으로 바뀜. 맞은 적은 3초간 초당 공격력의 ${pc(0.08 * k * c)}% 화상`, ap: (s, k, c) => { s.flame = 0.08 * k * c; } },
   sea:      { name: '불바다', d: (k, c) => `탄이 지나간 자리에 2초간 불길이 남음. 불길 위의 적은 초당 공격력의 ${pc(0.06 * k * c)}% 피해`, ap: (s, k, c) => { s.sea = 0.06 * k * c; } },
-  fireburst:{ name: '폭염', d: () => '화상 중인 적이 죽으면 폭발 (반경 70, 공격력의 100%). 주변 적에게 화상을 옮김', ap: (s) => { s.fb = 1; } },
+  dragon:   { name: '용 머리', d: (k, c) => `5번째 발사마다 용 머리 불길이 정면 레인 끝까지 뻗음. 닿는 모든 적에게 공격력의 ${pc(1.5 * c)}% 피해와 화상`, ap: (s, k, c) => { s.dragon = 1.5 * c; } },
   // 산탄포 - 지뢰
   mineb:    { name: '산탄 지뢰', d: (k, c) => `4초마다 사거리 안에 지뢰를 깜. 밟으면 폭발 (반경 60, 공격력의 ${pc(0.6 * k * c)}%). 최대 3개, 12초 유지`, ap: (s, k, c) => { s.mine = 0.6 * k * c; s.mineMax += 3; s.mineCd += 4; } },
   quickm:   { name: '빠른 매설', d: (k) => `설치 간격 -${r1(0.4 * k)}초 (${r1(4 - 0.4 * k)}초), 최대 ${3 + (k >= 3 ? 1 : 0) + (k >= 5 ? 1 : 0)}개`, ap: (s, k) => { s.mineCd -= 0.4 * k; s.mineMax += (k >= 3 ? 1 : 0) + (k >= 5 ? 1 : 0); } },
@@ -288,7 +286,7 @@ const NEWSK = {
   rainbow:  { name: '무지개', d: () => '갈라진 빔이 한 번 더 갈라져 모든 레인을 덮음 (바깥 레인은 60%). 빔이 무지개색', ap: (s) => { s.rainbow = 1; } },
   // 레이저 - 용융
   meltb:    { name: '용융선', d: (k, c) => `빔이 지나간 레인 바닥에 2초간 달궈진 선이 남음. 선 위의 적은 초당 공격력의 ${pc(0.08 * k * c)}% 피해`, ap: (s, k, c) => { s.melt = 0.08 * k * c; s.meltT += 2; } },
-  afterh:   { name: '잔열', d: (k) => `용융선 유지 +${r1(0.4 * k)}초, 선 위의 적 ${5 * k}% 둔화`, ap: (s, k) => { s.meltT += 0.4 * k; s.meltSlow = 0.05 * k; } },
+  afterh:   { name: '긴 열기', d: (k) => `용융선 유지 +${r1(0.4 * k)}초, 선 위의 적 ${5 * k}% 둔화`, ap: (s, k) => { s.meltT += 0.4 * k; s.meltSlow = 0.05 * k; } },
   vanish:   { name: '소멸', d: () => '이 무기의 빔이나 용융선으로 체력 15% 이하가 된 일반 적은 즉시 증발', ap: (s) => { s.vap = 0.15; } },
   // 펄스 - 초신성
   novab:    { name: '초신성', d: (k, c) => `5번째 파동마다 거대 파동: 범위 x${r1(1.4 + 0.16 * k)}, 피해 x${r1(1 + 0.2 * k * c)}`, ap: (s, k, c) => { s.nova = 1 + 0.2 * k * c; s.novaR = 1.4 + 0.16 * k; s.novaEvery = 5; } },
@@ -299,7 +297,7 @@ const NEWSK = {
   orbit:    { name: '궤도 확장', d: (k) => `궤도 반경 +${6 * k}%, 구체 크기 +${8 * k}%`, ap: (s, k) => { s.orbRad = 1 + 0.06 * k; s.orbSize = 1 + 0.08 * k; } },
   orbchain: { name: '전기 사슬', d: (k, c) => `구체끼리 번개 줄로 이어짐. 줄에 닿는 적도 피해 (구체 피해의 ${pc(0.6 * c)}%)와 0.3초 기절 (보스 제외, 적 하나당 2초에 한 번)`, ap: (s, k, c) => { s.orbChain = 1; s.orbChainD = 0.6 * c; } },
   // 펄스 - 역장
-  fieldb:   { name: '역장', d: (k, c) => `무기 주변에 항상 켜진 역장 (파동 범위의 70%). 안의 적을 ${pc(0.06 * k * c)}% 둔화`, ap: (s, k, c) => { s.fld = 0.06 * k * c; } },
+  fieldb:   { name: '역장', d: (k) => `무기 주변에 항상 켜진 역장 (파동 범위의 70%). 안의 적을 옆으로 끌어 무기 앞에 모음 (초당 레인 폭의 ${6 * k}%, 보스는 절반)`, ap: (s, k) => { s.fld = 6 * k; } },
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
   counter:  { name: '반격', d: () => '적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번)', ap: (s) => { s.counter = 1; } },
   // 2차분 무기(박격포, 전격기, 저격포, 산성 분사기)가 쓰는 노드
@@ -317,7 +315,7 @@ const SKILLS = {
             LINE('광탄', [SNW('lightb', 'root'), SNW('accel', 'up'), SNW('gigab', 'cap')]),
             LINE('보조 포탑', [SNW('turret', 'root'), SNW('turboost', 'up'), SNW('twinturr', 'cap')])],
   shotgun: [LINE('슬러그', [SNW('slugb', 'root'), SNW('heavyb', 'up'), SNW('twinslug', 'cap')]),
-            LINE('용의 숨결', [SNW('flameb', 'root'), SNW('sea', 'up'), SNW('fireburst', 'cap')]),
+            LINE('용의 숨결', [SNW('flameb', 'root'), SNW('sea', 'up'), SNW('dragon', 'cap')]),
             LINE('지뢰', [SNW('mineb', 'root'), SNW('quickm', 'up'), SNW('chainm', 'cap')])],
   laser:   [LINE('지속 빔', [SNW('holdb', 'root'), SNW('focus', 'up'), SNW('always', 'cap')]),
             LINE('프리즘', [SNW('prismb', 'root'), SNW('spectrum', 'up'), SNW('rainbow', 'cap')]),
@@ -503,6 +501,10 @@ function newGame(h) {
 function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.mines) S.mines = []; if (!S.melt) S.melt = 0; if (!S.rewq) S.rewq = []; if (!S.crafts) S.crafts = 0; if (!S.base) S.base = newBase();
   S.shards = S.shards || 0;   // 예전 저장의 강화 조각 아이템은 재화로 바꾼다
   for (let i = 0; i < S.inv.length; i++) if (S.inv[i] && S.inv[i].kind === 's') { S.shards += S.inv[i].n || 0; S.inv[i] = null; }
+  // 예전 저장: 증강에서 빠진 항목(진화 스킬과 겹쳐 2026-11 정리)은 조용히 지운다
+  const gone = (a) => a && (!AUGS[a.id] || AUGS[a.id].pool === false);
+  for (const w of S.slots.concat(S.inv)) if (w && w.kind === 'w' && w.augs.some(gone)) { w.augs = w.augs.map(a => gone(a) ? null : a); dirty(w); }
+  if (S.pendingAug && S.pendingAug.options.some(gone)) { S.pendingAug.options = S.pendingAug.options.filter(a => !gone(a)); if (!S.pendingAug.options.length) S.pendingAug = null; }
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
   if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
   syncMaxHp(); }
@@ -531,7 +533,7 @@ function blankStats(lanes, chain) {
     dmgPct: 0, ratePct: 0, crit: 0.10, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, goldPct: 0,
     execPct: 0, firstPct: 0, heal: 0, luck: 0, save: 0, dbl: 0,
     pierce: 0, shots: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes,
-    chain, chainGrow: 0, closePct: 0, third: 0, instakill: 0, cluster: 0, pool: 0, echo: 0, sideBeam: 0,
+    chain, chainGrow: 0, closePct: 0, third: 0, lens: 0, instakill: 0, cluster: 0, pool: 0, echo: 0,
     farPct: 0, gamble: 0, shield: 0, magnet: 0, ramp: 0, deathBoom: 0,
     rico: 0, split: 0, again: 0, slug: 0, freeze: 0, orbit: 0, orbs: 0, nova: 0,
     shrap: 0, barrage: 0, nuke: 0, multi: 0, storm: 0,
@@ -541,7 +543,7 @@ function blankStats(lanes, chain) {
     // 블래스터 스킬: 개틀링, 예열, 삼연장 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
     gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, tur: 0, turD: 0, turRate: 0, turTwin: 0,
     // 산탄포 스킬: 슬러그 / 용의 숨결 / 지뢰
-    slugKn: 0, slugSlow: 0, slugTwin: 0, slugEvery: 0, flame: 0, sea: 0, fb: 0, mine: 0, mineMax: 0, mineCd: 0, mineChain: 0,
+    slugKn: 0, slugStun: 0, slugTwin: 0, slugEvery: 0, flame: 0, sea: 0, dragon: 0, mine: 0, mineMax: 0, mineCd: 0, mineChain: 0,
     // 레이저 스킬: 지속 빔 / 프리즘 / 용융
     holdT: 0, holdD: 0, focus: 0, always: 0, alwaysM: 0, prism: 0, prismUp: 0, rainbow: 0, melt: 0, meltT: 0, meltSlow: 0, vap: 0,
     // 펄스 스킬: 초신성 / 위성 구체 / 역장
@@ -1013,19 +1015,6 @@ function kill(e, st) {
     const n = Math.max(1, Math.round(BAL.bundle(genCost(), rnd) * 0.06));
     addShards(n); fxNum(e.x, e.y, n, 3);
   }
-  const fb = e.fT > 0 && e.fSt ? e.fSt : e.burnT > 0 && e.burnSt ? e.burnSt : null;
-  if (fb && fb.fb && boomDepth < 2) {          // 폭염: 화상 중인 적이 죽으면 폭발, 주변 적에게 화상을 옮긴다 (맞은 적에게 화염 산탄의 화상이 붙는다)
-    boomDepth++;
-    const R = 70 * (1 + fb.areaPct);
-    fx({ k: 'boom', d: 0.42, x: e.x, y: e.y, r: R, c: '#ff7a2e', fire: 1 });
-    for (let i = 0, n = S.enemies.length; i < n; i++) {
-      const o = S.enemies[i];
-      if (o === e || o.dead || Math.hypot(o.x - e.x, o.y - e.y) > R + o.r * 0.5) continue;
-      hit(o, fb.dmg, fb, true);
-      if (!o.dead) { o.fT = 3; o.fDps = Math.max(o.fDps || 0, e.fDps || fb.dmg * fb.flame || 0); o.fSt = fb; }
-    }
-    boomDepth--;
-  }
   if (st && st.deathBoom && boomDepth < 2) {
     boomDepth++;
     const R = 70 * (1 + st.areaPct);
@@ -1252,11 +1241,15 @@ function fire(w, slot, st) {
         if (st.sea) seaStrip(w, j, wx, wy, ang, st);   // 불바다: 탄이 지나간 궤적에 불길
       }
       if (st.slug && w.n % st.slugEvery === 0) {      // 슬러그탄 (쌍열: 양옆 레인에도)
-        const sd = { pierce: 99, r: 12, kn: st.slugKn, sl: st.slugSlow, big: 1 };
+        const sd = { pierce: 99, r: 12, kn: st.slugKn, stn: st.slugStun, big: 1, slg: 1 };
         for (let j = st.slugTwin ? Math.max(0, slot - 1) : slot, je = st.slugTwin ? Math.min(LANES - 1, slot + 1) : slot; j <= je; j++) {
           bullet((j + 0.5) * LW, wy, 0, st.dmg * st.slug, st, H + 120, sd);
           fx({ k: 'slugf', d: 0.3, x: (j + 0.5) * LW, y: wy - 6, c: st.color });   // 발사 순간의 충격 고리
         }
+      }
+      if (st.dragon && w.n % 5 === 0) {      // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화상은 hit 에서 화염 산탄 것이 붙는다)
+        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 780, c: '#ff7a2e' });
+        fx({ k: 'roar', d: 0.5, x: wx, y: wy - 8, sp: 0.3 });   // 아가리에서 터져 나오는 불꽃
       }
       return true;
     }
@@ -1266,16 +1259,8 @@ function fire(w, slot, st) {
       if (!any) return false;
       w.n++;
       const m = st.third && w.n % 3 === 0 ? 1 + st.third : 1;
-      for (const e of list) hit(e, st.dmg * m, st);
+      for (const e of list) hit(e, st.dmg * m * (e === first ? 1 + st.lens : 1), st);   // 집광: 기지에 가장 가까운 적
       fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9) * (st.evo ? 1.2 : 1), c: st.color, g: 1 , h: st.holdT ? 1 : 0 });   // h: 빔이 유지된다 (화면용: 잔상을 남기지 않는다)
-      if (st.sideBeam) {
-        const reach = 1;
-        const wide = { lanes: st.lanes + reach, range: st.range };
-        for (const e of S.enemies) if (inReach(e, wx, wide) && list.indexOf(e) < 0) hit(e, st.dmg * m * st.sideBeam, st);
-        for (let j = 1; j <= reach; j++) for (const sx of [wx - (st.lanes + j) * LW, wx + (st.lanes + j) * LW]) {
-          if (sx > 0 && sx < W) fx({ k: 'beam', d: 0.16, x: sx, y0: H - st.range * H, y1: H, w: 5 * (st.evo ? 1.2 : 1), c: st.color });
-        }
-      }
       if (st.orbit) {                        // 궤도 포격: 적이 있는 다른 레인에 빔 낙하
         const lanes = [];
         for (let j = 0; j < LANES; j++) {
@@ -1557,22 +1542,23 @@ function skillStep(w, i, st, dt) {
       w.bt = (w.bt == null ? 0.1 : w.bt) - dt;
       if (w.bt > 1e-9) break;
       w.bt += 0.1; w.bk = (w.bk || 0) + 1;
-      const full = w.bk % 5 === 0, mul = st.dmg * st.alwaysM * 0.1 / st.cd;
+      const full = w.bk % 5 === 0, mul = st.dmg * st.alwaysM * 0.1 / st.cd, lf = st.lens ? nearest(wx, st) : null;
       for (let j = 0, n = S.enemies.length; j < n; j++) {
         const e = S.enemies[j];
-        if (inReach(e, wx, st)) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1), st, !full, false, !full);
+        if (inReach(e, wx, st)) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1) * (e === lf ? 1 + st.lens : 1), st, !full, false, !full);
       }
       break;
     }
     case 'pulse': {
       if (w.nv > 0) { w.nv -= dt; if (w.nv <= 0) { w.nv = 0; novaBlast(i, st, 0.7, false); } }   // 쌍성: 곧바로 한 번 더
       if (w.ct > 0) w.ct -= dt;
-      if (st.fld) {                          // 역장: 항상 켜져 있다
-        const R = st.radius * 0.7;
+      if (st.fld) {                          // 역장: 항상 켜져 있다. 안의 적을 옆으로 끌어 무기 앞(가운데)에 모은다 (아래로는 끌지 않는다)
+        const R = st.radius * 0.7, pull = st.fld * dt;
         for (let j = 0, n = S.enemies.length; j < n; j++) {
           const e = S.enemies[j];
           if (e.dead || e.y + e.r <= 0 || !within(e.x - wx, e.y - H, R + e.r * 0.5)) continue;
-          e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? st.fld * 0.5 : st.fld);
+          const dx = wx - e.x, mv = Math.min(Math.abs(dx), e.boss ? pull * 0.5 : pull);
+          if (mv > 0) { e.x += dx > 0 ? mv : -mv; e.pullT = S.t; e.pullD = dx > 0 ? 1 : -1; }   // pullT, pullD: 화면용 (끌려가는 방향)
           if (st.fldVuln) { e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, st.fldVuln); e.vulnT = Math.max(e.vulnT, 0.3); }
         }
       }
@@ -1795,8 +1781,8 @@ function step(dt) {
     if (b.tick <= 1e-9) {                    // 0.1초마다 (부동소수 오차로 마지막 틱이 빠지지 않게 아주 작은 여유를 둔다)
       b.tick += 0.1;
       const wx = (b.k + 0.5) * LW;
-      const bs_ = b.st, fo = bs_.focus;
-      for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, bs_)) hit(e, bs_.dmg * bs_.holdD * (fo ? 1 + fo * focusN(e, b) : 1), bs_); }
+      const bs_ = b.st, fo = bs_.focus, lf = bs_.lens ? nearest(wx, bs_) : null;
+      for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, bs_)) hit(e, bs_.dmg * bs_.holdD * (fo ? 1 + fo * focusN(e, b) : 1) * (e === lf ? 1 + bs_.lens : 1), bs_); }
     }
   }
 
@@ -1811,8 +1797,10 @@ function step(dt) {
       if (Math.hypot(e.x - b.x, e.y - b.y) <= e.r + b.r) {
         b.hit.push(e);
         hit(e, b.dmg, b.st);
-        if (b.kn && !e.boss && !e.dead) e.y = Math.max(-e.r, e.y - b.kn);
-        if (b.sl && !e.dead) { e.slowT = Math.max(e.slowT, 1); e.slowPct = Math.max(e.slowPct, e.boss ? b.sl * 0.5 : b.sl); }   // 묵직한 탄: 1초 둔화
+        if (b.kn && !e.boss && !e.dead && !(b.slg && S.t - (e.slkT == null ? -9 : e.slkT) < 1)) {   // 슬러그는 같은 적을 1초에 한 번만 밀어낸다 (여러 자루가 겹쳐도)
+          e.y = Math.max(-e.r, e.y - b.kn); if (b.slg) e.slkT = S.t;
+        }
+        if (b.stn && !e.boss && !e.dead) e.stunT = Math.max(e.stunT, b.stn);   // 묵직한 탄: 기절
         if (b.tb) miniBoom(b.x, b.y, 45, b.dmg * 0.4, b.st, e);           // 쌍포탑: 맞으면 작은 폭발
         if (b.split) {                       // 분열탄
           const base = Math.atan2(b.vx, -b.vy), m = b.split;
@@ -1838,7 +1826,7 @@ function step(dt) {
           }
         }
         if (b.pierce-- <= 0) { b.dead = true; break; }
-        b.dmg *= b.big ? 0.85 : b.pk;        // 관통할수록 약해진다 (가속 관통: 덜 약해진다)
+        if (!b.drg) b.dmg *= b.big ? 0.85 : b.pk;   // 관통할수록 약해진다 (가속 관통: 덜 약해진다). 용 머리는 줄지 않는다
       }
     }
   }
