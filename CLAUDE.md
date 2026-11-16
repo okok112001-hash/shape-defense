@@ -11,6 +11,7 @@
 - `tools/` 밸런스 도구. 사용법은 `tools/README.md`, 수치를 바꾼 기록은 `tools/balance_log.md`.
 - `tests/smoke.py` 브라우저 스모크 테스트(Playwright). `tests/evo_shots.py` 진화 연출을 0.1배로 늦춰 0.1초 간격으로 찍는다. `tests/example_*.py` 는 화면 캡처 스크립트 예시(경로는 옛 작업 환경 기준이라 고쳐 써야 함).
 - `docs/evolution.md` 진화 스킬 설계서(1차분 구현됨, 2차분 미구현). `docs/tasks.md` 남은 일을 나눈 태스크 목록.
+- `docs/value.md` 수치 가치 환산표 설명(공격력 +1% 단위, 환산 식, 계수).
 
 ## 명령
 ```
@@ -18,6 +19,7 @@ python build.py                           # 빌드 (루트의 index.html 등 갱
 node tools/evo_test.js                    # 진화·스킬 검사
 node tools/surv.js src/core.js 321 48     # 시드 고정 봇 48판 생존 분포 (321 = hpMul 시간 상수)
 node tools/bench.js weapons|augs|parts|run|skills   # 결정론 벤치 (README 참고)
+node tools/value.js                       # 수치 가치 환산표 (tools/value_report.txt). item <id> [등급], line <무기>.<줄> [배율], fit (영점)
 python tests/smoke.py                     # 브라우저에서 15초 플레이, 페이지 오류 확인
 ```
 배포는 빌드 후 커밋하고 `main` 에 푸시하면 끝이다. **구현이 끝나면 매번 여기까지 한다**(사용자는 휴대폰 크롬으로 배포 주소에서 바로 확인한다. 묻지 않고 푸시해도 된다).
@@ -72,6 +74,7 @@ python tests/smoke.py                     # 브라우저에서 15초 플레이, 
 - 전체 게임(`bench.js run`, `surv.js`): 결정론 봇이 플레이한다. `surv.js --pair` 는 기지 항목의 생존 시간 변화를 짝지어 잰다.
 - 난이도는 `surv.js` 48시드의 **중앙값**으로 맞춘다(평균은 꼬리 때문에 튄다). 예전 목표는 약 21분. 마지막 측정 14.7분(후반 체력 항·보스 +10%·기지 피해 배수를 넣은 뒤, K 는 그대로). 난이도는 사용자가 직접 해 보고 알려 주기로 했으니 먼저 K 를 다시 맞추지 않는다.
 - 봇 결과는 잡음이 크다: 체력 식에 사실상 0인 항을 넣어도 평균이 2분 움직인다.
+- **수치 가치 환산 계산기** `tools/value.js`: 모든 파츠·증강·진화 노드·기지 항목을 "공격력 +1% = 화력 가치 1" 단위로 계산한다(생존 S, 성장 G 는 교환 비율로). 수치를 정할 때 먼저 이것으로 계산하고, 새 기구만 측정으로 확인한다. 영점은 `tools/item_eq.js`(파츠·증강 등가 화력, 약 30분)와 `skill_eq.js` 를 잰 뒤 `node tools/value.js fit`. 설명 `docs/value.md`.
 - 진화 스킬 세기는 `tools/skill_eq.js`(같은 무기 다섯 자루 진화 팀이 버티는 적 체력 배수의 비율 R. 공격력 +50% 가짜 줄이 1.50 으로 나오는 것으로 검증). 같은 무기 다섯이라 군중 제어가 겹쳐 과대평가될 수 있다.
 - 한계: 봇은 사람보다 초반에 약하고 보스 예고를 피하지 않는다. 짝 생존 측정은 오차가 ±5~10%p다. 진화 스킬은 봇이 100강에 잘 도달하지 못해 전체 게임으로는 검증되지 않는다. `bench.js skills` 는 진화 무기 하나가 자기 레인을 다 잡아 버려 레인 한정 스킬의 효과가 0에 가깝게 나온다(스킬 세기는 `skill_eq.js` 를 쓴다).
 - 실제 휴대폰과 소리는 자동 검사로 확인할 수 없다.

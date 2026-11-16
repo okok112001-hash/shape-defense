@@ -4,17 +4,14 @@
    시나리오마다 팀이 "무기 없을 때 새는 피해의 45%"만 새게 버티는 적 체력 배수 M* 를 찾고,
    R = M*(스킬) / M*(스킬 없음) 을 그 스킬의 등가 화력 배수로 읽는다 (공격력 +X% 이면 R = 1 + X/100).
    사용: node tools/skill_eq.js [--only blaster.0,laser] [--runs 4] [--tag 이름] [--root|--full] [--nofake] [--jit 0.2] [--from 1] */
-const { Worker, isMainThread, parentPort } = require('worker_threads');
+const { isMainThread, parentPort } = require('worker_threads');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const B = require('./bench.js');           // 시나리오, 한 판 시뮬레이션(runSim), 목표 비율을 그대로 쓴다
 
-const T = B.TARGET;                         // 0.45: 무기 없을 때 피해 대비 비율
-const PREC = 0.02;                          // 이분법을 멈추는 구간 폭 (ln M)
-const D = 0.025, K = 3;                     // 마지막 직선 맞춤: x0 ± K*D 에서 2K+1 점 (ln M, 약 ±7.5%)
-const STEP0 = Math.log(1.6);                // 처음 구간 넓히는 폭
-const LNMIN = Math.log(1e-2), LNMAX = Math.log(1e7);
+const L = require('./eq_lib.js');         // M* 찾기(findM), 워커 실행기, 리포트 도우미 (tools/item_eq.js 와 같이 쓴다)
+const { T, PREC, D, K } = L;                // T = 0.45: 무기 없을 때 피해 대비 비율. PREC, D, K 는 리포트 설명에만 쓴다
 const PHASE1_GUESS = 300;                   // 스킬 없는 팀 M* 의 첫 추정 (진화 0강 = 일반 100강 화력)
 // 가짜 줄: core.js 를 고치지 않고 이 도구 안에서만 쓰는 파츠로 stats 에 끼운다 (무기 파츠 칸 0)
 const FAKE = {
@@ -28,53 +25,11 @@ function setup() {
   for (const [id, P] of Object.entries(FAKE)) Core.PARTS[id] = P;   // 생성 목록(WEAPON_PART_IDS)은 불러올 때 정해져 있어 영향 없음
 }
 
-/* ---------- 워커: (팀, 시나리오) 하나의 M* 찾기 ---------- */
-const noneMemo = new Map();
-function noneLeak(sk, s0, N, jit) {
-  const k = sk + '|' + s0 + '|' + N + '|' + jit;
-  if (!noneMemo.has(k)) { let l = 0; for (let s = s0; s < s0 + N; s++) l += B.runSim(B.NONE, sk, s, 1, jit).leak; noneMemo.set(k, l); }
-  return noneMemo.get(k);
-}
-function findM(spec, sk, s0, N, jit, guess) {
-  const nl = noneLeak(sk, s0, N, jit), memo = new Map();
-  let sims = 0;
-  const f = (x) => {
-    const key = x.toFixed(9);
-    if (memo.has(key)) return memo.get(key);
-    let l = 0; for (let s = s0; s < s0 + N; s++) l += B.runSim(spec, sk, s, Math.exp(x), jit).leak;
-    sims += N; const r = l / nl; memo.set(key, r); return r;
-  };
-  // 1) 구간 잡기
-  let x = Math.log(guess), st = STEP0, lo, hi;
-  if (f(x) > T) { hi = x; lo = x - st; while (f(lo) > T) { hi = lo; st *= 1.5; lo -= st; if (lo < LNMIN) return { fail: 'low', sims }; } }
-  else { lo = x; hi = x + st; while (f(hi) <= T) { lo = hi; st *= 1.5; hi += st; if (hi > LNMAX) return { fail: 'high', sims }; } }
-  // 2) 이분법
-  while (hi - lo > PREC) { const m = (lo + hi) / 2; if (f(m) > T) hi = m; else lo = m; }
-  const x0 = (lo + hi) / 2;
-  // 3) 계단 완화: 중심 c 주변 2K+1 점에 직선을 맞춰 목표 비율이 되는 곳을 구한다
-  const fitAt = (c) => {
-    const xs = [], ys = [];
-    for (let j = -K; j <= K; j++) { xs.push(j * D); ys.push(f(c + j * D)); }
-    const n = xs.length, mx = xs.reduce((a, v) => a + v, 0) / n, my = ys.reduce((a, v) => a + v, 0) / n;
-    let sxx = 0, sxy = 0; for (let i = 0; i < n; i++) { sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (ys[i] - my); }
-    const b = sxy / sxx, a = my - b * mx;
-    const dx = b > 1e-6 ? (T - a) / b : 0;
-    let ss = 0; for (let i = 0; i < n; i++) ss += (ys[i] - (a + b * xs[i])) ** 2;
-    const sr = Math.sqrt(ss / (n - 2));
-    const se = b > 1e-6 ? (sr / b) * Math.sqrt(1 / n + (dx - mx) ** 2 / sxx) : NaN;   // 맞춤의 표준오차 (ln M). 계단이 남은 정도를 보여 준다
-    return { dx, b, se };
-  };
-  // 답이 창 밖이면 창을 그쪽으로 옮겨 다시 맞춘다 (최대 3번). 그래도 밖이면 창 끝에서 자르고 "!" 로 표시
-  let c = x0, fit = fitAt(c), tries = 0;
-  while (Math.abs(fit.dx) > K * D && tries < 3) { c += Math.sign(fit.dx) * K * D; fit = fitAt(c); tries++; }
-  const clamped = Math.abs(fit.dx) > K * D;
-  const dx = clamped ? Math.sign(fit.dx) * K * D : fit.dx;
-  return { lnM: c + dx, x0, slope: fit.b, se: fit.se, clamped, moved: tries, sims };
-}
+/* ---------- 워커: (팀, 시나리오) 하나의 M* 찾기 (tools/eq_lib.js 의 findM) ---------- */
 if (!isMainThread) {
   setup();
   parentPort.on('message', (m) => {
-    try { parentPort.postMessage({ id: m.id, res: findM(m.spec, m.sk, m.s0, m.N, m.jit, m.guess) }); }
+    try { parentPort.postMessage({ id: m.id, res: L.findM(m.spec, m.sk, m.s0, m.N, m.jit, m.guess) }); }
     catch (e) { parentPort.postMessage({ id: m.id, err: String(e && e.stack || e) }); }
   });
   return;
@@ -115,37 +70,15 @@ for (const x of lines) for (const v of VARS) {
   cfgs.push({ key: x.id + '|' + v, W: x.W, kind: v, line: x, spec: team(x.W, sk) });
 }
 
-// 작업 실행기 (bench.js 와 같은 방식: CPU 수만큼 워커)
+// 작업 실행기 (bench.js 와 같은 방식: CPU 수만큼 워커. tools/eq_lib.js)
 const errors = [];
-async function runJobs(jobs, label) {
-  const out = new Map(), n = Math.min(jobs.length, Math.max(1, os.cpus().length));
-  const pool = Array.from({ length: n }, () => new Worker(__filename));
-  let next = 0, done = 0, id = 0; const t0 = Date.now();
-  await Promise.all(pool.map((w) => new Promise((resolve) => {
-    const feed = () => {
-      if (next >= jobs.length) { resolve(); return; }
-      const j = jobs[next++];
-      w.once('message', (m) => {
-        if (m.err) { errors.push(j.key + ' -> ' + m.err); out.set(j.key, null); } else out.set(j.key, m.res);
-        done++; if (done % 10 === 0 || done === jobs.length) process.stderr.write(`[${label}] ${done}/${jobs.length} (${((Date.now() - t0) / 1000).toFixed(0)}s)\n`);
-        feed();
-      });
-      w.postMessage(Object.assign({ id: id++ }, j.msg));
-    };
-    feed();
-  })));
-  for (const w of pool) w.terminate();
-  return out;
-}
-const COST = { swarm: 6, mix: 3, boss: 2, few: 1.5, early: 1 };    // 오래 걸리는 작업부터 (부하 고르게)
+const runJobs = (jobs, label) => L.runJobs(__filename, jobs, label, errors);
+const COST = L.COST;                        // 오래 걸리는 작업부터 (부하 고르게)
 const KCOST = { full: 3, root: 2, none: 1, fake: 1 };
 const mkJobs = (list, guessOf) => list.flatMap((c) => SC.map((sk) => ({ key: c.key + '|' + sk, cost: COST[sk] * KCOST[c.kind], msg: { spec: c.spec, sk, s0: S0, N, jit: JIT, guess: guessOf(c, sk) } })))
   .sort((a, b) => b.cost - a.cost);
 
-const gm = (a) => Math.exp(a.reduce((s, v) => s + Math.log(v), 0) / a.length);
-const pad = (s, n) => { s = String(s); const w = [...s].reduce((a, c) => a + (c.charCodeAt(0) > 0x2e80 ? 2 : 1), 0); return s + ' '.repeat(Math.max(0, n - w)); };
-const lpad = (s, n) => { s = String(s); const w = [...s].reduce((a, c) => a + (c.charCodeAt(0) > 0x2e80 ? 2 : 1), 0); return ' '.repeat(Math.max(0, n - w)) + s; };
-function fnvStr(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0; return h >>> 0; }
+const { gm, pad, lpad, fnvStr } = L;
 
 (async function main() {
   const t0 = Date.now();
