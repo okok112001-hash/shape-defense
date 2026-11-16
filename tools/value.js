@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, mine: 1, sea: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, mine: 1, sea: 1, carpet: 1, shock: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -243,16 +243,28 @@ function model(st, ref, c, lay, PP) {
       break;
     }
     case 'mortar': {
-      const R = st.blast, nb = 1 + capE(splashN(R) * 0.7, N - 1);   // 표적 하나 + 둘레의 적 (최대 타격 수까지)
-      let shell = nb;
-      if (st.nuke) { shell = (3 * nb + st.nuke * (1 + capE(splashN(R * 2.5) * 0.7, N - 1))) / 4; hsz = (3 + st.nuke) / 4; }
+      const R = st.blast, around = (Rr) => capE(splashN(Rr) * 0.7, N - 1), nb = 1 + around(R);   // 표적 하나 + 둘레의 적 (최대 타격 수까지)
+      const lane = (Rr) => capE(splashN(Rr) * 0.9, N);   // 표적 없이 떨어지는 폭탄 (융단 폭격 둘째부터, 공습의 다른 레인)
+      // 보통 차례 한 발: 피해 합(D 단위)과, 파편·집속·화염이 따라붙는 폭발의 피해 합(sc)
+      let one = nb, sc = 1;
+      if (st.carpet) { const Rc = R * 0.8; one = st.carpetD * (1 + around(Rc) + (st.carpet - 1) * lane(Rc) * pm.carpet); sc = st.carpetD * st.carpet; hsz = st.carpetD; }   // 한 발이 작아 처치 타수가 는다
+      if (st.msl) one += st.msl;                          // 추적 미사일: 직격 추가 피해
+      const mirv = st.mirv ? st.mirv * st.mirvD * (1 + around(R * 0.5)) * occ(nIn(lam, Math.PI * 260 * 260 / 2)) : 0;   // 분리 탄두 (주변에 적이 있을 때)
+      const tw = 1 + st.mslTwin;                          // 쌍발: 둘째 미사일
+      let shell = (one + mirv) * tw; sc *= tw;
+      if (st.nuke) {                                      // 핵탄두 차례 (nukeEvery 번째마다, 미사일이어도 1발)
+        const e = st.nukeEvery, Rn = R * st.nukeR;
+        const nk = st.nuke * (1 + around(Rn)) + st.msl + mirv + (st.nShock ? st.nShock * capE(Math.max(0, splashN(2 * Rn) - splashN(Rn)) * 0.6, N) : 0);
+        shell = ((e - 1) * shell + nk) / e; sc = ((e - 1) * sc + st.nuke) / e; hsz = ((e - 1) * hsz + st.nuke) / e;
+        if (st.nShock) sig.push(Math.min(0.6, st.nShockKn / (cb.v * tau * e * 1.5)) * 0.5 * pm.shock * (1 - bb));   // 충격파 밀어내기: 앞쪽 적의 절반쯤
+      }
       let ex = 0;
       if (st.cluster) ex += st.cluster * 0.8 * capE(splashN(R * 0.6) * 0.8, N);
       if (st.shrap) ex += st.shrap * 0.25 * occ(nIn(lam, 170 * 30));
-      if (st.barrage) ex += st.barrage * 0.33 * nb;
-      dir = rate * (shell + ex);
+      dir = rate * (shell + ex * sc);
+      if (st.air) dir += st.air * (nb + (LANES - 1) * lane(R)) / Core.AIR_CD;   // 공습: 10초마다 레인마다 1발 (발사 속도와 무관)
       burnN = rate * nb;
-      if (st.pool) dot += rate * st.pool * 3 * capE(splashN(R) * 0.7 + 0.5, N);
+      if (st.pool) dot += rate * sc * st.pool * 3 * capE(splashN(R) * 0.7 + 0.5, N);
       ccHit(tau * 1.5, st.knock);
       break;
     }
@@ -358,6 +370,7 @@ function loadItemEq(file) {
     const o = r.kind === 'part' ? { p: [[r.id, r.g]] } : { a: [[r.id, r.g]] };
     const wts = r.team === 'P5' ? PART_TEAM : [r.team.split(':')[1]];
     const D = r.kind === 'part' ? PARTS[r.id] : AUGS[r.id];
+    if (!D) continue;                       // 그 뒤 지운 항목 (예: 박격포 핵탄두 증강은 T5a 에서 진화 줄로 옮김)
     // 측정 당시 수치(r.v, r.w)로 능력치를 만든다 (그 뒤 core.js 수치를 바꿔도 영점이 어긋나지 않게)
     const sts = withVal(D, r.g, r.v ? r.v[r.g] : null, r.w ? r.w[r.g] : null, () => wts.map((t) => ({ t, st: statsOf(t, o), ref: statsOf(t, {}) })));
     if (pre) for (const q of sts) uncap(q);
@@ -673,7 +686,7 @@ function reportText(T, PP, fitInfo) {
     o.push(`  ${pad(s.id + ' ' + s.name, 18)} 배율 ${s.sc == null ? '-' : s.sc}  뿌리만 R ${(1 + s.root.all).toFixed(2)} (${tg(1 + s.root.all, 1.3, 1.7)})${m.root ? ', 측정 ' + m.root.toFixed(2) : ''}  완성 R ${(1 + s.full.all).toFixed(2)} (${tg(1 + s.full.all, 2.5, 3.5)})${m.full ? ', 측정 ' + m.full.toFixed(2) : ''}`);
     o.push(`    랭크별 누적 R: ${s.steps.map((x, i) => (i < s.steps.length - 1 && x.tier !== s.steps[i + 1].tier ? rk[i] + ' |' : rk[i])).join(' ')}`);
   }
-  o.push('  (2차분 무기 박격포, 전격기, 저격포, 산성은 아직 옛 트리(증강 효과를 나눠 담은 노드). 저격포 관통 저격, 이중 저격은 core.js 의 100 나누기 중복으로 피해가 1/100 이다)');
+  o.push('  (박격포는 T5a 의 새 트리. 이 무기는 같은 무기 다섯 자루가 버티지 못해 skill_eq.js --mix(섞인 팀)로 잰다. 융단 폭격·충격파 기구 계수는 아직 영점 전. 전격기, 저격포, 산성은 아직 옛 트리(증강 효과를 나눠 담은 노드). 저격포 관통 저격, 이중 저격은 core.js 의 100 나누기 중복으로 피해가 1/100 이다)');
   o.push('');
   o.push('=== 예산에서 크게 벗어난 항목 (수치는 바꾸지 않았다. 제안용) ===');
   for (const kind of ['무기 파츠', '증강', '기지 파츠', '기지 증강']) {
@@ -742,7 +755,7 @@ function fitAll() {
   o.push('[계수] (tools/value_cal.json)');
   for (const c of CTX) o.push(`  ${pad(CTX_KO[c], 8)} 밀도 lam=${(CB[c].lam0 * P.c[c].lf).toFixed(2)} (적이 안 죽을 때 ${CB[c].lam0.toFixed(1)} x 생존 비율 ${P.c[c].lf.toFixed(2)})  처치 타수 K=${P.c[c].K.toFixed(2)}  대형 적 비중 ${(Math.min(0.98, CB[c].beta0 * P.c[c].bf) * 100).toFixed(0)}% (구성 ${(CB[c].beta0 * 100).toFixed(0)}% x ${P.c[c].bf.toFixed(2)})  군중 제어 cc=${P.c[c].cc.toFixed(2)}  먼 적 phi=${P.c[c].phi.toFixed(2)}`);
   for (const t of WEAPON_IDS) { const w = P.w[t]; o.push(`  ${pad(t, 8)} 타수 kw=${w.kw.toFixed(2)}  밀도 dw=${w.dw.toFixed(2)}  공속 효율 kr=${w.kr.toFixed(2)}  사거리 kg=${w.kg.toFixed(2)}  제어 ccw=${w.ccw.toFixed(2)}  대형 bw=${w.bw.toFixed(2)}  취약 팀몫 vt=${w.vt.toFixed(2)}  운반 피해 비율 ${w.sh != null ? (w.sh * 100).toFixed(0) + '%' : '-'}`); }
-  o.push(`  스킬 기구: 위성 구체 접촉 ${P.m.orb.toFixed(2)}, 역장 ${P.m.fld.toFixed(2)}, 지뢰 ${P.m.mine.toFixed(2)}, 불바다 ${P.m.sea.toFixed(2)}`);
+  o.push(`  스킬 기구: 위성 구체 접촉 ${P.m.orb.toFixed(2)}, 역장 ${P.m.fld.toFixed(2)}, 지뢰 ${P.m.mine.toFixed(2)}, 불바다 ${P.m.sea.toFixed(2)}, 융단 폭격 ${P.m.carpet.toFixed(2)}, 충격파 ${P.m.shock.toFixed(2)} (박격포 둘은 아직 영점 전)`);
   fs.writeFileSync(path.join(__dirname, 'value_fit.txt'), o.join('\n') + '\n');
   return { skMeas: skMeasOf(sk) };
 }

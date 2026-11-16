@@ -212,8 +212,6 @@ const AUGS = {
   l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 23, 58],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
   p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 18, 35, 70],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
   m_shrap:   { name: '파편탄',   min: 2, for: 'mortar',  v: [0, 0, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 25%)` },
-  m_barrage: { name: '연속 포격', min: 2, for: 'mortar',  pool: false, v: [0, 0, 1, 2], ap: add('barrage'), d: v => `다른 적을 노리는 포탄 ${v}발 추가 발사 (피해 33%)` },
-  m_nuke:    { name: '핵탄두',   min: 3, for: 'mortar',  v: [0, 0, 0, 3],      ap: add('nuke'),   d: v => `4번째 포탄마다 핵탄두: 폭발 범위 2.5배, 피해 ${v}배` },
   t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 35, 70, 80],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
   t_multi:   { name: '다중 방전', min: 2, for: 'tesla',   v: [0, 0, 1, 2],      ap: add('multi'),  d: v => `처음 노리는 적이 ${v}명 늘어남 (각각 연쇄, 추가된 적의 연쇄는 피해 50%)` },
   t_storm:   { name: '번개 폭풍', min: 3, for: 'tesla',   v: [0, 0, 0, 5],      ap: add('storm'),  d: v => `3번째 공격마다 무작위 적 ${v}명에게 낙뢰 (피해 80%)` },
@@ -241,7 +239,7 @@ const AUGS = {
   h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 35],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
 };
 const AUG_POOL = {};
-// pool: false 는 증강으로는 나오지 않는 항목 (m_barrage: 박격포 옛 스킬 트리 전용, T5a 에서 정리)
+// pool: false 는 증강으로는 나오지 않는 항목 (지금은 없음)
 for (const wid of WEAPON_IDS) AUG_POOL[wid] = Object.keys(AUGS).filter(id => AUGS[id].pool !== false && (AUGS[id].for === 'all' || AUGS[id].for === wid));
 AUG_POOL.base = Object.keys(AUGS).filter(id => AUGS[id].for === 'base');
 
@@ -259,6 +257,7 @@ const mkNode = (id, t, o) => Object.assign({ id, t, max: SK.max[t] }, o);
 const SR = (id, o) => mkNode(id, 'root', o), SU = (id, o) => mkNode(id, 'up', o), SC = (id, o) => mkNode(id, 'cap', o);
 // 새 노드: 이름, 설명 d(랭크, 배율), 효과 ap(s, 랭크, 배율). 배율(sc)은 줄마다 하나, 피해 같은 세기 수치에만 곱한다(메커니즘은 그대로)
 const pc = (x) => r1(x * 100);   // 0.12 -> 12
+const BAY = [1, 1, 2, 2, 3];      // 폭탄창: 랭크별 더하는 발수
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
@@ -306,7 +305,19 @@ const NEWSK = {
   fieldb:   { name: '역장', d: (k) => `무기 주변에 항상 켜진 역장 (파동 범위의 70%). 안의 적을 옆으로 끌어 무기 앞에 모음 (초당 레인 폭의 ${6 * k}%, 보스는 절반)`, ap: (s, k) => { s.fld = 6 * k; } },
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
   counter:  { name: '반격', d: () => '적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번)', ap: (s) => { s.counter = 1; } },
-  // 2차분 무기(박격포, 전격기, 저격포, 산성 분사기)가 쓰는 노드
+  // 박격포 - 핵탄두
+  nukeb:    { name: '핵탄두', d: (k, c) => `4번째 포탄마다 핵탄두: 폭발 범위 x${r1(1.5 + 0.2 * k)}, 피해 x${r1(1 + 0.4 * k * c)}`, ap: (s, k, c) => { s.nuke = 1 + 0.4 * k * c; s.nukeR = 1.5 + 0.2 * k; s.nukeEvery = 4; } },
+  shockw:   { name: '충격파', d: (k, c) => `핵탄두가 터지면 폭발 범위의 2배까지 충격파: 바깥의 적을 밀어내고 (세기 ${10 + 4 * k}, 보스 제외) 공격력의 ${pc(0.1 * k * c)}% 피해`, ap: (s, k, c) => { s.nShock = 0.1 * k * c; s.nShockKn = 10 + 4 * k; } },
+  chainuke: { name: '연쇄 핵', d: () => '2번째 포탄마다 핵탄두. 터질 때 화면이 흔들림', ap: (s) => { s.nukeEvery = 2; s.nukeQuake = 1; } },
+  // 박격포 - 융단 폭격
+  carpet:   { name: '융단 폭격', d: (k, c) => `포탄이 표적 레인을 따라 세로 한 줄로 떨어지는 3발로 나뉨. 한 발 피해 공격력의 ${pc((0.3 + 0.08 * k) * c)}%, 폭발 범위 80% (핵탄두는 나뉘지 않음)`, ap: (s, k, c) => { s.carpet = 3; s.carpetD = (0.3 + 0.08 * k) * c; } },
+  bombbay:  { name: '폭탄창', d: (k, c) => `발수 +${BAY[k - 1]} (${3 + BAY[k - 1]}발), 한 발 피해 +${pc(0.03 * k * c)}%p`, ap: (s, k, c) => { s.carpet += BAY[k - 1]; s.carpetD += 0.03 * k * c; } },
+  airstrike: { name: '공습', d: (k, c) => `10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 폭격. 레인마다 1발, 한 발 피해 공격력의 ${pc(1.5 * c)}%`, ap: (s, k, c) => { s.air = 1.5 * c; } },
+  // 박격포 - 미사일
+  missile:  { name: '추적 미사일', d: (k, c) => `포탄이 표적을 따라가는 미사일로 바뀜 (빗나가지 않음). 직격한 표적에게 공격력의 ${pc(0.2 * k * c)}% 추가 피해`, ap: (s, k, c) => { s.msl = 0.2 * k * c; } },
+  mirv:     { name: '분리 탄두', d: (k, c) => `착탄 직전에 소형 탄두 ${k}개가 갈라져 주변의 다른 적에게 날아감 (피해 공격력의 ${pc(0.4 * c)}%, 폭발 범위 50%)`, ap: (s, k, c) => { s.mirv = k; s.mirvD = 0.4 * c; } },
+  twinm:    { name: '쌍발', d: (k, c) => `미사일 2발 동시 발사. 둘째는 다른 적을 노림 (피해 ${pc(0.7 * c)}%)`, ap: (s, k, c) => { s.mslTwin = 0.7 * c; } },
+  // 2차분 무기(전격기, 저격포, 산성 분사기)가 쓰는 옛 노드
   overload: { name: '과전류', d: () => '기절하거나 둔화된 적이 이 무기에게 받는 피해 +40%', ap: (s) => { s.overload = 0.4; } },
   exec:     { name: '처형', d: () => '이 무기의 공격으로 체력이 20% 아래로 남은 일반 적은 즉시 처치', ap: (s) => { s.instakill = Math.max(s.instakill, 0.2); } },
   rapid:    { name: '속사 저격', d: () => '공격 속도 +60%', ap: (s) => { s.ratePct += 0.6; } },
@@ -329,10 +340,10 @@ const SKILLS = {
   pulse:   [LINE('초신성', [SNW('novab', 'root'), SNW('afterg', 'up'), SNW('twinstar', 'cap')]),
             LINE('위성 구체', [SNW('orbb', 'root'), SNW('orbit', 'up'), SNW('orbchain', 'cap')], 2),
             LINE('역장', [SNW('fieldb', 'root'), SNW('weaken', 'up'), SNW('counter', 'cap')])],
+  mortar:  [LINE('핵탄두', [SNW('nukeb', 'root'), SNW('shockw', 'up'), SNW('chainuke', 'cap')]),
+            LINE('융단 폭격', [SNW('carpet', 'root'), SNW('bombbay', 'up'), SNW('airstrike', 'cap')]),
+            LINE('미사일', [SNW('missile', 'root'), SNW('mirv', 'up'), SNW('twinm', 'cap')])],
   // 2차분: 아직 예전 트리 (증강 효과를 그대로 쓴다)
-  mortar:  [{ name: '대구경', nodes: [SR('m_big'), SU('a_dmg'), SC('m_nuke')] },
-            { name: '화염', nodes: [SR('m_fire'), SU('a_boom'), SC('m_cluster')] },
-            { name: '포격', nodes: [SR('a_rate'), SU('m_boss'), SC('m_barrage')] }],
   tesla:   [{ name: '연쇄', nodes: [SR('t_chain', { plus1: 1 }), SU('t_grow'), SC('t_storm')] },
             { name: '마비', nodes: [SR('t_stun'), SU('t_slow'), SNW('overload', 'cap')] },
             { name: '광역', nodes: [SR('a_rate'), SU('a_dmg'), SC('t_wide')] }],
@@ -542,7 +553,7 @@ function blankStats(lanes, chain) {
     chain, chainGrow: 0, closePct: 0, third: 0, lens: 0, instakill: 0, cluster: 0, pool: 0, echo: 0,
     farPct: 0, gamble: 0, shield: 0, magnet: 0, ramp: 0, deathBoom: 0,
     rico: 0, split: 0, again: 0, slug: 0, freeze: 0, orbit: 0, orbs: 0, nova: 0,
-    shrap: 0, barrage: 0, nuke: 0, multi: 0, storm: 0,
+    shrap: 0, multi: 0, storm: 0,
     vuln: 0, vulnT: 0, through: 0, twin: 0, carry: 0, poolAcid: 0,
     aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0, aMelt: 0,   // 산성 웅덩이
     overload: 0, aDur: 0, linger: 0,   // 스킬 전용 효과 (2차분 무기)
@@ -555,6 +566,8 @@ function blankStats(lanes, chain) {
     holdT: 0, holdD: 0, focus: 0, always: 0, alwaysM: 0, prism: 0, prismUp: 0, rainbow: 0, melt: 0, meltT: 0, meltSlow: 0, vap: 0,
     // 펄스 스킬: 초신성 / 위성 구체 / 역장
     novaR: 0, novaEvery: 0, halo: 0, twinStar: 0, orbDps: 0, orbRad: 1, orbSize: 1, orbChain: 0, orbChainD: 0, fld: 0, fldVuln: 0, counter: 0,
+    // 박격포 스킬: 핵탄두 / 융단 폭격 / 미사일
+    nuke: 0, nukeR: 0, nukeEvery: 0, nShock: 0, nShockKn: 0, nukeQuake: 0, carpet: 0, carpetD: 0, air: 0, msl: 0, mirv: 0, mirvD: 0, mslTwin: 0,
     };
 }
 function stats(w) {
@@ -1141,6 +1154,84 @@ function explode(x, y, R, dmg, st, n) {
   for (const o of list) hit(o, dmg, st, true);
 }
 
+// 박격포 포탄 하나가 터진다. R: 폭발 반경 (없으면 무기의 폭발 범위)
+function shellBlast(s) {
+  const st = s.st, R = s.R || st.blast;
+  if (s.hb && s.tg && !s.tg.dead) hit(s.tg, s.hb, st, true);   // 추적 미사일: 직격한 표적에게 추가 피해
+  const n0 = S.fx.length;
+  explode(s.tx, s.ty, R, s.dmg, st, st.cap);
+  if ((s.cb > 1 || s.mini || s.air) && S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].lt = 1;   // 화면용: 작은 폭발 (가볍게 그린다)
+  if (s.nuke) nukeBlast(s, R, n0);
+  else fx({ k: 'crater', d: 1.0, x: s.tx, y: s.ty, r: R * 0.75, c: st.color });   // 잠깐 남는 탄흔
+  if (s.cw) carpetFollow(s);                 // 미사일 + 융단 폭격: 맞은 자리부터 레인을 따라 위로
+  if (s.mini) return;                        // 분리 탄두는 파편, 집속, 화염을 내지 않는다
+  for (let k = 0; k < st.shrap; k++) {
+    bullet(s.tx, s.ty, k * 2 * Math.PI / st.shrap + rnd() * 0.4, s.dmg * 0.25, st, 170, { sp: 520, pierce: 0, r: 3.5, rico: 0, split: 0 });
+  }
+  for (let k = 0; k < st.cluster; k++) {
+    const a = rnd() * Math.PI * 2, rr = st.blast * (0.6 + rnd() * 0.7);
+    explode(s.tx + Math.cos(a) * rr, s.ty + Math.sin(a) * rr, st.blast * 0.6, s.dmg * 0.8, st, st.cap);
+  }
+  if (st.pool) S.pools.push({ x: s.tx, y: s.ty, r: R, dps: s.dmg * st.pool, t: 3, st });
+}
+// 핵탄두: 섬광과 버섯구름 (화면은 'nuke' 가 그리고 보통 폭발 그림은 숨긴다), 충격파, 연쇄 핵의 흔들림
+function nukeBlast(s, R, n0) {
+  const st = s.st;
+  if (S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].nk = 1;
+  snd('nuke');
+  fx({ k: 'nuke', d: 1.3, x: s.tx, y: s.ty, r: R, s2: st.nShock ? R * 2 : 0, c: st.color });
+  if (st.nukeQuake) fx({ k: 'quake', d: 0.3 });
+  if (!st.nShock) return;
+  const list = [];                            // 충격파: 폭발 범위 밖, 2배 안의 적 (최대 타격 수까지)
+  for (let i = 0, m = S.enemies.length; i < m; i++) {
+    const o = S.enemies[i]; if (o.dead) continue;
+    const d = Math.hypot(o.x - s.tx, o.y - s.ty);
+    if (d > R + o.r * 0.5 && d <= 2 * R + o.r * 0.5) list.push(o);
+  }
+  capPick(list, st.cap);
+  for (const o of list) { hit(o, st.dmg * st.nShock, st, true); if (!o.boss && !o.dead) o.y = Math.max(-o.r, o.y - st.nShockKn); }
+}
+// 미사일: 조종점(cx, cy)을 지나 지금 표적 자리(tx, ty)로 가는 2차 곡선. 표적은 저장되지 않게 숨김 속성
+function setTarget(o, e) { Object.defineProperty(o, 'tg', { value: e, writable: true, configurable: true, enumerable: false }); }
+function shellPos(s, p, out) {
+  const u = 1 - p; out = out || [0, 0];
+  out[0] = u * u * s.x0 + 2 * u * p * s.cx + p * p * s.tx; out[1] = u * u * s.y0 + 2 * u * p * s.cy + p * p * s.ty;
+  return out;
+}
+// m: 피해 배수 (쌍발 둘째 70%), side: 곡선이 휘는 쪽
+function missile(wx, wy, e, st, m, nuke, side) {
+  const carpet = !nuke && st.carpet > 0;
+  const o = { ms: 1, x0: wx + side * 8, y0: wy - 6, tx: e.x, ty: e.y, p: 0, dur: 0.62, st, side, nuke: nuke ? 1 : 0,
+    dmg: st.dmg * m * (nuke ? st.nuke : carpet ? st.carpetD : 1), R: st.blast * (nuke ? st.nukeR : carpet ? 0.8 : 1),
+    hb: st.dmg * st.msl * m, mirv: st.mirv, mdm: st.dmg * st.mirvD * m, cw: carpet ? st.carpet - 1 : 0, cdm: st.dmg * st.carpetD * m };
+  o.cx = o.x0 + side * 60; o.cy = o.ty + (o.y0 - o.ty) * 0.35;
+  setTarget(o, e);
+  S.shells.push(o);
+}
+// 분리 탄두: 미사일이 착탄 직전에 소형 탄두를 주변의 다른 적에게 (모자라면 둘레 땅에) 날린다
+function mirvSplit(s) {
+  s.split = 1;
+  const st = s.st, P = shellPos(s, s.p), list = [];
+  for (const e of S.enemies) if (!e.dead && e !== s.tg && e.y + e.r > 0 && within(e.x - s.tx, e.y - s.ty, 260)) list.push(e);
+  list.sort((a, b) => Math.hypot(a.x - s.tx, a.y - s.ty) - Math.hypot(b.x - s.tx, b.y - s.ty));
+  for (let k = 0; k < s.mirv; k++) {
+    const e = list[k], a = rnd() * Math.PI * 2, d = st.blast * (0.7 + 0.6 * rnd());
+    const o = { ms: 1, mini: 1, x0: P[0], y0: P[1], tx: e ? e.x : Math.max(10, Math.min(W - 10, s.tx + Math.cos(a) * d)), ty: e ? e.y : Math.max(10, Math.min(H - 6, s.ty + Math.sin(a) * d)),
+      p: 0, dur: 0.3, st, dmg: s.mdm, R: st.blast * 0.5, side: k % 2 ? 1 : -1 };
+    o.cx = (o.x0 + o.tx) / 2 + o.side * 28; o.cy = Math.min(o.y0, o.ty) - 34;
+    if (e) setTarget(o, e);
+    S.shells.push(o);
+  }
+}
+// 미사일 + 융단 폭격: 맞은 자리 위로 레인을 따라 폭탄이 차례로 떨어진다
+function carpetFollow(s) {
+  const st = s.st;
+  for (let k = 1; k <= s.cw; k++) {
+    const ty = s.ty - k * st.blast; if (ty < 10) break;
+    S.shells.push({ drop: 1, x0: s.tx, y0: ty - 240, tx: s.tx, ty, p: 0, dur: 0.16, wt: 0.07 * k, st, dmg: s.cdm, R: st.blast * 0.8, cb: k + 1 });
+  }
+}
+
 /* ---------- 무기 발사 ---------- */
 function inReach(e, wx, st) {
   return !e.dead && e.y + e.r > 0 &&
@@ -1334,18 +1425,30 @@ function fire(w, slot, st) {
       for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && (!t || e.y > t.y)) t = e;
       if (!t) return false;
       w.n++;
-      const nuke = st.nuke && w.n % 4 === 0;
+      const nuke = st.nuke > 0 && w.n % st.nukeEvery === 0;   // 핵탄두 차례 (연쇄 핵: 2번째마다)
       fx({ k: 'smoke', d: 0.7, x: wx, y: wy - 14, r: 20 });   // 발사 연기
-      const targets = [t];
-      if (st.barrage) {
-        const rest = S.enemies.filter(e => !e.dead && e !== t && e.y + e.r > 0).sort((a, b) => b.y - a.y);
-        for (let k = 0; k < st.barrage; k++) targets.push(rest[k * 2] || rest[k] || t);
+      if (st.msl) {                          // 추적 미사일 (쌍발: 둘째는 기지에 두 번째로 가까운 적. 핵탄두 차례에는 핵 미사일 1발)
+        const two = st.mslTwin && !nuke;
+        missile(wx, wy, t, st, 1, nuke, two ? -1 : w.n % 2 ? 1 : -1);
+        if (two) {
+          let t2 = null;
+          for (const e of S.enemies) if (!e.dead && e !== t && e.y + e.r > 0 && (!t2 || e.y > t2.y)) t2 = e;
+          missile(wx, wy, t2 || t, st, st.mslTwin, false, 1);
+        }
+        return true;
       }
-      targets.forEach((e, k) => {
-        const dur = 0.55 + k * 0.14, off = k && e === t ? (rnd() - 0.5) * 120 : 0;
-        S.shells.push({ x0: wx, y0: wy, tx: Math.max(10, Math.min(W - 10, e.x + off)), ty: Math.min(H - 6, e.y + e.speed * H * dur), p: 0, dur, st,
-          dmg: st.dmg * (k ? 0.33 : nuke ? st.nuke : 1), nuke: !k && nuke });
-      });
+      if (st.carpet && !nuke) {              // 융단 폭격: 표적 레인을 따라 위쪽으로 한 줄 (뒤따라오는 적 쪽)
+        const tx = Math.max(10, Math.min(W - 10, t.x)), gap = st.blast;
+        for (let k = 0; k < st.carpet; k++) {
+          const dur = 0.55 + k * 0.07, ty = Math.min(H - 6, t.y + t.speed * H * dur) - k * gap;
+          if (ty < 10) break;
+          S.shells.push({ x0: wx, y0: wy, tx, ty, p: 0, dur, st, dmg: st.dmg * st.carpetD, R: st.blast * 0.8, cb: k + 1 });   // cb: 융단 폭격 몇 번째 (화면용)
+        }
+        return true;
+      }
+      const dur = 0.55;
+      S.shells.push({ x0: wx, y0: wy, tx: Math.max(10, Math.min(W - 10, t.x)), ty: Math.min(H - 6, t.y + t.speed * H * dur), p: 0, dur, st,
+        dmg: st.dmg * (nuke ? st.nuke : 1), R: nuke ? st.blast * st.nukeR : 0, nuke: nuke ? 1 : 0 });
       return true;
     }
     case 'tesla': {
@@ -1548,6 +1651,7 @@ function focusN(e, owner) {
   e.fcT = S.t; const n = e.fcN; if (n < 20) e.fcN = n + 1; return n;
 }
 const ORBP = [[0, 0], [0, 0], [0, 0], [0, 0]];
+const AIR_CD = 10, AIR_WARN = 0.6;   // 공습 간격, 예고선이 보이는 시간
 // 스킬이 있는 진화 무기가 매 스텝 하는 일
 function skillStep(w, i, st, dt) {
   const wx = (i + 0.5) * LW;
@@ -1590,6 +1694,23 @@ function skillStep(w, i, st, dt) {
       for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, st)) list.push(e); }
       capPick(list, st.cap);
       for (const e of list) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1) * (e === lf ? 1 + st.lens : 1), st, !full, false, !full);
+      break;
+    }
+    case 'mortar': {                         // 공습: 10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 (레인마다 1발, 왼쪽부터 차례로)
+      if (!st.air) break;
+      w.at = (w.at == null ? 3 : w.at) - dt;
+      if (w.at > 0) break;
+      let t = null;
+      for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && (!t || e.y > t.y)) t = e;
+      if (!t) { w.at = 0.25; break; }
+      w.at = AIR_CD;
+      const y = Math.max(30, Math.min(H - 10, t.y + t.speed * H * (AIR_WARN + 0.3)));
+      fx({ k: 'airwarn', d: AIR_WARN + 0.7, y, w: AIR_WARN, c: st.color });   // 예고선
+      snd('air');
+      for (let j = 0; j < LANES; j++) {        // 자리와 때를 조금씩 흐트러뜨린다 (기계적으로 줄 맞춰 터지지 않게)
+        const tx = (j + 0.5) * LW + (rnd() - 0.5) * 14, ty = Math.max(20, Math.min(H - 6, y + (rnd() - 0.5) * 16));
+        S.shells.push({ drop: 1, air: 1, x0: tx, y0: ty - 260, tx, ty, p: 0, dur: 0.22, wt: AIR_WARN + 0.09 * j + rnd() * 0.03, st, dmg: st.dmg * st.air, R: st.blast });
+      }
       break;
     }
     case 'pulse': {
@@ -1881,25 +2002,18 @@ function step(dt) {
     }
   }
 
-  // 포탄
-  for (const s of S.shells) {
+  // 포탄 (박격포 포탄, 미사일, 떨어지는 폭탄, 산성 덩어리). 도중에 분리 탄두와 뒤따르는 폭탄이 더해진다
+  for (let q = 0; q < S.shells.length; q++) {
+    const s = S.shells[q];
+    if (s.dead) continue;
+    if (s.wt > 0) { s.wt -= dt; continue; }   // 공습, 뒤따르는 폭탄: 떨어지기 전 기다림
+    if (s.tg && !s.tg.dead) { s.tx = s.tg.x; s.ty = s.tg.y; }   // 미사일: 표적을 따라간다 (표적이 죽으면 그 자리로)
     s.p += dt / s.dur;
-    if (s.p >= 1) {
-      s.dead = true;
-      if (s.acid) { acidPool(s.tx, s.ty, s.st); continue; }
-      const st = s.st, R = st.blast * (s.nuke ? 2.5 : 1);
-      explode(s.tx, s.ty, R, s.dmg, st, st.cap);
-      fx({ k: 'crater', d: 1.0, x: s.tx, y: s.ty, r: R * 0.75, c: st.color });   // 잠깐 남는 탄흔
-      if (s.nuke) { fx({ k: 'flash', d: 0.22 }); fx({ k: 'ring', d: 0.5, x: s.tx, y: s.ty, r: R * 1.15, c: '#ffffff', fat: 1, full: 1 }); }
-      for (let k = 0; k < st.shrap; k++) {
-        bullet(s.tx, s.ty, k * 2 * Math.PI / st.shrap + rnd() * 0.4, s.dmg * 0.25, st, 170, { sp: 520, pierce: 0, r: 3.5, rico: 0, split: 0 });
-      }
-      for (let k = 0; k < st.cluster; k++) {
-        const a = rnd() * Math.PI * 2, rr = st.blast * (0.6 + rnd() * 0.7);
-        explode(s.tx + Math.cos(a) * rr, s.ty + Math.sin(a) * rr, st.blast * 0.6, s.dmg * 0.8, st, st.cap);
-      }
-      if (st.pool) S.pools.push({ x: s.tx, y: s.ty, r: R, dps: s.dmg * st.pool, t: 3, st });
-    }
+    if (s.mirv && !s.split && s.p >= 0.8) mirvSplit(s);
+    if (s.p < 1) continue;
+    s.dead = true;
+    if (s.acid) { acidPool(s.tx, s.ty, s.st); continue; }
+    shellBlast(s);
   }
 
   // 화염 지대
@@ -2118,7 +2232,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

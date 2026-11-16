@@ -181,6 +181,8 @@ const Snd = (function () {
     acid: [170, () => { tone('sine', 380, 520, 0.08, 0.035); hiss(0.06, 0.04, 1500, 1.2, 'bandpass'); }],       // 던지는 소리
     splat: [90, () => { hiss(0.13, 0.06, 900, 1, 'lowpass'); tone('sine', 260, 120, 0.1, 0.035); }],          // 웅덩이에 철퍽
     boom: [90, () => { hiss(0.28, 0.2, 500, 0.6); tone('sine', 90, 40, 0.25, 0.17); }],
+    nuke: [160, () => { tone('sine', 120, 26, 0.95, 0.26); hiss(0.8, 0.24, 360, 0.5); tone('triangle', 64, 30, 0.7, 0.1, 0.04); hiss(0.12, 0.08, 2600, 1, 'highpass'); }],   // 핵탄두: 낮고 긴 굉음
+    air: [400, () => { tone('sine', 1500, 520, 0.55, 0.035); tone('sine', 1180, 430, 0.55, 0.02, 0.03); }],                                                          // 공습: 떨어지는 휘파람 소리
     kill: [70, () => tone('triangle', 520, 880, 0.05, 0.05)],
     bosskill: [300, () => { hiss(0.5, 0.28, 400, 0.6); seq('triangle', [392, 523, 659, 784], 0.16, 0.12, 0.08); }],
     bossdie: [300, () => {                                                                                                // 보스 처치: 묵직한 폭발, 깨지는 소리, 뒤따르는 하강음
@@ -971,8 +973,18 @@ const SKICON = {
   fieldb: `<path d="M2 21.5a10 15 0 0 1 20 0z" ${SOFT}/><path d="M3.5 15h5M6.5 12.5L9 15l-2.5 2.5M20.5 15h-5M17.5 12.5L15 15l2.5 2.5"/><circle cx="12" cy="15" r="1.8" ${FILL}/>`,
   weaken: `<path d="M2 21.5a10 15 0 0 1 20 0z"/><path d="M7.5 12h9v9h-9z"/><path d="M12.5 12l-1 4-2.5 3.5M11.5 16l3.5 2.5"/>`,
   counter: `<path d="M12 1.5V8M9 5.5l3 3 3-3"/><path d="M6.5 21.5a5.5 5.5 0 0 1 11 0M2 21.5a10 10 0 0 1 20 0"/>`,
+  // 박격포: 탄두와 버섯구름 / 줄지어 떨어지는 폭탄 / 미사일
+  nukeb: `<path d="M12 1.8c3 2.3 4.4 5.6 4.4 9.6v5.3H7.6v-5.3c0-4 1.4-7.3 4.4-9.6z" ${SOFT}/><path d="M7.6 16.7L5 21.5h14l-2.6-4.8M12 7.5v4.5"/>`,
+  shockw: `<path d="M5.5 10.5a6.5 5.2 0 0 1 13 0c0 1.7-1.3 2.7-3.1 2.7H8.6c-1.8 0-3.1-1-3.1-2.7z" ${SOFT}/><path d="M10.3 13.2v5M13.7 13.2v5M1.5 21.5c2.7-2 6-3.1 10.5-3.1s7.8 1.1 10.5 3.1"/>`,
+  chainuke: `<path d="M1.8 13.3a4.4 3.8 0 0 1 8.8 0c0 1.2-.9 2-2.2 2H4c-1.3 0-2.2-.8-2.2-2zM11.6 8.8a5.6 4.7 0 0 1 11.2 0c0 1.5-1.1 2.4-2.7 2.4h-5.8c-1.6 0-2.7-.9-2.7-2.4z" ${SOFT}/><path d="M5.2 15.3v5.7M7.2 15.3v5.7M15.8 11.2v9.8M18.6 11.2v9.8M1 21.5h22"/>`,
+  carpet: `<circle cx="12" cy="3.6" r="2" ${SOFT}/><circle cx="12" cy="10" r="2.3" ${SOFT}/><path d="M12 13.8l1.5 3.3 3.3 1-3.3 1L12 22.5l-1.5-3.4-3.3-1 3.3-1z" ${FILL}/>`,
+  bombbay: `<path d="M3 2.5h18v4.5H3z" ${SOFT}/><path d="M6.5 7l-2 3.2M17.5 7l2 3.2"/><circle cx="9" cy="13.2" r="2" ${FILL}/><circle cx="15" cy="12.4" r="2" ${FILL}/><circle cx="11.8" cy="19.6" r="2.2" ${FILL}/>`,
+  airstrike: `<path d="M12 1.8l1.4 4.6 7.6 2.7v2l-7.4-1.1-.6 3.2 2.4 1.5v1.4L12 15.3l-3.4.8v-1.4l2.4-1.5-.6-3.2L3 11.1v-2l7.6-2.7z" ${SOFT}/><circle cx="3.2" cy="20.6" r="1.6" ${FILL}/><circle cx="8" cy="21" r="1.6" ${FILL}/><circle cx="12.8" cy="20.4" r="1.6" ${FILL}/><circle cx="17.4" cy="21" r="1.6" ${FILL}/><circle cx="21.2" cy="20.5" r="1.4" ${FILL}/>`,
+  missile: `<path d="M12 1.5l3 5.2v8.3H9V6.7z" ${SOFT}/><path d="M9 11.2L6 15v2.3l3-1.4M15 11.2l3 3.8v2.3l-3-1.4M12 15v2.2c0 2-1.4 3.3-3.6 4.8"/>`,
+  mirv: `<path d="M9.8 22.5v-6.2L12 12l2.2 4.3v6.2z" ${SOFT}/><path d="M12 12L5.8 5.6M12 12l6.2-6.4M12 12V4.6"/><circle cx="5" cy="4.6" r="1.7" ${FILL}/><circle cx="19" cy="4.6" r="1.7" ${FILL}/><circle cx="12" cy="2.9" r="1.7" ${FILL}/>`,
+  twinm: `<path d="M4 20.5v-9.8l2.6-5.5 2.6 5.5v9.8zM14.8 20.5v-9.8l2.6-5.5 2.6 5.5v9.8z" ${SOFT}/><path d="M4 16.5l-2 3.2M9.2 16.5l1.6 3M14.8 16.5l-1.6 3M20 16.5l2 3.2"/>`,
 };
-// 2차분 무기(곧 새 트리로 바뀜)는 단계별 공용 그림
+// 2차분 무기 중 아직 옛 트리인 무기(전격기, 저격포, 산성)는 단계별 공용 그림
 const SKGEN = {
   root: `<path d="M12 4l8 8-8 8-8-8z"/><circle cx="12" cy="12" r="2.2" ${FILL}/>`,
   up: `<path d="M12 2.5l9.5 9.5-9.5 9.5L2.5 12z"/><path d="M12 7.5l4.5 4.5-4.5 4.5L7.5 12z" ${SOFT}/>`,
@@ -2899,13 +2911,210 @@ function drawBoom(f, p) {
   }
   VX.add();
   VX.glow(f.x, f.y, R * (0.5 + 0.45 * e), col, (VX.light ? 0.75 : 0.6) * p);
-  hotSpot(f.x, f.y, R * (0.26 + 0.2 * e), col, p * p);
+  if (!f.lt) hotSpot(f.x, f.y, R * (0.26 + 0.2 * e), col, p * p);   // lt: 작은 폭발 (박격포 융단 폭격, 분리 탄두)
   const fd = VX.fade(q), rr = R * (0.3 + 0.7 * e);
-  VX.wave(f.x, f.y, rr / 0.95, col, 0.8 * fd, 0.35 + 0.65 * q);
+  VX.wave(f.x, f.y, rr / 0.95, col, 0.8 * fd, f.lt ? (q < 0.5 ? 0.5 : 1) : 0.35 + 0.65 * q);   // 작은 폭발은 얇기를 두 단계로 (빛 번짐 한 장)
   VX.norm();
   if (f.mine) {                               // 늦게 따라오는 옅은 물결
     const u2 = (q - 0.3) / 0.7;
     if (u2 > 0) { VX.add(); VX.wave(f.x, f.y, R * (0.2 + 0.62 * VX.ease(u2, 2)), col, 0.45 * VX.fade(u2), 1); VX.norm(); }
+  }
+}
+/* ---------- 박격포: 포탄, 미사일, 떨어지는 폭탄, 연기, 핵탄두, 공습 예고선 ---------- */
+// 연기 알갱이: 미사일 꼬리와 버섯구름. 화면 전용 (게임 시간 기준). 그릴 때는 투명도 네 단계로 묶어 경로 네 번만 채운다
+const PUFF = [], PUFF_MAX = 130, PUFF_FREE = [];
+let puffT = -1;
+function puff(x, y, r, vx, vy, life, grow) {
+  if (PUFF.length >= PUFF_MAX || RM.matches) return;
+  const o = PUFF_FREE.pop() || {};
+  o.x = x; o.y = y; o.r = r; o.vx = vx; o.vy = vy; o.t = o.d = life; o.g = grow;
+  PUFF.push(o);
+}
+function stepPuffs() {
+  const t = C.S.t;
+  if (t < puffT) PUFF.length = 0;            // 새 게임
+  const dt = puffT < 0 ? 0 : Math.min(0.1, Math.max(0, t - puffT)); puffT = t;
+  if (!dt) return;
+  for (let i = PUFF.length - 1; i >= 0; i--) {
+    const o = PUFF[i]; o.t -= dt;
+    if (o.t <= 0) { PUFF_FREE.push(o); PUFF[i] = PUFF[PUFF.length - 1]; PUFF.pop(); continue; }
+    const k = Math.max(0, 1 - 2.2 * dt); o.vx *= k; o.vy *= k; o.x += o.vx * dt; o.y += o.vy * dt; o.r += o.g * dt;
+  }
+}
+function drawPuffs() {
+  if (!PUFF.length) return;
+  const sm = VX.light ? '96,88,80' : '150,156,170', base = VX.light ? 0.05 : 0.045;
+  for (let b = 0; b < 4; b++) {                // 오래될수록 옅다 (투명도 네 단계). 겉테(1.45배, 옅게)를 먼저 깔고 속을 겹쳐 가장자리가 흐리다
+    for (const halo of [1, 0]) {
+      ctx.beginPath(); let any = false;
+      for (const o of PUFF) {
+        const p = o.t / o.d, bb = p > 0.75 ? 3 : p > 0.5 ? 2 : p > 0.25 ? 1 : 0; if (bb !== b) continue;
+        const r = halo ? o.r * 1.45 : o.r; ctx.moveTo(o.x + r, o.y); ctx.arc(o.x, o.y, r, 0, TAU); any = true;
+      }
+      if (any) { ctx.fillStyle = `rgba(${sm},${(base * (b + 1) * (halo ? 0.45 : 1)).toFixed(3)})`; ctx.fill(); }
+    }
+  }
+}
+const SHP = [0, 0], SHQ = [0, 0];
+function drawShells() {
+  const S = C.S, L = VX.light;
+  stepPuffs(); drawPuffs();
+  for (const s of S.shells) {
+    if (s.wt > 0 || s.dead) continue;        // 아직 떨어지기 전인 폭탄
+    if (s.ms) { drawMissile(s); continue; }
+    if (s.drop) { drawDrop(s); continue; }
+    const x = s.x0 + (s.tx - s.x0) * s.p, gy = s.y0 + (s.ty - s.y0) * s.p, hgt = Math.sin(s.p * Math.PI);
+    const y = gy - hgt * (s.acid ? 60 : 70), big = s.nuke ? 1 : 0;
+    ctx.beginPath(); ctx.ellipse(x, gy, (big ? 15 : 9) - 3 * hgt, ((big ? 15 : 9) - 3 * hgt) * 0.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(30,30,40,${0.16 + 0.12 * (1 - hgt)})`; ctx.fill();   // 땅 위를 따라가는 그림자
+    if (s.acid) {                           // 산성 덩어리와 떨어질 자리
+      const pr = 75 * (1 + s.st.aRange + s.st.areaPct);
+      ctx.beginPath(); ctx.arc(s.tx, s.ty, pr * (0.5 + 0.5 * s.p), 0, Math.PI * 2); ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, 0.55); ctx.stroke(); ctx.setLineDash([]);
+      const sk = s.st.evo ? 1.2 : 1;
+      ctx.beginPath(); ctx.arc(x, y, 7 * sk, 0, Math.PI * 2); ctx.fillStyle = s.st.color; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, s.st.evo ? 0.8 : 0.5); ctx.beginPath(); ctx.arc(x, y, 10.5 * sk, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(x - 2.2, y - 2.4, 2, 0, Math.PI * 2); ctx.fill();
+      continue;
+    }
+    const col = seenCol(s.st.color);
+    if (big) { drawNukeShell(s, x, y, col); continue; }
+    const sz = (s.cb ? 6 : 7) * (s.st.evo ? 1.2 : 1);
+    ctx.beginPath(); ctx.arc(s.tx, s.ty, s.cb ? 8 : 10, 0, Math.PI * 2); ctx.strokeStyle = rgba(col, s.cb ? 0.35 : 0.5); ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+    if (s.st.evo) { ctx.lineWidth = 2; ctx.strokeStyle = L ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.8)'; ctx.stroke(); }
+  }
+}
+// 핵탄두 포탄: 크고 하얗게 달아오른 탄. 지나간 자리에 옅은 열기와 연기, 떨어질 자리는 땅이 서서히 밝아진다 (선 없이)
+function drawNukeShell(s, x, y, col) {
+  const u = VX.ui(s), L = VX.light, R = s.R || s.st.blast, k = s.p;
+  VX.add();
+  VX.glow(s.tx, s.ty, R * (0.35 + 0.55 * k), col, (L ? 0.22 : 0.16) * k * k, R * (0.2 + 0.32 * k));   // 떨어질 자리 (납작하게)
+  VX.glow(x, y, 26, col, L ? 0.55 : 0.7);
+  VX.norm();
+  if (u.lx != null && Math.random() < 0.8) puff(u.lx + (Math.random() - 0.5) * 4, u.ly, 2.2 + Math.random() * 1.6, (Math.random() - 0.5) * 14, -8, 0.4 + Math.random() * 0.25, 10);
+  u.lx = x; u.ly = y;
+  const r = 12.5 * (s.st.evo ? 1.1 : 1);
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = L ? VX.mix(col, 0.82) : '#ffffff'; ctx.fill();
+  ctx.lineWidth = 2.2; ctx.strokeStyle = L ? VX.mix(col, -0.2) : rgba(col, 0.9); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x - r * 0.32, y - r * 0.34, r * 0.3, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fill();
+}
+// 미사일: 곡선을 따라 표적을 쫓는다. 몸통은 나아가는 쪽을 보고, 꽁무니에 불꽃이 깜빡이며 연기 꼬리를 남긴다
+function drawMissile(s) {
+  const u = VX.ui(s), L = VX.light, col = seenCol(s.st.color), F = fireCol(), mini = s.mini, nk = s.nuke;
+  C.shellPos(s, s.p, SHP); C.shellPos(s, Math.max(0, s.p - 0.03), SHQ);
+  let dx = SHP[0] - SHQ[0], dy = SHP[1] - SHQ[1]; const ln = Math.hypot(dx, dy) || 1; dx /= ln; dy /= ln;
+  if (s.p < 0.02) { dx = s.side * 0.25; dy = -1; }
+  const len = mini ? 9 : nk ? 21 : 15, wd = mini ? 2.6 : nk ? 6.5 : 4.4, x = SHP[0], y = SHP[1], nx = -dy, ny = dx;
+  const bx = x - dx * len * 0.55, by = y - dy * len * 0.55;   // 꽁무니
+  // 연기 꼬리: 지나온 거리만큼 알갱이를 떨군다 (흐트러진 크기와 퍼짐)
+  if (u.lx != null) {
+    const gap = mini ? 8 : 5, dist = Math.hypot(bx - u.lx, by - u.ly), n = Math.min(4, Math.floor((u.acc = (u.acc || 0) + dist) / gap));
+    for (let i = 0; i < n; i++) {
+      const v = (i + 1) / n, px = u.lx + (bx - u.lx) * v, py = u.ly + (by - u.ly) * v, sp = 10 + Math.random() * 14;
+      puff(px + (Math.random() - 0.5) * 3, py + (Math.random() - 0.5) * 3, (mini ? 1.1 : nk ? 2.6 : 1.7) + Math.random() * 1.1, nx * sp * (Math.random() - 0.5) * 2, ny * sp * (Math.random() - 0.5) * 2 - 6, (mini ? 0.32 : 0.5) + Math.random() * 0.25, mini ? 7 : 10);
+    }
+    u.acc -= n * gap;
+  }
+  u.lx = bx; u.ly = by;
+  // 꽁무니 불꽃
+  const fl = (0.75 + 0.25 * Math.sin(VX.t * 60 + u.sd * 30)) * (mini ? 5 : nk ? 11 : 8);
+  VX.add();
+  if (!mini) VX.glow(bx, by, nk ? 22 : 14, F.o, L ? 0.45 : 0.6);
+  ctx.beginPath(); ctx.moveTo(bx + nx * wd * 0.6, by + ny * wd * 0.6); ctx.lineTo(bx - dx * fl, by - dy * fl); ctx.lineTo(bx - nx * wd * 0.6, by - ny * wd * 0.6); ctx.closePath();
+  ctx.fillStyle = rgba(F.y, 0.9); ctx.fill();
+  VX.norm();
+  // 몸통과 날개
+  const tx = x + dx * len * 0.45, ty = y + dy * len * 0.45, body = nk ? (L ? VX.mix(col, 0.8) : '#ffffff') : L ? VX.mix(col, -0.15) : col;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(x + nx * wd * 0.5 + dx * len * 0.1, y + ny * wd * 0.5 + dy * len * 0.1);
+  ctx.lineTo(bx + nx * wd * 0.5, by + ny * wd * 0.5);
+  ctx.lineTo(bx + nx * wd * 1.15 - dx * 2, by + ny * wd * 1.15 - dy * 2);
+  ctx.lineTo(bx - nx * wd * 1.15 - dx * 2, by - ny * wd * 1.15 - dy * 2);
+  ctx.lineTo(bx - nx * wd * 0.5, by - ny * wd * 0.5);
+  ctx.lineTo(x - nx * wd * 0.5 + dx * len * 0.1, y - ny * wd * 0.5 + dy * len * 0.1);
+  ctx.closePath(); ctx.fillStyle = body; ctx.fill();
+  ctx.lineWidth = mini ? 1 : 1.4; ctx.strokeStyle = L ? VX.mix(col, -0.45) : rgba('#ffffff', nk ? 0.95 : 0.7); ctx.stroke();
+  if (!mini) { ctx.beginPath(); ctx.arc(tx - dx * 2, ty - dy * 2, nk ? 2.6 : 1.8, 0, TAU); ctx.fillStyle = L ? VX.mix(col, -0.4) : '#ffffff'; ctx.fill(); }   // 탄두 끝
+  if (nk) { VX.add(); VX.glow(x, y, 24, col, L ? 0.4 : 0.55); VX.norm(); }
+}
+// 떨어지는 폭탄 (융단 폭격의 뒤따르는 폭탄, 공습): 위에서 빨라지며 떨어진다. 떨어질 자리의 그림자가 짙어진다
+function drawDrop(s) {
+  const L = VX.light, col = seenCol(s.st.color), k = s.p * s.p, x = s.tx, y = s.y0 + (s.ty - s.y0) * k, F = fireCol();
+  const r0 = s.air ? 11 : 8;
+  ctx.beginPath(); ctx.ellipse(x, s.ty, r0 * (0.4 + 0.6 * s.p), r0 * 0.45 * (0.4 + 0.6 * s.p), 0, 0, TAU); ctx.fillStyle = `rgba(30,30,40,${0.08 + 0.2 * s.p})`; ctx.fill();
+  const sl = 22 + 30 * s.p;                  // 낙하 줄기 (속도가 붙을수록 길다)
+  const g = ctx.createLinearGradient(0, y - sl, 0, y);
+  g.addColorStop(0, rgba(col, 0)); g.addColorStop(1, rgba(L ? VX.mix(col, -0.2) : col, L ? 0.55 : 0.45));
+  ctx.fillStyle = g; ctx.fillRect(x - 1.6, y - sl, 3.2, sl);
+  const w = s.air ? 4.6 : 3.8, h = s.air ? 7.5 : 6.2;
+  ctx.beginPath(); ctx.ellipse(x, y, w, h, 0, 0, TAU); ctx.fillStyle = L ? VX.mix(col, -0.25) : col; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x - w * 1.1, y - h - 3); ctx.lineTo(x, y - h * 0.4); ctx.lineTo(x + w * 1.1, y - h - 3); ctx.lineWidth = 1.6; ctx.strokeStyle = L ? VX.mix(col, -0.45) : VX.hot(col); ctx.stroke();
+  if (!L) { ctx.beginPath(); ctx.arc(x - 1.2, y + 1.5, 1.5, 0, TAU); ctx.fillStyle = rgba(F.y, 0.9); ctx.fill(); }
+}
+// 핵탄두 폭발: 하얀 섬광 → 불덩이가 부풀며 식고, 부드러운 폭풍이 퍼진다. 충격파(s2)는 한 박자 늦게 두 배 거리까지 얇게 번진다.
+// 처음 볼 때 불티를 뿌린다. 버섯구름은 연기 기둥과 갓(가장자리가 흐린 번짐)이 피어올라 부풀며 옅어진다. 자리와 크기는 폭발마다 조금씩 다르다
+function drawNuke(f) {
+  const u = VX.ui(f), T = f.d - f.t, R = f.r, col = seenCol(f.c), L = VX.light, F = fireCol(), hot = VX.hot(col);
+  if (u.n) {
+    for (let i = 0; i < 16; i++) {          // 불티: 사방으로 튀었다가 떨어진다
+      const a = Math.random() * TAU, sp = R * (1.4 + 2.2 * Math.random());
+      VX.spark(f.x + Math.cos(a) * R * 0.15, f.y + Math.sin(a) * R * 0.15, Math.cos(a) * sp, Math.sin(a) * sp * 0.8 - 40, 0.5 + 0.6 * Math.random(), 1.2 + 1.4 * Math.random(), i % 3 ? F.e : hot, 160, 2.2, 2);
+    }
+    for (let i = 0; i < 7; i++) {            // 빠른 빛줄기
+      const a = (i + Math.random()) / 7 * TAU, sp = R * (5 + 3 * Math.random());
+      VX.spark(f.x, f.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.14 + 0.1 * Math.random(), 1.8, hot, 0, 6, 1);
+    }
+    if (f.s2) for (let i = 0; i < 12; i++) {  // 충격파가 일으키는 먼지 고리
+      const a = (i + Math.random() * 0.8) / 12 * TAU, sp = f.s2 * (1.8 + 0.6 * Math.random());
+      puff(f.x + Math.cos(a) * R, f.y + Math.sin(a) * R * 0.8, 2.5 + 2 * Math.random(), Math.cos(a) * sp, Math.sin(a) * sp * 0.8, 0.5 + 0.3 * Math.random(), 14);
+    }
+  }
+  // 빛 번짐 장 수를 아낀다 (한 번에 많아야 6장): 섬광, 불덩이, 폭풍, 충격파, 구름 기둥, 갓
+  VX.add();
+  if (T < 0.25) { const k = 1 - T / 0.25; VX.heat(f.x, f.y, R * (0.45 + 0.35 * (1 - k)), L ? col : '#ffffff', k * k); }   // 섬광
+  if (T < 0.8) { const k = 1 - T / 0.8; VX.glow(f.x, f.y - R * 0.15 * T, R * (0.55 + 0.55 * VX.ease(T / 0.5)), col, (L ? 0.7 : 0.75) * k * Math.sqrt(k)); }   // 불덩이가 부풀며 식는다
+  if (T < 0.55) { const u2 = T / 0.55; VX.wave(f.x, f.y, R * (0.25 + 0.9 * VX.ease(u2, 3)), col, 0.85 * VX.fade(u2), u2 < 0.35 ? 0.5 : 1); }   // 폭풍 (얇기 두 단계: 큰 번짐은 한 장만)
+  if (f.s2 && T > 0.06 && T < 0.7) { const u2 = (T - 0.06) / 0.64; VX.wave(f.x, f.y, f.s2 * (0.45 + 0.6 * VX.ease(u2, 2.4)), L ? VX.mix(col, -0.2) : hot, 0.55 * VX.fade(u2), 1); }   // 충격파 (얇은 한 장)
+  VX.norm();
+  if (T > 0.12) {                             // 버섯구름: 기둥이 솟고 갓이 부풀며 옆으로 번진다. 자리와 크기는 폭발마다 조금씩 다르다
+    const sd = u.sd * 17, j1 = (hash(sd) - 0.5) * R * 0.24, sk = 0.85 + 0.3 * hash(sd + 7.7);
+    const k = VX.ease((T - 0.12) / 1.1, 2), a = Math.min(1, (T - 0.12) / 0.25) * Math.max(0, 1 - Math.max(0, T - 0.7) / 0.6), sm = L ? '#7d6e62' : '#9aa0ae';
+    const top = f.y - R * (0.45 + 1.0 * k) * sk, cx = f.x + j1 * k;
+    VX.pillar(f.x + j1 * 0.5 * k, top - R * 0.1, f.y + R * 0.15, R * (0.16 + 0.1 * k), sm, (L ? 0.45 : 0.4) * a);
+    VX.glow(cx, top, R * (0.42 + 0.42 * k) * sk, sm, (L ? 0.45 : 0.4) * a, R * (0.21 + 0.17 * k));
+  }
+}
+// 공습 예고선: 기지에 가장 가까운 적의 높이에 가로로 왼쪽부터 번지는 빛의 띠가 깜빡이고, 레인마다 표적 표시가 차례로 맺힌다.
+// 폭탄이 떨어지기 시작하면 폭격기 그림자가 왼쪽에서 오른쪽으로 지나가고 띠는 사그라든다
+function drawAirWarn(f) {
+  const u = VX.ui(f), T = f.d - f.t, Wd = C.W, y = f.y, col = seenCol(f.c), L = VX.light, w = f.w, sd = u.sd * 53;
+  const sweep = Math.min(1, T / 0.25), out = T > w ? Math.max(0, 1 - (T - w) / 0.6) : 1, blink = 0.7 + 0.3 * Math.sin(T * 34);
+  const a = Math.min(1, T / 0.12) * out * blink;
+  VX.add();
+  VX.glow(Wd * sweep / 2, y, Wd * sweep * 0.55 + 10, col, (L ? 0.32 : 0.36) * a, 9);
+  VX.norm();
+  ctx.lineCap = 'round'; ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.25) : VX.hot(col), 0.8 * a);
+  ctx.beginPath();
+  for (let i = 0, n = 26; i <= n; i++) {     // 살짝 일렁이는 선
+    const x = Wd * sweep * i / n, yy = y + Math.sin(i * 1.3 + T * 9 + sd) * 1.2;
+    if (i) ctx.lineTo(x, yy); else ctx.moveTo(x, yy);
+  }
+  ctx.stroke();
+  for (let j = 0; j < C.LANES; j++) {        // 표적 표시: 왼쪽부터 차례로, 크기와 자리가 조금씩 다르다
+    const tj = T - 0.06 - j * 0.07; if (tj <= 0) continue;
+    const k = Math.min(1, tj / 0.18), x = (j + 0.5) * C.LW + (hash(sd + j * 3.7) - 0.5) * 10, s0 = 7 + 3 * hash(sd + j * 1.9);
+    const sz = s0 * (1.6 - 0.6 * VX.ease(k)), al = k * out;
+    ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.3) : col, 0.85 * al); ctx.beginPath();
+    ctx.moveTo(x - sz, y - sz * 0.9); ctx.lineTo(x, y - sz * 0.25); ctx.lineTo(x + sz, y - sz * 0.9);
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+  const tb = T - w + 0.08;                    // 폭격기 그림자
+  if (tb > 0 && tb < 0.75) {
+    const x = -60 + (Wd + 120) * tb / 0.75, al = Math.sin(Math.PI * tb / 0.75);
+    ctx.beginPath(); ctx.ellipse(x, y - 34, 44, 9, 0, 0, TAU); ctx.ellipse(x - 6, y - 34, 10, 26, 0, 0, TAU);
+    ctx.fillStyle = `rgba(20,24,34,${(L ? 0.1 : 0.16) * al})`; ctx.fill();
   }
 }
 // 고리: 가장자리만 밝은 물결이 퍼지며 얇아지고 옅어진다 (반만 그리는 것은 기지 쪽에서 올라오는 것)
@@ -3395,8 +3604,10 @@ function drawFx(f, H) {
     case 'ring':
       if (f.nova) drawNova(f, p); else drawRing(f, p);
       break;
+    case 'nuke': drawNuke(f); break;
+    case 'airwarn': drawAirWarn(f); break;
     case 'boom':
-      if (!f.mset) drawBoom(f, p);   // mset: 지뢰 설치 (지뢰가 내려앉는 모습은 drawMine 이 그린다)
+      if (!f.mset && !f.nk) drawBoom(f, p);   // mset: 지뢰 설치 (지뢰가 내려앉는 모습은 drawMine 이 그린다), nk: 핵탄두 ('nuke' 가 그린다)
       break;
     case 'bolt': {                          // 번개: 꺾인 선, 곁가지, 맞은 적마다 불꽃
       const sd = f.pts[1][0] * 0.37 + Math.floor(performance.now() / 45), path = [f.pts[0]];
@@ -3568,6 +3779,10 @@ function draw() {
     if (f.k !== 'bosskill' || RM.matches) continue;
     const T = f.d - f.t; if (T < 0.35) ctx.translate(Math.sin(T * 130) * 7 * (1 - T / 0.35), Math.cos(T * 110) * 5 * (1 - T / 0.35));
   }
+  if (S && !RM.matches) for (let i = S.fx.length - 1; i >= 0; i--) {   // 연쇄 핵: 짧고 약한 흔들림 (가장 최근 것 하나만)
+    const f = S.fx[i]; if (f.k !== 'quake') continue;
+    const T = f.d - f.t, q = 1 - T / f.d; ctx.translate(Math.sin(T * 140) * 3 * q, Math.cos(T * 113) * 2.2 * q); break;
+  }
   if (evoRun.length) evoShake();             // 진화의 쿵 (실제 시간 기준)
   // 모눈
   ctx.strokeStyle = TC.grid; ctx.lineWidth = 1; ctx.beginPath();
@@ -3703,24 +3918,7 @@ function draw() {
     if (ev) { ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.008, b.y - b.vy * 0.008); ctx.stroke(); }
   }
   ctx.lineCap = 'butt';
-  for (const s of S.shells) {
-    const x = s.x0 + (s.tx - s.x0) * s.p, gy = s.y0 + (s.ty - s.y0) * s.p, hgt = Math.sin(s.p * Math.PI);
-    const y = gy - hgt * (s.acid ? 60 : 70);
-    ctx.beginPath(); ctx.ellipse(x, gy, (s.nuke ? 14 : 9) - 3 * hgt, ((s.nuke ? 14 : 9) - 3 * hgt) * 0.5, 0, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(30,30,40,${0.16 + 0.12 * (1 - hgt)})`; ctx.fill();   // 땅 위를 따라가는 그림자
-    if (s.acid) {                           // 산성 덩어리와 떨어질 자리
-      const pr = 75 * (1 + s.st.aRange + s.st.areaPct);
-      ctx.beginPath(); ctx.arc(s.tx, s.ty, pr * (0.5 + 0.5 * s.p), 0, Math.PI * 2); ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, 0.55); ctx.stroke(); ctx.setLineDash([]);
-      const sk = s.st.evo ? 1.2 : 1;
-      ctx.beginPath(); ctx.arc(x, y, 7 * sk, 0, Math.PI * 2); ctx.fillStyle = s.st.color; ctx.fill();
-      ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(s.st.color, s.st.evo ? 0.8 : 0.5); ctx.beginPath(); ctx.arc(x, y, 10.5 * sk, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(x - 2.2, y - 2.4, 2, 0, Math.PI * 2); ctx.fill();
-      continue;
-    }
-    ctx.beginPath(); ctx.arc(s.tx, s.ty, s.nuke ? 26 : 10, 0, Math.PI * 2); ctx.strokeStyle = s.nuke ? 'rgba(255,255,255,.8)' : rgba(s.st.color, 0.5); ctx.lineWidth = s.nuke ? 3 : 1.5; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, y, (s.nuke ? 13 : 7) * (s.st.evo ? 1.2 : 1), 0, Math.PI * 2); ctx.fillStyle = s.nuke ? '#fff' : s.st.color; ctx.fill();
-    if (s.st.evo) { ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.stroke(); }
-  }
+  drawShells();                              // 포탄, 미사일, 떨어지는 폭탄, 산성 덩어리 (연기는 그 아래)
   drawDragons(H);                            // 용 머리와 몸통 불길
   VX.draw();                                 // 잔상과 입자 (피해 숫자보다 아래)
   if (evoRun.length) drawEvoPillars(H);     // 진화의 빛기둥
