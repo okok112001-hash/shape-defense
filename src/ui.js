@@ -182,6 +182,7 @@ const Snd = (function () {
     splat: [90, () => { hiss(0.13, 0.06, 900, 1, 'lowpass'); tone('sine', 260, 120, 0.1, 0.035); }],          // 웅덩이에 철퍽
     boom: [90, () => { hiss(0.28, 0.2, 500, 0.6); tone('sine', 90, 40, 0.25, 0.17); }],
     nuke: [160, () => { tone('sine', 120, 26, 0.95, 0.26); hiss(0.8, 0.24, 360, 0.5); tone('triangle', 64, 30, 0.7, 0.1, 0.04); hiss(0.12, 0.08, 2600, 1, 'highpass'); }],   // 핵탄두: 낮고 긴 굉음
+    rain: [600, () => { hiss(1.4, 0.06, 5200, 0.6, 'highpass'); hiss(1.2, 0.05, 900, 0.8, 'bandpass', 0.1); }],                              // 산성비: 쏴아 하는 빗소리
     rico: [90, () => { tone('triangle', 2600, 1700, 0.07, 0.035); tone('sine', 3400, 3000, 0.05, 0.015, 0.02); }],                                 // 도탄: 튕기는 핑
     mkexec: [200, () => { tone('square', 980, 260, 0.14, 0.05); hiss(0.08, 0.1, 3000, 1, 'highpass'); }],                                       // 처형: 표식이 닫히는 소리
     thunder: [110, () => { hiss(0.06, 0.2, 3800, 0.8, 'highpass'); tone('square', 2200, 260, 0.07, 0.035); hiss(0.55, 0.13, 280, 0.6, 'lowpass', 0.025); tone('sine', 78, 38, 0.45, 0.11, 0.02); }],   // 낙뢰: 날카롭게 찢는 소리와 낮은 우르릉
@@ -1008,14 +1009,18 @@ const SKICON = {
   ricob: `<path d="M3 22l5.5-12.5L14 17l7-14"/><circle cx="8.5" cy="9.5" r="2" ${FILL}/><circle cx="14" cy="17" r="2" ${FILL}/>`,
   elastic: `<path d="M3 21.5l4-7 4 5 4-9 4 6" /><path d="M4 7c1.5-2.5 3-2.5 4.5 0s3 2.5 4.5 0 3-2.5 4.5 0" stroke-opacity=".55"/>`,
   triple: `<path d="M6 22.5L8 3M12 22.5V1.5M18 22.5L16 3" stroke-width="2"/><circle cx="8" cy="3.5" r="1.6" ${FILL}/><circle cx="12" cy="2" r="1.6" ${FILL}/><circle cx="16" cy="3.5" r="1.6" ${FILL}/>`,
+  // 산성 분사기: 녹는 방울 / 비 / 자국
+  dsvb: `<path d="M12 2.5c3 4 5 6.6 5 9.3a5 5 0 0 1-10 0c0-2.7 2-5.3 5-9.3z" ${SOFT}/><path d="M3 20.5c2.5-1.6 5.5-1.6 9 0s6.5 1.6 9 0"/>`,
+  bigdsv: `<circle cx="12" cy="12" r="4.5" ${SOFT}/><path d="M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5M4.6 4.6l2.4 2.4M17 17l2.4 2.4M4.6 19.4L7 17M17 7l2.4-2.4"/>`,
+  chaindsv: `<ellipse cx="6" cy="18.5" rx="4.5" ry="2.2" ${SOFT}/><ellipse cx="18" cy="18.5" rx="4.5" ry="2.2" ${SOFT}/><path d="M6 14.5c0-3.5 2.5-6 6-6s6 2.5 6 6M12 8.5V3"/>`,
+  rainb: `<path d="M6 10.5a3.5 3.5 0 0 1 .5-7 4.8 4.8 0 0 1 9-.5 3.8 3.8 0 0 1 2.5 7.5z" ${SOFT}/><path d="M7.5 14l-1 2.5M12 14l-1 2.5M16.5 14l-1 2.5M9.5 19l-1 2.5M14 19l-1 2.5"/>`,
+  monsoon: `<path d="M6 8.5a3.5 3.5 0 0 1 .5-7 4.8 4.8 0 0 1 9-.5 3.8 3.8 0 0 1 2.5 7.5z" ${SOFT}/><path d="M7.5 11.5l-2 6M12 11.5l-2.5 8M16.5 11.5l-2 6"/><path d="M3 22.5h18"/>`,
+  downpour: `<path d="M4.5 2.5v9M8.5 2.5v11M15.5 2.5v11M19.5 2.5v9"/><ellipse cx="6.5" cy="19" rx="4.5" ry="2" ${SOFT}/><ellipse cx="17.5" cy="19" rx="4.5" ry="2" ${SOFT}/>`,
+  slimeb: `<path d="M8 19.5a2.6 2 0 1 0 0 .01zM13 13a2.4 1.8 0 1 0 0 .01zM17 6.5a2.2 1.7 0 1 0 0 .01z" ${SOFT}/><circle cx="20" cy="3" r="1.8" ${FILL}/>`,
+  sticky: `<path d="M3 4.5h18" stroke-width="2.4"/><path d="M6 4.5v6M11 4.5v10M16 4.5v7.5"/><circle cx="6" cy="12" r="1.6" ${FILL}/><circle cx="11" cy="16.2" r="1.9" ${FILL}/><circle cx="16" cy="13.6" r="1.6" ${FILL}/>`,
+  rot: `<ellipse cx="12" cy="19" rx="9" ry="3" ${SOFT}/><path d="M7.5 12.5a4.5 4.5 0 0 1 9 0v2.5h-9z"/><path d="M10 12.2h.01M14 12.2h.01" stroke-width="2.4"/>`,
 };
-// 2차분 무기 중 아직 옛 트리인 무기(산성)는 단계별 공용 그림
-const SKGEN = {
-  root: `<path d="M12 4l8 8-8 8-8-8z"/><circle cx="12" cy="12" r="2.2" ${FILL}/>`,
-  up: `<path d="M12 2.5l9.5 9.5-9.5 9.5L2.5 12z"/><path d="M12 7.5l4.5 4.5-4.5 4.5L7.5 12z" ${SOFT}/>`,
-  cap: `<path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2l-6.1 3.4 1.4-6.8-5.1-4.7 6.9-.8z" ${SOFT}/><circle cx="12" cy="11.8" r="1.8" ${FILL}/>`,
-};
-const skIcon = (n) => `<svg viewBox="0 0 24 24" ${SVG_ATTR}>${SKICON[n.id] || SKGEN[n.t]}</svg>`;
+const skIcon = (n) => `<svg viewBox="0 0 24 24" ${SVG_ATTR}>${SKICON[n.id] || ''}</svg>`;
 const SK_LOCK = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.6"/></svg>`;
 const SK_KIND = { root: '기본', up: '강화', cap: '최종' };
 function skFirst(w) {   // 열 때 고를 노드: 지금 찍을 수 있는 첫 노드 (없으면 첫 칸)
@@ -3529,6 +3534,47 @@ function beamAbsorb(f, p, u) {
   hotSpot(x, y, 4 + 6 * p - 2 * q, col, 0.9 * p);
   VX.norm();
 }
+/* ---------- 산성 분사기: 산성비, 점액 자국, 용해 ---------- */
+// 산성비: 레인이 옅게 물들고, 비스듬한 빗줄기가 저마다 다른 빠르기로 떨어지며, 바닥에 작은 물방울 고리가 퍼졌다 사라진다
+function drawRain(p) {
+  const u = VX.ui(p), t = VX.t, L = VX.light, col = p.c, H = C.H, LW = C.LW, x0 = p.x - LW / 2, sd = u.sd * 53, age = p.d - p.t;
+  const al = Math.min(1, age / 0.4, p.t / 0.5);
+  VX.add(); VX.column(p.x, 0, H, LW * 0.55, col, (L ? 0.2 : 0.13) * al); VX.norm();
+  ctx.lineCap = 'round'; ctx.lineWidth = 1.3; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.3) : VX.mix(col, 0.35), 0.7 * al); ctx.beginPath();
+  for (let i = 0; i < 26; i++) {
+    const h1 = hash(sd + i * 3.7), h2 = hash(sd + i * 7.1), sp = 420 + 260 * h2, len = 9 + 11 * h1;
+    const y = ((t * sp + h2 * H * 3) % (H + 40)) - 20, x = x0 + 6 + (LW - 12) * h1 + (y / H) * 5;
+    ctx.moveTo(x, y); ctx.lineTo(x + 2.5, y + len);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    const tt = t * 3.4 + i * 0.37 + sd, cyc = Math.floor(tt), ph = tt - cyc, rr = 2 + 7 * ph;
+    const x = x0 + 8 + (LW - 16) * hash(cyc * 1.3 + i), y = H * (0.15 + 0.8 * hash(cyc * 2.9 + i * 5));
+    ctx.beginPath(); ctx.ellipse(x, y, rr, rr * 0.4, 0, 0, TAU); ctx.strokeStyle = rgba(L ? VX.mix(col, -0.3) : col, 0.6 * al * (1 - ph)); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+// 점액 자국: 울퉁불퉁한 옅은 얼룩 두 겹. 생길 때 조금 번지고 서서히 옅어진다
+function drawSlime(p) {
+  const u = VX.ui(p), age = p.d - p.t, al = Math.min(1, age / 0.2, p.t / 0.6), L = VX.light, col = p.c;
+  ctx.beginPath(); blobTo(p.x, p.y, p.r * (0.7 + 0.3 * Math.min(1, age / 0.3)), u.sd * 7, 7, 0.28);
+  ctx.fillStyle = rgba(col, (L ? 0.24 : 0.2) * al); ctx.fill();
+  ctx.beginPath(); blobTo(p.x + (hash(u.sd * 9) - 0.5) * 6, p.y + (hash(u.sd * 5) - 0.5) * 4, p.r * 0.42, u.sd * 13, 6, 0.3);
+  ctx.fillStyle = rgba(L ? VX.mix(col, -0.2) : col, (L ? 0.3 : 0.26) * al); ctx.fill();
+}
+// 용해: 몸이 납작하게 녹아 퍼지며 가라앉고, 거품이 올라와 터진다
+function drawDissolve(f, p) {
+  const u = VX.ui(f), q = 1 - p, col = f.c, L = VX.light, hot = L ? VX.mix(col, -0.3) : VX.hot(col);
+  if (u.n) for (let i = 0; i < 8; i++) VX.spark(f.x + (Math.random() - 0.5) * f.r, f.y + (Math.random() - 0.5) * f.r * 0.6, (Math.random() - 0.5) * 30, -30 - 50 * Math.random(), 0.4 + 0.4 * Math.random(), 1.5 + 1.5 * Math.random(), hot, -20, 1, 0);
+  const e = VX.ease(q, 2), h = f.r * (1 - 0.85 * e), w = f.r * (1 + 0.6 * e);
+  ctx.beginPath(); ctx.ellipse(f.x, f.y + f.r * 0.6 - h * 0.6, w, h * 0.8, 0, 0, TAU); ctx.fillStyle = rgba(col, 0.5 * p); ctx.fill();
+  ctx.lineWidth = 1.3; ctx.strokeStyle = rgba(hot, 0.8 * p);
+  for (let i = 0; i < 5; i++) {
+    const ph = (q * 1.6 + hash(u.sd * 31 + i)) % 1, bx = f.x + (hash(u.sd * 17 + i * 3) - 0.5) * w * 1.4, by = f.y + f.r * 0.6 - ph * f.r * 1.6, br = 1.5 + 3 * ph;
+    ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.stroke();
+  }
+}
 /* ---------- 저격포: 저격선, 도탄, 횡단탄, 조준 레이저 표식, 처형 ---------- */
 // 저격선: 굵고 밝은 선이 서서히 사라지고 가는 흔적이 잠깐 남는다. 포구에 반동 표시. ri: 도탄 (가늘고, 튕긴 자리에 불티), cr: 횡단탄 (가로)
 function drawRailFx(f, p) {
@@ -3796,6 +3842,7 @@ function drawFx(f, H) {
     }
     case 'rail': drawRailFx(f, p); break;   // 저격선 (도탄, 횡단탄 포함)
     case 'mkexec': drawMarkExec(f, p); break;   // 처형: 표식이 닫힌다
+    case 'dsv': drawDissolve(f, p); break;      // 용해: 녹아 가라앉는 몸과 거품
     case 'muz': drawMuz(f, p); break;       // 블래스터 총구 섬광
     case 'fcone': drawFcone(f, p); break;   // 화염 산탄: 부채꼴로 뻗는 불꽃 혀
     case 'slugf': drawSlugFire(f, p); break;
@@ -3980,7 +4027,8 @@ function drawKindPool(p, nowT, H) {
   if (p.kind === 'fire') drawFireStrip(p);
   else if (p.kind === 'melt') drawMelt(p, H);
   else if (p.kind === 'halo') drawHalo(p);
-  else if (p.kind === 'efield') drawEField(p);   // 전기 줄과 구체는 적 위에 따로 그린다
+  else if (p.kind === 'efield') drawEField(p);   // 전기 줄과 구체, 산성비는 적 위에 따로 그린다
+  else if (p.kind === 'slime') drawSlime(p);
 }
 function drawRange(w, rk) {
   const H = C.H, W = C.W, st = C.stats(w), wx = (rk + 0.5) * C.LW;
@@ -4133,7 +4181,7 @@ function draw() {
     const u = VX.ui(b); if (u.n) u.t0 = S.t;
     drawHoldBeam(b.k, b.st, b, Math.min(1, b.t / 0.12, 0.45 + (S.t - u.t0) / 0.08), u.sd * 40);
   }
-  for (const p of S.pools) { if (p.kind === 'arc') drawArc(p); else if (p.kind === 'ball') drawBall(p); }   // 전격기: 전기 줄, 구전 (적 위에)
+  for (const p of S.pools) { if (p.kind === 'arc') drawArc(p); else if (p.kind === 'ball') drawBall(p); else if (p.kind === 'rain') drawRain(p); }   // 전격기: 전기 줄, 구전. 산성비 (적 위에)
   for (let k = 0; k < C.LANES; k++) {       // 진화 무기의 스킬 표시 (항상 켜진 것들)
     const w = S.slots[k]; if (!w || !w.evo) continue;
     const st = C.stats(w), x = (k + 0.5) * C.LW;
@@ -4268,7 +4316,7 @@ function snapshot() {
   if (!S || (mode !== 'play' && mode !== 'pause') || S.over) return {};
   const copy = Object.assign({}, S, {
     bullets: [], shells: [], pools: [], beams: [], mines: [], fx: [], snd: [], abfx: [], rewq: [], pendingAug: S.pendingAug,
-    enemies: S.enemies.map(e => Object.assign({}, e, { burnSt: null, burnT: 0, burnDps: 0, lgSt: null, lgT: 0, fSt: null, fT: 0, fDps: 0, fcB: null })),
+    enemies: S.enemies.map(e => Object.assign({}, e, { burnSt: null, burnT: 0, burnDps: 0, fSt: null, fT: 0, fDps: 0, fcB: null, slT: 0 })),
   });
   return { S: JSON.parse(JSON.stringify(copy)) };
 }

@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.131, cross: 5.362, mk: 0.281, exec: 1.836, rico: 3.908, mkb: 4.751 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.131, cross: 5.362, mk: 0.281, exec: 1.836, rico: 3.908, mkb: 4.751, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -99,7 +99,7 @@ function thrHits(X, ex, fi, thr) {
   return n;
 }
 function killHits(X, st, bb, thrX) {     // 흔들기(×0.7, ×1, ×1.43) 평균. bb = 보스 비중(즉사 문턱이 안 듣는다)
-  const thr = Math.max(st.instakill || 0, st.vap || 0, thrX || 0);
+  const thr = Math.max(st.vap || 0, thrX || 0);
   let s = 0;
   for (const f of [0.7, 1, 1.43]) {
     const x = X * f, a = nSoft(thrHits(x, st.execPct, st.firstPct, thr)), b = thr ? nSoft(thrHits(x, st.execPct, st.firstPct, 0)) : a;
@@ -140,7 +140,7 @@ function model(st, ref, c, lay, PP) {
     if (kn) sig.push(Math.min(0.9, kn / (cb.v * tau)) * (1 - bb));
     if (st.freeze) sig.push(Math.min(0.9, st.freeze / tau) * (1 - bb) + bb * 0.4 * Math.min(1, 1 / tau));
   };
-  const tau = st.cd / (1 + st.dbl);
+  const tau = st.cd / (1 + st.dbl), Rv0 = cb.v;   // Rv0: 적의 평균 속도 (px/초)
   switch (t) {
     case 'blaster': {
       const extraL = Math.max(0, st.lanes - W0.lanes);
@@ -327,15 +327,35 @@ function model(st, ref, c, lay, PP) {
     }
     case 'acid': {
       const rr = 75 * (1 + st.aRange + st.areaPct), np = capC(nIn(lam, Math.PI * rr * rr), N) * 0.8;
-      const pools = (1 + st.aMulti) * rate * (4 + st.aDur);
+      let pools = (1 + st.aMulti) * rate * 4;                 // 살아 있는 웅덩이 수 (웅덩이-초 / 초)
       const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct;
-      const vu = 0.10 + st.aVuln;
-      let dd = pools * np * cm * bm * (1 + vu) * (st.linger ? 1 + st.linger / 3.7 : 1);
-      if (st.aMelt) dd /= 1 - st.aMelt * (1 - bb);
+      const vu = 0.10 + st.aVuln, per = np * cm * bm * (1 + vu);   // 웅덩이 하나의 초당 피해 (D 단위)
+      const kr = 0.3 / Math.max(1, pc.K * pw.kw);              // 피해 1 당 처치 수 (처치 폭발과 같은 근사)
+      // 산성비 (T5d): 8초마다 rainT 초, 레인 하나 (폭우: 둘) 전체. 적이 가장 많은 레인이라 평균의 1.5배. 폭우는 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)
+      let extra = 0;
+      if (st.rain) {
+        const nl = st.rain2 ? 2 : 1, inL = capE(lam * 1.5, N);
+        extra += nl * st.rainT / Core.RAIN_CD * st.rain * inL * (1 + vu) * pm.rain;
+        if (st.rain2) extra += nl * 3 * 2 / Core.RAIN_CD * capC(nIn(lam, Math.PI * rr * rr * 0.25), N) * 0.8 * cm * (1 + vu);
+      }
+      let dd = pools * per + extra;
+      // 점액 흔적: 웅덩이를 밟은 적이 3초 동안 22px 마다 자국 (뒤따르는 같은 레인의 적이 밟는다). 모든 무기 합쳐 80개
+      if (st.slime) {
+        const enter = pools * np * Rv0 / (2 * rr), marks = Math.min(80 / LANES, enter * 3 * Rv0 / 22 * st.slimeT);
+        dd += marks * st.slime * capE(nIn(lam, Math.PI * 31.5 * 31.5) * 1.5, N) * (1 + vu) * pm.slime;
+      }
+      // 용해: 문턱 아래는 녹인다 (처형과 같은 몫), 녹은 적은 폭발, 연쇄 용해는 그 자리에 2초 웅덩이. 부패: 취약이 걸린 채 죽은 적 자리에 작은 웅덩이
+      if (st.dsv) {
+        dd /= 1 - st.dsv * (1 - bb);
+        const ks = dd * kr * 0.7 * (1 - bb);
+        dd += ks * st.dsvD * splashN(70 * st.dsvR * (1 + st.areaPct)) * pm.dsv;
+        if (st.dsvPool) dd += ks * 2 * per * pm.dsv;
+      }
+      if (st.rot) dd += dd * kr * 0.6 * 2 * capC(nIn(lam, Math.PI * rr * rr * 0.36), N) * 0.8 * cm * (1 + vu) * pm.rot;
       dot = dd; q = 1;
-      const cov = Math.min(0.9, pools * np / Math.max(1, LANES * lam));
+      const cov = Math.min(0.9, (pools * np + (st.rain ? (st.rain2 ? 2 : 1) * st.rainT / Core.RAIN_CD * lam * 1.5 : 0)) / Math.max(1, LANES * lam));
       const sl = Math.max(st.aSlow, st.slow); if (sl) sig.push(sl * cov * (1 - 0.5 * bb));
-      if (st.deathBoom) dot += dd * st.deathBoom * splashN(70 * (1 + st.areaPct)) * 0.3 / Math.max(1, pc.K * pw.kw);
+      if (st.deathBoom) dot += dd * st.deathBoom * splashN(70 * (1 + st.areaPct)) * kr;
       break;
     }
   }
@@ -357,7 +377,7 @@ function model(st, ref, c, lay, PP) {
   let team = 0;
   if (st.vuln) team += st.vuln * pw.vt;
   if (st.fldVuln) team += st.fldVuln * pw.vt;
-  if (t === 'acid') { const cov = Math.min(0.9, (1 + st.aMulti) * rate * (4 + st.aDur) * capC(nIn(lam, Math.PI * 75 * 75), st.cap) / Math.max(1, LANES * lam)); team += (0.10 + st.aVuln) * pw.vt * cov / 0.3; }
+  if (t === 'acid') { const cov = Math.min(0.9, ((1 + st.aMulti) * rate * 4 * capC(nIn(lam, Math.PI * 75 * 75), st.cap) + (st.rain ? (st.rain2 ? 2 : 1) * st.rainT / Core.RAIN_CD * lam * 1.5 : 0)) / Math.max(1, LANES * lam)); team += (0.10 + st.aVuln) * pw.vt * cov / 0.3; }
   const vf = (1 + vul) * (1 + team * (1 / sh - 1));
   const dr = st.dmg / ref.dmg;   // 모든 피해는 공격력에 비례한다. 지속 피해는 치명타, 보스 보정을 받지 않는다 (산성은 식 안에서 따로)
   return { t, X, n1, sig: s, ccf, vf, D: t === 'acid' ? 0 : dir * q * dr, Dd: dot * dr, carry: st.carry, st, bb };
@@ -738,7 +758,7 @@ function reportText(T, PP, fitInfo) {
 /* ---------- 영점 맞춤과 비교 ---------- */
 // 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
 // 2차분 무기: 첫 값으로 한 번 재서 기구 계수를 맞춘 뒤 계산기로 값을 바꿨으므로, 그 측정은 지금 값과 맞지 않아 fit 에 넣지 않고 맞춘 계수를 defaults() 에 고정한다
-//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.cross, m.mk, m.exec, m.rico, m.mkb)
+//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.cross, m.mk, m.exec, m.rico, m.mkb. 산성 _t5d -> m.rain, m.slime, m.dsv, m.rot)
 const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {

@@ -224,7 +224,6 @@ const AUGS = {
   c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, for: 'acid', v: [8.8, 18, 35, 88], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
   c_pool:    { name: '끈적한 산', abbr: '끈적', min: 0, for: 'acid', v: [11, 21, 42, 80], ap: mx('aSlow'), d: v => `웅덩이 안의 적을 ${v}% 둔화` },
   c_wide:    { name: '다중 투척', min: 2, for: 'acid', v: [0, 0, 1, 2], ap: add('aMulti'), d: v => `웅덩이를 ${v}개 더 던짐` },
-  c_melt:    { name: '용해',     min: 3, for: 'acid', v: [0, 0, 0, 15.8], ap: (s, v) => { s.aMelt = Math.max(s.aMelt, v / 100); s.deathBoom = Math.max(s.deathBoom, 1.0); }, d: v => `웅덩이 안에서 체력이 ${v}% 이하가 된 일반 적을 즉시 처치. 처치한 적은 산성 폭발` },
   // 기지 증강 (기지 강화 5단계마다)
   h_armor:  { name: '강화 장갑',   min: 0, for: 'base', v: [7.5, 15, 30, 75], w: [2, 4, 8, 20], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgRed += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 기지가 받는 피해 -${w}%` },
   h_supply: { name: '보급선',     min: 0, for: 'base', v: [1.8, 3.5, 7, 18],   ap: pct('goldAll'), d: v => `재화 획득 +${v}%` },
@@ -248,11 +247,10 @@ function augDesc(a) { const D = AUGS[a.id], x = val(D, a.g); return D.d(x[0], x[
 
 /* ---------- 진화와 스킬 ---------- */
 // 진화한 무기는 5강마다 스킬 포인트 1개를 받는다(모두 20개). 무기 종류마다 줄 3개, 줄마다 노드 3개(뿌리 5, 윗단 5, 마지막 1 = 11포인트).
-// 노드는 증강 효과를 그대로 쓴다. 뿌리는 랭크당 영웅 수치의 20%, 윗단은 25%, 마지막 노드는 전설 수치 그대로. '+1/랭크'는 랭크당 1씩 더한다.
-const SK = { root: 0.2, up: 0.25, max: { root: 5, up: 5, cap: 1 } };
+// 노드마다 고유한 효과(NEWSK)를 쓴다. 증강 효과를 나눠 담던 예전 방식(SR/SU/SC, skVals)은 T5d 에서 지웠다.
+const SK_MAX = { root: 5, up: 5, cap: 1 };
 const r1 = (n) => +(Math.round(n * 100) / 100);
-const mkNode = (id, t, o) => Object.assign({ id, t, max: SK.max[t] }, o);
-const SR = (id, o) => mkNode(id, 'root', o), SU = (id, o) => mkNode(id, 'up', o), SC = (id, o) => mkNode(id, 'cap', o);
+const mkNode = (id, t, o) => Object.assign({ id, t, max: SK_MAX[t] }, o);
 // 새 노드: 이름, 설명 d(랭크, 배율), 효과 ap(s, 랭크, 배율). 배율(sc)은 줄마다 하나, 피해 같은 세기 수치에만 곱한다(메커니즘은 그대로)
 const pc = (x) => r1(x * 100);   // 0.12 -> 12
 const BAY = [1, 1, 1, 2, 2];      // 폭탄창: 랭크별 더하는 발수
@@ -340,14 +338,24 @@ const NEWSK = {
   ricob:    { name: '도탄', d: (k) => `탄이 표적을 맞힌 뒤 가까운 다른 적에게 ${k}번 튕김 (튕길 때마다 피해 x${5 * k}%)`, ap: (s, k) => { s.rRico = k; s.rRicoK = 0.05 * k; } },
   elastic:  { name: '탄성', d: (k) => `튕길 때 남는 피해 +${3 * k}%p (튕길 때마다 x${25 + 3 * k}%)`, ap: (s, k) => { s.rRicoK = 0.25 + 0.03 * k; } },
   triple:   { name: '삼연사', d: (k, c) => `한 번에 3발: 체력이 많은 순서로 다른 적 둘을 더 저격 (피해 ${pc(0.5 * c)}%), 각각 튕김`, ap: (s, k, c) => { s.triple = 0.5 * c; } },
-  // 2차분 무기(산성 분사기)가 쓰는 옛 노드
-  longacid: { name: '오래 남는 산', d: (k) => `웅덩이 지속 시간 +${r1(0.6 * k)}초`, ap: (s, k) => { s.aDur += 0.6 * k; } },
-  linger:   { name: '잔류', d: () => '웅덩이를 벗어난 적이 3초 동안 취약 효과와 지속 피해를 유지', ap: (s) => { s.linger = 3; } },
+  // 산성 분사기 - 용해
+  dsvb:     { name: '용해', d: (k, c) => `웅덩이 안에서 체력이 ${3 * k}% 이하가 된 일반 적을 바로 녹임. 녹은 적은 산성 폭발 (반경 70, 공격력의 ${pc(1 * k * c)}%)`, ap: (s, k, c) => { s.dsv = 0.03 * k; s.dsvD = 1 * k * c; s.dsvR = 1; } },
+  bigdsv:   { name: '큰 폭발', d: (k, c) => `용해 폭발 범위 +${12 * k}%, 피해 +${pc(2 * k * c)}%p`, ap: (s, k, c) => { s.dsvR = 1 + 0.12 * k; s.dsvD += 2 * k * c; } },
+  chaindsv: { name: '연쇄 용해', d: () => '용해 폭발이 그 자리에 새 웅덩이를 남김 (지속 절반)', ap: (s) => { s.dsvPool = 1; } },
+  // 산성 분사기 - 산성비
+  rainb:    { name: '산성비', d: (k, c) => `8초마다 적이 가장 많은 레인 전체에 3초간 산성비. 비 맞는 적은 초당 공격력의 ${pc(0.2 * k * c)}% 피해와 웅덩이의 취약 효과`, ap: (s, k, c) => { s.rain = 0.2 * k * c; s.rainT = 3; } },
+  monsoon:  { name: '장마', d: (k) => `산성비 지속 +${r1(0.6 * k)}초`, ap: (s, k) => { s.rainT = 3 + 0.6 * k; } },
+  downpour: { name: '폭우', d: () => '산성비가 2레인에 동시에 내리고, 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)', ap: (s) => { s.rain2 = 1; } },
+  // 산성 분사기 - 점액 흔적
+  slimeb:   { name: '점액 흔적', d: (k, c) => `웅덩이를 밟은 적이 3초 동안 지나간 자리에 산성 자국 (반경 22, 2초)을 남김. 자국 위의 적은 초당 공격력의 ${pc(0.15 * k * c)}% 피해`, ap: (s, k, c) => { s.slime = 0.15 * k * c; s.slimeT = 2; } },
+  sticky:   { name: '끈적한 자국', d: (k) => `자국 유지 +${r1(0.5 * k)}초, 자국 피해 +${40 * k}%`, ap: (s, k) => { s.slimeT = 2 + 0.5 * k; s.slime *= 1 + 0.4 * k; } },
+  rot:      { name: '부패', d: () => '이 무기의 취약이 걸린 채 죽은 적 자리에 작은 웅덩이 (범위 60%, 2초)', ap: (s) => { s.rot = 1; } },
 };
 const SNW = (id, t) => mkNode(id, t, { nw: NEWSK[id], sc: 1 });
 // 줄: 이름, 노드 3개, 세기 배율(sc). 배율은 tools/balance_log.md 에 기록한다
 const LINE = (name, nodes, sc) => { nodes.forEach((n) => { if (n.nw) n.sc = sc == null ? 1 : sc; }); return { name, nodes }; };
 const SC_RAIL = [1, 0.8, 0.5];   // 저격포 줄 배율 (T5c: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
+const SC_ACID = [0.5, 1.4, 0.5];   // 산성 분사기 줄 배율 (T5d: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
 const SKILLS = {
   blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('tri', 'cap')], 0.9),
             LINE('광탄', [SNW('lightb', 'root'), SNW('accel', 'up'), SNW('gigab', 'cap')]),
@@ -367,45 +375,16 @@ const SKILLS = {
   tesla:   [LINE('낙뢰', [SNW('thunderb', 'root'), SNW('efield', 'up'), SNW('cloud', 'cap')]),
             LINE('전류 사슬', [SNW('arcb', 'root'), SNW('longarc', 'up'), SNW('hvarc', 'cap')], 0.7),
             LINE('구전', [SNW('ballb', 'root'), SNW('bigball', 'up'), SNW('twinball', 'cap')], 0.4)],
-  // 2차분: 아직 예전 트리 (증강 효과를 그대로 쓴다)
   rail:    [LINE('과잉 살상', [SNW('overkill', 'root'), SNW('relay', 'up'), SNW('crossb', 'cap')], SC_RAIL[0]),
             LINE('조준 레이저', [SNW('laserm', 'root'), SNW('markboom', 'up'), SNW('execm', 'cap')], SC_RAIL[1]),
             LINE('도탄', [SNW('ricob', 'root'), SNW('elastic', 'up'), SNW('triple', 'cap')], SC_RAIL[2])],
-  acid:    [{ name: '부식', nodes: [SR('c_corrode'), SU('a_dmg'), SC('c_melt')] },
-            { name: '늪', nodes: [SR('c_range'), SU('c_pool'), SC('c_wide')] },
-            { name: '맹독', nodes: [SR('a_rate'), SNW('longacid', 'up'), SNW('linger', 'cap')] }],
+  acid:    [LINE('용해', [SNW('dsvb', 'root'), SNW('bigdsv', 'up'), SNW('chaindsv', 'cap')], SC_ACID[0]),
+            LINE('산성비', [SNW('rainb', 'root'), SNW('monsoon', 'up'), SNW('downpour', 'cap')], SC_ACID[1]),
+            LINE('점액 흔적', [SNW('slimeb', 'root'), SNW('sticky', 'up'), SNW('rot', 'cap')], SC_ACID[2])],
 };
-// 노드 하나가 합산에서 넘지 못하는 값 (기존 증강의 상한과 같다: 둔화 80%, 확률 90%)
-const SK_CAP = { slow: 0.8, stun: 0.9, echo: 0.9, aSlow: 0.8 };
-const SK_CAPV = { b_frost: 80, t_slow: 80, p_frost: 80, c_pool: 80, t_stun: 90, p_stun: 90, p_echo: 90 };   // 표시용: 노드 값의 상한(%)
-const SK_MAXKEY = { vulnT: 1 };    // 더하지 않고 큰 값을 남기는 항목
-function skName(n) { return n.nw ? n.nw.name : AUGS[n.id].name; }
-// 랭크 k의 노드 수치 [v, w]
-function skVals(n, k) {
-  const A = AUGS[n.id];
-  if (n.t === 'cap') return [A.v[3], A.w ? A.w[3] : undefined];
-  if (n.plus1) return [k, undefined];
-  const f = (n.t === 'root' ? SK.root : SK.up) * k;
-  let v = r1(A.v[2] * f); if (SK_CAPV[n.id]) v = Math.min(SK_CAPV[n.id], v);
-  return [v, A.w ? r1(A.w[2] * f) : undefined];
-}
-function skDesc(n, k) {
-  if (n.nw) return n.nw.d(k, n.sc == null ? 1 : n.sc);
-  const x = skVals(n, k); return AUGS[n.id].d(x[0], x[1]);
-}
-function skApply(s, n, k) {
-  if (k <= 0) return;
-  if (n.nw) { n.nw.ap(s, k, n.sc == null ? 1 : n.sc); return; }
-  const base = blankStats(0, 0), t = blankStats(0, 0), x = skVals(n, k);
-  AUGS[n.id].ap(t, x[0], x[1]);
-  for (const key in t) {
-    if (typeof t[key] !== 'number') continue;
-    const dl = t[key] - base[key]; if (!dl) continue;
-    if (SK_MAXKEY[key] || (n.id === 'c_melt' && key === 'deathBoom')) { s[key] = Math.max(s[key], t[key]); continue; }
-    const nv = s[key] + dl;
-    s[key] = SK_CAP[key] ? Math.max(s[key], Math.min(SK_CAP[key], nv)) : nv;   // 이미 상한 위에 있으면 그대로 둔다
-  }
-}
+function skName(n) { return n.nw.name; }
+function skDesc(n, k) { return n.nw.d(k, n.sc); }
+function skApply(s, n, k) { if (k > 0) n.nw.ap(s, k, n.sc); }
 function applySkills(w, s) {
   const tree = SKILLS[w.type], rk = w.sk;
   if (!tree || !rk) return;
@@ -576,8 +555,7 @@ function blankStats(lanes, chain) {
     rico: 0, split: 0, again: 0, slug: 0, freeze: 0, orbit: 0, orbs: 0, nova: 0,
     shrap: 0, multi: 0,
     vuln: 0, vulnT: 0, through: 0, twin: 0, carry: 0, poolAcid: 0,
-    aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0, aMelt: 0,   // 산성 웅덩이
-    aDur: 0, linger: 0,   // 스킬 전용 효과 (2차분 무기)
+    aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0,   // 산성 웅덩이
     spread: 0, nolimit: 0,             // 범위 공격의 최대 타격 수 (다중 타격기, 제한 해제기)
     // 블래스터 스킬: 개틀링, 예열, 삼연장 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
     gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, gntEvery: 4, tur: 0, turD: 0, turRate: 0, turTwin: 0,
@@ -593,6 +571,8 @@ function blankStats(lanes, chain) {
     th: 0, thD: 0, efD: 0, cloud: 0, arc: 0, arcT: 0, arcW: 1, arcHv: 0, ball: 0, ballR: 0, ballT: 0, ballTwin: 0, ballBoom: 0,
     // 저격포 스킬: 과잉 살상(carry), 증폭 전달, 횡단탄 / 조준 레이저, 표식 폭발, 처형 / 도탄, 탄성, 삼연사
     carryMin: 0, carryAmp: 0, cross: 0, mkD: 0, mkBoom: 0, mkExec: 0, rRico: 0, rRicoK: 0, triple: 0,
+    // 산성 분사기 스킬: 용해, 큰 폭발, 연쇄 용해 / 산성비, 장마, 폭우 / 점액 흔적, 끈적한 자국, 부패
+    dsv: 0, dsvD: 0, dsvR: 1, dsvPool: 0, rain: 0, rainT: 0, rain2: 0, slime: 0, slimeT: 0, rot: 0,
     };
 }
 function stats(w) {
@@ -1062,6 +1042,8 @@ function kill(e, st) {
     const n = Math.max(1, Math.round(BAL.bundle(genCost(), rnd) * 0.06));
     addShards(n); fxNum(e.x, e.y, n, 3);
   }
+  const vw = e.vuW;
+  if (vw && e.vulnT > 0 && S.slots.indexOf(vw) >= 0) { const vs = stats(vw); if (vs.rot) acidPool(e.x, e.y, vs, 0.6, 2); }
   const mw = e.mkW;
   if (mw && mw.mk === e && boomDepth < 2 && S.slots.indexOf(mw) >= 0) {   // 표식 폭발
     const ms = stats(mw);
@@ -1761,31 +1743,75 @@ function ricochet(t, x, y, dmg, st) {
   if (done.length > 1) snd('rico');
 }
 // 산성 웅덩이
-function acidPool(x, y, st) {
-  const r = 75 * (1 + st.aRange + st.areaPct);
-  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: 4 + st.aDur, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd() });
+// rk: 범위 배수, tt: 지속 시간 (작은 웅덩이: 연쇄 용해, 폭우, 부패). 작은 웅덩이는 무기마다 SMALL_MAX 개까지
+const SMALL_MAX = 14;
+function acidPool(x, y, st, rk, tt) {
+  if (rk) { let n = 0; for (const q of S.pools) if (q.acid && q.sm && q.st.w === st.w) n++; if (n >= SMALL_MAX) return; }
+  const r = 75 * (1 + st.aRange + st.areaPct) * (rk || 1);
+  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: tt || 4, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd(), sm: rk ? 1 : 0 });
   fx({ k: 'splat', d: 0.35, x, y, r, c: st.color });
   snd('splat');
 }
+// 용해: 녹이고 산성 폭발 (처치 폭발이라 최대 타격 수 없음). 연쇄 용해: 그 자리에 새 웅덩이 (지속 절반)
+function dissolve(e, st) {
+  const x = e.x, y = e.y;
+  fx({ k: 'dsv', d: 0.55, x, y, r: e.r, c: st.color });
+  credit(st, e.hp, e); e.hp = 0; kill(e, st);
+  if (boomDepth >= 2) return;
+  boomDepth++; explode(x, y, 70 * st.dsvR * (1 + st.areaPct), st.dmg * st.dsvD, st); boomDepth--;
+  if (st.dsvPool) acidPool(x, y, st, 1, 2);
+}
+// 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우: 그친 자리에 작은 웅덩이 3개
+const RAIN_CD = 8;
+function rainTick(p, dt, seen) {
+  const st = p.st, got = gotOf(seen, p.wk), list = CAND, hw = LW / 2; list.length = 0;
+  for (let i = 0, n = S.enemies.length; i < n; i++) {
+    const e = S.enemies[i];
+    if (!e.dead && e.y + e.r > 0 && Math.abs(e.x - p.x) <= hw + e.r * 0.4 && !got.has(e)) list.push(e);
+  }
+  capPick(list, st.cap);
+  for (let i = 0, n = list.length; i < n; i++) {
+    const e = list[i]; got.add(e);
+    e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, 1);
+    if (st.rot) hide(e, 'vuW', st.w);
+    dot(e, p.dps * dt, st);
+  }
+  if (p.t <= 0 && p.end) for (let k = 0; k < 3; k++) acidPool(p.x + (rnd() - 0.5) * LW * 0.5, H * (0.25 + 0.6 * (k + rnd()) / 3), st, 0.5, 2);
+}
+// 점액 흔적: 웅덩이를 밟은 적이 3초 동안 22px 움직일 때마다 자국을 남긴다 (모든 무기 합쳐 SLIME_MAX 개, 넘치면 가장 오래된 것을 바꾼다)
+const SLIME_R = 22, SLIME_MAX = 80;
+function slimeDrop(e) {
+  const w = e.slW; if (!w || S.slots.indexOf(w) < 0) { e.slT = 0; return; }
+  if (e.slx != null && Math.abs(e.x - e.slx) + Math.abs(e.y - e.sly) < SLIME_R) return;
+  const st = stats(w); if (!st.slime) { e.slT = 0; return; }
+  e.slx = e.x; e.sly = e.y;
+  const p = { kind: 'slime', wk: w, x: e.x, y: e.y, r: SLIME_R * (1 + st.areaPct), t: st.slimeT, d: st.slimeT, dps: st.dmg * st.slime, st, c: st.color, sd: rnd() };
+  let n = 0, old = -1;
+  for (let i = 0, m = S.pools.length; i < m; i++) { const q = S.pools[i]; if (q.kind === 'slime') { n++; if (old < 0 || q.t < S.pools[old].t) old = i; } }
+  if (n >= SLIME_MAX) S.pools[old] = p; else S.pools.push(p);
+}
+
 function acidTick(p, dt, seen) {
   const st = p.st, cm = 1 + st.crit * (1 + st.critDmg);   // 지속 피해에는 치명타 기댓값을 반영
   let got = seen.get(st.w); if (!got) seen.set(st.w, got = new Set());
   // 웅덩이 하나가 한 틱에 닿는 적은 최대 타격 수까지 (기지에 가까운 적부터). 같은 무기의 다른 웅덩이가 이번 스텝에 이미 닿은 적은 빼고 센다
-  const list = CAND; list.length = 0;
+  const list = CAND, m = p.r + 40; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
-    const e = S.enemies[i];
-    if (!e.dead && !got.has(e) && within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) list.push(e);
+    const e = S.enemies[i], dx = e.x - p.x, dy = e.y - p.y;
+    if (dx > m || dx < -m || dy > m || dy < -m) continue;
+    if (!e.dead && within(dx, dy, p.r + e.r * 0.5) && !got.has(e)) list.push(e);
   }
   capPick(list, st.cap);
   for (let i = 0, n = list.length; i < n; i++) {
     const e = list[i]; if (e.dead) continue;
-    e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, st.linger || 1);   // 안에 있는 동안과 나간 뒤 1초 (잔류: 3초)
+    e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, 1);   // 안에 있는 동안과 나간 뒤 1초
+    if (st.rot) hide(e, 'vuW', st.w);        // 부패: 이 무기의 취약이 걸린 채 죽으면 작은 웅덩이
+    if (st.slime) { e.slT = 3; hide(e, 'slW', st.w); }   // 점액 흔적: 3초 동안 자국을 남긴다
     if (p.slow) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
     got.add(e);                            // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
     const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1);
-    if (st.linger) { e.lgT = st.linger; e.lgDps = dps; e.lgSt = st; e.inT = S.t; }   // 잔류: 나간 뒤에도 같은 피해
     dot(e, dps * dt, st);
-    if (!e.dead && st.aMelt && !e.boss && e.hp / e.maxHp <= st.aMelt) { credit(st, e.hp, e); e.hp = 0; kill(e, st); }
+    if (!e.dead && st.dsv && !e.boss && e.hp / e.maxHp <= st.dsv) dissolve(e, st);   // 용해
   }
 }
 
@@ -1869,6 +1895,19 @@ function skillStep(w, i, st, dt) {
       fx({ k: 'mkexec', d: 0.45, x: e.x, y: e.y, r: e.r });
       snd('mkexec');
       credit(st, e.hp, e); e.hp = 0; kill(e, st);
+      break;
+    }
+    case 'acid': {                           // 산성비: 8초마다 적이 가장 많은 레인 (폭우: 둘)
+      if (!st.rain) break;
+      w.rn = (w.rn == null ? 2 : w.rn) - dt;
+      if (w.rn > 0) break;
+      const cnt = [0, 0, 0, 0, 0]; let any = 0;
+      for (const e of S.enemies) if (!e.dead && e.y + e.r > 0) { cnt[Math.max(0, Math.min(LANES - 1, Math.floor(e.x / LW)))]++; any = 1; }
+      if (!any) { w.rn = 0.5; break; }
+      w.rn = RAIN_CD;
+      const order = [0, 1, 2, 3, 4].sort((a, b) => cnt[b] - cnt[a] || a - b);
+      for (let k = 0; k < (st.rain2 ? 2 : 1); k++) S.pools.push({ kind: 'rain', wk: w, lane: order[k], x: (order[k] + 0.5) * LW, t: st.rainT, d: st.rainT, dps: st.dmg * st.rain, st, c: st.color, vuln: 0.10 + st.aVuln, end: st.rain2, sd: rnd() });
+      snd('rain');
       break;
     }
     case 'tesla': {                          // 먹구름: 1초마다 무작위 적 1명에게 낙뢰
@@ -2210,7 +2249,7 @@ function step(dt) {
 
   // 화염 지대
   const aSeen = new Map();
-  let eSeen = null, rSeen = null, bSeen = null;   // 전격기: 전기장, 줄, 구체 (종류마다 따로)
+  let eSeen = null, rSeen = null, bSeen = null, nSeen = null, lSeen = null;   // 전격기: 전기장, 줄, 구체 / 산성비, 점액 자국 (종류마다 따로)
   for (const p of S.pools) {
     p.t -= dt;
     if (p.acid) { acidTick(p, dt, aSeen); continue; }
@@ -2219,6 +2258,8 @@ function step(dt) {
       case 'efield': fieldTick(p, dt, eSeen || (eSeen = new Map())); continue;
       case 'arc': arcTick(p, dt, rSeen || (rSeen = new Map())); continue;
       case 'ball': ballTick(p, dt, bSeen || (bSeen = new Map())); continue;
+      case 'rain': rainTick(p, dt, nSeen || (nSeen = new Map())); continue;
+      case 'slime': fieldTick(p, dt, lSeen || (lSeen = new Map())); continue;   // 점액 자국 (전기장과 같은 판정)
     }
     poolTick(p, dt);                         // 용융선, 잔광, 박격포 화염 지대
   }
@@ -2287,7 +2328,7 @@ function step(dt) {
     if (e.vulnT > 0) { e.vulnT -= dt; if (e.vulnT <= 0) e.vulnPct = 0; }
     if (e.burnT > 0) { e.burnT -= dt; dot(e, e.burnDps * dt, e.burnSt); if (e.dead) continue; if (e.burnT <= 0) e.burnDps = 0; }
     if (e.fT > 0) { e.fT -= dt; if (e.fSt) dot(e, e.fDps * dt, e.fSt); if (e.dead) continue; if (e.fT <= 0) e.fDps = 0; }   // 화염 산탄의 화상
-    if (e.lgT > 0) { e.lgT -= dt; if (e.inT !== S.t) { dot(e, e.lgDps * dt, e.lgSt); if (e.dead) continue; } }   // 산성 잔류: 웅덩이 밖에서만 (안에서는 웅덩이가 이미 준다)
+    if (e.slT > 0) { e.slT -= dt; slimeDrop(e); }   // 점액 흔적
     if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0) e.ice = false; continue; }
     let sp = e.speed;
     if (e.spdMul) sp *= e.spdMul;
@@ -2430,7 +2471,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, cloudPos, ARC_MAX, BALL_BOOM_R, RICO_R,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, cloudPos, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
