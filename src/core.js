@@ -1188,8 +1188,11 @@ function seaStrip(w, key, wx, wy, ang, st) {
 // 같은 무기의 불길은 겹쳐도 적 하나에게 한 스텝에 한 번만 피해를 준다
 function fireTick(p, dt, seen) {
   let got = seen.get(p.wk); if (!got) seen.set(p.wk, got = new Set());
+  const m = p.hw + 40;   // 띠를 감싼 상자 (가장 큰 적의 반지름 절반 60 x 0.5 = 30 보다 넉넉히): 먼 적은 거리 계산 전에 거른다
+  const x0 = Math.min(p.x0, p.x1) - m, x1 = Math.max(p.x0, p.x1) + m, y0 = Math.min(p.y0, p.y1) - m, y1 = Math.max(p.y0, p.y1) + m;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
+    if (e.x < x0 || e.x > x1 || e.y < y0 || e.y > y1) continue;
     if (e.dead || e.y + e.r <= 0 || got.has(e)) continue;
     if (segDist(e.x, e.y, p.x0, p.y0, p.x1, p.y1) > p.hw + e.r * 0.5) continue;
     got.add(e); dot(e, p.dps * dt, p.st);
@@ -1208,7 +1211,7 @@ function fire(w, slot, st) {
       if (st.gat) { o.sp = 1250; o.th = 1; }      // 개틀링: 가늘고 빠른 탄
       if (st.beam) o.bm = 1;                       // 광탄: 빛살
       if (hl) o.hl = hl;
-      fx({ k: 'muz', d: st.gat ? 0.07 : 0.1, x: wx, y: wy - 8, a: ang, c: o.c, g: st.gat ? 1 : 0 });   // 총구 섬광 (개틀링은 짧게 깜빡임)
+      const mz = fx({ k: 'muz', d: st.gat ? 0.07 : 0.1, x: wx, y: wy - 8, a: ang, c: o.c, g: st.gat ? 1 : 0, hl });   // 총구 섬광 (개틀링은 짧게 깜빡임)
       if (st.gnt && w.n % 4 === 0) {        // 거대탄: 레인 폭, 모든 적 관통
         bullet(wx, wy, ang, st.dmg * st.gntM, st, H + 120, { pierce: 99, r: 44, rico: 0, split: 0, big: 1, sp: 760, c: st.color });
       } else {
@@ -1223,7 +1226,9 @@ function fire(w, slot, st) {
           const j = slot + d; if (j < 0 || j >= LANES) continue;
           const cx = (j + 0.5) * LW, t2 = nearest(cx, one);
           const tx = t2 ? t2.x : cx, ty = t2 ? t2.y : H - st.range * H * 0.8;
-          bullet(wx, wy, Math.atan2(tx - wx, wy - ty), st.dmg * st.triD, st, dist, o);
+          const a2 = Math.atan2(tx - wx, wy - ty);
+          if (mz) mz[d < 0 ? 'al' : 'ar'] = a2;   // 화면용: 옆 줄기의 방향
+          bullet(wx, wy, a2, st.dmg * st.triD, st, dist, o);
         }
       }
       return true;
@@ -1262,7 +1267,7 @@ function fire(w, slot, st) {
       w.n++;
       const m = st.third && w.n % 3 === 0 ? 1 + st.third : 1;
       for (const e of list) hit(e, st.dmg * m, st);
-      fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9) * (st.evo ? 1.2 : 1), c: st.color, g: 1 });
+      fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9) * (st.evo ? 1.2 : 1), c: st.color, g: 1 , h: st.holdT ? 1 : 0 });   // h: 빔이 유지된다 (화면용: 잔상을 남기지 않는다)
       if (st.sideBeam) {
         const reach = 1;
         const wide = { lanes: st.lanes + reach, range: st.range };
@@ -1544,7 +1549,7 @@ function skillStep(w, i, st, dt) {
       const j = Math.max(0, Math.min(LANES - 1, i - st.lanes + Math.floor(rnd() * (2 * st.lanes + 1))));
       const x = (j + 0.5) * LW + (rnd() - 0.5) * 50, y = H - st.range * H * (0.3 + 0.6 * rnd());
       S.mines.push({ x, y, t: 12, tr: 16, R: 60 * (1 + st.areaPct), dmg: st.dmg * st.mine, st, wk: w, mini: 0, ph: rnd() * 6 });
-      fx({ k: 'boom', d: 0.15, x, y, r: 16, c: st.color });
+      fx({ k: 'boom', d: 0.15, x, y, r: 16, c: st.color, mset: 1 });   // mset: 설치 순간 (화면은 지뢰가 날아와 내려앉는 모습으로 그린다)
       break;
     }
     case 'laser': {                          // 상시 빔: 0.1초마다 피해, 5번에 한 번만 적중 효과
@@ -1611,13 +1616,15 @@ function poolTick(p, dt) {
 function mineBlast(m) {
   m.dead = true;
   const st = m.st;
+  const n0 = S.fx.length;
   explode(m.x, m.y, m.R, m.dmg, st);
+  if (S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].mine = m.mini ? 2 : 1;   // 화면용 표시: 지뢰 폭발
   if (!st.mineChain) return;
   for (let i = 0, n = S.enemies.length; i < n; i++) { const o = S.enemies[i]; if (!o.dead && !o.boss && within(o.x - m.x, o.y - m.y, m.R + o.r * 0.5)) o.y = Math.max(-o.r, o.y - 20); }
   if (m.mini || S.mines.length >= 60) return;
   for (let k = 0; k < 2; k++) {
     const a = (k + rnd() * 0.8) * Math.PI, d = 40 + rnd() * 30;
-    S.mines.push({ x: Math.max(12, Math.min(W - 12, m.x + Math.cos(a) * d)), y: Math.max(20, Math.min(H - 12, m.y + Math.sin(a) * d)), t: 12, tr: 12, R: 40, dmg: m.dmg * 0.4, st, wk: m.wk, mini: 1, ph: rnd() * 6 });
+    S.mines.push({ x: Math.max(12, Math.min(W - 12, m.x + Math.cos(a) * d)), y: Math.max(20, Math.min(H - 12, m.y + Math.sin(a) * d)), t: 12, tr: 12, R: 40, dmg: m.dmg * 0.4, st, wk: m.wk, mini: 1, ph: rnd() * 6, ox: m.x, oy: m.y });
   }
 }
 

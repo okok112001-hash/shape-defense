@@ -2247,11 +2247,15 @@ function drawBossKill(f) {
    - VX.add() / VX.norm()   어두운 테마에서만 더하기 합성을 켠다 / 원래대로. 밝은 테마에서는 하얗게 날아가므로 보통 합성 그대로 둔다
    - VX.hot(색)   가는 선과 불티에 쓰는 달아오른 색 (어두운 테마는 흰 쪽, 밝은 테마는 짙은 쪽). VX.mix(색, k) 는 흰색(+) 검은색(-) 쪽으로 섞기
    - VX.ease(u[, n])   빠르게 시작해 느려지는 곡선. VX.fade(u)   사라질 때 굵기와 투명도에 함께 곱하는 값
+   - VX.column(x, 위 y, 아래 y, 반폭, 색, 알파)   세로로 선 빛기둥. 양옆이 부드럽게 옅어지고 위쪽 끝도 옅어진다 (빔, 달궈진 금)
+   - VX.lerp(색1, 색2, u)   두 색 사이
    - VX.ui(물체)   fx, 탄, 웅덩이마다 한 번 만들어지는 화면용 기록 { sd: 난수, n: 처음 보는가 }. 처음 볼 때 입자를 뿌리는 데 쓴다
    - 색은 '#rrggbb' 만 받는다. 그리는 순서: draw() 가 VX.begin(S) → (웅덩이, 적, 탄) → VX.draw() (잔상과 입자) → S.fx */
 const VX = (() => {
   const MAXP = 300, MAXT = 64;
   const P = [], FREE = [], T = [], SPR = {}, MIX = {}, UI = new WeakMap();
+  // 미리 그린 스프라이트는 ImageBitmap 으로 바꿔 둔다: canvas 를 그대로 drawImage 하면 부를 때마다 원본을 복사해 느리다 (바뀌기 전까지는 canvas 를 쓴다)
+  const bake = (key, s) => { SPR[key] = s; if (window.createImageBitmap) createImageBitmap(s).then((b) => { SPR[key] = b; }, () => {}); return s; };
   let lastT = -1, dt = 0, tw = 0;
   const v = { light: false, t: 0 };
   const rgbOf = (hex) => { const n = parseInt(hex.slice(1), 16); return (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255); };
@@ -2268,12 +2272,38 @@ const VX = (() => {
     const g = s.getContext('2d'), r = n / 2, gr = g.createRadialGradient(r, r, 0, r, r, r);
     for (const st of stops) gr.addColorStop(st[0], `rgba(${st[1]},${st[2]})`);
     g.fillStyle = gr; g.fillRect(0, 0, n, n);
-    return (SPR[key] = s);
+    return bake(key, s);
   }
   const WHITE = '255,255,255', WIN = [0.52, 0.72, 0.87];
   function glowSpr(col) { const c = rgbOf(col); return sprite('g' + col, 64, [[0, c, 1], [0.2, c, 0.66], [0.45, c, 0.27], [0.72, c, 0.07], [1, c, 0]]); }
   function heatSpr(col) { const c = rgbOf(col); return sprite('h' + col, 64, [[0, WHITE, 1], [0.2, WHITE, 0.95], [0.44, c, 0.85], [0.72, c, 0.28], [1, c, 0]]); }
   function waveSpr(col, k) { const c = rgbOf(col), a = WIN[k]; return sprite('w' + k + col, 256, [[0, c, 0], [a, c, 0], [a + (0.95 - a) * 0.62, c, 0.26], [0.95, c, 1], [0.975, c, 0.9], [1, c, 0]]); }
+  const COL1 = [[0, 0], [0.16, 0.06], [0.34, 0.36], [0.5, 0.9], [0.66, 0.36], [0.84, 0.06], [1, 0]];
+  // 지속 빔: 넓은 겉빛 x0.55 위에 폭 0.38배의 속빛 x0.95 를 겹친 단면 (기둥 두 장을 한 장으로 그려 래스터 비용을 줄인다)
+  const COL2 = (() => { const f = (u) => { let i = 1; while (i < COL1.length - 1 && COL1[i][0] < u) i++; const a = COL1[i - 1], b = COL1[i]; return a[1] + (b[1] - a[1]) * (u - a[0]) / ((b[0] - a[0]) || 1); };
+    const out = []; for (let i = 0; i <= 16; i++) { const u = i / 16, o = 0.55 * f(u), w = (u - 0.5) / 0.382 + 0.5, n = w > 0 && w < 1 ? 0.95 * f(w) : 0; out.push([u, Math.min(1, o + n * (1 - o))]); } return out; })();
+  function colSpr(col, two) {
+    const s = document.createElement('canvas'); s.width = two ? 64 : 32; s.height = 64;
+    const g = s.getContext('2d'), c = rgbOf(col); let gr = g.createLinearGradient(0, 0, s.width, 0);
+    for (const st of two ? COL2 : COL1) gr.addColorStop(st[0], `rgba(${c},${st[1]})`);
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 64);
+    gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.1, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, s.width, 64);
+    return bake((two ? 'C' : 'c') + col, s);
+  }
+  v.column = (x, y0, y1, hw, col, a) => {
+    if (!(a > 0.012)) return;
+    ctx.globalAlpha = a > 1 ? 1 : a; ctx.drawImage(SPR['c' + col] || colSpr(col), x - hw, y0, hw * 2, y1 - y0); ctx.globalAlpha = 1;
+  };
+  v.column2 = (x, y0, y1, hw, col, a) => {          // 겉빛과 속빛을 겹친 기둥 한 장 (hw = 겉빛 반폭)
+    if (!(a > 0.012)) return;
+    ctx.globalAlpha = a > 1 ? 1 : a; ctx.drawImage(SPR['C' + col] || colSpr(col, 1), x - hw, y0, hw * 2, y1 - y0); ctx.globalAlpha = 1;
+  };
+  v.lerp = (c1, c2, u) => {
+    const k = Math.round((u < 0 ? 0 : u > 1 ? 1 : u) * 16), key = c1 + c2 + k; const o = MIX[key]; if (o) return o;
+    const a = parseInt(c1.slice(1), 16), b = parseInt(c2.slice(1), 16), ch = (sh) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * k / 16).toString(16).padStart(2, '0');
+    return (MIX[key] = '#' + ch(16) + ch(8) + ch(0));
+  };
   v.add = () => { if (!v.light) ctx.globalCompositeOperation = 'lighter'; };
   v.norm = () => { ctx.globalCompositeOperation = 'source-over'; };
   v.glow = (x, y, r, col, a, ry) => {
@@ -2589,9 +2619,9 @@ function drawFireStrip(p) {
   ctx.beginPath(); bandTo(p.x0, p.y0, dx, dy, nx, ny, hw * 1.08, sd, 0.2, -0.07, 0.07 + head);   // 바닥의 불규칙한 그을음
   ctx.fillStyle = F.s + ((VX.light ? 0.11 : 0.24) * al).toFixed(3) + ')'; ctx.fill();
   VX.add();
-  for (let i = 0; i < 3; i++) {              // 은은한 불빛
-    const s = 0.18 + 0.32 * i + (hash(sd + i * 11.3) - 0.5) * 0.12, fl = 0.8 + 0.2 * Math.sin(t * (7 + 3 * hash(sd + i)) + i * 2.2 + sd);
-    VX.glow(p.x0 + dx * s, p.y0 + dy * s - 6, hw * 1.9 + len * 0.07, F.o, (VX.light ? 0.36 : 0.36) * al * lit(s) * fl);
+  for (let i = 0; i < 2; i++) {              // 은은한 불빛 (두 장: 띠가 레인마다 셋까지 겹쳐 그려지므로 넓이를 아낀다)
+    const s = 0.28 + 0.44 * i + (hash(sd + i * 11.3) - 0.5) * 0.12, fl = 0.8 + 0.2 * Math.sin(t * (7 + 3 * hash(sd + i)) + i * 2.2 + sd);
+    VX.glow(p.x0 + dx * s, p.y0 + dy * s - 6, hw * 1.6 + len * 0.06, F.o, 0.42 * al * lit(s) * fl);
   }
   VX.norm();
   const wob = 0.86 + 0.14 * Math.sin(t * 9 + sd);
@@ -2639,11 +2669,391 @@ function rainbowHex(rb) {                    // 무지개: 줄마다 다른 색 
   const ch = (n) => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); };
   return (RBHEX[key] = '#' + ch(0) + ch(8) + ch(4));
 }
+// 밝은 테마에서는 하얀 계열 효과가 종이에 묻히므로 짙게 바꾼다
+function seenCol(c) {
+  if (!VX.light) return c;
+  const n = parseInt(c.slice(1), 16), lum = ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) / 255;
+  return lum > 0.86 ? VX.mix(c, -0.38) : c;
+}
+// 달아오른 점: 어두운 테마는 가운데가 하얀 빛, 밝은 테마는 하얀색이 종이에 묻히므로 가운데가 짙은 빛
+function hotSpot(x, y, r, col, a) {
+  if (!VX.light) { VX.heat(x, y, r, col, a); return; }
+  VX.glow(x, y, r, col, a); VX.glow(x, y, r * 0.55, VX.mix(col, -0.3), a);
+}
+// 일반 폭발: 가운데가 번쩍하고, 가장자리만 밝은 충격파가 빠르게 퍼지다 느려지며 옅어진다. 지뢰(f.mine)는 파편과 불티가 더 튄다
+function drawBoom(f, p) {
+  const q = 1 - p, u = VX.ui(f), R = f.r, col = seenCol(f.c), e = VX.ease(q, 3), hot = VX.hot(col);
+  if (u.n) {
+    if (f.mine) {
+      const F = fireCol(), n = f.mine === 1 ? 9 : 5;
+      for (let i = 0; i < n; i++) {             // 파편: 빠르게 뻗는 빛줄기
+        const a = (i + Math.random()) / n * TAU, s = R * (3.2 + 2.6 * Math.random());
+        VX.spark(f.x + Math.cos(a) * 4, f.y + Math.sin(a) * 4, Math.cos(a) * s, Math.sin(a) * s, 0.16 + 0.14 * Math.random(), 1.7, hot, 0, 5, 1);
+      }
+      for (let i = 0; i < n; i++) {             // 불티: 튀어 올랐다가 떨어진다
+        const a = Math.random() * TAU, s = R * (0.8 + 1.8 * Math.random());
+        VX.spark(f.x, f.y, Math.cos(a) * s, Math.sin(a) * s - 60, 0.4 + 0.45 * Math.random(), 1.1 + 1.2 * Math.random(), i % 2 ? F.e : F.y, 220, 2.6, 2);
+      }
+    } else if (R >= 34) {
+      const v0 = R * 0.9 * 3 / Math.max(0.15, f.d);
+      for (let i = 0; i < 4; i++) {
+        const a = (i + Math.random()) / 4 * TAU, k = 0.8 + 0.3 * Math.random();
+        VX.spark(f.x + Math.cos(a) * R * 0.15, f.y + Math.sin(a) * R * 0.15, Math.cos(a) * v0, Math.sin(a) * v0, f.d * (0.9 + 0.8 * Math.random()), 1 + Math.random(), hot, 0, 3 / (f.d * k), 2);
+      }
+    }
+  }
+  VX.add();
+  VX.glow(f.x, f.y, R * (0.5 + 0.45 * e), col, (VX.light ? 0.75 : 0.6) * p);
+  hotSpot(f.x, f.y, R * (0.26 + 0.2 * e), col, p * p);
+  const fd = VX.fade(q), rr = R * (0.3 + 0.7 * e);
+  VX.wave(f.x, f.y, rr / 0.95, col, 0.8 * fd, 0.35 + 0.65 * q);
+  VX.norm();
+  if (f.mine) {                               // 늦게 따라오는 옅은 물결
+    const u2 = (q - 0.3) / 0.7;
+    if (u2 > 0) { VX.add(); VX.wave(f.x, f.y, R * (0.2 + 0.62 * VX.ease(u2, 2)), col, 0.45 * VX.fade(u2), 1); VX.norm(); }
+  }
+}
+// 고리: 가장자리만 밝은 물결이 퍼지며 얇아지고 옅어진다 (반만 그리는 것은 기지 쪽에서 올라오는 것)
+function drawRing(f, p) {
+  const q = 1 - p, col = seenCol(f.c), rr = f.r * (0.35 + 0.65 * q), fd = Math.sqrt(p) * Math.min(1, q * 8 + 0.35), half = !f.full;
+  VX.add();
+  VX.wave(f.x, f.y, rr / 0.95, col, (f.fat ? 0.95 : 0.9) * fd, f.fat ? q * 0.7 : 0.3 + 0.6 * q, half);
+  VX.norm();
+  ctx.beginPath(); ctx.arc(f.x, f.y, rr, half ? Math.PI : 0, TAU); ctx.lineWidth = (f.fat ? 2.2 : 1.3) * p + 0.3; ctx.strokeStyle = rgba(col, (f.fat ? 0.8 : 0.55) * fd); ctx.stroke();
+}
+// 달아오른 탄의 색 (예열 n = 0~10): 어두운 테마는 흰 쪽으로, 밝은 테마는 붉은 주황 쪽으로
+function heatHex(col, n) {
+  const u = Math.min(1, n / 10);
+  return VX.light ? VX.lerp(VX.mix(col, -0.3), '#d93a08', u) : VX.lerp(col, '#fff4dc', u * 0.9);
+}
+// 블래스터 총구 섬광: 길이와 방향이 쏠 때마다 다른 불꽃 혀 몇 가닥. 개틀링(f.g)은 가늘고 짧게, 삼연장은 옆 줄기 쪽으로도 뻗는다
+function drawMuz(f, p) {
+  const u = VX.ui(f), q = 1 - p, sd = u.sd * 71, hl = f.hl || 0, h = hl / 10, F = fireCol(), L = VX.light;
+  const base = C.WEAPONS.blaster.color, cb = L ? VX.mix(base, -0.3) : base, col = hl ? VX.lerp(cb, F.o, 0.35 + 0.65 * h) : cb, core = L ? VX.mix(base, 0.55) : '#ffffff';
+  if (u.n) {
+    const sx = Math.sin(f.a), sy = -Math.cos(f.a);
+    for (let i = f.g ? 1 : 2; i > 0; i--) {     // 옆으로 튀는 짧은 빛줄기
+      const sgn = Math.random() < 0.5 ? -1 : 1, s = 120 + 160 * Math.random(), fw = 0.2 + 0.5 * Math.random();
+      VX.spark(f.x, f.y, (-sy * sgn + sx * fw) * s, (sx * sgn + sy * fw) * s, 0.08 + 0.08 * Math.random(), 1.3, hl ? F.e : VX.hot(base), 0, 6, 1);
+    }
+    if (h > 0.25 && Math.random() < h) VX.spark(f.x + (Math.random() - 0.5) * 8, f.y - 2, (Math.random() - 0.5) * 70, -50 - 70 * Math.random(), 0.35 + 0.4 * Math.random(), 0.9 + 0.9 * Math.random(), Math.random() < 0.5 ? F.e : F.y, -30, 1.6, 2);   // 달아오르면 불티
+  }
+  const grow = (0.55 + 0.45 * VX.ease(q, 2)) * (0.4 + 0.6 * p), al = Math.min(1, p * 2.4);
+  VX.add(); hotSpot(f.x, f.y, (f.g ? 8 : 11) + 4 * q + 3 * h, hl ? F.o : base, 0.9 * p); VX.norm();
+  for (let pass = 0; pass < 2; pass++) {
+    const ks = pass ? 0.55 : 1;
+    ctx.beginPath();
+    const main = (f.g ? 13 + 10 * hash(sd) : 18 + 8 * hash(sd)) * grow * ks, mw = (f.g ? 2.6 : 3.8) * (pass ? 0.5 : 1);
+    let a = f.a + (hash(sd + 1) - 0.5) * (f.g ? 0.3 : 0.12);
+    flameTo(f.x, f.y, f.x + Math.sin(a) * main, f.y - Math.cos(a) * main, mw, (hash(sd + 2) - 0.5) * 3);
+    for (let i = 0; i < 2; i++) {               // 양옆의 짧은 가닥
+      const side = i ? 1 : -1, len = (f.g ? 6 + 7 * hash(sd + 5 + i) : 8 + 7 * hash(sd + 5 + i)) * grow * ks;
+      if (f.g && hash(sd + 9 + i) < 0.35) continue;
+      a = f.a + side * (0.75 + 0.6 * hash(sd + 3 + i));
+      flameTo(f.x, f.y, f.x + Math.sin(a) * len, f.y - Math.cos(a) * len, mw * 0.7, side * 2);
+    }
+    for (let i = 0; i < 2; i++) {               // 삼연장: 옆 줄기 쪽
+      const a2 = i ? f.ar : f.al; if (a2 == null) continue;
+      const len = (11 + 9 * hash(sd + 12 + i)) * grow * ks;
+      flameTo(f.x, f.y, f.x + Math.sin(a2) * len, f.y - Math.cos(a2) * len, mw * 0.8, (hash(sd + 14 + i) - 0.5) * 3);
+    }
+    ctx.fillStyle = rgba(pass ? core : col, (pass ? 0.95 : 0.9) * al); ctx.fill();
+  }
+}
+// 앞이 뾰족하고 뒤로 길게 가늘어지는 꼴을 지금 경로에 더한다 (front 앞으로 나온 길이, hw 반폭, tail 꼬리 길이)
+function lanceTo(x, y, ux, uy, front, hw, tail) {
+  const nx = -uy, ny = ux, bx = x - ux * hw * 1.4, by = y - uy * hw * 1.4;
+  ctx.moveTo(x + ux * front, y + uy * front);
+  ctx.quadraticCurveTo(x + ux * front * 0.3 + nx * hw, y + uy * front * 0.3 + ny * hw, bx + nx * hw, by + ny * hw);
+  ctx.lineTo(x - ux * tail, y - uy * tail);
+  ctx.lineTo(bx - nx * hw, by - ny * hw);
+  ctx.quadraticCurveTo(x + ux * front * 0.3 - nx * hw, y + uy * front * 0.3 - ny * hw, x + ux * front, y + uy * front);
+}
+// 개틀링 탄: 가늘고 빠른 빛줄기와 짧은 잔상. 길이가 탄마다 조금씩 다르고, 달아오르면 불빛이 번지고 불티가 떨어진다
+function drawGatShot(b) {
+  const u = VX.ui(b), hl = b.hl || 0, h = hl / 10, L = VX.light, base = b.st.color, F = fireCol(), k = 0.8 + 0.5 * u.sd;
+  const c = hl ? heatHex(base, hl) : (L ? VX.mix(base, -0.3) : base), sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, tl = Math.min(1, (b.d0 - b.left) / 60);
+  if (h > 0.3 && VX.rate(2.5 * h)) VX.spark(b.x, b.y, (Math.random() - 0.5) * 50, 40 * Math.random(), 0.25 + 0.25 * Math.random(), 0.9 + 0.7 * Math.random(), F.e, 0, 2, 2);
+  VX.add();
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 3, 2 + 0.9 * h, 62 * k * tl + 4);   // 뒤로 가늘어지는 잔상
+  ctx.fillStyle = rgba(hl ? F.o : base, (L ? 0.45 : 0.36) + 0.16 * h); ctx.fill();
+  VX.glow(b.x, b.y, 6 + 4 * h, hl ? F.o : base, 0.6 + 0.25 * h);
+  VX.norm();
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 4, 1.15, 26 * k * tl + 3); ctx.fillStyle = c; ctx.fill();
+}
+// 보조 포탑의 작은 탄
+function drawTurShot(b) {
+  const L = VX.light, c = b.c, sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, tl = Math.min(1, (b.d0 - b.left) / 40);
+  VX.add();
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 3, 2.2, 38 * tl + 3); ctx.fillStyle = rgba(c, L ? 0.45 : 0.36); ctx.fill();
+  VX.glow(b.x, b.y, 5.5, c, 0.6);
+  VX.norm();
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 3.5, 1.2, 17 * tl + 2); ctx.fillStyle = L ? VX.mix(c, -0.35) : '#ffffff'; ctx.fill();
+}
+// 광탄: 앞이 뾰족하고 뒤로 길게 가늘어지는 빛살. 하얀 심지, 무기 색 겉빛, 머리의 짧은 눈부심, 뒤에 남는 빛 알갱이
+function drawLance(b, k) {
+  const u = VX.ui(b), sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, c = b.st.color, L = VX.light, t = VX.t;
+  const tl = Math.min(1, (b.d0 - b.left) / 90), fl = 0.9 + 0.1 * Math.sin(t * 43 + u.sd * 30), T = (64 + 26 * u.sd) * k * tl * fl;
+  for (let n = VX.rate(16); n > 0; n--) {
+    const s = Math.random() * T;
+    VX.spark(b.x - ux * s + (Math.random() - 0.5) * 5, b.y - uy * s + (Math.random() - 0.5) * 5, ux * 30, uy * 30, 0.2 + 0.25 * Math.random(), 0.8 + 0.9 * Math.random(), L ? VX.hot(c) : VX.mix(c, 0.5), 0, 2, 2);
+  }
+  VX.add();
+  VX.glow(b.x, b.y, 13 * k, c, L ? 0.6 : 0.55);
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 9 * k, 5 * k, T * 1.5); ctx.fillStyle = rgba(c, L ? 0.3 : 0.26); ctx.fill();
+  VX.norm();
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 8 * k, 2.9 * k, T); ctx.fillStyle = rgba(L ? VX.mix(c, -0.25) : c, 0.92); ctx.fill();
+  ctx.beginPath(); lanceTo(b.x, b.y, ux, uy, 5 * k, 1.2 * k, T * 0.6); ctx.fillStyle = L ? VX.mix(c, 0.3) : '#ffffff'; ctx.fill();
+  const g = (L ? 4.6 : 6.5) * k * fl;           // 머리를 가로지르는 짧은 눈부심
+  ctx.beginPath(); ctx.moveTo(b.x - uy * g, b.y + ux * g); ctx.lineTo(b.x + uy * g, b.y - ux * g);
+  ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(L ? VX.mix(c, -0.25) : '#ffffff', L ? 0.55 : 0.8); ctx.stroke();
+}
+// 지금 경로에 번개 줄 하나를 더한다. 굴곡이 시간에 따라 이어지며 달라진다 (ph: 1 이 늘 때마다 새 모양으로 넘어가는 시계)
+function boltTo(ax, ay, bx, by, sd, amp, ph) {
+  const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, n = Math.max(3, Math.round(len / 13)), i0 = Math.floor(ph), fr = ph - i0;
+  ctx.moveTo(ax, ay);
+  for (let j = 1; j < n; j++) {
+    const s = j / n, env = 0.3 + 0.7 * Math.sin(s * Math.PI), h0 = hash(sd + i0 * 7.3 + j * 3.1), h1 = hash(sd + (i0 + 1) * 7.3 + j * 3.1);
+    const off = ((h0 + (h1 - h0) * fr) - 0.5) * 2 * amp * env + (hash(sd + j + ph * 31) - 0.5) * amp * 0.25;
+    ctx.lineTo(ax + dx * s + nx * off, ay + dy * s + ny * off);
+  }
+  ctx.lineTo(bx, by);
+}
+// 유지되는 빔 (지속 빔, 상시 빔): 부드러운 빛기둥, 위로 흐르며 일렁이는 심지, 적에 닿는 자리의 불꽃. 초점이 쌓인 적일수록 닿는 자리가 밝고 커진다
+function drawHoldBeam(k, st, owner, a, sd) {
+  const S = C.S, H = C.H, x = (k + 0.5) * C.LW, len = st.range * H, y0 = H - len, col = st.color, t = VX.t, L = VX.light, hot = VX.hot(col);
+  const br = 1 + 0.1 * Math.sin(t * 37 + sd) + 0.06 * Math.sin(t * 61 + sd * 3), hw = 7.5 * br * (0.35 + 0.65 * a);
+  VX.add();
+  VX.column2(x, y0, H, hw * 3.4, col, (L ? 1 : 0.82) * a);
+  const ph = (t * 1.6 + sd * 0.37) % 1;         // 빔을 타고 올라가는 빛 덩이
+  VX.glow(x, H - len * ph, hw * 2.2, col, 0.5 * a * Math.sin(Math.PI * ph), 34);
+  VX.norm();
+  const n = Math.max(6, Math.round(len / 24));
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();                              // 심지
+  for (let i = 0; i <= n; i++) {
+    const y = H - len * i / n, off = (Math.sin(y * 0.045 + t * 34 + sd) + 0.6 * Math.sin(y * 0.11 - t * 51 + sd * 2)) * 0.8;
+    if (i) ctx.lineTo(x + off, y); else ctx.moveTo(x + off, y);
+  }
+  ctx.lineWidth = 6.4 * a * br + 0.8; ctx.strokeStyle = rgba(col, 0.9 * a); ctx.stroke();
+  ctx.lineWidth = 2.5 * a * br + 0.5; ctx.strokeStyle = `rgba(255,255,255,${(0.95 * a).toFixed(2)})`; ctx.stroke();
+  ctx.beginPath();                              // 겉을 감도는 가는 가닥
+  for (let i = 0; i <= n; i++) {
+    const y = H - len * i / n, off = Math.sin(y * 0.031 - t * 11 + sd * 5) * hw * 0.8 + Math.sin(y * 0.083 + t * 23) * 1.2;
+    if (i) ctx.lineTo(x + off, y); else ctx.moveTo(x + off, y);
+  }
+  ctx.lineWidth = 1; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.12) : VX.mix(col, 0.5), 0.6 * a); ctx.stroke();
+  VX.add(); hotSpot(x, H - 11, 12 + 2.5 * Math.sin(t * 29 + sd), col, a); VX.norm();
+  const reach = (st.lanes + 0.5) * C.LW; let cnt = 0;
+  for (const e of S.enemies) {                  // 닿는 자리
+    if (e.dead || e.y + e.r < y0 || e.y - e.r > H || Math.abs(e.x - x) > reach + e.r * 0.4) continue;
+    if (++cnt > 6) break;
+    const fc = st.focus && e.fcB === owner ? Math.min(1, (e.fcN || 0) / 20) : 0, d = e.x - x;
+    const cx = x + (d < -5 ? -5 : d > 5 ? 5 : d), cy = e.y + Math.min(e.r * 0.55, 16), fl = 0.8 + 0.2 * Math.sin(t * 53 + e.x);
+    for (let m = VX.rate((7 + 12 * fc) * a); m > 0; m--) {
+      const an = Math.PI * (0.05 + 0.9 * Math.random()), s = 70 + 130 * Math.random() + 80 * fc;
+      VX.spark(cx, cy, Math.cos(an) * s, Math.sin(an) * s * 0.8 - 20, 0.16 + 0.22 * Math.random(), 1 + 0.9 * Math.random() + 0.5 * fc, Math.random() < 0.5 ? hot : col, 160, 2.5, Math.random() < 0.4 ? 1 : 2);
+    }
+    VX.add();
+    if (fc > 0) VX.glow(cx, cy, 16 + 22 * fc, col, (0.3 + 0.45 * fc) * a * fl);
+    hotSpot(cx, cy, (8 + 9 * fc) * fl, col, (0.8 + 0.2 * fc) * a);
+    VX.norm();
+    if (fc > 0.15) {                            // 초점이 쌓이면 눈부신 빛살이 길어진다
+      const rl = (5 + 17 * fc) * fl, ro = t * 1.4 + e.x;
+      ctx.beginPath();
+      for (let j = 0; j < 4; j++) { const an = ro + j * Math.PI / 2, r1 = j % 2 ? rl * 0.55 : rl; ctx.moveTo(cx + Math.cos(an) * 2.5, cy + Math.sin(an) * 2.5); ctx.lineTo(cx + Math.cos(an) * r1, cy + Math.sin(an) * r1); }
+      ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.15) : '#ffffff', (0.45 + 0.5 * fc) * a); ctx.stroke();
+    }
+  }
+  ctx.lineCap = 'butt';
+}
+// 용융선: 바닥에 달궈진 금. 막 지나갔을 때는 심지가 노랗게 밝고, 식을수록 주황 → 검붉은 색으로 어두워진다. 위로 아지랑이와 불티
+const MP = new Float32Array(140);
+function drawMelt(p, H) {
+  const t = VX.t, F = fireCol(), L = VX.light, sd = p.sd * 97, len = H - p.y, D = (p.st && p.st.meltT) || 2;
+  const al = Math.min(1, p.t / 0.5), heat = Math.max(0, Math.min(1, (p.t - 0.2) / (D - 0.2))), fl = 0.88 + 0.12 * Math.sin(t * 7 + sd);
+  const n = Math.min(68, Math.max(8, Math.round(len / 18)));
+  for (let i = 0; i <= n; i++) {
+    const s = i / n, tp = Math.min(1, (1 - s) * 6, s * 10 + 0.3);
+    MP[i * 2] = p.x + ((hash(sd + i * 1.7) - 0.5) * 10 * (hash(sd + i * 3.9) < 0.42 ? 1 : 0.2) + Math.sin(i * 0.8 + sd) * 1.8) * tp; MP[i * 2 + 1] = H - len * s;
+  }
+  const line = () => { ctx.beginPath(); ctx.moveTo(MP[0], MP[1]); for (let i = 1; i <= n; i++) ctx.lineTo(MP[i * 2], MP[i * 2 + 1]); };
+  for (let m = VX.rate(1.5 + 4 * heat); m > 0; m--) {
+    const i = Math.floor(Math.random() * n);
+    VX.spark(MP[i * 2] + (Math.random() - 0.5) * 6, MP[i * 2 + 1], (Math.random() - 0.5) * 20, -20 - 34 * Math.random(), 0.5 + 0.5 * Math.random(), 0.8 + 0.9 * Math.random(), Math.random() < 0.5 ? F.e : F.y, -18, 0.6, 2);
+  }
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  line(); ctx.lineWidth = 12; ctx.strokeStyle = F.s + ((L ? 0.1 : 0.26) * al).toFixed(3) + ')'; ctx.stroke();   // 그을음
+  VX.add(); VX.column(p.x, p.y, H, 15 + 4 * fl, F.o, (L ? 0.5 : 0.42) * al * (0.3 + 0.7 * heat) * fl); VX.norm();
+  line();
+  for (let i = 2; i < n - 1; i += 3) {          // 옆으로 뻗은 잔금
+    if (hash(sd + i * 4.9) < 0.4) continue;
+    const side = hash(sd + i * 2.3) < 0.5 ? -1 : 1, l1 = 5 + 8 * hash(sd + i * 6.1);
+    ctx.moveTo(MP[i * 2], MP[i * 2 + 1]); ctx.lineTo(MP[i * 2] + side * l1, MP[i * 2 + 1] - l1 * (0.3 + 0.8 * hash(sd + i)));
+  }
+  ctx.lineWidth = 3.6; ctx.strokeStyle = rgba(L ? '#8f1d0c' : '#b02a12', 0.9 * al); ctx.stroke();
+  line();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = rgba(F.o, al * Math.min(1, heat * 1.5) * fl); ctx.stroke();
+  const hk = Math.max(0, Math.min(1, (heat - 0.3) / 0.5));
+  if (hk > 0) { ctx.lineWidth = 1.3; ctx.strokeStyle = rgba(L ? F.y : '#fff1c9', al * hk); ctx.stroke(); }
+  ctx.lineWidth = 1.1;
+  for (let i = 0; i < 5; i++) {                 // 아지랑이: 금 위로 피어오르는 가는 물결
+    const tt = t * 0.55 + hash(sd + i * 3.1), cyc = Math.floor(tt), ph = tt - cyc;
+    const xx = p.x + (hash(sd + i * 5.3 + cyc * 1.9) - 0.5) * 16, yy = p.y + len * (0.06 + 0.88 * hash(sd + i * 7.7 + cyc * 2.7)) - ph * 22, w = 2.2 + 1.6 * ph, a = Math.sin(Math.PI * ph) * (L ? 0.55 : 0.45) * al * (0.35 + 0.65 * heat);
+    if (a < 0.02) continue;
+    ctx.beginPath(); ctx.moveTo(xx, yy); ctx.quadraticCurveTo(xx + w, yy - 4, xx, yy - 8); ctx.quadraticCurveTo(xx - w, yy - 12, xx, yy - 16);
+    ctx.strokeStyle = rgba(F.o, a); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+// 증발: 짧은 섬광과 옅은 물결, 위로 흩어지며 깜빡이는 빛 알갱이
+function drawVap(f, p) {
+  const u = VX.ui(f), q = 1 - p, col = C.WEAPONS.laser.color, L = VX.light, hot = VX.hot(col), e = VX.ease(q);
+  if (u.n) for (let i = 0; i < 12; i++) {
+    const a = Math.random() * TAU, s = 25 + 95 * Math.random(), d = f.r * 0.6 * Math.random();
+    VX.spark(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, Math.cos(a) * s, Math.sin(a) * s - 30, 0.45 + 0.55 * Math.random(), 1 + 1.4 * Math.random(), i % 3 ? (L ? hot : '#ffffff') : col, -70, 2.2, 2);
+  }
+  VX.add();
+  VX.glow(f.x, f.y, f.r * (1.3 + 1.3 * e), col, 0.6 * p);
+  hotSpot(f.x, f.y, f.r * (0.8 + 0.9 * e), col, p * p);
+  VX.wave(f.x, f.y, f.r * (0.7 + 1.6 * e), col, 0.55 * VX.fade(q), q);
+  VX.norm();
+}
+// 위성 구체: 속이 빛나는 구체, 뒤로 갈수록 가늘고 옅은 궤적, 떨어져 나가는 빛 알갱이
+function drawOrb(k, st, i, o, sz) {
+  const S = C.S, col = st.color, L = VX.light, t = VX.t, r0 = 7 * sz, fl = 0.9 + 0.1 * Math.sin(t * 9 + i * 2.1 + k), N = 6;
+  if (VX.rate(5)) VX.spark(o[0] + (Math.random() - 0.5) * r0, o[1] + (Math.random() - 0.5) * r0, (Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24, 0.3 + 0.3 * Math.random(), 0.8 + 0.9 * Math.random(), L ? VX.hot(col) : VX.mix(col, 0.5), 0, 1, 2);
+  MP[0] = o[0]; MP[1] = o[1];
+  for (let j = 1; j <= N; j++) { const q = C.orbPos(k, st, i, S.t - j * 0.035, OPOS[4]); MP[j * 2] = q[0]; MP[j * 2 + 1] = q[1]; }
+  VX.add();
+  for (let M = N; M >= 3; M -= 3) {             // 궤적: 뒤로 갈수록 가늘고 옅어지는 줄기 (긴 것 위에 짧은 것을 겹친다)
+    ctx.beginPath();
+    for (let pass = 0; pass < 2; pass++) for (let n = 0; n <= M; n++) {
+      const j = pass ? M - n : n, a = j ? j - 1 : 0, b = j ? j : 1, dx = MP[b * 2] - MP[a * 2], dy = MP[b * 2 + 1] - MP[a * 2 + 1], len = Math.hypot(dx, dy) || 1, w = r0 * 0.75 * (1 - j / M) * (pass ? -1 : 1);
+      const x = MP[j * 2] - dy / len * w, y = MP[j * 2 + 1] + dx / len * w;
+      if (pass || n) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+    ctx.closePath(); ctx.fillStyle = rgba(col, L ? 0.26 : 0.2); ctx.fill();
+  }
+  VX.glow(o[0], o[1], r0 * 3.1 * fl, col, L ? 0.75 : 0.6);
+  if (!L) VX.heat(o[0], o[1], r0 * 1.6, col, 1);
+  VX.norm();
+  if (L) {                                      // 밝은 테마: 유리구슬처럼
+    ctx.beginPath(); ctx.arc(o[0], o[1], r0 * 0.86, 0, TAU); ctx.fillStyle = VX.mix(col, 0.2); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = VX.mix(col, -0.42); ctx.stroke();
+    ctx.beginPath(); ctx.arc(o[0] - r0 * 0.2, o[1] - r0 * 0.22, r0 * 0.34, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fill();
+  }
+}
+// 전기 사슬: 구체 사이를 잇는 번개 줄. 굵은 줄 하나와 가끔 나타나는 가는 곁줄
+function drawOrbChain(st, k, n) {
+  const col = st.color, L = VX.light, t = VX.t, segs = n === 2 ? 1 : n, ph = t * 20;
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let q = 0; q < segs; q++) { const a = OPOS[q], b = OPOS[(q + 1) % n]; boltTo(a[0], a[1], b[0], b[1], k * 13 + q * 29, 10, ph); }
+  VX.add(); ctx.lineWidth = L ? 6 : 8; ctx.strokeStyle = rgba(col, L ? 0.34 : 0.26); ctx.stroke(); VX.norm();
+  ctx.lineWidth = L ? 1.7 : 2.6; ctx.strokeStyle = L ? VX.mix(col, -0.3) : col; ctx.stroke();
+  if (!L) { ctx.lineWidth = 1; ctx.strokeStyle = '#ffffff'; ctx.stroke(); }
+  ctx.beginPath(); let any = 0;
+  for (let q = 0; q < segs; q++) {
+    if (hash(Math.floor(ph * 0.5) * 3.7 + q * 11 + k) < 0.45) continue;
+    const a = OPOS[q], b = OPOS[(q + 1) % n]; boltTo(a[0], a[1], b[0], b[1], k * 17 + q * 31 + 5, 20, ph * 1.3); any = 1;
+  }
+  if (any) { ctx.lineWidth = 1.1; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.35) : VX.mix(col, 0.5), 0.7); ctx.stroke(); }
+  ctx.lineCap = 'butt';
+}
+// 역장: 가운데에서 가장자리로 갈수록 옅어지는 막과, 천천히 퍼져 나가는 옅은 물결 (약화가 있으면 안쪽으로 조여든다). 반격하는 순간 잠깐 밝아진다
+function drawField(x, H, R, st, w, k) {
+  const col = st.color, t = VX.t, L = VX.light, ctr = w.ct > 0 ? Math.pow(Math.min(1, w.ct / 0.5), 2) : 0;
+  VX.add();
+  VX.glow(x, H, R * 1.04, col, (L ? 0.3 : 0.2) + 0.3 * ctr);
+  VX.wave(x, H, R, col, (L ? 0.3 : 0.24) * (0.85 + 0.15 * Math.sin(t * 1.3 + k)) + 0.5 * ctr, 0.1, true);
+  for (let i = 0; i < 2; i++) {
+    const u0 = (t * 0.14 + i / 2 + k * 0.13) % 1, u = st.fldVuln ? 1 - u0 : u0;
+    VX.wave(x, H, R * (0.25 + 0.75 * u), col, (L ? 0.2 : 0.16) * Math.sin(Math.PI * u0), 0, true);
+  }
+  VX.norm();
+}
+// 예열: 총구 둘레의 붉은 열기, 위로 피어오르는 아지랑이, 가끔 튀는 불티
+function drawHeat(x, H, hl, k) {
+  const F = fireCol(), t = VX.t, L = VX.light, fl = 0.86 + 0.14 * Math.sin(t * 23 + k * 2);
+  for (let n = VX.rate(7 * hl * hl); n > 0; n--) VX.spark(x + (Math.random() - 0.5) * 16, H - 8, (Math.random() - 0.5) * 40, -40 - 60 * Math.random(), 0.4 + 0.45 * Math.random(), 0.9 + 0.9 * Math.random(), Math.random() < 0.5 ? F.e : F.y, -26, 1.2, 2);
+  VX.add(); VX.glow(x, H - 7, 18 + 16 * hl, F.o, (L ? 0.7 : 0.6) * hl * fl); hotSpot(x, H - 8, 6 + 6 * hl, F.o, 0.7 * hl); VX.norm();
+  ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const tt = t * 1.1 + i * 0.37 + k * 0.21, cyc = Math.floor(tt), ph = tt - cyc, a = Math.sin(Math.PI * ph) * (L ? 0.6 : 0.5) * hl;
+    if (a < 0.03) continue;
+    const xx = x + (hash(cyc * 3.3 + i * 7.1 + k) - 0.5) * 22, yy = H - 16 - ph * 30, w = 2 + 1.8 * ph;
+    ctx.beginPath(); ctx.moveTo(xx, yy); ctx.quadraticCurveTo(xx + w, yy - 4, xx, yy - 8); ctx.quadraticCurveTo(xx - w, yy - 12, xx, yy - 16);
+    ctx.strokeStyle = rgba(F.o, a); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+}
+// 보조 포탑: 무기 옆에 살짝 떠서 흔들리는 작은 포탑. 조준한 쪽으로 돌고, 쏠 때 포신이 밀렸다가 돌아온다
+function drawTurret(w, k, q, st) {
+  const tp = C.turretPos(k, q), t = VX.t, ph = k * 1.7 + q * 2.3, L = VX.light, col = st.color;
+  const x = tp[0] + Math.sin(t * 1.7 + ph) * 1.5, y = tp[1] - 3 + Math.sin(t * 2.6 + ph * 2) * 2.2;
+  const ft = q ? w.f2 : w.f1, age = ft == null ? 9 : C.S.t - ft, rc = age < 0.18 ? 5 * Math.pow(1 - age / 0.18, 2) : 0, ang = ((q ? w.g2 : w.g1) || 0) + Math.sin(t * 2.1 + ph) * 0.04;
+  const edge = L ? VX.mix(col, -0.6) : '#ffffff', shell = L ? VX.mix(col, -0.14) : col, dark = L ? '#2f3644' : '#182033';
+  VX.add(); VX.glow(x, tp[1] + 10, 11, col, (L ? 0.55 : 0.45) + 0.12 * Math.sin(t * 31 + ph), 4.5); VX.norm();   // 떠 있는 자리 아래의 옅은 빛
+  ctx.save(); ctx.translate(x - Math.sin(ang) * rc * 0.35, y + Math.cos(ang) * rc * 0.35); ctx.rotate(ang);
+  ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(-2.6, -3 + rc); ctx.lineTo(-1.6, -15.5 + rc); ctx.lineTo(1.6, -15.5 + rc); ctx.lineTo(2.6, -3 + rc); ctx.closePath();   // 포신
+  ctx.fillStyle = dark; ctx.fill();
+  ctx.fillStyle = col; ctx.fillRect(-0.8, -14.5 + rc, 1.6, 9);
+  ctx.beginPath(); ctx.moveTo(-4.5, -2.5); ctx.lineTo(-11.5, 5); ctx.lineTo(-4, 5); ctx.closePath(); ctx.moveTo(4.5, -2.5); ctx.lineTo(11.5, 5); ctx.lineTo(4, 5); ctx.closePath();   // 양옆 날개
+  ctx.fillStyle = dark; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, -7.5); ctx.quadraticCurveTo(6.6, -6.4, 6.6, 0.4); ctx.quadraticCurveTo(6.2, 6.6, 0, 6.8); ctx.quadraticCurveTo(-6.2, 6.6, -6.6, 0.4); ctx.quadraticCurveTo(-6.6, -6.4, 0, -7.5); ctx.closePath();   // 몸통
+  ctx.fillStyle = shell; ctx.fill(); ctx.lineWidth = 1.3; ctx.strokeStyle = edge; ctx.stroke();
+  ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(0, 0.2, 3.3, 0, TAU); ctx.fill();
+  ctx.fillStyle = L ? VX.mix(col, 0.5) : '#ffffff'; ctx.beginPath(); ctx.arc(0, 0.2, 1.5 + (age < 0.18 ? 1.2 * (1 - age / 0.18) : 0), 0, TAU); ctx.fill();
+  ctx.restore();
+  if (age < 0.09) { const kk = 1 - age / 0.09; VX.add(); hotSpot(x + Math.sin(ang) * 16, y - Math.cos(ang) * 16, 4 + 6 * kk, col, kk); VX.norm(); }   // 쏘는 순간 포구의 빛
+}
+// 지뢰: 무기에서 던져져 내려앉는다(작은 지뢰는 터진 자리에서 흩어진다). 낮은 원판에 접촉 핀 넷, 가운데 불빛이 숨 쉬듯 깜빡이고 사라질 때가 되면 빨라진다
+function mineBody(x, y, sc, rot, on, L, col) {
+  ctx.lineCap = 'round'; ctx.lineWidth = 2.6 * sc; ctx.strokeStyle = L ? '#262c3a' : '#8a93a6';
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) { const a = rot + i * Math.PI / 2, cs = Math.cos(a), sn = Math.sin(a); ctx.moveTo(x + cs * 8 * sc, y + sn * 8 * sc); ctx.lineTo(x + cs * 11.6 * sc, y + sn * 11.6 * sc); }
+  ctx.stroke(); ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.arc(x, y, 9 * sc, 0, TAU); ctx.fillStyle = L ? '#3d4454' : '#2c3242'; ctx.fill();
+  ctx.lineWidth = 2.1 * sc; ctx.strokeStyle = L ? VX.mix(col, -0.12) : col; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, 5.6 * sc, 0, TAU); ctx.lineWidth = 1; ctx.strokeStyle = L ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.2)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, 3.4 * sc, 0, TAU); ctx.fillStyle = VX.lerp('#6e2424', '#ff4d4d', on); ctx.fill();
+  if (on > 0.5) { ctx.beginPath(); ctx.arc(x - 0.8 * sc, y - 0.8 * sc, 1.2 * sc, 0, TAU); ctx.fillStyle = `rgba(255,255,255,${(0.8 * (on - 0.5) * 2).toFixed(2)})`; ctx.fill(); }
+}
+function drawMine(m) {
+  const u = VX.ui(m), t = VX.t, L = VX.light, col = C.WEAPONS.shotgun.color, sc0 = m.mini ? 0.7 : 1.15, D = m.mini ? 0.3 : 0.36;
+  if (u.n) {
+    u.born = 12 - m.t > 0.25 || RM.matches ? -9 : t - (12 - m.t); u.land = u.born < 0 ? 1 : 0;
+    if (m.ox != null) { u.ox = m.ox; u.oy = m.oy; } else { const k = C.S.slots.indexOf(m.wk); u.ox = k >= 0 ? (k + 0.5) * C.LW : m.x; u.oy = C.H - 8; }
+  }
+  const a = (t - u.born) / D, shadow = L ? 'rgba(40,44,60,' : 'rgba(0,0,0,';
+  if (a < 1) {                                  // 날아오는 중: 포물선, 땅의 그림자, 빙글 도는 몸체
+    const gx = u.ox + (m.x - u.ox) * a, gy = u.oy + (m.y - u.oy) * a, hgt = Math.sin(a * Math.PI) * (m.mini ? 26 : 46), k = sc0 * (0.75 + 0.3 * Math.sin(a * Math.PI));
+    ctx.fillStyle = shadow + (0.12 + 0.2 * (1 - hgt / 46)).toFixed(2) + ')'; ctx.beginPath(); ctx.ellipse(gx, gy + 3, 9 * sc0 * (1 - hgt / 120), 4 * sc0 * (1 - hgt / 120), 0, 0, TAU); ctx.fill();
+    mineBody(gx, gy - hgt, k, m.ph + a * 8, 0, L, col);
+    return;
+  }
+  const dust = L ? '#8d8676' : '#b9bfcc';
+  if (!u.land) {                                // 내려앉는 순간: 옆으로 깔리는 먼지
+    u.land = 1;
+    for (let i = 0; i < (m.mini ? 4 : 7); i++) { const an = Math.random() * TAU, s = 50 + 70 * Math.random(); VX.spark(m.x + Math.cos(an) * 6, m.y + 3 + Math.sin(an) * 3, Math.cos(an) * s, Math.sin(an) * s * 0.45 - 12, 0.25 + 0.25 * Math.random(), 1.2 + 1.2 * Math.random(), dust, 30, 5, 0); }
+  }
+  const la = (t - u.born - D) / 0.32, out = Math.min(1, m.t / 0.25), sq = la < 1 ? Math.sin(la * Math.PI * 2) * 0.16 * (1 - la) : 0;
+  if (la < 1) { const fd = VX.fade(la), d = (7 + 15 * VX.ease(la)) * sc0, rr = (8 + 7 * la) * sc0; VX.glow(m.x - d, m.y + 4, rr, dust, 0.7 * fd, rr * 0.55); VX.glow(m.x + d, m.y + 4, rr, dust, 0.7 * fd, rr * 0.55); }   // 양옆으로 깔리는 먼지
+  const cyc = m.t < 3 ? 0.24 : 1.15, bp = ((t / cyc + m.ph) % 1 + 1) % 1, on = RM.matches ? 0.6 : bp < 0.34 ? Math.sin(bp / 0.34 * Math.PI) : 0, sc = sc0 * out;
+  ctx.fillStyle = shadow + (0.3 * out).toFixed(2) + ')'; ctx.beginPath(); ctx.ellipse(m.x, m.y + 3.5, 11.5 * sc, 5.5 * sc, 0, 0, TAU); ctx.fill();
+  VX.add();
+  if (bp < 0.8) VX.wave(m.x, m.y, (9 + 14 * VX.ease(bp / 0.8, 2)) * sc, col, (L ? 0.5 : 0.4) * (1 - bp / 0.8) * out, 1);   // 감지 범위로 퍼지는 옅은 물결
+  VX.glow(m.x, m.y, (9 + 9 * on) * sc, '#ff4d4d', 0.7 * on);
+  VX.norm();
+  if (sq) { ctx.save(); ctx.translate(m.x, m.y); ctx.scale(1 + sq, 1 - sq); mineBody(0, 0, sc, m.ph, on, L, col); ctx.restore(); }
+  else mineBody(m.x, m.y, sc, m.ph, on, L, col);
+}
 function drawFx(f, H) {
   const p = Math.max(0, f.t / f.d);
   switch (f.k) {
     case 'beam':
-      if (VX.ui(f).n) VX.trail(f.x, f.y1, f.x, f.y0, f.g ? 4.2 : 2.6, f.c === '#ffffff' ? C.WEAPONS.laser.color : f.c, f.g ? 0.6 : 0.45, 1);   // 번쩍인 뒤 남는 가는 심지와 빛 알갱이
+      if (VX.ui(f).n && !f.h) VX.trail(f.x, f.y1, f.x, f.y0, f.g ? 4.2 : 2.6, f.c === '#ffffff' ? C.WEAPONS.laser.color : f.c, f.g ? 0.6 : 0.45, 1);   // 번쩍인 뒤 남는 가는 심지와 빛 알갱이
       ctx.fillStyle = rgba(f.c, 0.75 * p); ctx.fillRect(f.x - f.w * p / 2, f.y0, f.w * p, f.y1 - f.y0);
       ctx.fillStyle = `rgba(255,255,255,${0.8 * p})`; ctx.fillRect(f.x - 1.5, f.y0, 3, f.y1 - f.y0);
       if (f.g) {                            // 빔 끝에 맺히는 눈부심
@@ -2680,13 +3090,7 @@ function drawFx(f, H) {
         ctx.beginPath(); ctx.arc(f.x0, f.y0 - 6, 6 + 10 * q, Math.PI, Math.PI * 2); ctx.lineWidth = 2; ctx.stroke();
       }
       break;
-    case 'muz': {                           // 블래스터 총구 섬광 (개틀링: 짧고 가늘게 깜빡임)
-      const q = 1 - p, len = f.g ? 9 + 5 * q + 4 * (Math.floor(performance.now() / 40) % 2) : 13 + 8 * q, ax = Math.sin(f.a), ay = -Math.cos(f.a), nx = -ay, ny = ax;
-      ctx.fillStyle = rgba(f.c, 0.85 * p); ctx.beginPath();
-      ctx.moveTo(f.x + nx * 5, f.y + ny * 5); ctx.lineTo(f.x + ax * len, f.y + ay * len); ctx.lineTo(f.x - nx * 5, f.y - ny * 5); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = `rgba(255,255,255,${0.9 * p})`; ctx.beginPath(); ctx.arc(f.x, f.y, 4.5 * p + 1, 0, Math.PI * 2); ctx.fill();
-      break;
-    }
+    case 'muz': drawMuz(f, p); break;       // 블래스터 총구 섬광
     case 'fcone': drawFcone(f, p); break;   // 화염 산탄: 부채꼴로 뻗는 불꽃 혀
     case 'slugf': drawSlugFire(f, p); break;
     case 'dbeam': {                         // 프리즘: 갈라진 빔. 무지개는 줄마다 다른 색. 번쩍인 뒤 가는 심지와 빛 알갱이가 남는다
@@ -2703,14 +3107,7 @@ function drawFx(f, H) {
       ctx.lineCap = 'butt';
       break;
     }
-    case 'vap': {                           // 증발: 하얀 섬광과 흩어지는 빛 알갱이
-      const q = 1 - p;
-      ctx.fillStyle = `rgba(255,255,255,${0.9 * p})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.7 + 1.1 * q), 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = `rgba(255,255,255,${p})`; ctx.lineWidth = 2; ctx.beginPath();
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + f.x, d1 = f.r * (0.8 + 1.8 * q); ctx.moveTo(f.x + Math.cos(a) * f.r * 0.6, f.y + Math.sin(a) * f.r * 0.6); ctx.lineTo(f.x + Math.cos(a) * d1, f.y + Math.sin(a) * d1); }
-      ctx.stroke();
-      break;
-    }
+    case 'vap': drawVap(f, p); break;       // 증발
     case 'cone': {                          // 산탄 폭발: 부채꼴
       const q = 1 - p, len = 30 + 34 * q, sp = f.sp, sx = Math.sin(sp) * len, cy = Math.cos(sp) * len;
       for (const [k, al] of [[1, 0.42], [0.62, 0.55]]) {
@@ -2759,14 +3156,10 @@ function drawFx(f, H) {
       break;
     }
     case 'ring':
-      if (f.nova) { drawNova(f, p); break; }
-      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - p * 0.65), f.full ? 0 : Math.PI, Math.PI * 2);
-      ctx.lineWidth = (f.fat ? 12 : 5) * p + 1; ctx.strokeStyle = rgba(f.c, 0.9 * p); ctx.stroke();
+      if (f.nova) drawNova(f, p); else drawRing(f, p);
       break;
     case 'boom':
-      if (f.fire) { drawFireBoom(f, p); break; }
-      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - p * 0.3), 0, Math.PI * 2);
-      ctx.fillStyle = rgba(f.c, 0.3 * p); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = rgba(f.c, 0.9 * p); ctx.stroke();
+      if (f.fire) drawFireBoom(f, p); else if (!f.mset) drawBoom(f, p);   // mset: 지뢰 설치 (지뢰가 내려앉는 모습은 drawMine 이 그린다)
       break;
     case 'bolt': {                          // 번개: 꺾인 선, 곁가지, 맞은 적마다 불꽃
       const sd = f.pts[1][0] * 0.37 + Math.floor(performance.now() / 45), path = [f.pts[0]];
@@ -2812,13 +3205,16 @@ function drawFx(f, H) {
       ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.7 - p * 0.7), 0, Math.PI * 2);
       ctx.lineWidth = f.boss ? 5 : 2; ctx.strokeStyle = `rgba(255,150,150,${p})`; ctx.stroke();
       break;
-    case 'spark': {                         // 피격 불꽃
-      const r = 8 + (1 - p) * 16;
-      ctx.fillStyle = rgba(f.c, p * 0.9); ctx.beginPath(); ctx.arc(f.x, f.y, 6 * p + 1, 0, 7); ctx.fill();
-      ctx.fillStyle = `rgba(255,255,255,${p * 0.8})`; ctx.beginPath(); ctx.arc(f.x, f.y, 3.5 * p + 0.5, 0, 7); ctx.fill();
-      ctx.strokeStyle = rgba(f.c, p); ctx.lineWidth = 3; ctx.beginPath();
-      for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + f.x; ctx.moveTo(f.x + Math.cos(a) * r * 0.4, f.y + Math.sin(a) * r * 0.4); ctx.lineTo(f.x + Math.cos(a) * r, f.y + Math.sin(a) * r); }
-      ctx.stroke();
+    case 'spark': {                         // 피격 불꽃: 작은 빛과, 길이와 방향이 저마다 다른 빛줄기가 튀어 나가며 짧아진다
+      const q = 1 - p, sd = f.x * 0.37 + f.y * 0.11, col = seenCol(f.c), e = VX.ease(q, 2);
+      VX.add(); VX.glow(f.x, f.y, 8 + 5 * q, col, 0.85 * p); VX.norm();
+      ctx.lineCap = 'round'; ctx.strokeStyle = rgba(VX.light ? VX.hot(col) : col, Math.min(1, p * 1.6)); ctx.lineWidth = 1.5 * p + 0.5; ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const a = (i + hash(sd + i * 2.9)) * 1.5708, l = 5 + 13 * hash(sd + i * 5.3), r0 = 2.5 + l * 0.9 * e, cs = Math.cos(a), sn = Math.sin(a);
+        ctx.moveTo(f.x + cs * r0, f.y + sn * r0); ctx.lineTo(f.x + cs * (r0 + l * p), f.y + sn * (r0 + l * p));
+      }
+      ctx.stroke(); ctx.lineCap = 'butt';
+      if (!VX.light) { ctx.fillStyle = `rgba(255,255,255,${p * 0.85})`; ctx.beginPath(); ctx.arc(f.x, f.y, 2.6 * p + 0.4, 0, 7); ctx.fill(); }
       break;
     }
     case 'num': {                           // 피해 숫자
@@ -2867,41 +3263,11 @@ function drawFx(f, H) {
     }
   }
 }
-// 보조 포탑: 무기 옆에 떠 있는 작은 포탑 (조준한 쪽을 향하고, 쏠 때 반동)
-function drawTurret(w, k, q, st, nowT) {
-  const tp = C.turretPos(k, q), bob = RM.matches ? 0 : Math.sin(nowT / 260 + k + q * 2) * 2, x = tp[0], y = tp[1] + bob;
-  const ang = (q ? w.g2 : w.g1) || 0, rc = S_t() - (q ? w.f2 : w.f1) < 0.1 ? 3 : 0, col = st.color;
-  ctx.strokeStyle = rgba(col, 0.35); ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo((k + 0.5) * C.LW, C.H - 8); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-  ctx.fillStyle = '#fff'; ctx.fillRect(-1.8, -14 + rc, 3.6, 10);           // 포신
-  ctx.fillStyle = col; ctx.fillRect(-1, -13 + rc, 2, 8);
-  ctx.restore();
-  ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2); ctx.fill();
-  ctx.lineWidth = 1.6; ctx.strokeStyle = '#fff'; ctx.stroke();
-  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill();
-}
-const S_t = () => C.S.t;
-// 지뢰: 땅에 박힌 둥근 장치. 점멸하다가 사라질 때가 되면 빨라진다
-function drawMine(m, nowT) {
-  const col = C.WEAPONS.shotgun.color, sc = m.mini ? 0.66 : 1.15;
-  const fast = m.t < 3 ? 110 : 300, on = RM.matches ? 1 : (Math.floor(nowT / fast + m.ph) % 2 === 0 ? 1 : 0);
-  ctx.strokeStyle = rgba(col, on ? 0.5 : 0.22); ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.arc(m.x, m.y, 17 * sc, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = 'rgba(30,30,40,.5)'; ctx.beginPath(); ctx.ellipse(m.x, m.y + 3, 11 * sc, 5 * sc, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#3b3f4d'; ctx.beginPath(); ctx.arc(m.x, m.y, 9 * sc, 0, Math.PI * 2); ctx.fill();
-  ctx.lineWidth = 2.4; ctx.strokeStyle = col; ctx.stroke();
-  ctx.fillStyle = on ? '#ff4d4d' : '#7a2a2a'; ctx.beginPath(); ctx.arc(m.x, m.y, 3.8 * sc, 0, Math.PI * 2); ctx.fill();
-  if (on) { ctx.fillStyle = 'rgba(255,80,80,.3)'; ctx.beginPath(); ctx.arc(m.x, m.y, 13 * sc, 0, Math.PI * 2); ctx.fill(); }
-}
 // 오래 남는 효과: 불길(불바다), 용융선, 잔광(빛의 고리)
 function drawKindPool(p, nowT, H) {
-  const al = Math.min(1, p.t / 0.5), mo = RM.matches ? 0 : 1;
   if (p.kind === 'fire') drawFireStrip(p);
-  else if (p.kind === 'melt') {          // 달궈진 선: 붉게 이글거리는 줄
-    const wd = 10 + mo * 3 * Math.sin(nowT / 120 + p.sd * 9), len = H - p.y;
-    ctx.fillStyle = `rgba(255,70,40,${0.22 * al})`; ctx.fillRect(p.x - wd * 1.5, p.y, wd * 3, len);
-    ctx.fillStyle = `rgba(255,120,50,${0.7 * al})`; ctx.fillRect(p.x - wd / 2, p.y, wd, len);
-    ctx.fillStyle = `rgba(255,240,200,${0.85 * al})`; ctx.fillRect(p.x - 1.8, p.y, 3.6, len);
-  } else if (p.kind === 'halo') drawHalo(p);
+  else if (p.kind === 'melt') drawMelt(p, H);
+  else if (p.kind === 'halo') drawHalo(p);
 }
 function drawRange(w, rk) {
   const H = C.H, W = C.W, st = C.stats(w), wx = (rk + 0.5) * C.LW;
@@ -3020,7 +3386,7 @@ function draw() {
     ctx.strokeStyle = p.c ? rgba(p.c, 0.55) : 'rgba(255,160,80,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]); ctx.stroke(); ctx.setLineDash([]);
   }
   const nowW = performance.now();
-  for (const m of S.mines) drawMine(m, nowW);
+  for (const m of S.mines) drawMine(m);
   if (S.pendingBoss) drawSummon(S.pendingBoss, H);
   let aimOut = null;                         // 전장 아래로 이어지는 예고선 (약탈: 훔칠 인벤토리 칸까지)
   for (const e of S.enemies) {              // 봉쇄, 약탈, 부식 예고: 보스에서 대상 칸까지 굵은 점선 빔과 맥동하는 표시
@@ -3045,51 +3411,21 @@ function draw() {
       ctx.save(); ctx.translate(e.x, e.y); ctx.scale(k, k); ctx.translate(-e.x, -e.y); drawEnemy(e); ctx.restore();
     } else drawEnemy(e);
   }
-  for (const b of S.beams) {                // 지속 빔
-    const st = b.st, x = (b.k + 0.5) * C.LW, len = st.range * H, wd = 10 + Math.random() * 8;
-    ctx.fillStyle = rgba(st.color, 0.55); ctx.fillRect(x - wd / 2, H - len, wd, len);
-    ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(x - 2, H - len, 4, len);
+  for (const b of S.beams) {                // 지속 빔: 꺼질 때는 가늘어지며 사라진다
+    const u = VX.ui(b); if (u.n) u.t0 = S.t;
+    drawHoldBeam(b.k, b.st, b, Math.min(1, b.t / 0.12, 0.45 + (S.t - u.t0) / 0.08), u.sd * 40);
   }
   for (let k = 0; k < C.LANES; k++) {       // 진화 무기의 스킬 표시 (항상 켜진 것들)
     const w = S.slots[k]; if (!w || !w.evo) continue;
     const st = C.stats(w), x = (k + 0.5) * C.LW;
-    if (w.type === 'laser' && st.always) {  // 상시 빔: 꺼지지 않는 빔
-      const len = st.range * H, wd = 8 + (RM.matches ? 0 : 3 * Math.sin(nowT / 70 + k));
-      ctx.fillStyle = rgba(st.color, 0.2); ctx.fillRect(x - wd * 1.6, H - len, wd * 3.2, len);
-      ctx.fillStyle = rgba(st.color, 0.7); ctx.fillRect(x - wd / 2, H - len, wd, len);
-      ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(x - 1.8, H - len, 3.6, len);
-      ctx.fillStyle = rgba(st.color, 0.55); ctx.beginPath(); ctx.arc(x, H - len, 7 + (RM.matches ? 0 : 2 * Math.sin(nowT / 90)), 0, Math.PI * 2); ctx.fill();
-    }
+    if (w.type === 'laser' && st.always) drawHoldBeam(k, st, w, 1, k * 7.3 + 1);   // 상시 빔: 꺼지지 않는 빔
     if (w.type !== 'pulse') continue;
-    if (st.fld) {                           // 역장: 항상 켜진 원
-      const R = st.radius * 0.7, rot = RM.matches ? 0 : nowT / 1600;
-      ctx.beginPath(); ctx.arc(x, H, R, Math.PI, Math.PI * 2); ctx.fillStyle = rgba(st.color, 0.1); ctx.fill();
-      ctx.setLineDash([9, 7]); ctx.lineDashOffset = -rot * 40; ctx.lineWidth = 2.5; ctx.strokeStyle = rgba(st.color, 0.75); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, H, R * 0.86, Math.PI, Math.PI * 2); ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(st.color, 0.35); ctx.stroke();
-      ctx.setLineDash([]); ctx.lineDashOffset = 0;
-    }
+    if (st.fld) drawField(x, H, st.radius * 0.7, st, w, k);   // 역장: 항상 켜진 막
     if (st.orbs) {
       const sz = st.orbSize || 1;
-      if (st.orbChain && st.orbs > 1) {     // 전기 사슬: 구체 사이의 번개 줄
-        for (let i = 0; i < st.orbs; i++) C.orbPos(k, st, i, S.t, OPOS[i]);
-        const segs = st.orbs === 2 ? 1 : st.orbs, tick = Math.floor(nowT / 55);
-        ctx.lineJoin = 'round';
-        for (let q = 0; q < segs; q++) {
-          const a = OPOS[q], b = OPOS[(q + 1) % st.orbs], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, n = Math.max(3, Math.round(len / 22));
-          ctx.beginPath(); ctx.moveTo(a[0], a[1]);
-          for (let j = 1; j < n; j++) { const u = j / n, off = (hash(tick * 3.1 + q * 17 + j) - 0.5) * 20; ctx.lineTo(a[0] + dx * u + nx * off, a[1] + dy * u + ny * off); }
-          ctx.lineTo(b[0], b[1]);
-          ctx.lineWidth = 6; ctx.strokeStyle = rgba(st.color, 0.25); ctx.stroke();
-          ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
-        }
-      }
-      for (let i = 0; i < st.orbs; i++) {
-        for (let j = 9; j >= 0; j--) {      // 작은 점과 지나온 궤적
-          const q = C.orbPos(k, st, i, S.t - j * 0.035, OPOS[4]);
-          ctx.beginPath(); ctx.arc(q[0], q[1], 7 * sz * (1 - j / 12), 0, Math.PI * 2);
-          ctx.fillStyle = j ? rgba(st.color, 0.42 * (1 - j / 10)) : st.color; ctx.fill();
-        }
-      }
+      for (let i = 0; i < st.orbs; i++) C.orbPos(k, st, i, S.t, OPOS[i]);
+      if (st.orbChain && st.orbs > 1) drawOrbChain(st, k, st.orbs);   // 전기 사슬: 구체 사이의 번개 줄
+      for (let i = 0; i < st.orbs; i++) drawOrb(k, st, i, OPOS[i], sz);
     }
   }
   ctx.lineCap = 'round';
@@ -3101,28 +3437,11 @@ function draw() {
       continue;
     }
     if (b.fl) { drawFlameShot(b); continue; }   // 화염 산탄: 날아갈수록 커지는 불덩이
-    if (b.sm) {                             // 보조 포탑의 작은 탄
-      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.022, b.y - b.vy * 0.022);
-      ctx.lineWidth = 4; ctx.strokeStyle = rgba(b.c, 0.3); ctx.stroke();
-      ctx.lineWidth = 1.8; ctx.strokeStyle = '#fff'; ctx.stroke();
-      continue;
-    }
+    if (b.sm) { drawTurShot(b); continue; }     // 보조 포탑의 작은 탄
     const ty = b.st && b.st.type;
     if (ty === 'blaster') {
-      if (b.th) {                           // 개틀링: 가늘고 짧은 탄. 달아오르면 하얗고 붉은 빛이 번진다
-        if (b.hl) { ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.03, b.y - b.vy * 0.03); ctx.lineWidth = 4.5; ctx.strokeStyle = `rgba(255,90,40,${0.12 + 0.05 * b.hl})`; ctx.stroke(); }
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.016, b.y - b.vy * 0.016);
-        ctx.lineWidth = 2.2; ctx.strokeStyle = b.c; ctx.stroke();
-        continue;
-      }
-      if (b.bm) {                           // 광탄: 길쭉한 빛살
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.085 * k, b.y - b.vy * 0.085 * k);
-        ctx.lineWidth = 9; ctx.strokeStyle = rgba(b.c, 0.22); ctx.stroke();
-        ctx.lineWidth = 4; ctx.strokeStyle = rgba(b.c, 0.85); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.06 * k, b.y - b.vy * 0.06 * k);
-        ctx.lineWidth = 1.8; ctx.strokeStyle = '#fff'; ctx.stroke();
-        continue;
-      }
+      if (b.th) { drawGatShot(b); continue; }   // 개틀링: 가늘고 빠른 빛줄기
+      if (b.bm) { drawLance(b, k); continue; }   // 광탄: 길쭉한 빛살
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.092 * k, b.y - b.vy * 0.092 * k);   // 아주 짧은 잔상
       ctx.lineWidth = 2.6 * k; ctx.strokeStyle = rgba(b.c, 0.16); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.05 * k, b.y - b.vy * 0.05 * k);   // 날카로운 탄과 짧게 빛나는 꼬리
@@ -3189,13 +3508,10 @@ function draw() {
       ctx.fillStyle = rgba(col, 0.9); ctx.beginPath(); ctx.arc(x, H - 14, 2 + 4 * q, 0, Math.PI * 2); ctx.fill();
     }
     const hl = w.evo ? C.heatLevel(w) : 0;
-    if (hl > 0) {                           // 예열: 무기 둘레가 붉게 달아오른다
-      ctx.fillStyle = `rgba(255,70,30,${0.5 * hl})`; ctx.beginPath(); ctx.arc(x, H - 8, 16 + 14 * hl, Math.PI, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = `rgba(255,190,120,${0.7 * hl})`; ctx.beginPath(); ctx.arc(x, H - 8, 8 + 6 * hl, Math.PI, Math.PI * 2); ctx.fill();
-    }
+    if (hl > 0) drawHeat(x, H, hl, k);      // 예열: 무기 둘레가 달아오른다
     ctx.fillStyle = hl > 0 ? `rgb(255,${Math.round(110 + 100 * (1 - hl))},${Math.round(80 + 120 * (1 - hl))})` : C.WEAPONS[w.type].color; ctx.beginPath();
     ctx.moveTo(x, H - 13); ctx.lineTo(x + 9, H - 3); ctx.lineTo(x - 9, H - 3); ctx.closePath(); ctx.fill();
-    if (w.evo && w.type === 'blaster') { const st = C.stats(w); if (st.tur) for (let q = 0; q < (st.turTwin ? 2 : 1); q++) drawTurret(w, k, q, st, nowT); }
+    if (w.evo && w.type === 'blaster') { const st = C.stats(w); if (st.tur) for (let q = 0; q < (st.turTwin ? 2 : 1); q++) drawTurret(w, k, q, st); }
   }
 }
 
