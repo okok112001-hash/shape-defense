@@ -3388,9 +3388,22 @@ function drawField(x, H, R, st, w, k) {
     ctx.beginPath(); ctx.moveTo(xa, yy); ctx.lineTo(xa + side * len * 0.6, yy + e);
     ctx.lineWidth = 1.8 * (1 - 0.4 * e); ctx.strokeStyle = rgba(c2, a); ctx.stroke();
   }
-  const now = C.S.t;
-  for (const e of C.S.enemies) {            // 끌려가는 적: 끌려온 쪽으로 남는 꼬리 세 가닥
-    if (e.dead || e.pullT == null || now - e.pullT > 0.05 || Math.abs(e.x - x) > R) continue;
+  const now = C.S.t, c3 = L ? VX.mix(col, -0.25) : hot;
+  for (const e of C.S.enemies) {
+    if (e.dead || Math.abs(e.x - x) > R + e.r) continue;
+    if (st.fldDps && e.crT != null && now - e.crT < 0.05) {   // 짓눌리는 적: 바깥에서 몸 쪽으로 조여 드는 짧은 빛줄기 셋 (각도, 빠르기, 길이가 저마다 다르다)
+      const sd = e.r * 1.7 + e.y * 0.013;
+      for (let q = 0; q < 3; q++) {
+        const tt = t * (1.6 + 0.7 * hash(sd + q * 4.1)) + hash(sd * 2.3 + q), cyc = Math.floor(tt), ph = tt - cyc;
+        const an = q * 2.09 + (hash(cyc * 1.9 + q * 6.3 + sd) - 0.5) * 1.4, ca = Math.cos(an), sa = Math.sin(an);
+        const r0 = e.r * (1.05 + 0.85 * (1 - VX.ease(ph, 2))), ln = (6 + 6 * hash(cyc + q * 2.7 + sd)) * (1 - 0.6 * ph), a = Math.sin(Math.PI * ph) * (L ? 0.7 : 0.6);
+        if (a < 0.04) continue;
+        ctx.beginPath(); ctx.moveTo(e.x + ca * (r0 + ln), e.y + sa * (r0 + ln)); ctx.lineTo(e.x + ca * r0, e.y + sa * r0);
+        ctx.lineWidth = 1.7; ctx.strokeStyle = rgba(c3, a); ctx.stroke();
+      }
+    }
+    // 끌려가는 적: 끌려온 쪽으로 남는 꼬리 세 가닥
+    if (e.pullT == null || now - e.pullT > 0.05 || Math.abs(e.x - x) > R) continue;
     const d = e.pullD || 1, bx = e.x - d * e.r * 0.8;
     for (let q = -1; q <= 1; q++) {
       const yy = e.y + q * e.r * 0.45, ln = (12 + 8 * hash(e.r + q * 3.3 + Math.floor(t * 9))) * (q ? 0.7 : 1);

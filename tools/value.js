@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, mine: 1, sea: 1, carpet: 1, shock: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -151,9 +151,10 @@ function model(st, ref, c, lay, PP) {
       if (st.split) hits += st.split * 0.35 * occ(nIn(lam, 240 * 48));
       if (st.splash) hits += st.splash * splashN(62 * (1 + st.areaPct));
       let shot = hits;
-      if (st.gnt) {   // 거대탄: 4번째마다, 레인의 모든 적 (관통마다 x0.85)
+      if (st.gnt) {   // 거대탄: gntEvery 번째마다, 레인의 모든 적 (관통마다 x0.85)
+        const ge = st.gntEvery || 4;
         let g = 0, f = 1; for (let i = 0; i < 40; i++) { g += f * atLeast(lam * 1.1, i + 1); f *= 0.85; }
-        shot = (3 * hits + st.gntM * g) / 4; hsz = (3 + st.gntM) / 4;
+        shot = ((ge - 1) * hits + st.gntM * g) / ge; hsz = (ge - 1 + st.gntM) / ge;
       }
       dir = rate * shot * busy * tf;
       burnN = rate * one * busy * tf;
@@ -184,12 +185,11 @@ function model(st, ref, c, lay, PP) {
         sig.push(Math.min(0.9, st.slugKn / (cb.v * Math.max(1, slugT))) * (1 - bb) * Math.min(1, sl / lanesN));
         if (st.slugStun) sig.push(Math.min(0.9, st.slugStun / slugT) * (1 - bb) * Math.min(1, sl / lanesN));
       }
-      if (st.dragon) {   // 용 머리: 5번째마다 정면 레인 끝까지 모든 적 (줄지 않음) + 화염 화상
+      if (st.dragon) {   // 용 머리: 5번째마다 정면 레인 끝까지 모든 적 (줄지 않음). 화상은 붙이지 않는다 (T6)
         const g = lam * 1.1 + 0.3;
         dir += rate / 5 * st.dragon * g;
-        if (st.flame) dot += rate / 5 * g * st.flame * 3 * 0.5;   // 이미 불붙은 적이 많아 절반만 셈
       }
-      if (st.flame) dot += burnN * st.flame * Math.min(3, tau);   // 화염 산탄: 맞은 적마다 공격력 x flame 초당, 3초
+      if (st.flame) dot += burnN * st.flame * Math.min(3, tau) * pm.flame;   // 화염 산탄: 맞은 적마다 공격력 x flame 초당, 3초. 화상은 쌓이지 않아(가장 센 것 하나) 여러 자루가 겹치면 덜 센다 (flame 계수)
       if (st.sea) {   // 불바다: 탄 길의 먼 절반에 2초 불길 (레인마다 최대 3줄)
         const inStrip = capE(nIn(lam, 36 * r * H * 0.5), N) * 1.5 * pm.sea;
         dot += lanesN * st.sea * inStrip * Math.min(1, 2 / tau);
@@ -239,6 +239,7 @@ function model(st, ref, c, lay, PP) {
         if (st.orbChain && st.orbs > 1) { const segs = st.orbs === 2 ? 1 : st.orbs; dot += segs * st.orbDps * st.orbChainD * band * 0.8; sig.push(Math.min(0.5, 0.15 * segs * band / Math.max(1, mu)) * (1 - bb)); }
       }
       if (st.fld) sig.push(Math.min(0.6, st.fld / 100 * 0.12 * pm.fld) * (1 - 0.5 * bb));   // 역장: 끌어당겨 무기 앞에 모은다 (머무는 시간으로 본다)
+      if (st.fldDps) { const Rf = R * 0.7; dot += st.fldDps * capE(nIn(lam, Math.PI * Rf * Rf / 2) * pm.crush, N); }   // 압착 (T6): 역장 안 적에게 지속 피해
       ccHit(tau, st.knock);
       break;
     }
@@ -699,7 +700,9 @@ function reportText(T, PP, fitInfo) {
 }
 
 /* ---------- 영점 맞춤과 비교 ---------- */
-const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f))];
+// 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt'];
+const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};
   for (const x of sk) { const s = m[x.id] = m[x.id] || {}; (s['_' + x.mode] = s['_' + x.mode] || []).push(1 + x.meas); }
@@ -723,7 +726,7 @@ function fitAll() {
   const o = [];
   o.push('도형 디펜스 수치 가치 환산 계산기: 영점 맞춤 결과 (tools/value.js fit)');
   o.push(`생성: ${new Date().toISOString()}  자료: tools/item_eq.json ${cells.length}칸, 스킬 ${sk.length}칸 (${[...new Set(sk.map((x) => x.file))].join(', ')}), 소요 ${meta.minutes}분`);
-  o.push('셀 = 측정 / 예측 (가치 %, ">" = 측정이 천장에 닿아 하한). 비 = (1+예측)/(1+측정) 의 기하평균 (1 이면 맞음). 맞춤에 쓴 자료와 비교하는 자료가 같다(표본 안 비교). 스킬 줄은 기구 계수 4개만 스킬 자료로 맞췄다.');
+  o.push('셀 = 측정 / 예측 (가치 %, ">" = 측정이 천장에 닿아 하한). 비 = (1+예측)/(1+측정) 의 기하평균 (1 이면 맞음). 맞춤에 쓴 자료와 비교하는 자료가 같다(표본 안 비교). 스킬 줄은 기구 계수(m)만 스킬 자료로 맞췄다.');
   const groups = new Map();
   for (const x of cells.concat(sk)) { const k = x.src === 'SK' ? `SK|${x.id}|${x.mode}` : `${x.team}|${x.id}|${x.g}|${x.vv}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
   const rows = [];
@@ -755,7 +758,7 @@ function fitAll() {
   o.push('[계수] (tools/value_cal.json)');
   for (const c of CTX) o.push(`  ${pad(CTX_KO[c], 8)} 밀도 lam=${(CB[c].lam0 * P.c[c].lf).toFixed(2)} (적이 안 죽을 때 ${CB[c].lam0.toFixed(1)} x 생존 비율 ${P.c[c].lf.toFixed(2)})  처치 타수 K=${P.c[c].K.toFixed(2)}  대형 적 비중 ${(Math.min(0.98, CB[c].beta0 * P.c[c].bf) * 100).toFixed(0)}% (구성 ${(CB[c].beta0 * 100).toFixed(0)}% x ${P.c[c].bf.toFixed(2)})  군중 제어 cc=${P.c[c].cc.toFixed(2)}  먼 적 phi=${P.c[c].phi.toFixed(2)}`);
   for (const t of WEAPON_IDS) { const w = P.w[t]; o.push(`  ${pad(t, 8)} 타수 kw=${w.kw.toFixed(2)}  밀도 dw=${w.dw.toFixed(2)}  공속 효율 kr=${w.kr.toFixed(2)}  사거리 kg=${w.kg.toFixed(2)}  제어 ccw=${w.ccw.toFixed(2)}  대형 bw=${w.bw.toFixed(2)}  취약 팀몫 vt=${w.vt.toFixed(2)}  운반 피해 비율 ${w.sh != null ? (w.sh * 100).toFixed(0) + '%' : '-'}`); }
-  o.push(`  스킬 기구: 위성 구체 접촉 ${P.m.orb.toFixed(2)}, 역장 ${P.m.fld.toFixed(2)}, 지뢰 ${P.m.mine.toFixed(2)}, 불바다 ${P.m.sea.toFixed(2)}, 융단 폭격 ${P.m.carpet.toFixed(2)}, 충격파 ${P.m.shock.toFixed(2)} (박격포 둘은 아직 영점 전)`);
+  o.push(`  스킬 기구: 위성 구체 접촉 ${P.m.orb.toFixed(2)}, 역장 ${P.m.fld.toFixed(2)}, 압착 ${P.m.crush.toFixed(2)}, 화염 산탄 ${P.m.flame.toFixed(2)}, 지뢰 ${P.m.mine.toFixed(2)}, 불바다 ${P.m.sea.toFixed(2)}, 융단 폭격 ${P.m.carpet.toFixed(2)}, 충격파 ${P.m.shock.toFixed(2)} (박격포 둘은 아직 영점 전)`);
   fs.writeFileSync(path.join(__dirname, 'value_fit.txt'), o.join('\n') + '\n');
   return { skMeas: skMeasOf(sk) };
 }

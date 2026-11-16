@@ -263,20 +263,20 @@ const NEWSK = {
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
   warm:     { name: '예열', d: (k, c) => `쉬지 않고 쏘면 발사마다 공격 속도 +${r1(0.6 * k * c)}% (최대 +${r1(6 * k * c)}%). 1.5초 쉬면 초기화`, ap: (s, k, c) => { s.warm = k; s.warmR = 0.006 * k * c; } },
   tri:      { name: '삼연장', d: (k, c) => `양옆 레인에도 동시에 발사 (옆 레인 탄 피해 ${pc(0.5 * c)}%)`, ap: (s, k, c) => { s.tri = 1; s.triD = 0.5 * c; } },
-  lightb:   { name: '광탄', d: (k) => `탄이 빛살로 바뀌고 적 ${k}명을 추가로 관통 (관통할 때마다 피해 -45%)`, ap: (s, k) => { s.beam = k; s.pierce += k; } },
-  accel:    { name: '가속 관통', d: (k) => `관통할 때 줄어드는 피해를 ${9 * k}%p 완화 (관통당 -${Math.max(0, 45 - 9 * k)}%)`, ap: (s, k) => { s.pk = Math.min(1, 0.55 + 0.09 * k); } },
-  gigab:    { name: '거대탄', d: (k, c) => `4번째 발사마다 레인 폭 거대탄: 피해 ${r1(3 * c)}배, 모든 적 관통`, ap: (s, k, c) => { s.gnt = 1; s.gntM = 3 * c; } },
+  lightb:   { name: '광탄', d: (k) => `탄이 빛살로 바뀌고 적 ${k}명을 추가로 관통 (관통할 때마다 피해 -65%)`, ap: (s, k) => { s.beam = k; s.pierce += k; s.pk = 0.35; } },
+  accel:    { name: '가속 관통', d: (k) => `관통할 때 줄어드는 피해를 ${4 * k}%p 완화 (관통당 -${65 - 4 * k}%)`, ap: (s, k) => { s.pk = Math.min(1, 0.35 + 0.04 * k); } },
+  gigab:    { name: '거대탄', d: (k, c) => `6번째 발사마다 레인 폭 거대탄: 피해 ${r1(2 * c)}배, 모든 적 관통`, ap: (s, k, c) => { s.gnt = 1; s.gntM = 2 * c; s.gntEvery = 6; } },
   turret:   { name: '보조 포탑', d: (k, c) => `옆에 작은 포탑이 떠서 옆 레인을 공격 (피해 공격력의 ${pc(0.12 * k * c)}%)`, ap: (s, k, c) => { s.tur = k; s.turD = 0.12 * k * c; } },
   turboost: { name: '포탑 과급', d: (k) => `포탑 공격 속도 +${10 * k}%`, ap: (s, k) => { s.turRate = 0.1 * k; } },
   twinturr: { name: '쌍포탑', d: () => '반대쪽에 포탑 하나 더. 포탑 탄이 맞으면 작은 폭발 (반경 45, 탄 피해 40%)', ap: (s) => { s.turTwin = 1; } },
   // 산탄포 - 슬러그
   slugb:    { name: '슬러그탄', d: (k, c) => `3번째 발사마다 정면에 대형 탄: 피해 공격력의 ${pc((0.4 + 0.2 * k) * c)}%, 모든 적 관통, 밀어냄 12`, ap: (s, k, c) => { s.slug = (0.4 + 0.2 * k) * c; s.slugKn += 12; s.slugEvery = 3; } },
-  heavyb:   { name: '묵직한 탄', d: (k) => `슬러그에 맞은 적이 ${r1(0.15 * k)}초 기절 (보스 제외)`, ap: (s, k) => { s.slugStun = 0.15 * k; } },
-  twinslug: { name: '쌍열', d: () => '2번째 발사마다 슬러그. 정면과 양옆 3레인 모두에 발사', ap: (s) => { s.slugTwin = 1; s.slugEvery = 2; } },
+  heavyb:   { name: '묵직한 탄', d: (k) => `슬러그에 맞은 적이 ${r1(0.06 * k)}초 기절 (보스 제외)`, ap: (s, k) => { s.slugStun = 0.06 * k; } },
+  twinslug: { name: '쌍열', d: () => '슬러그를 정면과 양옆 3레인 모두에 발사', ap: (s) => { s.slugTwin = 1; } },
   // 산탄포 - 용의 숨결
-  flameb:   { name: '화염 산탄', d: (k, c) => `산탄이 부채꼴 불꽃으로 바뀜. 맞은 적은 3초간 초당 공격력의 ${pc(0.08 * k * c)}% 화상`, ap: (s, k, c) => { s.flame = 0.08 * k * c; } },
+  flameb:   { name: '화염 산탄', d: (k, c) => `산탄이 부채꼴 불꽃으로 바뀜. 맞은 적은 3초간 초당 공격력의 ${pc(0.3 * k * c)}% 화상`, ap: (s, k, c) => { s.flame = 0.3 * k * c; } },
   sea:      { name: '불바다', d: (k, c) => `탄이 지나간 자리에 2초간 불길이 남음. 불길 위의 적은 초당 공격력의 ${pc(0.06 * k * c)}% 피해`, ap: (s, k, c) => { s.sea = 0.06 * k * c; } },
-  dragon:   { name: '용 머리', d: (k, c) => `5번째 발사마다 용 머리 불길이 정면 레인 끝까지 뻗음. 닿는 모든 적에게 공격력의 ${pc(1.5 * c)}% 피해와 화상`, ap: (s, k, c) => { s.dragon = 1.5 * c; } },
+  dragon:   { name: '용 머리', d: (k, c) => `5번째 발사마다 용 머리 불길이 정면 레인 끝까지 뻗음. 닿는 모든 적에게 공격력의 ${pc(1 * c)}% 피해`, ap: (s, k, c) => { s.dragon = 1 * c; } },
   // 산탄포 - 지뢰
   mineb:    { name: '산탄 지뢰', d: (k, c) => `4초마다 사거리 안에 지뢰를 깜. 밟으면 폭발 (반경 60, 공격력의 ${pc(0.6 * k * c)}%). 최대 3개, 12초 유지`, ap: (s, k, c) => { s.mine = 0.6 * k * c; s.mineMax += 3; s.mineCd += 4; } },
   quickm:   { name: '빠른 매설', d: (k) => `설치 간격 -${r1(0.4 * k)}초 (${r1(4 - 0.4 * k)}초), 최대 ${3 + (k >= 3 ? 1 : 0) + (k >= 5 ? 1 : 0)}개`, ap: (s, k) => { s.mineCd -= 0.4 * k; s.mineMax += (k >= 3 ? 1 : 0) + (k >= 5 ? 1 : 0); } },
@@ -291,7 +291,7 @@ const NEWSK = {
   rainbow:  { name: '무지개', d: () => '갈라진 빔이 한 번 더 갈라져 모든 레인을 덮음 (바깥 레인은 60%). 빔이 무지개색', ap: (s) => { s.rainbow = 1; } },
   // 레이저 - 용융
   meltb:    { name: '용융선', d: (k, c) => `빔이 지나간 레인 바닥에 2초간 달궈진 선이 남음. 선 위의 적은 초당 공격력의 ${pc(0.08 * k * c)}% 피해`, ap: (s, k, c) => { s.melt = 0.08 * k * c; s.meltT += 2; } },
-  afterh:   { name: '긴 열기', d: (k) => `용융선 유지 +${r1(0.4 * k)}초, 선 위의 적 ${5 * k}% 둔화`, ap: (s, k) => { s.meltT += 0.4 * k; s.meltSlow = 0.05 * k; } },
+  afterh:   { name: '긴 열기', d: (k, c) => `용융선 유지 +${r1(0.4 * k)}초, 피해 +${pc(0.2 * k * c)}%, 선 위의 적 ${5 * k}% 둔화`, ap: (s, k, c) => { s.meltT += 0.4 * k; s.meltSlow = 0.05 * k; s.melt *= 1 + 0.2 * k * c; } },
   vanish:   { name: '소멸', d: () => '이 무기의 빔이나 용융선으로 체력 15% 이하가 된 일반 적은 즉시 증발', ap: (s) => { s.vap = 0.15; } },
   // 펄스 - 초신성
   novab:    { name: '초신성', d: (k, c) => `5번째 파동마다 거대 파동: 범위 x${r1(1.4 + 0.16 * k)}, 피해 x${r1(1 + 0.2 * k * c)}`, ap: (s, k, c) => { s.nova = 1 + 0.2 * k * c; s.novaR = 1.4 + 0.16 * k; s.novaEvery = 5; } },
@@ -302,7 +302,7 @@ const NEWSK = {
   orbit:    { name: '궤도 확장', d: (k) => `궤도 반경 +${6 * k}%, 구체 크기 +${8 * k}%`, ap: (s, k) => { s.orbRad = 1 + 0.06 * k; s.orbSize = 1 + 0.08 * k; } },
   orbchain: { name: '전기 사슬', d: (k, c) => `구체끼리 번개 줄로 이어짐. 줄에 닿는 적도 피해 (구체 피해의 ${pc(0.6 * c)}%)와 0.3초 기절 (보스 제외, 적 하나당 2초에 한 번)`, ap: (s, k, c) => { s.orbChain = 1; s.orbChainD = 0.6 * c; } },
   // 펄스 - 역장
-  fieldb:   { name: '역장', d: (k) => `무기 주변에 항상 켜진 역장 (파동 범위의 70%). 안의 적을 옆으로 끌어 무기 앞에 모음 (초당 레인 폭의 ${6 * k}%, 보스는 절반)`, ap: (s, k) => { s.fld = 6 * k; } },
+  fieldb:   { name: '역장', d: (k, c) => `무기 주변에 항상 켜진 역장 (파동 범위의 70%). 안의 적을 무기 앞으로 끌어 모으며 (초당 레인 폭의 ${6 * k}%, 보스는 절반) 초당 공격력의 ${pc(0.2 * k * c)}% 압착 피해`, ap: (s, k, c) => { s.fld = 6 * k; s.fldDps = 0.2 * k * c; } },
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
   counter:  { name: '반격', d: () => '적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번)', ap: (s) => { s.counter = 1; } },
   // 박격포 - 핵탄두
@@ -328,17 +328,17 @@ const SNW = (id, t) => mkNode(id, t, { nw: NEWSK[id], sc: 1 });
 // 줄: 이름, 노드 3개, 세기 배율(sc). 배율은 tools/balance_log.md 에 기록한다
 const LINE = (name, nodes, sc) => { nodes.forEach((n) => { if (n.nw) n.sc = sc == null ? 1 : sc; }); return { name, nodes }; };
 const SKILLS = {
-  blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('tri', 'cap')], 0.5),
+  blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('tri', 'cap')], 0.9),
             LINE('광탄', [SNW('lightb', 'root'), SNW('accel', 'up'), SNW('gigab', 'cap')]),
-            LINE('보조 포탑', [SNW('turret', 'root'), SNW('turboost', 'up'), SNW('twinturr', 'cap')])],
-  shotgun: [LINE('슬러그', [SNW('slugb', 'root'), SNW('heavyb', 'up'), SNW('twinslug', 'cap')]),
+            LINE('보조 포탑', [SNW('turret', 'root'), SNW('turboost', 'up'), SNW('twinturr', 'cap')], 0.6)],
+  shotgun: [LINE('슬러그', [SNW('slugb', 'root'), SNW('heavyb', 'up'), SNW('twinslug', 'cap')], 0.4),
             LINE('용의 숨결', [SNW('flameb', 'root'), SNW('sea', 'up'), SNW('dragon', 'cap')]),
-            LINE('지뢰', [SNW('mineb', 'root'), SNW('quickm', 'up'), SNW('chainm', 'cap')])],
-  laser:   [LINE('지속 빔', [SNW('holdb', 'root'), SNW('focus', 'up'), SNW('always', 'cap')]),
-            LINE('프리즘', [SNW('prismb', 'root'), SNW('spectrum', 'up'), SNW('rainbow', 'cap')]),
+            LINE('지뢰', [SNW('mineb', 'root'), SNW('quickm', 'up'), SNW('chainm', 'cap')], 0.42)],
+  laser:   [LINE('지속 빔', [SNW('holdb', 'root'), SNW('focus', 'up'), SNW('always', 'cap')], 0.35),
+            LINE('프리즘', [SNW('prismb', 'root'), SNW('spectrum', 'up'), SNW('rainbow', 'cap')], 0.75),
             LINE('용융', [SNW('meltb', 'root'), SNW('afterh', 'up'), SNW('vanish', 'cap')])],
   pulse:   [LINE('초신성', [SNW('novab', 'root'), SNW('afterg', 'up'), SNW('twinstar', 'cap')]),
-            LINE('위성 구체', [SNW('orbb', 'root'), SNW('orbit', 'up'), SNW('orbchain', 'cap')], 2),
+            LINE('위성 구체', [SNW('orbb', 'root'), SNW('orbit', 'up'), SNW('orbchain', 'cap')], 1.8),
             LINE('역장', [SNW('fieldb', 'root'), SNW('weaken', 'up'), SNW('counter', 'cap')])],
   mortar:  [LINE('핵탄두', [SNW('nukeb', 'root'), SNW('shockw', 'up'), SNW('chainuke', 'cap')]),
             LINE('융단 폭격', [SNW('carpet', 'root'), SNW('bombbay', 'up'), SNW('airstrike', 'cap')]),
@@ -559,13 +559,13 @@ function blankStats(lanes, chain) {
     overload: 0, aDur: 0, linger: 0,   // 스킬 전용 효과 (2차분 무기)
     spread: 0, nolimit: 0,             // 범위 공격의 최대 타격 수 (다중 타격기, 제한 해제기)
     // 블래스터 스킬: 개틀링, 예열, 삼연장 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
-    gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, tur: 0, turD: 0, turRate: 0, turTwin: 0,
+    gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, gntEvery: 4, tur: 0, turD: 0, turRate: 0, turTwin: 0,
     // 산탄포 스킬: 슬러그 / 용의 숨결 / 지뢰
     slugKn: 0, slugStun: 0, slugTwin: 0, slugEvery: 0, flame: 0, sea: 0, dragon: 0, mine: 0, mineMax: 0, mineCd: 0, mineChain: 0,
     // 레이저 스킬: 지속 빔 / 프리즘 / 용융
     holdT: 0, holdD: 0, focus: 0, always: 0, alwaysM: 0, prism: 0, prismUp: 0, rainbow: 0, melt: 0, meltT: 0, meltSlow: 0, vap: 0,
     // 펄스 스킬: 초신성 / 위성 구체 / 역장
-    novaR: 0, novaEvery: 0, halo: 0, twinStar: 0, orbDps: 0, orbRad: 1, orbSize: 1, orbChain: 0, orbChainD: 0, fld: 0, fldVuln: 0, counter: 0,
+    novaR: 0, novaEvery: 0, halo: 0, twinStar: 0, orbDps: 0, orbRad: 1, orbSize: 1, orbChain: 0, orbChainD: 0, fld: 0, fldDps: 0, fldVuln: 0, counter: 0,
     // 박격포 스킬: 핵탄두 / 융단 폭격 / 미사일
     nuke: 0, nukeR: 0, nukeEvery: 0, nShock: 0, nShockKn: 0, nukeQuake: 0, carpet: 0, carpetD: 0, air: 0, msl: 0, mirv: 0, mirvD: 0, mslTwin: 0,
     };
@@ -1076,7 +1076,7 @@ function dot(e, amt, st, vap) {
 function vaporize(e) { fx({ k: 'vap', d: 0.4, x: e.x, y: e.y, r: e.r }); }   // 하얀 섬광
 let sparkCap = Infinity;   // 한 번에 낼 수 있는 피격 불꽃 수 (산성 분사기처럼 자주 때리는 무기용)
 // fixed: 치명타와 각종 피해 보정을 건너뛴다 (넘겨받은 잔여 피해용)
-function hit(e, amt, st, noSplash, fixed, noFx) {
+function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄 화상을 붙이지 않는다 (용 머리)
   if (e.dead) return;
   let d = amt, crit = false;
   if (!fixed) {
@@ -1103,7 +1103,7 @@ function hit(e, amt, st, noSplash, fixed, noFx) {
   credit(st, d, e);
   e.hp -= d; e.flash = 0.12;
   if (!noFx) {
-  if (st.flame) { e.fT = 3; e.fDps = Math.max(e.fDps || 0, st.dmg * st.flame); e.fSt = st; }   // 화염 산탄: 3초간 화상 (증강 화상과 따로 더해진다)
+  if (st.flame && !noFl) { e.fT = 3; e.fDps = Math.max(e.fDps || 0, st.dmg * st.flame); e.fSt = st; }   // 화염 산탄: 3초간 화상 (증강 화상과 따로 더해진다)
   if (st.slow) { e.slowT = 1.5; e.slowPct = Math.max(e.slowPct, e.boss ? st.slow * 0.5 : st.slow); }
   if (st.burn) { e.burnT = 3; e.burnDps = Math.max(e.burnDps, amt * st.burn); e.burnSt = st; }
   if (st.knock && !e.boss) e.y = Math.max(-e.r, e.y - st.knock);
@@ -1321,7 +1321,7 @@ function fire(w, slot, st) {
       if (st.beam) o.bm = 1;                       // 광탄: 빛살
       if (hl) o.hl = hl;
       const mz = fx({ k: 'muz', d: st.gat ? 0.07 : 0.1, x: wx, y: wy - 8, a: ang, c: o.c, g: st.gat ? 1 : 0, hl });   // 총구 섬광 (개틀링은 짧게 깜빡임)
-      if (st.gnt && w.n % 4 === 0) {        // 거대탄: 레인 폭, 모든 적 관통
+      if (st.gnt && w.n % st.gntEvery === 0) {        // 거대탄: 레인 폭, 모든 적 관통
         bullet(wx, wy, ang, st.dmg * st.gntM, st, H + 120, { pierce: 99, r: 44, rico: 0, split: 0, big: 1, sp: 760, c: st.color });
       } else {
         for (let i = 0; i < n; i++) {
@@ -1367,7 +1367,7 @@ function fire(w, slot, st) {
           fx({ k: 'slugf', d: 0.3, x: (j + 0.5) * LW, y: wy - 6, c: st.color });   // 발사 순간의 충격 고리
         }
       }
-      if (st.dragon && w.n % 5 === 0) {      // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화상은 hit 에서 화염 산탄 것이 붙는다)
+      if (st.dragon && w.n % 5 === 0) {      // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화염 산탄 화상은 붙이지 않는다, T6)
         bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 780, c: '#ff7a2e' });
         fx({ k: 'roar', d: 0.5, x: wx, y: wy - 8, sp: 0.3 });   // 아가리에서 터져 나오는 불꽃
       }
@@ -1716,15 +1716,22 @@ function skillStep(w, i, st, dt) {
     case 'pulse': {
       if (w.nv > 0) { w.nv -= dt; if (w.nv <= 0) { w.nv = 0; novaBlast(i, st, 0.7, false); } }   // 쌍성: 곧바로 한 번 더
       if (w.ct > 0) w.ct -= dt;
-      if (st.fld) {                          // 역장: 항상 켜져 있다. 안의 적을 옆으로 끌어 무기 앞(가운데)에 모은다 (아래로는 끌지 않는다)
-        const R = st.radius * 0.7, pull = st.fld * dt;
+      if (st.fld) {                          // 역장: 항상 켜져 있다. 안의 적을 옆으로 끌어 무기 앞(가운데)에 모으고 (아래로는 끌지 않는다) 압착 피해를 준다
+        const R = st.radius * 0.7, pull = st.fld * dt, list = FLD; list.length = 0;
         for (let j = 0, n = S.enemies.length; j < n; j++) {
           const e = S.enemies[j];
           if (e.dead || e.y + e.r <= 0 || !within(e.x - wx, e.y - H, R + e.r * 0.5)) continue;
           const dx = wx - e.x, mv = Math.min(Math.abs(dx), e.boss ? pull * 0.5 : pull);
           if (mv > 0) { e.x += dx > 0 ? mv : -mv; e.pullT = S.t; e.pullD = dx > 0 ? 1 : -1; }   // pullT, pullD: 화면용 (끌려가는 방향)
           if (st.fldVuln) { e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, st.fldVuln); e.vulnT = Math.max(e.vulnT, 0.3); }
+          list.push(e);
         }
+        if (st.fldDps && list.length) {      // 압착: 최대 타격 수까지 (기지에 가까운 적부터)
+          capPick(list, st.cap);
+          const a = st.dmg * st.fldDps * dt;
+          for (const e of list) { dot(e, a, st); e.crT = S.t; }   // crT: 화면용 (짓눌리는 빛)
+        }
+        list.length = 0;
       }
       if (st.orbs) {                         // 위성 구체
         const cr = 18 * st.orbSize, dps = st.dmg * st.orbDps;
@@ -1751,7 +1758,7 @@ function skillStep(w, i, st, dt) {
 }
 // 오래 남는 효과 (불길, 용융선, 잔광)
 // 한 틱에 피해를 주는 적은 그 무기의 최대 타격 수까지 (기지에 가까운 적부터). CAND: 매 스텝 쓰는 후보 목록 (새로 만들지 않는다)
-const CAND = [];
+const CAND = [], FLD = [];   // FLD: 역장 안의 적 (매 스텝 다시 쓴다)
 function poolTick(p, dt) {
   const st = p.st, melt = p.kind === 'melt', list = CAND; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
@@ -1967,7 +1974,7 @@ function step(dt) {
       if (e.dead || b.hit.indexOf(e) >= 0) continue;
       if (Math.hypot(e.x - b.x, e.y - b.y) <= e.r + b.r) {
         b.hit.push(e);
-        hit(e, b.dmg, b.st);
+        hit(e, b.dmg, b.st, false, false, false, b.drg);
         if (b.kn && !e.boss && !e.dead && !(b.slg && S.t - (e.slkT == null ? -9 : e.slkT) < 1)) {   // 슬러그는 같은 적을 1초에 한 번만 밀어낸다 (여러 자루가 겹쳐도)
           e.y = Math.max(-e.r, e.y - b.kn); if (b.slg) e.slkT = S.t;
         }
