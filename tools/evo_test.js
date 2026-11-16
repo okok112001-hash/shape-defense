@@ -479,6 +479,61 @@ function scene(type, lines, secs, opt) {
   ok('증강 정리: 빠진 증강 5개, 예전 저장 정리, 집광');
 }
 
+/* 6d. 최대 타격 수 (T4): 범위 공격은 한 번에 cap 명까지, 기지에 가까운 적부터. 다중 타격기 +v명, 제한 해제기는 제한 없음 */
+{
+  const hitN = (foes) => foes.filter((e) => e.hp < e.maxHp).length;
+  const nearest = (foes, k) => foes.slice().sort((a, b) => b.y - a.y).slice(0, k);
+  const fresh = (type, lv, evo) => { game(1); const S = Core.S; S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; return put(type, 2, lv, evo); };
+  const lane = (x, n, y0, dy) => Array.from({ length: n }, (_, i) => foe2(x, y0 + i * dy));
+  const clump = (x, y, n) => Array.from({ length: n }, (_, i) => foe2(x + (i % 5 - 2) * 8, y + (Math.floor(i / 5) - 2) * 8));
+  const C = { laser: 6, pulse: 8, mortar: 8, acid: 6, shotgun: 6 };
+  for (const t of WEAPON_IDS) assert.strictEqual(Core.stats(Core.newWeapon(t)).cap, C[t] || Core.CAP_NONE, t + ' 기본 최대 타격 수');
+  // 레이저: 한 레인의 적 20명 중 기지에 가까운 6명만. 빔은 6번째 적에서 멈춘다
+  let w = fresh('laser', 50), foes = lane(250, 20, 100, 20); w.cd = 0; Core.step(1 / 60);
+  assert.strictEqual(hitN(foes), 6, '레이저 6명');
+  assert.deepStrictEqual(foes.filter((e) => e.hp < e.maxHp), nearest(foes, 6).sort((a, b) => a.y - b.y), '기지에 가까운 적부터');
+  const bf = Core.S.fx.filter((f) => f.k === 'beam').pop();
+  assert(bf.ab === 1 && Math.abs(bf.y0 - (380 - 19 * 0.3)) < 1e-9, '빔이 6번째 적에서 멈춤');
+  assert(Math.abs(Core.beamStop(2, Core.stats(w)) - bf.y0) < 1e-9, '화면용 멈춤 높이 (beamStop)');
+  // 다중 타격기 +1 / +5, 제한 해제기 (공격력 -v%), 범위 무기가 아니면 쓸모없음
+  const base = Core.stats(w).dmg;
+  const SV = Core.PARTS.spread.v;   // 수치는 정의에서 읽는다
+  for (const [id, g, want] of [['spread', 0, 6 + SV[0]], ['spread', 3, Math.min(20, 6 + SV[3])], ['nolimit', 3, 20]]) {
+    w = fresh('laser', 50); w.parts[0] = { id, g }; Core.dirty(w); foes = lane(250, 20, 100, 20); w.cd = 0; Core.step(1 / 60);
+    assert.strictEqual(hitN(foes), want, `${id} ${g}: ${want}명`);
+  }
+  assert(Math.abs(Core.stats(w).dmg / base - (1 - Core.PARTS.nolimit.v[3] / 100)) < 1e-9, '제한 해제기 공격력 -v%');
+  assert(Core.stats(w).cap >= Core.CAP_NONE && Core.beamStop(2, Core.stats(w)) === null);
+  const bw = Core.newWeapon('blaster'); bw.parts[0] = { id: 'spread', g: 3 }; assert.strictEqual(Core.stats(bw).cap, Core.CAP_NONE, '블래스터는 제한 없음 (다중 타격기 쓸모없음)');
+  // 펄스 파동, 박격포 폭발: 8명
+  w = fresh('pulse', 50); foes = clump(250, 470, 20); w.cd = 0; Core.step(1 / 60); assert.strictEqual(hitN(foes), 8, '펄스 8명');
+  w = fresh('mortar', 50); foes = clump(250, 300, 20); w.cd = 0; for (let i = 0; i < 45; i++) Core.step(1 / 60); assert.strictEqual(hitN(foes), 8, '박격포 8명');
+  // 웅덩이와 바닥 효과: 한 틱에 그 무기의 최대 타격 수까지
+  const pool = (type, mk, foesOf, want, what) => {
+    const ww = fresh(type, 50); ww.cd = 99; const st = Core.stats(ww), ff = foesOf();
+    Core.S.pools.push(Object.assign({ t: 2, dps: st.dmg, st, wk: ww, key: 0, c: '#fff', sd: 0 }, mk(st))); Core.step(1 / 60);
+    assert.strictEqual(hitN(ff), want, what);
+  };
+  pool('acid', () => ({ acid: 1, x: 250, y: 300, r: 75, vuln: 0.1, slow: 0 }), () => clump(250, 300, 20), 6, '산성 웅덩이 6명');
+  pool('mortar', () => ({ x: 250, y: 300, r: 62 }), () => clump(250, 300, 20), 8, '화염 지대 8명');
+  pool('laser', (st) => ({ kind: 'melt', x: 250, y: 520 - st.range * 520, r: 0 }), () => lane(250, 20, 100, 20), 6, '용융선 6명');
+  pool('pulse', () => ({ kind: 'halo', x: 250, y: 520, r: 200 }), () => clump(250, 430, 20), 8, '잔광 8명');
+  pool('shotgun', () => ({ kind: 'fire', x0: 250, y0: 300, x1: 250, y1: 480, hw: 18, d: 2 }), () => lane(250, 20, 300, 9), 6, '불바다 6명');
+  // 진화 스킬: 지속 빔 틱, 상시 빔, 초신성, 프리즘 갈래, 궤도 포격
+  w = fresh('laser', 100, true); w.sk[0] = [1, 0, 0]; Core.dirty(w); w.cd = 99; foes = lane(250, 20, 100, 20);
+  Core.S.beams.push({ k: 2, t: 0.25, tick: 0.1, st: Core.stats(w) }); for (let i = 0; i < 8; i++) Core.step(1 / 60);
+  assert.strictEqual(hitN(foes), 6, '지속 빔 틱 6명');
+  w = fresh('laser', 100, true); w.sk[0] = [5, 5, 1]; Core.dirty(w); w.cd = 99; foes = lane(250, 20, 100, 20); for (let i = 0; i < 8; i++) Core.step(1 / 60);
+  assert.strictEqual(hitN(foes), 6, '상시 빔 6명');
+  w = fresh('pulse', 100, true); w.sk[0] = [1, 0, 0]; Core.dirty(w); w.n = 4; w.cd = 0; foes = clump(250, 450, 20); Core.step(1 / 60);
+  assert(Core.S.fx.some((f) => f.k === 'ring' && f.nova === 1) && hitN(foes) === 8, '초신성 8명');
+  w = fresh('laser', 100, true); w.sk[1] = [1, 0, 0]; Core.dirty(w); foe2(250, 480); const side = lane(150, 20, 100, 18).concat(lane(350, 20, 100, 18)); w.cd = 0; Core.step(1 / 60);
+  assert.strictEqual(hitN(side), 12, '프리즘 갈래마다 6명');
+  w = fresh('laser', 50); w.augs[0] = { id: 'l_orbit', g: 3 }; Core.dirty(w); foe2(250, 480); foes = lane(50, 20, 100, 20); w.cd = 0; Core.step(1 / 60);
+  assert.strictEqual(hitN(foes), 6, '궤도 포격 6명');
+  ok('최대 타격 수: 레이저 6, 펄스 8, 박격포 8, 산성 6, 바닥 효과, 다중 타격기, 제한 해제기, 진화 스킬');
+}
+
 /* 10. 스트레스: 무기 종류마다 다섯 자루를 모두 진화시키고 20분 */
 {
   const DT = 1 / 30, T = QUICK ? 120 : 1200;

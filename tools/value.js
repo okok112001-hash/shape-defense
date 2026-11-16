@@ -81,6 +81,9 @@ const cond = (mu) => (mu < 1e-6 ? 1 : mu / (1 - Math.exp(-mu)));       // 적어
 function atLeast(mu, i) { let p = Math.exp(-mu), c = p; for (let j = 1; j < i; j++) { p *= mu / j; c += p; } return Math.max(0, 1 - c); }
 function pierceHits(p, pk, mu) { let s = 0, f = 1; for (let i = 1; i <= Math.min(p, 60); i++) { f *= pk; s += f * atLeast(mu, i); } return s; }   // 관통: 뒤의 적에게 더 맞는 양
 const occ = (mu) => 1 - Math.exp(-mu);                                // 적이 하나라도 있을 확률
+// 최대 타격 수 n (core.js 의 st.cap): 포아송 적 수 X 에서 E[min(X, n)], 적어도 하나 있을 때의 E[min(X, n) | X >= 1]
+function capE(mu, n) { if (!(n < 1e8) || mu < 1e-9) return mu; let s = 0; for (let i = 1; i <= n; i++) { const a = atLeast(mu, i); s += a; if (a < 1e-12) break; } return s; }
+const capC = (mu, n) => (mu < 1e-6 ? 1 : capE(mu, n) / occ(mu));
 // 처치 타수 n(X): 끊김 없는 타수 X 에 마지막 탄의 낭비(평균 반 발)를 더하고, 한 방(1발) 밑으로는 내려가지 않게 부드럽게
 const nSoft = (x) => 0.5 * (x + 1.5 + Math.sqrt((x - 0.5) * (x - 0.5) + 0.05));
 // 문턱 효과(처형, 선제, 즉사): 체력 1 의 적을 한 발 1/X 로 깎을 때 필요한 (끊김 없는) 타수
@@ -112,6 +115,7 @@ function model(st, ref, c, lay, PP) {
   PP = PP || P;
   const t = st.type, W0 = WEAPONS[t], cb = CB[c], pc = PP.c[c], pw = PP.w[t], pm = PP.m;
   const lam = cb.lam0 * pc.lf * pw.dw;
+  const N = st.cap;   // 범위 공격의 최대 타격 수 (제한 없는 무기는 core.js 의 CAP_NONE)
   const beta = Math.min(0.98, cb.beta0 * pc.bf * pw.bw), bb = cb.betaB;
   const rate = Math.pow(W0.cd / st.cd, pw.kr) / W0.cd * (1 + st.dbl) * (1 + st.ramp * 0.85);   // 공격 속도 효율 kr. 과열 엔진: 쉬지 않고 쏠 때 최대치의 약 85%
   const r = st.range;
@@ -187,7 +191,7 @@ function model(st, ref, c, lay, PP) {
       }
       if (st.flame) dot += burnN * st.flame * Math.min(3, tau);   // 화염 산탄: 맞은 적마다 공격력 x flame 초당, 3초
       if (st.sea) {   // 불바다: 탄 길의 먼 절반에 2초 불길 (레인마다 최대 3줄)
-        const inStrip = nIn(lam, 36 * r * H * 0.5) * 1.5 * pm.sea;
+        const inStrip = capE(nIn(lam, 36 * r * H * 0.5), N) * 1.5 * pm.sea;
         dot += lanesN * st.sea * inStrip * Math.min(1, 2 / tau);
       }
       if (st.mine) {   // 지뢰: mineCd 초마다, 밟으면 반경 60 폭발
@@ -201,29 +205,29 @@ function model(st, ref, c, lay, PP) {
       break;
     }
     case 'laser': {
-      const mu = lam * r * (1 + 2 * st.lanes), n = cond(mu);
+      const mu = lam * r * (1 + 2 * st.lanes), n = capC(mu, N), muC = capE(mu, N);
       const m3 = st.third ? 1 + st.third / 3 : 1;
       let hits = (n + st.lens) * m3;
       if (st.third) hsz = 1 + st.third / 3;
-      if (st.orbit) hits += st.orbit * m3 * cond(lam) * occ(lam * 4);
-      if (st.prism) { const above = lam * r * 0.5; hits += m3 * (st.prism + st.prismUp) * above * (sides + (st.rainbow ? 0.6 * lay.outer : 0)); }
+      if (st.orbit) hits += st.orbit * m3 * capC(lam, N) * occ(lam * 4);
+      if (st.prism) { const above = capE(lam * r * 0.5, N); hits += m3 * (st.prism + st.prismUp) * above * (sides + (st.rainbow ? 0.6 * lay.outer : 0)); }
       if (st.holdT && !st.always) { const k = Math.round(st.holdT / 0.1); hits += k * st.holdD * (n + st.lens) * (1 + st.focus * (k - 1) / 2); }
       dir = rate * hits;
       burnN = rate * n;
-      if (st.always) dir += (1 / st.cd) * st.alwaysM * (mu + st.lens) * (1 + st.focus * 15);
-      if (st.melt) { dot += st.melt * mu * Math.min(1, st.meltT / tau); if (st.meltSlow) sig.push(st.meltSlow * Math.min(1, st.meltT / tau) * (1 - 0.5 * bb)); }
+      if (st.always) dir += (1 / st.cd) * st.alwaysM * (muC + st.lens) * (1 + st.focus * 15);
+      if (st.melt) { dot += st.melt * muC * Math.min(1, st.meltT / tau); if (st.meltSlow) sig.push(st.meltSlow * Math.min(1, st.meltT / tau) * (1 - 0.5 * bb)); }
       ccHit(tau, st.knock);
       break;
     }
     case 'pulse': {
-      const R = st.radius, mu = nIn(lam, Math.PI * R * R / 2), n = cond(mu);
+      const R = st.radius, mu = nIn(lam, Math.PI * R * R / 2), n = capC(mu, N);
       const ech = 1 + st.echo;
       let hits = n * ech;
       if (st.nova) {
-        const R2 = R * st.novaR, n2 = cond(nIn(lam, Math.PI * R2 * R2 / 2)), e = st.novaEvery;
+        const R2 = R * st.novaR, n2 = capC(nIn(lam, Math.PI * R2 * R2 / 2), N), e = st.novaEvery;
         const nv = st.nova * n2 * (1 + (st.twinStar ? 0.7 : 0));
         hits = ((e - 1) * n * ech + nv) / e;
-        if (st.halo) dot += st.halo * nIn(lam, Math.PI * R2 * R2 / 2) * Math.min(1, 1.5 / (e * tau));
+        if (st.halo) dot += st.halo * capE(nIn(lam, Math.PI * R2 * R2 / 2), N) * Math.min(1, 1.5 / (e * tau));
       }
       dir = rate * hits;
       burnN = rate * n;
@@ -239,16 +243,16 @@ function model(st, ref, c, lay, PP) {
       break;
     }
     case 'mortar': {
-      const R = st.blast, nb = 1 + splashN(R) * 0.7;
+      const R = st.blast, nb = 1 + capE(splashN(R) * 0.7, N - 1);   // 표적 하나 + 둘레의 적 (최대 타격 수까지)
       let shell = nb;
-      if (st.nuke) { shell = (3 * nb + st.nuke * (1 + splashN(R * 2.5) * 0.7)) / 4; hsz = (3 + st.nuke) / 4; }
+      if (st.nuke) { shell = (3 * nb + st.nuke * (1 + capE(splashN(R * 2.5) * 0.7, N - 1))) / 4; hsz = (3 + st.nuke) / 4; }
       let ex = 0;
-      if (st.cluster) ex += st.cluster * 0.8 * splashN(R * 0.6) * 0.8;
+      if (st.cluster) ex += st.cluster * 0.8 * capE(splashN(R * 0.6) * 0.8, N);
       if (st.shrap) ex += st.shrap * 0.25 * occ(nIn(lam, 170 * 30));
       if (st.barrage) ex += st.barrage * 0.33 * nb;
       dir = rate * (shell + ex);
       burnN = rate * nb;
-      if (st.pool) dot += rate * st.pool * 3 * (splashN(R) * 0.7 + 0.5);
+      if (st.pool) dot += rate * st.pool * 3 * capE(splashN(R) * 0.7 + 0.5, N);
       ccHit(tau * 1.5, st.knock);
       break;
     }
@@ -273,7 +277,7 @@ function model(st, ref, c, lay, PP) {
       break;
     }
     case 'acid': {
-      const rr = 75 * (1 + st.aRange + st.areaPct), np = cond(nIn(lam, Math.PI * rr * rr)) * 0.8;
+      const rr = 75 * (1 + st.aRange + st.areaPct), np = capC(nIn(lam, Math.PI * rr * rr), N) * 0.8;
       const pools = (1 + st.aMulti) * rate * (4 + st.aDur);
       const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct;
       const vu = 0.10 + st.aVuln;
@@ -304,7 +308,7 @@ function model(st, ref, c, lay, PP) {
   let team = 0;
   if (st.vuln) team += st.vuln * pw.vt;
   if (st.fldVuln) team += st.fldVuln * pw.vt;
-  if (t === 'acid') { const cov = Math.min(0.9, (1 + st.aMulti) * rate * (4 + st.aDur) * cond(nIn(lam, Math.PI * 75 * 75)) / Math.max(1, LANES * lam)); team += (0.10 + st.aVuln) * pw.vt * cov / 0.3; }
+  if (t === 'acid') { const cov = Math.min(0.9, (1 + st.aMulti) * rate * (4 + st.aDur) * capC(nIn(lam, Math.PI * 75 * 75), st.cap) / Math.max(1, LANES * lam)); team += (0.10 + st.aVuln) * pw.vt * cov / 0.3; }
   const vf = (1 + vul) * (1 + team * (1 / sh - 1));
   const dr = st.dmg / ref.dmg;   // 모든 피해는 공격력에 비례한다. 지속 피해는 치명타, 보스 보정을 받지 않는다 (산성은 식 안에서 따로)
   return { t, X, n1, sig: s, ccf, vf, D: t === 'acid' ? 0 : dir * q * dr, Dd: dot * dr, carry: st.carry, st, bb };
@@ -345,6 +349,7 @@ const PART_TEAM = ['shotgun', 'blaster', 'laser', 'tesla', 'mortar'];   // tools
 function loadItemEq(file) {
   if (!fs.existsSync(file)) return [];
   const j = JSON.parse(fs.readFileSync(file, 'utf8')), cells = [];
+  const pre = !(j.meta && j.meta.caps);   // T4(최대 타격 수) 이전 측정: 제한 없이 계산한다
   const none = {}, d50 = {};
   for (const r of j.rows) if (r.kind === 'none') none[r.team] = r;
   for (const r of j.rows) if (r.kind === 'fake' && r.id === '_eq_d50') d50[r.team] = r;   // 검증용 가짜 +50%: 보간이 50 ± 5 를 못 내는 칸은 믿음을 낮춘다
@@ -355,6 +360,7 @@ function loadItemEq(file) {
     const D = r.kind === 'part' ? PARTS[r.id] : AUGS[r.id];
     // 측정 당시 수치(r.v, r.w)로 능력치를 만든다 (그 뒤 core.js 수치를 바꿔도 영점이 어긋나지 않게)
     const sts = withVal(D, r.g, r.v ? r.v[r.g] : null, r.w ? r.w[r.g] : null, () => wts.map((t) => ({ t, st: statsOf(t, o), ref: statsOf(t, {}) })));
+    if (pre) for (const q of sts) uncap(q);
     for (const c of CTX) {
       const m = r.sc[c];
       if (!m || m.eq == null || !isFinite(m.eq)) continue;
@@ -385,8 +391,9 @@ function loadSkillEq(files) {
   for (const k in got) {
     const g = got[k], sk = zeroSk(), mx = SKILLS[g.t][g.l].nodes.map((n) => n.max);
     sk[g.l] = g.mode === 'full' ? mx.slice() : [mx[0], 0, 0];
-    const st = statsOf(g.t, { evo: 1, sk }), ref = statsOf(g.t, { evo: 1 });
-    CTX.forEach((c, i) => { if (g.R[i] != null) cells.push({ src: 'SK', id: `${g.t}.${g.l}`, mode: g.mode, c, meas: g.R[i] - 1, sts: [{ t: g.t, st, ref }], lay: LAY.I5, types: [g.t], file: g.file }); });
+    const st = statsOf(g.t, { evo: 1, sk }), ref = statsOf(g.t, { evo: 1 }), q = { t: g.t, st, ref };
+    if (PRE_T4_SK.has(g.file)) uncap(q);
+    CTX.forEach((c, i) => { if (g.R[i] != null) cells.push({ src: 'SK', id: `${g.t}.${g.l}`, mode: g.mode, c, meas: g.R[i] - 1, sts: [q], lay: LAY.I5, types: [g.t], file: g.file }); });
   }
   return cells;
 }
@@ -395,6 +402,10 @@ function predCell(x, PP) {
   return s / x.sts.length - 1;
 }
 const lnr = (v) => Math.log(Math.max(0.02, 1 + v));
+// T4 이전 측정(최대 타격 수가 없던 때)은 제한 없이 계산한다
+const NOCAP = Core.CAP_NONE || 1e9;
+function uncap(q) { q.st.cap = NOCAP; q.ref.cap = NOCAP; return q; }
+const PRE_T4_SK = new Set(['skill_eq_report.txt', 'skill_eq_report_s5.txt', 'skill_eq_report_t3.txt']);   // T4 전에 잰 스킬 리포트
 
 /* ---------- 계수 맞추기: 좌표 하강 (로그 눈금에서 황금 분할) ---------- */
 function fitParams(cells, list, PP, sweeps) {
@@ -513,7 +524,13 @@ const PAIR = [
   { k: 'aug', id: 'h_bomb', v: 35, gain: [16.1], src: 'C 측정만 (전설)', chk: 1, g: 3 },
   { k: 'aug', id: 'h_shock', v: 4, gain: [17.2], src: 'N 최종 (48시드)', chk: 1 },
 ];
-const pairFSG = (q, PP) => baseFSG(q.k, q.id, q.g != null ? q.g : 2, q.v, q.w, PP);
+// 위 기록은 모두 T4(최대 타격 수) 전에 잰 것이라 제한 없이 계산한다. T4 뒤에 잰 기록은 t4: 1 을 붙인다
+function withoutCap(fn) {
+  const old = WEAPON_IDS.map((t) => WEAPONS[t].cap);
+  for (const t of WEAPON_IDS) WEAPONS[t].cap = 0;
+  try { return fn(); } finally { WEAPON_IDS.forEach((t, i) => { WEAPONS[t].cap = old[i]; }); }
+}
+const pairFSG = (q, PP) => { const f = () => baseFSG(q.k, q.id, q.g != null ? q.g : 2, q.v, q.w, PP); return q.t4 ? f() : withoutCap(f); };
 function fitExchange(PP) {   // gain = aF F + aS S + aG G 의 최소제곱 (Treg 는 격자로)
   const data = PAIR.filter((q) => !q.chk).map((q) => ({ q, y: q.gain.reduce((a, b) => a + b, 0) / q.gain.length }));
   let best = null;
@@ -547,6 +564,7 @@ const pad = (s, n) => String(s) + ' '.repeat(Math.max(0, n - wid(s)));
 const lpad = (s, n) => ' '.repeat(Math.max(0, n - wid(s))) + String(s);
 const pct = (v) => (v == null || isNaN(v) ? '-' : v >= 99 ? '포화' : (v >= 0 ? '+' : '') + Math.round(v * 100));
 const gradesFrom = (min) => [0, 1, 2, 3].filter((g) => g >= min);
+const AREA_W = WEAPON_IDS.filter((t) => WEAPONS[t].cap && !WEAPONS[t].capSk);   // 범위 무기 (최대 타격 수가 있는 무기)
 const layFor = (t, PP) => Object.assign({}, t === 'laser' ? LAY.I5 : LAY.X2, { share: (PP || P).w[t].sh || (t === 'laser' ? 1 : 0.4) });
 function partVal(id, g, t, PP) { return eqAll(statsOf(t, { p: [[id, g]] }), statsOf(t, {}), layFor(t, PP), PP); }
 function augVal(id, g, t, PP) { return eqAll(statsOf(t, { a: [[id, g]] }), statsOf(t, {}), layFor(t, PP), PP); }
@@ -560,13 +578,15 @@ function buildTables(PP) {
   for (const id of Core.WEAPON_PART_IDS) {
     const D = PARTS[id], row = { id, name: D.name, min: D.min, g: {} };
     for (const g of gradesFrom(D.min)) {
-      const per = {}; let s = 0;
-      for (const t of WEAPON_IDS) { per[t] = partVal(id, g, t, PP).all; s += per[t]; }
-      row.g[g] = { per, avg: s / WEAPON_IDS.length };
+      const per = {}; let s = 0, best = null;
+      for (const t of WEAPON_IDS) { per[t] = partVal(id, g, t, PP).all; s += per[t]; if (AREA_W.includes(t) && (best == null || per[t] > per[best])) best = t; }
+      // 범위 무기 전용(area) 파츠는 가장 잘 맞는 범위 무기로 판정한다 (공용 증강과 같은 방식). 평균에는 그 값을 쓴다
+      row.g[g] = { per, avg: D.area ? per[best] : s / WEAPON_IDS.length, all8: s / WEAPON_IDS.length, best: D.area ? best : null };
     }
+    row.area = !!D.area;
     out.parts.push(row);
   }
-  const pHero = out.parts.filter((r) => r.id !== 'gold').map((r) => heroEq([0, 1, 2, 3].map((g) => (r.g[g] ? r.g[g].avg : 0)), r.min));
+  const pHero = out.parts.filter((r) => r.id !== 'gold' && !r.area).map((r) => heroEq([0, 1, 2, 3].map((g) => (r.g[g] ? r.g[g].avg : 0)), r.min));   // 영웅 평균에는 범위 무기 전용 파츠를 넣지 않는다
   out.partHero = pHero.reduce((a, b) => a + b, 0) / pHero.length;
   // 증강: 자기 무기 (공용은 8종 중 가장 잘 맞는 무기)
   for (const id of Object.keys(AUGS)) {
@@ -625,9 +645,10 @@ function reportText(T, PP, fitInfo) {
   o.push('  ' + pad('파츠', 22) + pad('등급', 6) + WEAPON_IDS.map((t) => lpad(t.slice(0, 6), 8)).join('') + lpad('평균', 8) + lpad('예산', 7) + lpad('비', 6) + '  판정');
   for (const r of T.parts) for (const g in r.g) {
     const x = r.g[g], j = judge(x.avg, GRADE_RATIO[g] * T.partHero);
-    o.push('  ' + pad(`${r.id} ${r.name}`, 22) + pad(GR[g], 6) + WEAPON_IDS.map((t) => lpad(pct(x.per[t]), 8)).join('') + lpad(pct(x.avg), 8) + lpad(f0(GRADE_RATIO[g] * T.partHero), 7) + lpad(r.id === 'gold' ? '-' : j.r.toFixed(2), 6) + '  ' + (r.id === 'gold' ? '재화(성장)' : j.flag));
+    o.push('  ' + pad(`${r.id} ${r.name}`, 22) + pad(GR[g], 6) + WEAPON_IDS.map((t) => lpad(pct(x.per[t]), 8)).join('') + lpad(pct(x.avg), 8) + lpad(f0(GRADE_RATIO[g] * T.partHero), 7) + lpad(r.id === 'gold' ? '-' : j.r.toFixed(2), 6) + '  ' + (r.id === 'gold' ? '재화(성장)' : j.flag) + (r.area ? `  (범위 무기 전용: ${x.best} 기준, 8종 평균 ${pct(x.all8)})` : ''));
   }
   o.push('  (gold 채굴 칩은 성장 항목이라 화력 0. 기지 항목의 G 와 같은 단위로 보면 이 무기 처치 몫(약 1/5) x 수치)');
+  o.push('  (범위 무기 전용 파츠(다중 타격기, 제한 해제기)의 "평균" 칸은 가장 잘 맞는 범위 무기 값이고, 영웅 평균(예산 기준)에는 넣지 않는다)');
   o.push('');
   o.push(`=== 증강 (자기 무기에 달았을 때, 공용 a_* 는 가장 잘 맞는 무기. 영웅 평균 ${(T.augHero * 100).toFixed(1)}) ===`);
   o.push('  ' + pad('증강', 24) + pad('등급', 6) + pad('무기', 9) + CTX.map((c) => lpad(CTX_KO[c], 8)).join('') + lpad('종합', 8) + lpad('예산', 7) + lpad('비', 6) + '  판정');

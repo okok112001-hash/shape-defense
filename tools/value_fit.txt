@@ -1,5 +1,5 @@
 도형 디펜스 수치 가치 환산 계산기: 영점 맞춤 결과 (tools/value.js fit)
-생성: 2026-11-16T10:23:55.955Z  자료: tools/item_eq.json 734칸, 스킬 116칸 (skill_eq_report.txt, skill_eq_report_t3.txt), 소요 0.5분
+생성: 2026-11-16T11:18:05.333Z  자료: tools/item_eq.json 734칸, 스킬 116칸 (skill_eq_report.txt, skill_eq_report_t3.txt), 소요 0.5분
 셀 = 측정 / 예측 (가치 %, ">" = 측정이 천장에 닿아 하한). 비 = (1+예측)/(1+측정) 의 기하평균 (1 이면 맞음). 맞춤에 쓴 자료와 비교하는 자료가 같다(표본 안 비교). 스킬 줄은 기구 계수 4개만 스킬 자료로 맞췄다.
 
 [X2:blaster]

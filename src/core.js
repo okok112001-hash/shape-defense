@@ -97,22 +97,25 @@ const BAL = {
 const WEAPONS = {
   blaster: { name: '블래스터', dmg: 13, cd: 0.45, range: 0.75, lanes: 0, color: '#6ee7ff',
     desc: '정면 1레인의 가장 가까운 적에게 탄환 발사' },
-  shotgun: { name: '산탄포', dmg: 11, cd: 0.8, range: 0.5, lanes: 1, color: '#ffc857',
+  shotgun: { name: '산탄포', dmg: 11, cd: 0.8, range: 0.5, lanes: 1, cap: 6, capSk: 1, color: '#ffc857',
     desc: '정면과 양옆 3레인에 산탄 발사. 사거리가 짧음' },
-  laser: { name: '레이저', dmg: 13, cd: 1.25, range: 0.9, lanes: 0, color: '#ff7ad9',
-    desc: '정면 1레인의 모든 적을 한 번에 관통' },
-  pulse: { name: '펄스', dmg: 7, cd: 0.9, range: 0, lanes: 0, radius: 140, color: '#7af0c1',
-    desc: '무기 주변 원형 범위의 모든 적 타격' },
-  mortar: { name: '박격포', dmg: 41, cd: 2.0, range: 1, lanes: 5, blast: 62, color: '#ff9f5a',
+  laser: { name: '레이저', dmg: 13, cd: 1.25, range: 0.9, lanes: 0, cap: 6, color: '#ff7ad9',
+    desc: '정면 1레인의 적을 기지에 가까운 순서로 한 번에 관통' },
+  pulse: { name: '펄스', dmg: 7, cd: 0.9, range: 0, lanes: 0, radius: 140, cap: 8, color: '#7af0c1',
+    desc: '무기 주변 원형 범위의 적을 한 번에 타격' },
+  mortar: { name: '박격포', dmg: 41, cd: 2.0, range: 1, lanes: 5, blast: 62, cap: 8, color: '#ff9f5a',
     desc: '모든 레인 대상. 기지에 가장 가까운 적에게 폭발탄' },
   tesla: { name: '전격기', dmg: 10.5, cd: 0.7, range: 0.55, lanes: 1, chain: 2, color: '#b9a2ff',
     desc: '3레인 안의 가까운 적을 공격하고 주변 2명에게 연쇄' },
   rail: { name: '저격포', dmg: 120, cd: 1.9, range: 1, lanes: 5, color: '#f2f2ff',
     desc: '모든 레인에서 체력이 가장 많은 적을 저격' },
-  acid: { name: '산성 분사기', dmg: 3.5, cd: 1.6, range: 1, lanes: 5, color: '#a6e84a',
+  acid: { name: '산성 분사기', dmg: 3.5, cd: 1.6, range: 1, lanes: 5, cap: 6, color: '#a6e84a',
     desc: '전장 아무 곳에나 산성 웅덩이를 뿌립니다. 웅덩이 안의 적은 지속 피해를 받고 받는 피해가 늘어납니다' },
 };
 const WEAPON_IDS = Object.keys(WEAPONS);
+const CAP_NONE = 1e9;   // 최대 타격 수 제한 없음 (능력치를 유한한 수로 두려고 Infinity 대신)
+// cap: 범위 공격(빔, 파동, 폭발, 웅덩이, 바닥 효과)이 한 번에 피해를 주는 최대 적 수. 기지에 가까운 적부터 고른다.
+//   연쇄, 관통처럼 개수가 정해진 공격과 폭발탄, 처치 폭발, 지뢰는 제한하지 않는다. capSk: 스킬의 바닥 효과(산탄포 불바다)에만 쓴다
 
 /* ---------- 파츠 (어느 무기에나 장착, 수치 보정) ---------- */
 const pct = (k) => (s, v) => { s[k] += v / 100; };
@@ -141,6 +144,9 @@ const PARTS = {
   ember:  { name: '발화 장치',       min: 1, v: [0, 13, 26, 65],   ap: mx('burn'),    d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
   gamble: { name: '도박사의 주사위', min: 1, v: [0, 180, 202, 280], ap: mx('gamble'), d: v => `공격할 때마다 피해가 50%~${v}% 사이에서 무작위로 결정` },
   ramp:   { name: '과열 엔진',       min: 2, v: [0, 0, 20, 50],    ap: mx('ramp'),    d: v => `쉬지 않고 공격하면 공격 속도가 점점 올라 최대 +${v}%` },
+  // 범위 무기(레이저, 펄스, 박격포, 산성 분사기) 전용(area): 한 번에 때리는 적 수 (WEAPONS 의 cap). 수치는 tools/value.js 와 item_eq 측정으로 정했다 (balance_log T4)
+  spread:  { name: '다중 타격기', abbr: '타격', min: 0, area: 1, v: [1, 2, 3, 8], ap: add('spread'), d: v => `범위 공격이 한 번에 때리는 적 +${v}명 (범위 무기 전용)` },
+  nolimit: { name: '제한 해제기',  min: 3, area: 1, v: [0, 0, 0, 20], ap: (s, v) => { s.nolimit = 1; s.dmgPct -= v / 100; }, d: v => `범위 공격이 때리는 적 수 제한 없음, 공격력 -${v}% (범위 무기 전용)` },
   // 기지 전용 파츠 (기지 파츠 칸에만 장착, 효과는 전체에 적용)
   shield:  { base: true, name: '방패 발생기', min: 0, v: [3, 6, 12, 30],     ap: pct('shield'),   d: v => `기지가 받는 피해 -${v}% (합산, 최대 60%)` },
   // 두 가지 능력을 가진 기지 항목: v = 첫째 수치, w = 둘째 수치 (등급별 배열). ap(s, v, w), d(v, w)
@@ -540,6 +546,7 @@ function blankStats(lanes, chain) {
     vuln: 0, vulnT: 0, through: 0, twin: 0, carry: 0, poolAcid: 0,
     aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0, aMelt: 0,   // 산성 웅덩이
     overload: 0, aDur: 0, linger: 0,   // 스킬 전용 효과 (2차분 무기)
+    spread: 0, nolimit: 0,             // 범위 공격의 최대 타격 수 (다중 타격기, 제한 해제기)
     // 블래스터 스킬: 개틀링, 예열, 삼연장 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
     gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, tur: 0, turD: 0, turRate: 0, turTwin: 0,
     // 산탄포 스킬: 슬러그 / 용의 숨결 / 지뢰
@@ -571,6 +578,8 @@ function stats(w) {
   s.lanes = Math.min(5, s.lanes);
   s.radius = (d.radius || 0) * (rg + s.areaPct);
   s.blast = (d.blast || 0) * (rg + s.areaPct);
+  s.capOn = !!d.cap && (!d.capSk || s.sea > 0);   // 화면용: 이 무기에 제한이 걸리는 범위 공격이 있다
+  s.cap = d.cap && !s.nolimit ? d.cap + s.spread : CAP_NONE;
   s.jump = 140 * rg;
   s.crit = Math.min(1, s.crit);
   s.color = d.color;
@@ -1106,13 +1115,30 @@ function hit(e, amt, st, noSplash, fixed, noFx) {
     }
   }
 }
-function explode(x, y, R, dmg, st) {
+// 범위 공격의 최대 타격 수 (WEAPONS 의 cap): 후보가 n 명보다 많으면 기지에 가까운 적(y 가 큰 적)부터 n 명만 남긴다.
+// 남기면 목록이 기지에 가까운 순서로 정렬되고, 마지막 원소가 가장 먼(빔이 멈추는) 적이다. 반환: 잘라 냈는가
+const byNear = (a, b) => b.y - a.y;
+function capPick(list, n) { if (!(list.length > n)) return false; list.sort(byNear); list.length = n; return true; }   // n 이 없으면(능력치 사본에 cap 이 빠진 경우) 제한하지 않는다
+// 빔이 멈춰 보이는 높이: 잘라 냈으면 마지막(가장 위) 적의 몸 안쪽, 아니면 null
+const capTop = (list) => { const e = list[list.length - 1]; return e.y - e.r * 0.3; };
+// 레인 k 의 빔(지속 빔, 상시 빔)이 지금 멈추는 높이 (화면용). 제한에 걸리지 않으면 null
+function beamStop(k, st) {
+  if (!(st.cap < CAP_NONE)) return null;
+  const wx = (k + 0.5) * LW, list = [];
+  for (const e of S.enemies) if (inReach(e, wx, st)) list.push(e);
+  return capPick(list, st.cap) ? capTop(list) : null;
+}
+// n: 최대 타격 수 (박격포 폭발. 지뢰는 제한 없음)
+function explode(x, y, R, dmg, st, n) {
   snd('boom');
   fx({ k: 'boom', d: 0.28, x, y, r: R, c: st.color });
-  for (let i = 0, n = S.enemies.length; i < n; i++) {
+  const list = [];
+  for (let i = 0, m = S.enemies.length; i < m; i++) {
     const o = S.enemies[i];
-    if (!o.dead && Math.hypot(o.x - x, o.y - y) <= R + o.r * 0.5) hit(o, dmg, st, true);
+    if (!o.dead && Math.hypot(o.x - x, o.y - y) <= R + o.r * 0.5) list.push(o);
   }
+  if (n != null) capPick(list, n);
+  for (const o of list) hit(o, dmg, st, true);
 }
 
 /* ---------- 무기 발사 ---------- */
@@ -1179,13 +1205,16 @@ function fireTick(p, dt, seen) {
   let got = seen.get(p.wk); if (!got) seen.set(p.wk, got = new Set());
   const m = p.hw + 40;   // 띠를 감싼 상자 (가장 큰 적의 반지름 절반 60 x 0.5 = 30 보다 넉넉히): 먼 적은 거리 계산 전에 거른다
   const x0 = Math.min(p.x0, p.x1) - m, x1 = Math.max(p.x0, p.x1) + m, y0 = Math.min(p.y0, p.y1) - m, y1 = Math.max(p.y0, p.y1) + m;
+  const list = CAND; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
     if (e.x < x0 || e.x > x1 || e.y < y0 || e.y > y1) continue;
     if (e.dead || e.y + e.r <= 0 || got.has(e)) continue;
     if (segDist(e.x, e.y, p.x0, p.y0, p.x1, p.y1) > p.hw + e.r * 0.5) continue;
-    got.add(e); dot(e, p.dps * dt, p.st);
+    list.push(e);
   }
+  capPick(list, p.st.cap);   // 띠 하나가 한 틱에 때리는 적 수 (다른 띠가 이미 때린 적은 빼고 센다)
+  for (let i = 0, n = list.length; i < n; i++) { const e = list[i]; got.add(e); dot(e, p.dps * dt, p.st); }
 }
 function fire(w, slot, st) {
   const wx = (slot + 0.5) * LW, wy = H - 2;
@@ -1254,13 +1283,14 @@ function fire(w, slot, st) {
       return true;
     }
     case 'laser': {
-      let any = false; const list = []; let first = null;
-      for (const e of S.enemies) if (inReach(e, wx, st)) { list.push(e); any = true; if (!first || e.y > first.y) first = e; }
-      if (!any) return false;
+      const list = []; let first = null;
+      for (const e of S.enemies) if (inReach(e, wx, st)) { list.push(e); if (!first || e.y > first.y) first = e; }
+      if (!list.length) return false;
       w.n++;
       const m = st.third && w.n % 3 === 0 ? 1 + st.third : 1;
+      const cut = capPick(list, st.cap);       // 최대 타격 수: 빔은 마지막으로 맞힌 적에서 멈춘다
       for (const e of list) hit(e, st.dmg * m * (e === first ? 1 + st.lens : 1), st);   // 집광: 기지에 가장 가까운 적
-      fx({ k: 'beam', d: 0.16, x: wx, y0: H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9) * (st.evo ? 1.2 : 1), c: st.color, g: 1 , h: st.holdT ? 1 : 0 });   // h: 빔이 유지된다 (화면용: 잔상을 남기지 않는다)
+      fx({ k: 'beam', d: 0.16, x: wx, y0: cut ? Math.max(H - st.range * H, capTop(list)) : H - st.range * H, y1: H, w: (st.lanes * 2 + 1) * (m > 1 ? 16 : 9) * (st.evo ? 1.2 : 1), c: st.color, g: 1 , h: st.holdT ? 1 : 0, ab: cut ? 1 : 0 });   // h: 빔이 유지된다 (화면용: 잔상을 남기지 않는다), ab: 제한에 걸려 멈춘 빔
       if (st.orbit) {                        // 궤도 포격: 적이 있는 다른 레인에 빔 낙하
         const lanes = [];
         for (let j = 0; j < LANES; j++) {
@@ -1269,9 +1299,11 @@ function fire(w, slot, st) {
           if (S.enemies.some(e => !e.dead && e.y + e.r > 0 && Math.abs(e.x - cx) <= LW / 2 + e.r * 0.4)) lanes.push(j);
         }
         if (lanes.length) {
-          const cx = (pick(lanes) + 0.5) * LW;
-          for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && Math.abs(e.x - cx) <= LW / 2 + e.r * 0.4) hit(e, st.dmg * m * st.orbit, st);
-          fx({ k: 'beam', d: 0.3, x: cx, y0: 0, y1: H, w: 16, c: '#ffffff' });
+          const cx = (pick(lanes) + 0.5) * LW, ol = [];
+          for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && Math.abs(e.x - cx) <= LW / 2 + e.r * 0.4) ol.push(e);
+          const oc = capPick(ol, st.cap);
+          for (const e of ol) hit(e, st.dmg * m * st.orbit, st);
+          fx({ k: 'beam', d: 0.3, x: cx, y0: oc ? Math.max(0, capTop(ol)) : 0, y1: H, w: 16, c: '#ffffff', ab: oc ? 1 : 0 });
         }
       }
       if (st.prism && first) prismSplit(w, slot, st, first, m);
@@ -1284,6 +1316,7 @@ function fire(w, slot, st) {
       for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, R + e.r * 0.5)) list.push(e);
       if (!list.length) return false;
       w.n++;
+      capPick(list, st.cap);                   // 최대 타격 수 (기지에 가까운 적부터)
       if (st.nova && w.n % st.novaEvery === 0) {      // 초신성 (쌍성: 3번째 파동마다, 곧바로 한 번 더)
         novaBlast(slot, st, 1, true);
         if (st.twinStar) w.nv = 0.25;
@@ -1385,7 +1418,10 @@ function prismSplit(w, slot, st, first, m) {
     for (let d = 1; d <= Math.max(1, dmax); d++) {
       const j = slot + side * (st.lanes + d); if (j < 0 || j >= LANES) break;
       const cx = (j + 0.5) * LW, y1 = first.y - (first.y - top) * d / Math.max(1, dmax), mul = d === 1 ? 1 : 0.6;
-      for (const e of S.enemies) if (!e.dead && e.y < first.y && inReach(e, cx, one)) hit(e, base * mul, st);
+      const pl = [];
+      for (const e of S.enemies) if (!e.dead && e.y < first.y && inReach(e, cx, one)) pl.push(e);
+      capPick(pl, st.cap);                    // 갈라진 빔 하나도 최대 타격 수까지
+      for (const e of pl) hit(e, base * mul, st);
       fx({ k: 'dbeam', d: 0.2, x0: px, y0: py, x1: cx, y1, c: st.color, rb: st.rainbow ? (side < 0 ? d : d + 4) : 0 });
       px = cx; py = y1;
     }
@@ -1393,15 +1429,19 @@ function prismSplit(w, slot, st, first, m) {
 }
 // 초신성: 큰 범위에 큰 피해, 잔광(빛의 고리)이 남는다
 function novaBlast(slot, st, mult, flash) {
-  const wx = (slot + 0.5) * LW, R2 = st.radius * st.novaR;
-  for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, R2 + e.r * 0.5)) hit(e, st.dmg * st.nova * mult, st);
+  const wx = (slot + 0.5) * LW, R2 = st.radius * st.novaR, list = [];
+  for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, R2 + e.r * 0.5)) list.push(e);
+  capPick(list, st.cap);
+  for (const e of list) hit(e, st.dmg * st.nova * mult, st);
   fx({ k: 'ring', d: 0.8, x: wx, y: H, r: R2, c: st.color, fat: 1, nova: flash ? 1 : 2 });   // nova: 1 첫 폭발, 2 쌍성의 두 번째 (화면이 따로 그린다)
   if (st.halo) keepPool('halo', st.w, slot, (p) => { p.x = wx; p.y = H; p.r = R2; p.t = 1.5; p.dps = st.dmg * st.halo; p.st = st; p.c = st.color; });
 }
 // 반격: 적이 기지에 닿을 때 파동 1회
 function counterPulse(slot, st) {
-  const wx = (slot + 0.5) * LW;
-  for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, st.radius + e.r * 0.5)) hit(e, st.dmg, st);
+  const wx = (slot + 0.5) * LW, list = [];
+  for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, st.radius + e.r * 0.5)) list.push(e);
+  capPick(list, st.cap);
+  for (const e of list) hit(e, st.dmg, st);
   fx({ k: 'pulse', d: 0.4, x: wx, y: H, r: st.radius, c: '#ffffff' });
   snd('pulse');
 }
@@ -1461,17 +1501,21 @@ function acidPool(x, y, st) {
 function acidTick(p, dt, seen) {
   const st = p.st, cm = 1 + st.crit * (1 + st.critDmg);   // 지속 피해에는 치명타 기댓값을 반영
   let got = seen.get(st.w); if (!got) seen.set(st.w, got = new Set());
+  // 웅덩이 하나가 한 틱에 닿는 적은 최대 타격 수까지 (기지에 가까운 적부터). 같은 무기의 다른 웅덩이가 이번 스텝에 이미 닿은 적은 빼고 센다
+  const list = CAND; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
-    if (e.dead || !within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) continue;
+    if (!e.dead && !got.has(e) && within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) list.push(e);
+  }
+  capPick(list, st.cap);
+  for (let i = 0, n = list.length; i < n; i++) {
+    const e = list[i]; if (e.dead) continue;
     e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, st.linger || 1);   // 안에 있는 동안과 나간 뒤 1초 (잔류: 3초)
     if (p.slow) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
-    if (!got.has(e)) {                     // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
-      got.add(e);
-      const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1);
-      if (st.linger) { e.lgT = st.linger; e.lgDps = dps; e.lgSt = st; e.inT = S.t; }   // 잔류: 나간 뒤에도 같은 피해
-      dot(e, dps * dt, st);
-    }
+    got.add(e);                            // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
+    const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1);
+    if (st.linger) { e.lgT = st.linger; e.lgDps = dps; e.lgSt = st; e.inT = S.t; }   // 잔류: 나간 뒤에도 같은 피해
+    dot(e, dps * dt, st);
     if (!e.dead && st.aMelt && !e.boss && e.hp / e.maxHp <= st.aMelt) { credit(st, e.hp, e); e.hp = 0; kill(e, st); }
   }
 }
@@ -1542,11 +1586,10 @@ function skillStep(w, i, st, dt) {
       w.bt = (w.bt == null ? 0.1 : w.bt) - dt;
       if (w.bt > 1e-9) break;
       w.bt += 0.1; w.bk = (w.bk || 0) + 1;
-      const full = w.bk % 5 === 0, mul = st.dmg * st.alwaysM * 0.1 / st.cd, lf = st.lens ? nearest(wx, st) : null;
-      for (let j = 0, n = S.enemies.length; j < n; j++) {
-        const e = S.enemies[j];
-        if (inReach(e, wx, st)) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1) * (e === lf ? 1 + st.lens : 1), st, !full, false, !full);
-      }
+      const full = w.bk % 5 === 0, mul = st.dmg * st.alwaysM * 0.1 / st.cd, lf = st.lens ? nearest(wx, st) : null, list = [];
+      for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, st)) list.push(e); }
+      capPick(list, st.cap);
+      for (const e of list) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1) * (e === lf ? 1 + st.lens : 1), st, !full, false, !full);
       break;
     }
     case 'pulse': {
@@ -1586,16 +1629,20 @@ function skillStep(w, i, st, dt) {
   }
 }
 // 오래 남는 효과 (불길, 용융선, 잔광)
+// 한 틱에 피해를 주는 적은 그 무기의 최대 타격 수까지 (기지에 가까운 적부터). CAND: 매 스텝 쓰는 후보 목록 (새로 만들지 않는다)
+const CAND = [];
 function poolTick(p, dt) {
-  const st = p.st;
+  const st = p.st, melt = p.kind === 'melt', list = CAND; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
     if (e.dead || e.y + e.r <= 0) continue;
-    if (p.kind === 'melt') {
-      if (Math.abs(e.x - p.x) > 8 + e.r * 0.8 || e.y + e.r < p.y) continue;
-      dot(e, p.dps * dt, st, true);
-      if (p.slow && !e.dead) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
-    } else if (within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) dot(e, p.dps * dt, st);
+    if (melt ? !(Math.abs(e.x - p.x) > 8 + e.r * 0.8 || e.y + e.r < p.y) : within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) list.push(e);
+  }
+  capPick(list, st.cap);
+  for (let i = 0, n = list.length; i < n; i++) {
+    const e = list[i]; if (e.dead) continue;
+    dot(e, p.dps * dt, st, melt);
+    if (melt && p.slow && !e.dead) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
   }
 }
 // 연쇄 지뢰: 밀어내고 작은 지뢰가 흩어진다
@@ -1782,7 +1829,10 @@ function step(dt) {
       b.tick += 0.1;
       const wx = (b.k + 0.5) * LW;
       const bs_ = b.st, fo = bs_.focus, lf = bs_.lens ? nearest(wx, bs_) : null;
-      for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, bs_)) hit(e, bs_.dmg * bs_.holdD * (fo ? 1 + fo * focusN(e, b) : 1) * (e === lf ? 1 + bs_.lens : 1), bs_); }
+      const list = [];
+      for (let j = 0, n = S.enemies.length; j < n; j++) { const e = S.enemies[j]; if (inReach(e, wx, bs_)) list.push(e); }
+      capPick(list, bs_.cap);
+      for (const e of list) hit(e, bs_.dmg * bs_.holdD * (fo ? 1 + fo * focusN(e, b) : 1) * (e === lf ? 1 + bs_.lens : 1), bs_);
     }
   }
 
@@ -1838,7 +1888,7 @@ function step(dt) {
       s.dead = true;
       if (s.acid) { acidPool(s.tx, s.ty, s.st); continue; }
       const st = s.st, R = st.blast * (s.nuke ? 2.5 : 1);
-      explode(s.tx, s.ty, R, s.dmg, st);
+      explode(s.tx, s.ty, R, s.dmg, st, st.cap);
       fx({ k: 'crater', d: 1.0, x: s.tx, y: s.ty, r: R * 0.75, c: st.color });   // 잠깐 남는 탄흔
       if (s.nuke) { fx({ k: 'flash', d: 0.22 }); fx({ k: 'ring', d: 0.5, x: s.tx, y: s.ty, r: R * 1.15, c: '#ffffff', fat: 1, full: 1 }); }
       for (let k = 0; k < st.shrap; k++) {
@@ -1846,7 +1896,7 @@ function step(dt) {
       }
       for (let k = 0; k < st.cluster; k++) {
         const a = rnd() * Math.PI * 2, rr = st.blast * (0.6 + rnd() * 0.7);
-        explode(s.tx + Math.cos(a) * rr, s.ty + Math.sin(a) * rr, st.blast * 0.6, s.dmg * 0.8, st);
+        explode(s.tx + Math.cos(a) * rr, s.ty + Math.sin(a) * rr, st.blast * 0.6, s.dmg * 0.8, st, st.cap);
       }
       if (st.pool) S.pools.push({ x: s.tx, y: s.ty, r: R, dps: s.dmg * st.pool, t: 3, st });
     }
@@ -1858,11 +1908,7 @@ function step(dt) {
     p.t -= dt;
     if (p.acid) { acidTick(p, dt, aSeen); continue; }
     if (p.kind === 'fire') { fireTick(p, dt, aSeen); continue; }
-    if (p.kind) { poolTick(p, dt); continue; }
-    for (let i = 0, n = S.enemies.length; i < n; i++) {
-      const e = S.enemies[i];
-      if (!e.dead && within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) dot(e, p.dps * dt, p.st);
-    }
+    poolTick(p, dt);                         // 용융선, 잔광, 박격포 화염 지대
   }
 
   // 지뢰: 적이 밟으면 터진다
@@ -2072,7 +2118,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

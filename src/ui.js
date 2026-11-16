@@ -337,6 +337,8 @@ const PICON = {
   ember: '<path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-4 3-6 1 2 2 2 3-6z"/>',
   gamble: `<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="8.5" cy="8.5" r="1.5" ${FILL}/><circle cx="15.5" cy="15.5" r="1.5" ${FILL}/><circle cx="12" cy="12" r="1.5" ${FILL}/><circle cx="15.5" cy="8.5" r="1.5" ${FILL}/><circle cx="8.5" cy="15.5" r="1.5" ${FILL}/>`,
   ramp: '<path d="M3 17a9 9 0 0 1 18 0"/><path d="M12 17l5-7"/><path d="M3 21h18"/>',
+  spread: `<path d="M12 22v-8M12 14L5.5 6.5M12 14V5M12 14l6.5-7.5"/><circle cx="5" cy="5.5" r="2" ${FILL}/><circle cx="12" cy="3.5" r="2" ${FILL}/><circle cx="19" cy="5.5" r="2" ${FILL}/>`,
+  nolimit: '<path d="M12 12c-2-3-4-4.5-6-4.5a4.5 4.5 0 0 0 0 9c2 0 4-1.5 6-4.5zm0 0c2 3 4 4.5 6 4.5a4.5 4.5 0 0 0 0-9c-2 0-4 1.5-6 4.5z"/>',
   // 기지 파츠
   shield: '<path d="M12 3l7 3v5c0 4.500-3 7.500-7 9.500-4-2-7-5-7-9.500V6z"/>',
   armor: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M12 4v16"/>',
@@ -856,7 +858,7 @@ function wmHtml(w) {
   return `<div class="modal wm">
     <div class="wm-head">
       <div><span class="nm" style="color:${d.color}">${d.name} ${lvTxt(w)}</span>
-      <span class="st">공격력 ${fmt(st.dmg)} · 간격 ${st.cd.toFixed(2)}초 · 치명 ${Math.round(st.crit * 100)}%</span></div>
+      <span class="st">공격력 ${fmt(st.dmg)} · 간격 ${st.cd.toFixed(2)}초 · 치명 ${Math.round(st.crit * 100)}%${st.capOn ? ` · ${st.cap < C.CAP_NONE ? '최대 ' + st.cap + '명' : '제한 없음'}` : ''}</span></div>
       <button type="button" class="x" data-act="wclose">닫기</button>
     </div>
     <div class="schem">
@@ -1272,7 +1274,7 @@ function iconRow() {
 }
 /* ---------- 도움말 (그림 위주) ---------- */
 // 무기마다 6~10자 역할 한 줄
-const ROLE_LINE = { blaster: '정면 단일 연사', shotgun: '근거리 3레인 산탄', laser: '일직선 관통', pulse: '주변 전체 타격', mortar: '폭발탄 범위 공격', tesla: '적 사이 연쇄 번개', rail: '최강 적 저격', acid: '웅덩이 지속 약화' };
+const ROLE_LINE = { blaster: '정면 단일 연사', shotgun: '근거리 3레인 산탄', laser: '일직선 관통', pulse: '주변 범위 타격', mortar: '폭발탄 범위 공격', tesla: '적 사이 연쇄 번개', rail: '최강 적 저격', acid: '웅덩이 지속 약화' };
 const HARR = `<svg class="harr" viewBox="0 0 24 24" width="18" height="18" ${SVG_ATTR}><path d="M4 12h15M14 7l5 5-5 5"/></svg>`;
 const HSWAP = `<svg class="harr" viewBox="0 0 24 24" width="20" height="20" ${SVG_ATTR}><path d="M3 9h17M16 5l4 4-4 4M21 16H4M8 12l-4 4 4 4"/></svg>`;
 const hbox = (inner, cls) => `<span class="hbox${cls ? ' ' + cls : ''}">${inner}</span>`;
@@ -1346,7 +1348,8 @@ function helpHtml() {
     ${hnode(slot('blaster') + HSWAP + slot('mortar'), '자리 바꾸기')}
     ${hnode(tap + HARR + win, '상세 보기')}</div><p class="hnote">무기 창(무기를 두 번 누르면 열리는 상세 화면)에서는 강화 단계, 파츠, 증강을 확인합니다. 버리기는 한 번 더 눌러야 실행됩니다.</p>`;
   const ctlIntro = `<p class="hnote">누르기와 끌기로 파츠를 장착하고, 무기 자리를 바꾸고, 무기와 기지의 상태를 살펴보는 방법입니다.</p>`;
-  const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>`;
+  const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>
+    <p class="hnote">범위 공격은 한 번에 때리는 적 수에 한도가 있고, 기지에 가까운 적부터 맞습니다. 한도는 무기 창에 나옵니다.</p>`;
   const grades = `<div class="hchips">${GR.map((n, g) => `<span class="hchip g${g}">${n}</span>`).join('')}</div>`;
   const parts = `<div class="hgrid2"><div class="hpt"><span class="pic g1">${partIcon(wp, 28)}</span><span><b>무기 파츠</b><small>무기 하나에 장착</small></span></div>
     <div class="hpt"><span class="pic g1 bp">${partIcon(bp, 28)}</span><span><b>기지 파츠</b><small>기지에 장착, 전체 적용</small></span></div></div>`;
@@ -3013,7 +3016,7 @@ function boltTo(ax, ay, bx, by, sd, amp, ph) {
 }
 // 유지되는 빔 (지속 빔, 상시 빔): 부드러운 빛기둥, 위로 흐르며 일렁이는 심지, 적에 닿는 자리의 불꽃. 초점이 쌓인 적일수록 닿는 자리가 밝고 커진다
 function drawHoldBeam(k, st, owner, a, sd) {
-  const S = C.S, H = C.H, x = (k + 0.5) * C.LW, len = st.range * H, y0 = H - len, col = st.color, t = VX.t, L = VX.light, hot = VX.hot(col);
+  const S = C.S, H = C.H, x = (k + 0.5) * C.LW, stop = C.beamStop(k, st), y0 = stop != null ? Math.max(H - st.range * H, stop) : H - st.range * H, len = H - y0, col = st.color, t = VX.t, L = VX.light, hot = VX.hot(col);
   const br = 1 + 0.1 * Math.sin(t * 37 + sd) + 0.06 * Math.sin(t * 61 + sd * 3), hw = 7.5 * br * (0.35 + 0.65 * a);
   VX.add();
   VX.column2(x, y0, H, hw * 3.4, col, (L ? 1 : 0.82) * a);
@@ -3035,10 +3038,12 @@ function drawHoldBeam(k, st, owner, a, sd) {
     if (i) ctx.lineTo(x + off, y); else ctx.moveTo(x + off, y);
   }
   ctx.lineWidth = 1; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.12) : VX.mix(col, 0.5), 0.6 * a); ctx.stroke();
-  VX.add(); hotSpot(x, H - 11, 12 + 2.5 * Math.sin(t * 29 + sd), col, a); VX.norm();
+  VX.add(); hotSpot(x, H - 11, 12 + 2.5 * Math.sin(t * 29 + sd), col, a);
+  if (stop != null) { const fl = 0.85 + 0.15 * Math.sin(t * 41 + sd); VX.glow(x, y0 - 2, hw * 2.6 * fl, col, 0.5 * a, hw * 1.8); hotSpot(x, y0, (5 + 2 * fl) * (0.6 + 0.4 * a), col, 0.85 * a); }   // 멈춘 끝: 빛이 적에게 빨려 든다
+  VX.norm();
   const reach = (st.lanes + 0.5) * C.LW; let cnt = 0;
   for (const e of S.enemies) {                  // 닿는 자리
-    if (e.dead || e.y + e.r < y0 || e.y - e.r > H || Math.abs(e.x - x) > reach + e.r * 0.4) continue;
+    if (e.dead || (stop != null ? e.y < y0 : e.y + e.r < y0) || e.y - e.r > H || Math.abs(e.x - x) > reach + e.r * 0.4) continue;   // 멈춘 빔은 멈춘 자리 아래의 적만
     if (++cnt > 6) break;
     const fc = st.focus && e.fcB === owner ? Math.min(1, (e.fcN || 0) / 20) : 0, d = e.x - x;
     const cx = x + (d < -5 ? -5 : d > 5 ? 5 : d), cy = e.y + Math.min(e.r * 0.55, 16), fl = 0.8 + 0.2 * Math.sin(t * 53 + e.x);
@@ -3263,13 +3268,29 @@ function drawMine(m) {
   if (sq) { ctx.save(); ctx.translate(m.x, m.y); ctx.scale(1 + sq, 1 - sq); mineBody(0, 0, sc, m.ph, on, L, col); ctx.restore(); }
   else mineBody(m.x, m.y, sc, m.ph, on, L, col);
 }
+// 멈춘 빔의 끝: 처음 볼 때 둘레의 빛 알갱이가 끝점으로 모여들고, 끝의 빛 덩이는 오므라들며 옅어진다
+function beamAbsorb(f, p, u) {
+  const col = f.c === '#ffffff' ? C.WEAPONS.laser.color : f.c, x = f.x, y = f.y0, q = 1 - p;
+  if (u.n) {
+    for (let i = 0, n = 5 + Math.floor(Math.random() * 4); i < n; i++) {
+      const an = Math.PI * (1.05 + 0.9 * Math.random()), d = 16 + 20 * Math.random(), life = 0.12 + 0.12 * Math.random();
+      VX.spark(x + Math.cos(an) * d, y + Math.sin(an) * d * 0.8, -Math.cos(an) * d / life, -Math.sin(an) * d * 0.8 / life, life, 1 + Math.random(), Math.random() < 0.5 ? VX.hot(col) : col, 0, 1.6, 1);
+    }
+  }
+  VX.add();
+  VX.glow(x, y - 2, (9 + 16 * p) * (0.9 + 0.2 * u.sd), col, 0.55 * p, (7 + 10 * p));
+  hotSpot(x, y, 4 + 6 * p - 2 * q, col, 0.9 * p);
+  VX.norm();
+}
 function drawFx(f, H) {
   const p = Math.max(0, f.t / f.d);
   switch (f.k) {
-    case 'beam':
-      if (VX.ui(f).n && !f.h) VX.trail(f.x, f.y1, f.x, f.y0, f.g ? 4.2 : 2.6, f.c === '#ffffff' ? C.WEAPONS.laser.color : f.c, f.g ? 0.6 : 0.45, 1);   // 번쩍인 뒤 남는 가는 심지와 빛 알갱이
+    case 'beam': {
+      const u0 = VX.ui(f);
+      if (u0.n && !f.h) VX.trail(f.x, f.y1, f.x, f.y0, f.g ? 4.2 : 2.6, f.c === '#ffffff' ? C.WEAPONS.laser.color : f.c, f.g ? 0.6 : 0.45, 1);   // 번쩍인 뒤 남는 가는 심지와 빛 알갱이
       ctx.fillStyle = rgba(f.c, 0.75 * p); ctx.fillRect(f.x - f.w * p / 2, f.y0, f.w * p, f.y1 - f.y0);
       ctx.fillStyle = `rgba(255,255,255,${0.8 * p})`; ctx.fillRect(f.x - 1.5, f.y0, 3, f.y1 - f.y0);
+      if (f.ab) beamAbsorb(f, p, u0);       // 최대 타격 수에 걸려 멈춘 빔: 끝이 적에게 빨려 드는 빛
       if (f.g) {                            // 빔 끝에 맺히는 눈부심
         const q = 1 - p, gy = f.y0 + 2;
         ctx.fillStyle = rgba(f.c, 0.3 * p); ctx.beginPath(); ctx.arc(f.x, gy, 12 + 14 * q + f.w * 0.3, 0, Math.PI * 2); ctx.fill();
@@ -3280,6 +3301,7 @@ function drawFx(f, H) {
         ctx.stroke();
       }
       break;
+    }
     case 'aim': {                           // 저격포 조준선: 가는 붉은 선과 표적 표시
       const q = 1 - p, al = 0.45 + 0.4 * Math.sin(q * 30), col = '255,70,90';
       ctx.lineCap = 'round'; ctx.lineWidth = 1.2; ctx.strokeStyle = `rgba(${col},${al})`;

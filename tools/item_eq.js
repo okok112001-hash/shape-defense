@@ -21,6 +21,7 @@ const FAKE = {};
 for (const [id, d] of Object.entries(FAKE_D)) FAKE[id] = { name: `가짜: 공격력 +${d * 100}%`, min: 0, v: [d, d, d, d], ap: (s, v) => { s.dmgPct += v; } };
 const KNOTS = ['_eq_d25', '_eq_d100', '_eq_d300'];   // 환산 꺾은선의 마디 (기준 d=0 과 함께). d50 은 검증용
 const X2_PARTS = ['rate', 'range', 'boss', 'exec', 'first', 'chill', 'ember'];   // X2 팀에서 재는 무기 파츠 (무기마다 값이 다를 만한 것)
+const CAP_PARTS = ['spread', 'nolimit'];   // 범위 무기(WEAPONS 의 cap) 팀에서만 재는 무기 파츠 (최대 타격 수)
 const PART_TEAM = ['shotgun', 'blaster', 'laser', 'tesla', 'mortar'];             // bench.js 의 PART_TEAM 과 같다
 const P5_SKIP = ['dmg', 'gold'];            // P5 에서 빼는 파츠 (dmg 는 정의상 공격력, gold 는 leak 에 안 잡힘)
 
@@ -78,7 +79,8 @@ for (const W of Core.WEAPON_IDS) {
   const i5 = I5.includes(W);
   teams.push({
     name: (i5 ? 'I5:' : 'X2:') + W, sel: W, types: [0, 1, 2, 3, 4].map((i) => (i5 || i === 1 || i === 3 ? W : 'blaster')), carry: i5 ? [0, 1, 2, 3, 4] : [1, 3],
-    items: [...Core.AUG_POOL[W].filter((id) => id !== 'a_dmg').map((id) => ({ kind: 'aug', id })), ...X2_PARTS.map((id) => ({ kind: 'part', id }))],
+    items: [...Core.AUG_POOL[W].filter((id) => id !== 'a_dmg').map((id) => ({ kind: 'aug', id })), ...X2_PARTS.map((id) => ({ kind: 'part', id })),
+      ...(Core.WEAPONS[W].cap && !Core.WEAPONS[W].capSk ? CAP_PARTS : []).map((id) => ({ kind: 'part', id }))],
   });
 }
 teams.push({ name: 'P5', sel: 'P5', types: PART_TEAM.slice(), carry: [0, 1, 2, 3, 4],
@@ -222,6 +224,7 @@ function capOf(pts) {
   const meta = {
     created: new Date().toISOString(), runs: N, from: S0, jit: JIT, target: T, minutes: +mins.toFixed(2), workers: os.cpus().length, hash,
     sims, errors: errors.length, only: ONLY, grades: GRADES, nofake: NOFAKE,
+    caps: Object.fromEntries(Core.WEAPON_IDS.map((t) => [t, Core.WEAPONS[t].cap || 0])),   // 측정할 때의 최대 타격 수 (없으면 T4 이전 측정: value.js 가 제한 없이 계산)
     teams: Object.fromEntries(usedTeams.map((t) => [t.name, { weapons: t.types, carry: t.carry,
       curves: Object.fromEntries(SC.map((sk) => { const p = curve(t.name, sk), cp = p && p.length > 1 ? capOf(p) : null; return [sk, { pts: p && p.map(([x, y]) => [+(Math.exp(x) - 1).toFixed(4), y]), cap: cp ? cp.d : null }]; })) }])),
     note: 'eq = 운반 무기 공격력 +eq 어치 (0.25 = +25%). R = M*(대상)/M*(기준). share = M* 에서 운반 칸 피해 / 팀 전체 피해. kills, dealt = M* 에서 측정 120초 동안의 시드 평균. lnM = ln M*. '
