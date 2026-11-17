@@ -1099,7 +1099,7 @@ const PARTS = {
   dmg:   { name: '강화 탄두',   abbr: '공격', min: 0, v: [5.8, 12, 23, 58],    ap: pct('dmgPct'),   d: v => `공격력 +${v}%` },
   rate:  { name: '가속 장치',   abbr: '속도', min: 0, v: [5.8, 12, 23, 46],    ap: pct('ratePct'),  d: v => `공격 속도 +${v}%` },
   crit:  { name: '조준경',      abbr: '치확', min: 0, v: [7.5, 15, 30, 75],    ap: pct('crit'),     d: v => `치명타 확률 +${v}%` },
-  critd: { name: '예리한 날',   abbr: '치피', min: 0, v: [25, 50, 100, 250], w: [2.3, 4.5, 9, 23],  ap: (s, v, w) => { s.critDmg += v / 100; s.crit += w / 100; }, d: (v, w) => `치명타 피해 +${v}%, 치명타 확률 +${w}%` },
+  critd: { name: '예리한 날',   abbr: '치피', min: 0, v: [25, 50, 100, 170], w: [2.3, 4.5, 9, 16],  ap: (s, v, w) => { s.critDmg += v / 100; s.crit += w / 100; }, d: (v, w) => `치명타 피해 +${v}%, 치명타 확률 +${w}%` },
   range: { name: '확장 모듈',   abbr: '범위', min: 0, v: [9.3, 19, 37, 93],    ap: pct('rangePct'), d: v => `사거리와 공격 범위 +${v}%` },
   boss:  { name: '약점 분석기', abbr: '보스', min: 0, v: [14, 27, 54, 140],   ap: pct('bossPct'),  d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
   gold:  { name: '채굴 칩',     abbr: '재화', min: 0, v: [18, 35, 70, 180],    ap: pct('goldPct'),  d: v => `이 무기로 처치 시 재화 +${v}%` },
@@ -1122,10 +1122,10 @@ const PARTS = {
   spread:  { name: '다중 타격기', abbr: '타격', min: 0, area: 1, v: [1, 2, 3, 8], ap: add('spread'), d: v => `범위 공격이 한 번에 때리는 적 +${v}명 (범위 무기 전용)` },
   nolimit: { name: '제한 해제기',  min: 3, area: 1, v: [0, 0, 0, 20], ap: (s, v) => { s.nolimit = 1; s.dmgPct -= v / 100; }, d: v => `범위 공격이 때리는 적 수 제한 없음, 공격력 -${v}% (범위 무기 전용)` },
   // 기지 전용 파츠 (기지 파츠 칸에만 장착, 효과는 전체에 적용)
-  shield:  { base: true, name: '방패 발생기', min: 0, v: [3, 6, 12, 30],     ap: pct('shield'),   d: v => `기지가 받는 피해 -${v}% (합산, 최대 60%)` },
+  shield:  { base: true, name: '방패 발생기', min: 0, v: [7.8, 15, 25, 46],     ap: pct('shield'),   d: v => `기지가 받는 피해 -${v}% (합산, 최대 60%)` },
   // 두 가지 능력을 가진 기지 항목: v = 첫째 수치, w = 둘째 수치 (등급별 배열). ap(s, v, w), d(v, w)
   armor:   { base: true, name: '장갑판',     min: 0, v: [5, 10, 20, 50], w: [1.1, 2.2, 4.4, 11], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgAll += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 모든 무기의 공격력 +${w}%` },
-  drone:   { base: true, name: '수리 드론',   min: 0, v: [0.063, 0.13, 0.25, 0.63], w: [0.7, 1.4, 2.8, 7], ap: (s, v, w) => { s.regenPct += v / 100; s.goldAll += w / 100; }, d: (v, w) => `1초마다 최대 체력의 ${v}% 회복 · 재화 획득 +${w}%` },
+  drone:   { base: true, name: '수리 드론',   min: 0, v: [0.032, 0.063, 0.13, 0.32], w: [0.35, 0.7, 1.4, 3.5], ap: (s, v, w) => { s.regenPct += v / 100; s.goldAll += w / 100; }, d: (v, w) => `1초마다 최대 체력의 ${v}% 회복 · 재화 획득 +${w}%` },
   heal:    { base: true, name: '수리 장치',   min: 0, v: [1, 2, 4, 10], w: [1.5, 3, 6, 15], ap: (s, v, w) => { s.heal += v / 100; s.bossHeal += w / 100; }, d: (v, w) => `적을 처치할 때 ${v}% 확률로 최대 체력의 1% 회복 · 보스를 처치하면 체력 ${w}% 회복` },
   wire:    { base: true, name: '감속 철조망', min: 0, v: [7.3, 15, 29, 73],    ap: mx('nearSlow'),  d: v => `기지 가까이 온 적(전장 아래 4분의 1)을 ${v}% 둔화` },
   luck:    { base: true, name: '행운 부적',   min: 0, v: [0.47, 0.95, 1.9, 4.8],       ap: pct('luck'),     d: v => `모든 강화의 성공률 +${v}%p` },
@@ -1133,7 +1133,7 @@ const PARTS = {
   magnet:  { base: true, name: '자석 코어',   min: 0, v: [0.42, 0.85, 1.7, 4.3],        ap: pct('magnet'),   d: v => `적을 처치할 때 ${v}% 확률로 강화 조각 획득` },
   depot:   { base: true, name: '보급 창고',   min: 0, v: [1.8, 3.5, 7, 18],     ap: pct('goldAll'),  d: v => `재화 획득 +${v}%` },
   command: { base: true, name: '지휘 통신기', min: 0, v: [3.5, 7, 14, 35],      ap: pct('dmgAll'),   d: v => `모든 무기의 공격력 +${v}%` },
-  radar:   { base: true, name: '레이더',     min: 0, v: [2.8, 5.5, 11, 28],      ap: pct('rangeAll'), d: v => `모든 무기의 사거리와 범위 +${v}%` },
+  radar:   { base: true, name: '레이더',     min: 0, v: [5.2, 11, 23, 69],      ap: pct('rangeAll'), d: v => `모든 무기의 사거리와 범위 +${v}%` },
   barrier: { base: true, name: '비상 방벽',   min: 2, v: [0, 0, 30, 75],      ap: mx('revive'),    d: v => `기지가 파괴될 피해를 한 번 막고 체력을 ${v}% 회복. 발동하면 이 파츠는 사라짐` },
 };
 const BASE_PART_IDS = Object.keys(PARTS).filter(id => PARTS[id].base);
@@ -1148,54 +1148,54 @@ const AUGS = {
   a_rate: { name: '속사',     abbr: '속사', min: 0, for: 'all', v: [9, 18, 36, 72],  ap: pct('ratePct'), d: v => `공격 속도 +${v}%` },
   a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, for: 'all', v: [12, 24, 48, 90],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
   // 블래스터
-  b_multi:  { name: '연발',   abbr: '연발', min: 2, for: 'blaster', v: [0, 0, 1, 2], ap: add('shots'),  d: v => `탄환 ${v}발 추가 발사 (추가 탄 피해 ${Math.round(CFG.extraShotMul * 100)}%)` },
+  b_multi:  { name: '연발',   abbr: '연발', min: 2, for: 'blaster', v: [0, 0, 1, 2], w: [0, 0, 50, 62], ap: (s, v, w) => { s.shots += v; s.shotMul = Math.max(s.shotMul, w / 100); }, d: (v, w) => `탄환 ${v}발 추가 발사 (추가 탄 피해 ${w}%)` },
   b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 25, 63], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
-  b_seek:   { name: '유도탄', abbr: '유도', min: 2, for: 'blaster', v: [0, 0, 2, 4], w: [0, 0, 25, 63], ap: (s, v, w) => { s.lanes += v; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v)}, 공격력 +${w}%` },
+  b_seek:   { name: '유도탄', abbr: '유도', min: 2, for: 'blaster', v: [0, 0, 2, 4], w: [0, 0, 43, 110], ap: (s, v, w) => { s.lanes += v; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v)}, 공격력 +${w}%` },
   b_frost:  { name: '냉각탄', abbr: '냉각', min: 0, for: 'blaster', v: [17, 35, 69, 80], ap: mx('slow'), d: v => `적중한 적을 1.5초간 ${v}% 둔화` },
   // 산탄포
   s_wide:   { name: '광각 산탄', abbr: '광각', min: 2, for: 'shotgun', v: [0, 0, 1, 3], ap: add('lanes'), d: v => v >= 3 ? '모든 레인에 산탄 발사' : '양옆 2레인까지 산탄 발사' },
-  s_pellet: { name: '추가 산탄', abbr: '산탄', min: 2, for: 'shotgun', v: [0, 0, 1, 2], ap: add('shots'), d: v => `레인마다 산탄 ${v}발 추가 (추가 탄 피해 ${Math.round(CFG.extraShotMul * 100)}%)` },
+  s_pellet: { name: '추가 산탄', abbr: '산탄', min: 2, for: 'shotgun', v: [0, 0, 1, 3], ap: add('shots'), d: v => `레인마다 산탄 ${v}발 추가 (추가 탄 피해 ${Math.round(CFG.extraShotMul * 100)}%)` },
   s_knock:  { name: '충격탄',   abbr: '충격', min: 0, for: 'shotgun', v: [4.8, 9.5, 19, 48], ap: add('knock'), d: v => `적중한 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
   s_close:  { name: '근접 사격', abbr: '근접', min: 0, for: 'shotgun', v: [12, 24, 48, 120], ap: pct('closePct'), d: v => `기지 가까이 온 적에게 피해 +${v}%` },
-  s_pierce: { name: '철갑 산탄', abbr: '철갑', min: 1, for: 'shotgun', v: [0, 1, 2, 4], ap: add('pierce'), d: v => `산탄이 적 ${v}명을 추가로 관통 (관통할 때마다 피해 -45%)` },
+  s_pierce: { name: '철갑 산탄', abbr: '철갑', min: 1, for: 'shotgun', v: [0, 1, 2, 4], w: [0, 60, 60, 25], ap: (s, v, w) => { s.pierce += v; s.pk = 1 - w / 100; }, d: (v, w) => `산탄이 적 ${v}명을 추가로 관통 (관통할 때마다 피해 -${w}%)` },
   // 레이저
   l_burn:   { name: '잔열',     abbr: '잔열', min: 0, for: 'laser', v: [8.8, 18, 35, 88], ap: mx('burn'), d: v => `적중한 적에게 3초간 초당 공격력의 ${v}% 화상 피해` },
   l_charge: { name: '과충전',   abbr: '충전', min: 0, for: 'laser', v: [40, 80, 160, 400], ap: pct('third'), d: v => `3번째 발사마다 피해 +${v}%` },
   l_lens:   { name: '집광',     abbr: '집광', min: 0, for: 'laser', v: [50, 100, 200, 500], ap: pct('lens'), d: v => `빔에 맞은 적 중 기지에 가장 가까운 적에게 피해 +${v}%` },
   // 펄스
-  p_area:   { name: '범위 증폭', abbr: '증폭', min: 0, for: 'pulse', v: [11, 23, 45, 55], ap: pct('areaPct'), d: v => `파동 범위 +${v}%` },
+  p_area:   { name: '범위 증폭', abbr: '증폭', min: 0, for: 'pulse', v: [11, 23, 45, 110], ap: pct('areaPct'), d: v => `파동 범위 +${v}%` },
   p_knock:  { name: '충격파',   abbr: '충격', min: 0, for: 'pulse', v: [2.5, 5, 10, 15], ap: add('knock'), d: v => `범위 안의 적을 뒤로 밀어냄 (세기 ${v}, 보스 제외)` },
   p_frost:  { name: '빙결장',   abbr: '빙결', min: 0, for: 'pulse', v: [8.8, 18, 35, 55], ap: mx('slow'), d: v => `범위 안의 적을 1.5초간 ${v}% 둔화` },
   p_echo:   { name: '이중 파동', abbr: '이중', min: 2, for: 'pulse', v: [0, 0, 55, 90], ap: pct('echo'), d: v => `${v}% 확률로 파동이 한 번 더 발생` },
   // 박격포
   m_big:     { name: '대형 포탄', abbr: '대형', min: 0, for: 'mortar', v: [14, 28, 55, 100], ap: pct('areaPct'), d: v => `폭발 범위 +${v}%` },
   m_cluster: { name: '집속탄',   abbr: '집속', min: 2, for: 'mortar', v: [0, 0, 2, 4], ap: add('cluster'), d: v => `폭발 후 주변에 소형 폭발 ${v}개 추가 (피해 80%)` },
-  m_fire:    { name: '화염 지대', abbr: '화염', min: 2, for: 'mortar', v: [0, 0, 26, 65], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
-  m_boss:    { name: '정밀 포격', abbr: '포격', min: 0, for: 'mortar', v: [53, 110, 211, 530], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
+  m_fire:    { name: '화염 지대', abbr: '화염', min: 2, for: 'mortar', v: [0, 0, 12, 32], ap: mx('pool'), d: v => `착탄 지점에 3초간 초당 공격력의 ${v}% 피해` },
+  m_boss:    { name: '정밀 포격', abbr: '포격', min: 0, for: 'mortar', v: [22, 47, 100, 300], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
   // 전격기
-  t_chain: { name: '연쇄 증폭', abbr: '연쇄', min: 0, for: 'tesla', v: [1, 2, 3, 5], ap: add('chain'), d: v => `연쇄 횟수 +${v}` },
+  t_chain: { name: '연쇄 증폭', abbr: '연쇄', min: 0, for: 'tesla', v: [1, 2, 3, 10], ap: add('chain'), d: v => `연쇄 횟수 +${v}` },
   t_stun:  { name: '감전',     abbr: '감전', min: 0, for: 'tesla', v: [11, 22, 44, 90], ap: mx('stun'), d: v => `적중 시 ${v}% 확률로 0.8초 기절 (보스 제외)` },
-  t_grow:  { name: '과부하',   abbr: '과부', min: 2, for: 'tesla', v: [0, 0, 15, 38], ap: mx('chainGrow'), d: v => `연쇄할 때마다 피해가 줄지 않고 ${v}%씩 증가` },
+  t_grow:  { name: '과부하',   abbr: '과부', min: 2, for: 'tesla', v: [0, 0, 15, 62], ap: mx('chainGrow'), d: v => `연쇄할 때마다 피해가 줄지 않고 ${v}%씩 증가` },
   t_wide:  { name: '광역 방전', abbr: '광역', min: 2, for: 'tesla', v: [0, 0, 2, 4], w: [0, 0, 20, 20], ap: (s, v, w) => { s.lanes += v; s.chain += v / 2 + 1; s.dmgPct += w / 100; }, d: (v, w) => `${laneText(v + 1)}, 연쇄 +${v / 2 + 1}, 공격력 +${w}%` },
   // 눈에 보이는 변화가 큰 증강 (대부분 영웅 이상)
   a_boom:    { name: '연쇄 폭발', min: 2, for: 'all',     v: [0, 0, 15, 38],   ap: mx('deathBoom'), d: v => `이 무기로 처치한 적이 폭발해 주변에 공격력의 ${v}% 피해` },
-  b_split:   { name: '분열탄',   min: 2, for: 'blaster', v: [0, 0, 2, 3],      ap: add('split'),  d: v => `탄환이 적중하면 작은 탄 ${v}개로 갈라져 날아감 (피해 35%)` },
+  b_split:   { name: '분열탄',   min: 2, for: 'blaster', v: [0, 0, 2, 5],      ap: add('split'),  d: v => `탄환이 적중하면 작은 탄 ${v}개로 갈라져 날아감 (피해 35%)` },
   s_double:  { name: '2연발',    min: 2, for: 'shotgun', v: [0, 0, 37, 80],  ap: mx('again'),   d: v => `발사 직후 한 번 더 발사 (피해 ${v}%)` },
   s_blast:   { name: '폭렬 산탄', min: 2, for: 'shotgun', v: [0, 0, 21, 53],    ap: pct('splash'), d: v => `산탄이 적중하면 폭발해 주변에 피해의 ${v}%` },
-  l_freeze:  { name: '냉동 광선', min: 2, for: 'laser',   v: [0, 0, 0.2, 0.5], ap: (s, v) => { s.freeze = Math.max(s.freeze, v); }, d: v => `적중한 적을 ${v}초간 얼림 (보스는 둔화)` },
-  l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 23, 58],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
-  p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 18, 35, 70],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
+  l_freeze:  { name: '냉동 광선', min: 2, for: 'laser',   v: [0, 0, 0.55, 0.95], ap: (s, v) => { s.freeze = Math.max(s.freeze, v); }, d: v => `적중한 적을 ${v}초간 얼림 (보스는 둔화)` },
+  l_orbit:   { name: '궤도 포격', min: 2, for: 'laser',   v: [0, 0, 47, 120],   ap: mx('orbit'),   d: v => `발사할 때마다 적이 있는 다른 레인 하나에 빔 낙하 (피해 ${v}%)` },
+  p_stun:    { name: '충격 마비', min: 1, for: 'pulse',   v: [0, 21, 37, 65],   ap: mx('stun'),    d: v => `파동에 맞은 적이 ${v}% 확률로 0.8초 기절 (보스 제외)` },
   m_shrap:   { name: '파편탄',   min: 2, for: 'mortar',  v: [0, 0, 6, 8],      ap: add('shrap'),  d: v => `폭발할 때 파편 ${v}개가 사방으로 날아감 (피해 25%)` },
   t_slow:    { name: '정전기장', min: 1, for: 'tesla',   v: [0, 35, 70, 80],   ap: mx('slow'),    d: v => `감전된 적을 1.5초간 ${v}% 둔화` },
   t_multi:   { name: '다중 방전', min: 2, for: 'tesla',   v: [0, 0, 1, 2],      ap: add('multi'),  d: v => `처음 노리는 적이 ${v}명 늘어남 (각각 연쇄, 추가된 적의 연쇄는 피해 50%)` },
   // 저격포
-  r_heavy:   { name: '철갑탄',   abbr: '철갑', min: 0, for: 'rail', v: [18, 35, 70, 180], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
-  r_mark:    { name: '표식',     abbr: '표식', min: 0, for: 'rail', v: [4.5, 9, 18, 45], ap: (s, v) => { s.vuln = Math.max(s.vuln, v / 100); s.vulnT = 4; }, d: v => `맞은 적이 4초간 받는 모든 피해 +${v}%` },
+  r_heavy:   { name: '철갑탄',   abbr: '철갑', min: 0, for: 'rail', v: [22, 47, 100, 300], ap: pct('bossPct'), d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
+  r_mark:    { name: '표식',     abbr: '표식', min: 0, for: 'rail', v: [27, 55, 110, 300], ap: (s, v) => { s.vuln = Math.max(s.vuln, v / 100); s.vulnT = 4; }, d: v => `맞은 적이 4초간 받는 모든 피해 +${v}%` },
   r_through: { name: '관통 저격', min: 2, for: 'rail', v: [0, 0, 150, 375], ap: mx('through'), d: v => `탄이 표적 뒤 일직선상의 적도 관통 (피해 ${v}%)` },
   r_twin:    { name: '이중 저격', min: 2, for: 'rail', v: [0, 0, 45, 110], ap: mx('twin'),    d: v => `두 번째로 체력이 많은 적도 저격 (피해 ${v}%)` },
   // 산성 분사기
   c_corrode: { name: '부식액',   abbr: '부식', min: 0, for: 'acid', v: [9.8, 20, 39, 98], ap: pct('aVuln'), d: v => `웅덩이의 취약 효과 +${v}%p` },
-  c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, for: 'acid', v: [8.8, 18, 35, 88], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
+  c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, for: 'acid', v: [13, 26, 57, 140], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
   c_pool:    { name: '끈적한 산', abbr: '끈적', min: 0, for: 'acid', v: [11, 21, 42, 80], ap: mx('aSlow'), d: v => `웅덩이 안의 적을 ${v}% 둔화` },
   c_wide:    { name: '다중 투척', min: 2, for: 'acid', v: [0, 0, 1, 2], ap: add('aMulti'), d: v => `웅덩이를 ${v}개 더 던짐` },
   // 기지 증강 (기지 강화 5단계마다)
@@ -1205,9 +1205,9 @@ const AUGS = {
   h_drill:  { name: '숙련 공병',   min: 0, for: 'base', v: [0.8, 1.6, 3.2, 8],      ap: pct('luck'),    d: v => `모든 강화의 성공률 +${v}%p` },
   h_turret: { name: '방어 포탑',   min: 2, for: 'base', v: [0, 0, 11, 28],    ap: mx('turret'),   d: v => `기지 중앙의 포탑이 가장 가까운 적을 자동 공격 (가장 강한 무기 화력의 ${v}%)` },
   h_shock:  { name: '충격 방벽',   min: 2, for: 'base', v: [0, 0, 8, 20],   ap: add('shock'),   d: v => `적이 기지에 닿으면 충격파가 퍼져 근처 적을 밀어내고 가장 강한 무기 화력의 ${v}% 피해` },
-  h_fence:  { name: '전기 울타리', min: 2, for: 'base', v: [0, 0, 9, 23],    ap: mx('fence'),    d: v => `기지 바로 앞의 적에게 지속 피해 (가장 강한 무기 화력의 ${v}%)` },
-  h_wave:   { name: '빙결 파동',   min: 2, for: 'base', v: [0, 0, 30, 12],    ap: (s, v) => { s.wave = s.wave ? Math.min(s.wave, v) : v; }, d: v => `${v}초마다 전장의 모든 적을 1.5초간 얼림 (보스는 둔화)` },
-  h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 35],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
+  h_fence:  { name: '전기 울타리', min: 2, for: 'base', v: [0, 0, 4, 10],    ap: mx('fence'),    d: v => `기지 바로 앞의 적에게 지속 피해 (가장 강한 무기 화력의 ${v}%)` },
+  h_wave:   { name: '빙결 파동',   min: 2, for: 'base', v: [0, 0, 9, 6],    ap: (s, v) => { s.wave = s.wave ? Math.min(s.wave, v) : v; }, d: v => `${v}초마다 전장의 모든 적을 1.5초간 얼림 (보스는 둔화)` },
+  h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 60],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
 };
 const AUG_POOL = {};
 // pool: false 는 증강으로는 나오지 않는 항목 (지금은 없음)
@@ -1523,7 +1523,7 @@ function blankStats(lanes, chain) {
   return {
     dmgPct: 0, ratePct: 0, crit: 0.10, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, goldPct: 0,
     execPct: 0, firstPct: 0, heal: 0, luck: 0, save: 0, dbl: 0,
-    pierce: 0, shots: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes,
+    pierce: 0, shots: 0, shotMul: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes,
     chain, chainGrow: 0, closePct: 0, third: 0, lens: 0, cluster: 0, pool: 0, echo: 0,
     farPct: 0, gamble: 0, shield: 0, magnet: 0, ramp: 0, deathBoom: 0,
     rico: 0, split: 0, again: 0, slug: 0, freeze: 0, orbit: 0, orbs: 0, nova: 0,
@@ -2309,7 +2309,7 @@ function fire(w, slot, st) {
       } else {
         for (let i = 0; i < n; i++) {
           const off = i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.09;
-          bullet(wx, wy, ang + off, st.dmg * (i === 0 ? 1 : CFG.extraShotMul), st, dist, o);
+          bullet(wx, wy, ang + off, st.dmg * (i === 0 ? 1 : st.shotMul || CFG.extraShotMul), st, dist, o);
         }
       }
       if (st.tri) {                          // 삼연장: 양옆 레인에도 동시에 발사

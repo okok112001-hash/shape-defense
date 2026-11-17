@@ -134,12 +134,14 @@ function model(st, ref, c, lay, PP) {
   const splashN = (R) => nIn(lam, Math.PI * R * R);
   const sides = lay.sides;
   // 군중 제어: 같은 적을 다시 맞히는 간격 tau 에서 둔화/기절/밀치기를 '느려진 비율' sigma 로 바꾼다
-  const ccHit = (tau, kn) => {
-    if (st.slow) sig.push(st.slow * Math.min(1, 1.5 / tau) * (1 - 0.5 * bb));
-    if (st.stun) sig.push(Math.min(0.9, st.stun * 0.8 / tau) * (1 - bb));
-    if (kn) sig.push(Math.min(0.9, kn / (cb.v * tau)) * (1 - bb));
-    if (st.freeze) sig.push(Math.min(0.9, st.freeze / tau) * (1 - bb) + bb * 0.4 * Math.min(1, 1 / tau));
+  // cov: 범위 안 적 중 실제로 맞는 비율 (최대 타격 수 때문에 레이저·펄스는 적이 많으면 일부만 맞는다. T8)
+  const ccHit = (tau, kn, cov = 1) => {
+    if (st.slow) sig.push(cov * st.slow * Math.min(1, 1.5 / tau) * (1 - 0.5 * bb));
+    if (st.stun) sig.push(cov * Math.min(0.9, st.stun * 0.8 / tau) * (1 - bb));
+    if (kn) sig.push(cov * Math.min(0.9, kn / (cb.v * tau)) * (1 - bb));
+    if (st.freeze) sig.push(cov * (Math.min(0.9, st.freeze / tau) * (1 - bb) + bb * 0.4 * Math.min(1, 1 / tau)));
   };
+  const covOf = (mu) => (mu > 1e-6 ? capE(mu, N) / mu : 1);
   const tau = st.cd / (1 + st.dbl), Rv0 = cb.v;   // Rv0: 적의 평균 속도 (px/초)
   switch (t) {
     case 'blaster': {
@@ -147,7 +149,7 @@ function model(st, ref, c, lay, PP) {
       const busy = occ(lam * r * (1 + Math.min(extraL, 4) * 0.5));
       const muB = lam * r * 0.8;
       const one = 1 + pierceHits(st.pierce, st.pk, muB);
-      let hits = one + st.shots * CFG.extraShotMul * 0.9 * one;
+      let hits = one + st.shots * (st.shotMul || CFG.extraShotMul) * 0.9 * one;
       if (st.split) hits += st.split * 0.35 * occ(nIn(lam, 240 * 48));
       if (st.splash) hits += st.splash * splashN(62 * (1 + st.areaPct));
       let shot = hits;
@@ -216,7 +218,7 @@ function model(st, ref, c, lay, PP) {
       burnN = rate * n;
       if (st.always) dir += (1 / st.cd) * st.alwaysM * (muC + st.lens) * (1 + st.focus * 15);
       if (st.melt) { dot += st.melt * muC * Math.min(1, st.meltT / tau); if (st.meltSlow) sig.push(st.meltSlow * Math.min(1, st.meltT / tau) * (1 - 0.5 * bb)); }
-      ccHit(tau, st.knock);
+      ccHit(tau, st.knock, covOf(mu));
       break;
     }
     case 'pulse': {
@@ -240,7 +242,7 @@ function model(st, ref, c, lay, PP) {
       }
       if (st.fld) sig.push(Math.min(0.6, st.fld / 100 * 0.12 * pm.fld) * (1 - 0.5 * bb));   // 역장: 끌어당겨 무기 앞에 모은다 (머무는 시간으로 본다)
       if (st.fldDps) { const Rf = R * 0.7; dot += st.fldDps * capE(nIn(lam, Math.PI * Rf * Rf / 2) * pm.crush, N); }   // 압착 (T6): 역장 안 적에게 지속 피해
-      ccHit(tau, st.knock);
+      ccHit(tau, st.knock, covOf(mu));
       break;
     }
     case 'mortar': {
@@ -388,8 +390,8 @@ function killRate(mo, m) {
   if (mo.D > 0) {
     const x = mo.X * m;
     let eff = x / killHits(x, mo.st, mo.bb);
-    if (mo.carry) eff += (1 - eff) * Math.min(1, mo.carry / 2);   // 넘겨받는 피해 (과잉 살상): 낭비된 몫을 다음 적에게
-    dirPart = mo.D * Math.min(1, eff);
+    if (mo.carry && eff < 1) eff += (1 - eff) * Math.min(1, mo.carry / 2);   // 넘겨받는 피해 (과잉 살상): 낭비된 몫을 다음 적에게
+    dirPart = mo.D * eff;   // 문턱 효과(처형, 선제, 즉사)는 타수를 X 밑으로 줄여 eff > 1 이 될 수 있다 (T8 전에는 1 로 잘라 처형·선제가 낮게 나왔다)
   }
   return (dirPart + mo.Dd) / m * mo.ccf * mo.vf;
 }
@@ -415,6 +417,9 @@ module.exports = { Core, CB, CTX, P, statsOf, model, killRate, eqOf, eqAll, LAY,
 
 /* ---------- 측정 자료 읽기 (영점) ---------- */
 const PART_TEAM = ['shotgun', 'blaster', 'laser', 'tesla', 'mortar'];   // tools/item_eq.js 의 P5 팀
+const ITEM_EQ_EXTRA = ['item_eq_t8a.json', 'item_eq_t8b.json'];   // 표본 밖 확인용 측정 (T8, fit 에는 안 씀)
+// T8 에서 둘째 수치(w)를 새로 단 항목: 그 전 측정은 w 가 없으니 당시 고정값으로 계산한다 (연발 추가 탄 피해 32%, 철갑 산탄 관통당 -45%)
+const LEGACY_W = { b_multi: 32, s_pierce: 45 };
 function loadItemEq(file) {
   if (!fs.existsSync(file)) return [];
   const j = JSON.parse(fs.readFileSync(file, 'utf8')), cells = [];
@@ -429,7 +434,7 @@ function loadItemEq(file) {
     const D = r.kind === 'part' ? PARTS[r.id] : AUGS[r.id];
     if (!D) continue;                       // 그 뒤 지운 항목 (예: 박격포 핵탄두 증강은 T5a 에서 진화 줄로 옮김)
     // 측정 당시 수치(r.v, r.w)로 능력치를 만든다 (그 뒤 core.js 수치를 바꿔도 영점이 어긋나지 않게)
-    const sts = withVal(D, r.g, r.v ? r.v[r.g] : null, r.w ? r.w[r.g] : null, () => wts.map((t) => ({ t, st: statsOf(t, o), ref: statsOf(t, {}) })));
+    const sts = withVal(D, r.g, r.v ? r.v[r.g] : null, r.w ? r.w[r.g] : LEGACY_W[r.id] != null ? LEGACY_W[r.id] : null, () => wts.map((t) => ({ t, st: statsOf(t, o), ref: statsOf(t, {}) })));
     if (pre) for (const q of sts) uncap(q);
     for (const c of CTX) {
       const m = r.sc[c];
@@ -534,6 +539,7 @@ function paramList(kind) {
 const KILL_RATE = 3;          // 중후반 초당 처치 수 (수리 장치의 회복 확률용, 봇 기록 기준의 대략값)
 const P_UP = 0.35;            // 중후반에 도전하는 강화 단계의 평균 성공률 (50~90강)
 const SHARD_SHARE = 0.67;     // 생성 결과 중 강화 조각의 몫 (무기 5자루일 때 generate() 의 확률)
+const BOSS_HEAL_W = 0.25;    // 보스 처치 회복의 몫 (T8 짝 생존 맞춤: 0 이 가장 잘 맞고 0~0.5 는 잡음 안. 봇은 보스를 못 잡는 때에 죽는 일이 많다)
 const NEAR_K = 2;             // 기지 바로 앞에서 주는 피해의 가치 배수 (가장 위험한 적이라서)
 function withVal(D, g, v, w, fn) {   // 항목의 등급 g 수치를 잠시 바꿔 fn 실행
   const ov = D.v[g], ow = D.w ? D.w[g] : undefined;
@@ -561,7 +567,7 @@ function baseFSG(kind, id, g, v, w, PP) {
     // S: 유효 체력
     const hpm = (1 + b.hpPct) / ((1 - b.shield) * (1 - b.dmgRed));
     let S_ = (hpm - 1) * 100;
-    S_ += 100 * (b.regenPct + b.heal * 0.01 * KILL_RATE + b.bossHeal / 60) * PP.x.Treg;
+    S_ += 100 * (b.regenPct + b.heal * 0.01 * KILL_RATE + b.bossHeal / 60 * BOSS_HEAL_W) * PP.x.Treg;
     if (b.revive) S_ += 100 * b.revive;
     if (b.bomb) S_ += 25;                                                     // 위기 때 한 번 전장을 쓸어 준다 (대략값)
     // G: 재화
@@ -573,28 +579,33 @@ function baseFSG(kind, id, g, v, w, PP) {
     return { F, S: S_, G, tot, gain: PP.x.aF * F + PP.x.aS * S_ + PP.x.aG * G };
   });
 }
-// 짝 생존 측정 (tools/balance_log.md): 당시 영웅 수치와 gain(%). 같은 항목을 여러 번 잰 것은 평균. 잡음 ±5~10%p
+// 짝 생존 측정 (tools/balance_log.md 의 T8): 측정 당시 영웅 수치(전설만 있는 항목은 g: 3)와 gain(%). 시드 96, K 321, 표준오차 2~6%p.
+// T8 전 기록(C, J, N 절, 시드 24)은 잡음이 커서(같은 항목 +9% / +23%) 이 기록으로 바꿨다
 const PAIR = [
-  { k: 'part', id: 'command', v: 14, gain: [9.0, 23.0, 11.6], src: 'C 최종, J 2패스, N' },
-  { k: 'part', id: 'radar', v: 11, gain: [10.7, 4.8], src: 'C 최종, J 2패스' },
-  { k: 'part', id: 'depot', v: 7, gain: [12.8, 17.0], src: 'C 최종, J 2패스' },
-  { k: 'part', id: 'luck', v: 1.9, gain: [6.1, -2.0], src: 'C 최종, J 2패스' },
-  { k: 'part', id: 'armor', v: 8, w: 4.4, gain: [19.5], src: 'C 최종' },
-  { k: 'part', id: 'drone', v: 0.07, w: 2.8, gain: [19.6], src: 'C 최종' },
-  { k: 'part', id: 'heal', v: 2.5, w: 4, gain: [13.7], src: 'C 최종' },
-  { k: 'part', id: 'shield', v: 12, gain: [8.1], src: 'C 최종' },
-  { k: 'aug', id: 'h_armor', v: 30, w: 8, gain: [10.9], src: 'C 최종' },
-  { k: 'aug', id: 'h_repair', v: 0.08, w: 3, gain: [11.1], src: 'C 최종' },
+  { k: 'part', id: 'command', v: 14, gain: [20.6] },
+  { k: 'part', id: 'radar', v: 11, gain: [7.8] },
+  { k: 'part', id: 'depot', v: 7, gain: [16.9] },
+  { k: 'part', id: 'luck', v: 1.9, gain: [11.9] },
+  { k: 'part', id: 'save', v: 5.7, gain: [11.2] },
+  { k: 'part', id: 'magnet', v: 1.7, gain: [9.9] },
+  { k: 'part', id: 'armor', v: 20, w: 4.4, gain: [18.3] },
+  { k: 'part', id: 'drone', v: 0.25, w: 2.8, gain: [29.9] },
+  { k: 'part', id: 'heal', v: 4, w: 6, gain: [10.0] },
+  { k: 'part', id: 'shield', v: 12, gain: [5.8] },
+  { k: 'aug', id: 'h_armor', v: 30, w: 8, gain: [14.8] },
+  { k: 'aug', id: 'h_supply', v: 7, gain: [13.3] },
+  { k: 'aug', id: 'h_repair', v: 0.25, w: 5, gain: [18.6] },
+  { k: 'aug', id: 'h_drill', v: 3.2, gain: [19.8] },
   // 맞춤에는 쓰지 않고 비교만 (기구가 독특해 식이 대략값)
-  { k: 'part', id: 'wire', v: 29, gain: [23.0], src: 'C 최종', chk: 1 },
-  { k: 'part', id: 'barrier', v: 30, gain: [17.1], src: 'C 측정만', chk: 1 },
-  { k: 'aug', id: 'h_turret', v: 11, gain: [18.0], src: 'C 측정만', chk: 1 },
-  { k: 'aug', id: 'h_fence', v: 9, gain: [29.3], src: 'C 측정만', chk: 1 },
-  { k: 'aug', id: 'h_wave', v: 30, gain: [-1.0], src: 'C 측정만', chk: 1 },
-  { k: 'aug', id: 'h_bomb', v: 35, gain: [16.1], src: 'C 측정만 (전설)', chk: 1, g: 3 },
-  { k: 'aug', id: 'h_shock', v: 4, gain: [17.2], src: 'N 최종 (48시드)', chk: 1 },
-];
-// 위 기록은 모두 T4(최대 타격 수) 전에 잰 것이라 제한 없이 계산한다. T4 뒤에 잰 기록은 t4: 1 을 붙인다
+  { k: 'part', id: 'wire', v: 29, gain: [20.4], chk: 1 },
+  { k: 'part', id: 'barrier', v: 30, gain: [13.5], chk: 1 },
+  { k: 'aug', id: 'h_turret', v: 11, gain: [21.4], chk: 1 },
+  { k: 'aug', id: 'h_shock', v: 8, gain: [15.1], chk: 1 },
+  { k: 'aug', id: 'h_fence', v: 9, gain: [31.3], chk: 1 },
+  { k: 'aug', id: 'h_wave', v: 30, gain: [6.2], chk: 1 },
+  { k: 'aug', id: 'h_bomb', v: 35, gain: [19.0], chk: 1, g: 3 },
+].map((q) => Object.assign(q, { t4: 1, src: 'T8 96시드' }));
+// t4: 1 = T4(최대 타격 수) 뒤에 잰 기록 (제한을 켜고 계산한다). 없으면 제한 없이 계산한다
 function withoutCap(fn) {
   const old = WEAPON_IDS.map((t) => WEAPONS[t].cap);
   for (const t of WEAPON_IDS) WEAPONS[t].cap = 0;
@@ -771,6 +782,8 @@ function fitAll() {
   const t0 = Date.now();
   const PP = defaults();
   const cells = loadItemEq(path.join(__dirname, 'item_eq.json'));
+  // 확인 측정 (T8): 맞춤에는 넣지 않고 표본 밖 비교로만 보인다. 넣으면 계수가 크게 흔들려(레이저 타수 계수 7.1 -> 2.9 등) 측정 없는 항목의 예측이 뒤집힌다
+  const chk = ITEM_EQ_EXTRA.flatMap((f) => loadItemEq(path.join(__dirname, f)).map((x) => Object.assign(x, { chkFile: f })));
   if (!cells.length) { console.error('tools/item_eq.json 이 없습니다. 먼저 node tools/item_eq.js'); process.exit(1); }
   const shs = {}; for (const x of cells) if (x.src !== 'P5') (shs[x.types[0]] = shs[x.types[0]] || []).push(x.lay.share);
   for (const t in shs) PP.w[t].sh = shs[t].reduce((a, b) => a + b, 0) / shs[t].length;   // 무기마다 운반 칸 피해 비율 (취약 효과의 팀 몫에 쓴다)
@@ -783,10 +796,10 @@ function fitAll() {
   for (const k of ['c', 'w', 'm', 'x']) P[k] = PP[k];
   const o = [];
   o.push('도형 디펜스 수치 가치 환산 계산기: 영점 맞춤 결과 (tools/value.js fit)');
-  o.push(`생성: ${new Date().toISOString()}  자료: tools/item_eq.json ${cells.length}칸, 스킬 ${sk.length}칸 (${[...new Set(sk.map((x) => x.file))].join(', ')}), 소요 ${meta.minutes}분`);
+  o.push(`생성: ${new Date().toISOString()}  자료: tools/item_eq.json ${cells.length}칸 (확인만: ${ITEM_EQ_EXTRA.join(', ')} ${chk.length}칸), 스킬 ${sk.length}칸 (${[...new Set(sk.map((x) => x.file))].join(', ')}), 소요 ${meta.minutes}분`);
   o.push('셀 = 측정 / 예측 (가치 %, ">" = 측정이 천장에 닿아 하한). 비 = (1+예측)/(1+측정) 의 기하평균 (1 이면 맞음). 맞춤에 쓴 자료와 비교하는 자료가 같다(표본 안 비교). 스킬 줄은 기구 계수(m)만 스킬 자료로 맞췄다.');
   const groups = new Map();
-  for (const x of cells.concat(sk)) { const k = x.src === 'SK' ? `SK|${x.id}|${x.mode}` : `${x.team}|${x.id}|${x.g}|${x.vv}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
+  for (const x of cells.concat(sk, chk)) { const k = x.src === 'SK' ? `SK|${x.id}|${x.mode}` : `${x.chkFile ? '확인 ' : ''}${x.team}|${x.id}|${x.g}|${x.vv}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
   const rows = [];
   for (const [k, xs] of groups) {
     const pr = xs.map((x) => predCell(x, P));
@@ -803,9 +816,9 @@ function fitAll() {
     o.push('  ' + pad(lab, 34) + cellsTxt + lpad(`${Math.round(r.mAll * 100)}/${Math.round(r.pAll * 100)}`, 11) + lpad(r.rr.toFixed(2), 6) + (r.rr > 1.25 || r.rr < 0.8 ? '  !' : ''));
   }
   o.push('');
-  const itemRows = rows.filter((r) => !r.k.startsWith('SK')), skRows = rows.filter((r) => r.k.startsWith('SK'));
+  const itemRows = rows.filter((r) => !r.k.startsWith('SK') && !r.k.startsWith('확인')), skRows = rows.filter((r) => r.k.startsWith('SK')), chkRows = rows.filter((r) => r.k.startsWith('확인'));
   const within = (lo, hi, L) => L.filter((r) => r.rr >= lo && r.rr <= hi).length;
-  o.push(`[요약] 항목(파츠·증강) ${itemRows.length}개 중 비 0.8~1.25 안 ${within(0.8, 1.25, itemRows)}개, 0.9~1.1 안 ${within(0.9, 1.1, itemRows)}개. 스킬 줄 ${skRows.length}개 중 0.8~1.25 안 ${within(0.8, 1.25, skRows)}개.`);
+  o.push(`[요약] 항목(파츠·증강) ${itemRows.length}개 중 비 0.8~1.25 안 ${within(0.8, 1.25, itemRows)}개, 0.9~1.1 안 ${within(0.9, 1.1, itemRows)}개. 스킬 줄 ${skRows.length}개 중 0.8~1.25 안 ${within(0.8, 1.25, skRows)}개. 표본 밖 확인(T8) ${chkRows.length}개 중 0.8~1.25 안 ${within(0.8, 1.25, chkRows)}개.`);
   o.push('[크게 어긋난 것 (비 0.8 밑 또는 1.25 위)]');
   for (const r of rows.filter((r) => r.rr > 1.25 || r.rr < 0.8).sort((a, b) => Math.abs(Math.log(b.rr)) - Math.abs(Math.log(a.rr)))) o.push(`  ${pad(r.k, 34)} 측정 ${Math.round(r.mAll * 100)}  예측 ${Math.round(r.pAll * 100)}  비 ${r.rr.toFixed(2)}`);
   o.push('');

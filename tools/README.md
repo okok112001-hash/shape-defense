@@ -92,7 +92,7 @@
 모든 파츠, 증강(등급별), 진화 노드(랭크별), 기지 항목을 "공격력 +1% = 화력 가치 1" 단위로 계산한다. 사용자용 설명은 `docs/value.md`.
 - 방법: 항목을 core.js 의 진짜 능력치(`stats`)에 적용하고, 무기마다 처치 속도 식(적 밀도, 처치 타수, 보스 비중, 군중 제어 계수 ...)으로 "적 체력이 몇 배여도 맨 무기만큼 잡는가"(R)를 푼다. 가치 = (R-1) x 100. skill_eq 와 item_eq 의 R/eq 와 같은 뜻이다. 계수는 `tools/value_cal.json`.
 - 쓰는 법: `node tools/value.js` (표와 예산 밖 목록 → `tools/value_report.txt`), `node tools/value.js item b_frost 2` (항목 하나, 시나리오별), `node tools/value.js line laser.0 0.5` (스킬 줄 하나의 랭크별 누적 R, 배율 sc 를 바꿔 본다). 환경변수 `VALUE_CORE=경로` 로 다른 core.js 를 계산할 수 있다(수치를 바꿔 보기).
-- 영점 다시 맞추기: `node tools/item_eq.js` 와 `node tools/skill_eq.js` 를 새로 잰 뒤 `node tools/value.js fit` (계수 → `value_cal.json`, 예측과 측정 비교 → `value_fit.txt`). 스킬 자료는 `skill_eq_report.txt` 위에 `skill_eq_report_t3*.txt`, 그 위에 `value.js` 의 `SK_T6`(지금 수치로 잰 `_t6b`, `_t6c`)를 덮어 쓴다. 스킬 수치를 바꾸면 다시 재서 `SK_T6` 을 바꾼다. 기지 항목의 교환 비율은 코드 안 `PAIR`(balance_log 의 짝 생존 기록)로 맞춘다.
+- 영점 다시 맞추기: `node tools/item_eq.js` 와 `node tools/skill_eq.js` 를 새로 잰 뒤 `node tools/value.js fit` (계수 → `value_cal.json`, 예측과 측정 비교 → `value_fit.txt`). 스킬 자료는 `skill_eq_report.txt` 위에 `skill_eq_report_t3*.txt`, 그 위에 `value.js` 의 `SK_T6`(지금 수치로 잰 `_t6b`, `_t6c`)를 덮어 쓴다. 스킬 수치를 바꾸면 다시 재서 `SK_T6` 을 바꾼다. 기지 항목의 교환 비율은 코드 안 `PAIR`(T8 에 96시드로 다시 잰 짝 생존)로 맞춘다. `ITEM_EQ_EXTRA` 의 확인 측정(`item_eq_t8a.json` 등)은 영점에 넣지 않고 `value_fit.txt` 에 "확인" 줄로 비교만 한다(넣으면 계수가 크게 흔들려 측정 없는 항목의 예측이 뒤집힌다).
 
 ## 스킬 성능 (`tools/skill_perf.js`)
 `node tools/skill_perf.js [core.js] [--secs 60]` 진화 무기 다섯 자루에 스킬을 모두 찍은 팀과 스킬 없는 팀을 60초 돌려 시간 비율을 낸다(적이 죽는 경우, 죽지 않는 경우).
