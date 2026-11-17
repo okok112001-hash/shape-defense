@@ -355,7 +355,7 @@ function scene(type, lines, secs, opt) {
     const shotsWith = []; let shots = 0;
     for (let i = 0; i < 1200 && shots < 10; i++) { const n0 = w.n; w.cd = Math.min(w.cd, 0); Core.step(1 / 60); if (w.n > n0) { shots++; if (S.bullets.some((b) => b.drg && !b.sn)) { shotsWith.push(shots); assert(S.fx.some((f) => f.k === 'roar'), '아가리 불꽃 연출'); for (const b of S.bullets) if (b.drg) { b.sn = 1; assert(Math.abs(b.dmg - st.dmg * st.dragon) < 1e-9 * st.dmg && b.x === 250, '용 머리: 정면, D x 배율'); } } } }
     assert.deepStrictEqual(shotsWith, [5, 10], '5번째 발사마다 ' + shotsWith);
-    for (let i = 0; i < 60; i++) { w.cd = 99; Core.step(1 / 60); }
+    for (let i = 0; i < 130; i++) { w.cd = 99; Core.step(1 / 60); }   // T9a: 용 머리가 느려져 (초속 400) 레인 끝까지 약 1.6초
     assert(!S.bullets.some((b) => b.drg), '레인 끝을 지나면 사라진다');
     for (const e of tops) { const d = 1e12 - e.hp; assert(d > 0 && e.fT === 0, '레인 끝(사거리 밖)의 적도 맞는다. 용 머리는 화상을 붙이지 않는다 (T6)'); }
     const dd = tops.map((e) => 1e12 - e.hp);   // 두 번 맞았다: 피해 = 2 x 용 머리 피해

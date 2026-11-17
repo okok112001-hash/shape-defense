@@ -2353,7 +2353,7 @@ function fire(w, slot, st) {
         }
       }
       if (st.dragon && w.n % 5 === 0) {      // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화염 산탄 화상은 붙이지 않는다, T6)
-        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 780, c: '#ff7a2e' });
+        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 400, c: '#ff7a2e' });   // T9a: 천천히 (780 에서), 몸통이 길게 따라온다
         fx({ k: 'roar', d: 0.5, x: wx, y: wy - 8, sp: 0.3 });   // 아가리에서 터져 나오는 불꽃
       }
       return true;
@@ -6070,7 +6070,7 @@ function drawFcone(f, p) {
 }
 // 용 머리 (용의 숨결 궁극): 입을 벌린 불의 용 머리가 앞장서 레인 끝까지 날아가고, 헤엄치듯 일렁이는 몸통 불길이 뒤따른다.
 // 탄마다 화면 기록(VX.ui)을 DRG 에 모아 두고, 탄이 화면 위로 빠져나간 뒤에도 몸통이 마저 빠져나가며 서서히 사그라들게 그린다
-const DRG = [], DRG_LEN = 250, DRG_FADE = 0.5, DRG_SC = 1.3;
+const DRG = [], DRG_LEN = 420, DRG_FADE = 1.1, DRG_SC = 1.3;   // T9a: 몸통을 길게, 머리가 빠져나간 뒤에도 몸통이 마저 지나가며 사그라든다
 function dragonSeen(b) {
   const u = VX.ui(b);
   if (u.n) { u.x = b.x; u.t0 = C.S.t; u.m = u.sd < 0.5 ? 1 : -1; DRG.push(u); }
@@ -6081,16 +6081,16 @@ function drawDragons(H) {
   for (let i = DRG.length - 1; i >= 0; i--) {
     const u = DRG[i], gone = now - u.seen;
     if (gone > DRG_FADE || now < u.t0) { DRG[i] = DRG[DRG.length - 1]; DRG.pop(); continue; }
-    const al = gone > 1e-9 ? 1 - gone / DRG_FADE : 1;
-    drawDragon(u, H, al * al, u.hy + u.vy * gone);
+    const al = gone > 1e-9 ? 1 - Math.pow(gone / DRG_FADE, 2.5) : 1;   // 한동안 진하게 남았다가 사그라든다
+    drawDragon(u, H, al, u.hy + u.vy * gone);
   }
 }
-const DPX = new Float32Array(16), DPY = new Float32Array(16), DNX = new Float32Array(16), DW = new Float32Array(16);
+const DPX = new Float32Array(24), DPY = new Float32Array(24), DNX = new Float32Array(24), DW = new Float32Array(24);
 function drawDragon(u, H, al, hy) {
   const F = fireCol(), L = VX.light, t = VX.t, sd = u.sd * 131, m = u.m, dor = -m, x0 = u.x, ph = sd * 3;
-  const sway = (s) => 13 * Math.min(1, s / 70) * (1 - 0.35 * s / DRG_LEN) * Math.sin(s * 0.032 - t * 8.5 + ph);   // 몸통을 따라 뒤로 흐르는 물결
-  const width = (s) => { const v = s / DRG_LEN; return 1.5 + 12 * Math.pow(1 - v, 0.75) * (1 + 0.3 * Math.sin(Math.PI * Math.min(1, v / 0.3))); };
-  const s0 = 14, sEnd = Math.min(DRG_LEN, H - 10 - hy), N = 14;
+  const sway = (s) => 16 * Math.min(1, s / 70) * (1 - 0.3 * s / DRG_LEN) * Math.sin(s * 0.024 - t * 6.5 + ph);   // 몸통을 따라 뒤로 흐르는 물결
+  const width = (s) => { const v = s / DRG_LEN; return 1.5 + 13 * Math.pow(1 - v, 0.7) * (1 + 0.3 * Math.sin(Math.PI * Math.min(1, v / 0.22))); };
+  const s0 = 14, sEnd = Math.min(DRG_LEN, H - 10 - hy), N = 20;
   // 몸통
   if (sEnd > s0 + 6) {
     for (let i = 0; i < N; i++) { const s = s0 + (sEnd - s0) * i / (N - 1); DPX[i] = x0 + sway(s); DPY[i] = hy + s; DW[i] = width(s); }
@@ -6106,8 +6106,8 @@ function drawDragon(u, H, al, hy) {
     ctx.fillStyle = g; ctx.beginPath(); smoothPath(n / 2); ctx.fill();
     // 등지느러미처럼 뒤로 날리는 불꽃 혀 (자리와 길이가 저마다 다르다)
     ctx.beginPath();
-    for (let j = 0; j < 8; j++) {
-      const v = (j + 0.25 + 0.5 * hash(sd + j * 5.7)) / 8, s = 22 + (DRG_LEN - 40) * v; if (s > sEnd - 4) break;
+    for (let j = 0; j < 12; j++) {
+      const v = (j + 0.25 + 0.5 * hash(sd + j * 5.7)) / 12, s = 22 + (DRG_LEN - 40) * v; if (s > sEnd - 4) break;
       const w = width(s), bx = x0 + sway(s) + dor * w * 0.6, by = hy + s, len = (10 + 10 * hash(sd + j * 3.1)) * (1 - 0.55 * v) * (0.82 + 0.18 * Math.sin(t * 17 + j * 2.1));
       flameTo(bx, by, bx + dor * len * 0.62, by + len * 0.8, 4.6 * (1 - 0.5 * v), Math.sin(t * 13 + j * 1.3) * 4);
     }
@@ -6133,7 +6133,7 @@ function drawDragon(u, H, al, hy) {
     }
   }
   // 머리
-  const hx = x0 + 2.5 * Math.sin(-t * 8.5 + ph + 0.5), rot = -Math.atan2(sway(34) - (hx - x0), 34) * 0.8, gp = 0.62 + 0.16 * Math.sin(t * 11 + ph);
+  const hx = x0 + 2.5 * Math.sin(-t * 6.5 + ph + 0.5), rot = -Math.atan2(sway(34) - (hx - x0), 34) * 0.8, gp = 0.62 + 0.16 * Math.sin(t * 11 + ph);
   const cr = Math.cos(rot), sr = Math.sin(rot), W2 = (lx, ly) => [hx + (m * lx * cr - ly * sr) * DRG_SC, hy + (m * lx * sr + ly * cr) * DRG_SC];
   const mo = W2(4, -14), ey = W2(-10.5, -7.5);
   VX.add();
@@ -6291,7 +6291,7 @@ function drawFlameShot(b) {
   ctx.globalAlpha = 1;
 }
 // 닫힌 경로 도우미: BP 에 든 n개의 점을 둥글게 잇는다
-const BP = new Float32Array(64);
+const BP = new Float32Array(128);   // 용 몸통(20점 x 양쪽)까지
 function smoothPath(n) {
   const lx = BP[n * 2 - 2], ly = BP[n * 2 - 1];
   ctx.moveTo((lx + BP[0]) / 2, (ly + BP[1]) / 2);
@@ -6305,40 +6305,48 @@ function bandTo(x0, y0, dx, dy, nx, ny, hw, sd, amp, a0, a1) {
   for (let i = K; i >= 0; i--) { const s = a0 + (a1 - a0) * i / K, w = hw * (1 - amp + 2 * amp * hash(sd + 50 + i * 3.7)) * (i === 0 || i === K ? 0.5 : 1); BP[n++] = x0 + dx * s - nx * w; BP[n++] = y0 + dy * s - ny * w; }
   smoothPath(n / 2);
 }
-// 불바다: 탄이 지나간 길에 남는 불길 띠. 바닥의 그을음, 이글거리는 불바닥, 저마다 다르게 일렁이는 불꽃 혀, 위로 오르는 불티
+// 불바다 (T9a 다시 그림, "여드름 같다"는 평): 바닥에 깔린 이어진 불길 띠(바깥 주황, 가운데 달아오른 심) 위로
+// 불꽃 혀가 저마다 다른 때 다른 자리에서 태어나 솟았다 사그라든다(같은 자리에서 혹처럼 솟지 않게). 혀는 붉은 겉불, 주황, 노란 속불 세 겹.
+// 위로 흩어지는 불티. 꺼질 때는 혀가 낮아지고 그을음이 남는다
+const FL_R = { d: '#e0461c', l: '#d2440f' };
 function drawFireStrip(p) {
-  const u = VX.ui(p), F = fireCol(), sd = u.sd * 113, t = VX.t, age = (p.d || 2) - p.t, al = Math.min(1, p.t / 0.5);
+  const u = VX.ui(p), F = fireCol(), L = VX.light, sd = u.sd * 113, t = VX.t, age = (p.d || 2) - p.t, al = Math.min(1, p.t / 0.5);
   const dx = p.x1 - p.x0, dy = p.y1 - p.y0, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, hw = p.hw || 18;
   const head = Math.min(1, age / 0.18);     // 탄이 지나간 순서대로 붙는다
   const lit = (s) => { const k = (age - s * 0.18) / 0.22; return k <= 0 ? 0 : k >= 1 ? 1 : 1 - (1 - k) * (1 - k); };
-  if (p.t > 0.35 && age > 0.1) for (let n = VX.rate(3.2); n > 0; n--) {
+  if (p.t > 0.35 && age > 0.1) for (let n = VX.rate(4); n > 0; n--) {
     const s = Math.random(), off = (Math.random() * 2 - 1) * hw * 0.6;
-    VX.spark(p.x0 + dx * s + nx * off, p.y0 + dy * s + ny * off - 10, (Math.random() - 0.5) * 26, -34 - 40 * Math.random(), 0.5 + 0.45 * Math.random(), 0.9 + 0.9 * Math.random(), Math.random() < 0.5 ? F.e : F.y, -22, 0.6, 2);
+    VX.spark(p.x0 + dx * s + nx * off, p.y0 + dy * s + ny * off - 14, (Math.random() - 0.5) * 30, -40 - 45 * Math.random(), 0.5 + 0.5 * Math.random(), 0.8 + 0.9 * Math.random(), Math.random() < 0.5 ? F.e : F.y, -26, 0.6, 2);
   }
-  ctx.beginPath(); bandTo(p.x0, p.y0, dx, dy, nx, ny, hw * 1.08, sd, 0.2, -0.07, 0.07 + head);   // 바닥의 불규칙한 그을음
-  ctx.fillStyle = F.s + ((VX.light ? 0.11 : 0.24) * al).toFixed(3) + ')'; ctx.fill();
+  ctx.beginPath(); bandTo(p.x0, p.y0, dx, dy, nx, ny, hw * 1.1, sd, 0.18, -0.07, 0.07 + head);   // 바닥의 불규칙한 그을음
+  ctx.fillStyle = F.s + ((L ? 0.08 : 0.22) * (0.4 + 0.6 * Math.min(1, age / 0.5))).toFixed(3) + ')'; ctx.fill();
   VX.add();
   for (let i = 0; i < 2; i++) {              // 은은한 불빛 (두 장: 띠가 레인마다 셋까지 겹쳐 그려지므로 넓이를 아낀다)
     const s = 0.28 + 0.44 * i + (hash(sd + i * 11.3) - 0.5) * 0.12, fl = 0.8 + 0.2 * Math.sin(t * (7 + 3 * hash(sd + i)) + i * 2.2 + sd);
-    VX.glow(p.x0 + dx * s, p.y0 + dy * s - 6, hw * 1.6 + len * 0.06, F.o, 0.42 * al * lit(s) * fl);
+    VX.glow(p.x0 + dx * s, p.y0 + dy * s - 8, hw * 1.7 + len * 0.06, F.o, 0.45 * al * lit(s) * fl);
   }
   VX.norm();
-  const wob = 0.86 + 0.14 * Math.sin(t * 9 + sd);
-  ctx.beginPath(); bandTo(p.x0, p.y0, dx, dy, nx, ny, hw * 0.62 * wob, sd + 7, 0.22, -0.02, 0.02 + head);   // 불바닥
-  ctx.fillStyle = rgba(F.o, (VX.light ? 0.5 : 0.42) * al); ctx.fill();
-  const N = 10;
-  for (let pass = 0; pass < 2; pass++) {     // 불꽃 혀: 바깥 주황 한 번, 안쪽 노랑 한 번 (각각 한 번에 칠한다)
+  const wob = 0.9 + 0.1 * Math.sin(t * 7 + sd);
+  ctx.beginPath(); bandTo(p.x0, p.y0, dx, dy, nx, ny, hw * 0.7 * wob, sd + 7, 0.14, -0.03, 0.03 + head);   // 불바닥
+  ctx.fillStyle = rgba(F.o, (L ? 0.5 : 0.45) * al); ctx.fill();
+  ctx.beginPath(); bandTo(p.x0, p.y0, dx, dy, nx, ny, hw * 0.3 * (1.1 - 0.1 * wob), sd + 13, 0.3, 0.01, head - 0.01);   // 가운데 달아오른 심 (이어진 한 줄)
+  ctx.fillStyle = rgba(F.y, (L ? 0.7 : 0.62) * al); ctx.fill();
+  const K = 7, gr = 0.35 + 0.65 * al, R = L ? FL_R.l : FL_R.d, wind = Math.sin(t * 1.3 + sd) * 4;   // 혀는 적고 크게, 바람에 함께 쏠린다
+  for (let pass = 0; pass < 3; pass++) {     // 겉불(붉게, 크게) → 주황 → 노란 속불. 겹마다 한 번에 칠한다
+    const ks = pass === 0 ? 1.18 : pass === 1 ? 0.92 : 0.5, kw = pass === 0 ? 1.25 : pass === 1 ? 1 : 0.5;
     ctx.beginPath();
-    for (let i = 0; i < N; i++) {
-      const h1 = hash(sd + i * 2.3), h2 = hash(sd + i * 6.1), h3 = hash(sd + i * 9.7);
-      const s = (i + 0.5 + (h1 - 0.5) * 0.9) / N, k = lit(s); if (k <= 0) continue;
-      const off = (h2 - 0.5) * 2 * hw * 0.42, bx = p.x0 + dx * s + nx * off, by = p.y0 + dy * s + ny * off + 4;
-      const flick = 0.74 + 0.18 * Math.sin(t * (6.5 + 6 * h3) + h1 * 40) + 0.1 * Math.sin(t * (21 + 9 * h2) + h3 * 30);
-      const h = (20 + 22 * h3) * flick * k * (0.3 + 0.7 * al), w = (6.5 + 4.5 * h2) * (0.6 + 0.4 * k), sway = Math.sin(t * (3.2 + 2.6 * h1) + h2 * 50) * 5 + (h1 - 0.5) * 6;
-      if (pass) flameTo(bx + sway * 0.1, by - 1.5, bx + sway * 0.45, by - h * 0.58, w * 0.5, sway * 0.5);
-      else flameTo(bx, by, bx + sway * 0.7, by - h, w, sway * 0.9);
+    for (let i = 0; i < K; i++) {
+      const h1 = hash(sd + i * 2.3), per = 0.48 + 0.4 * h1, tt = t / per + hash(sd + i * 4.9) * 7, cyc = Math.floor(tt), a = tt - cyc;
+      if (pass === 2 && a > 0.62) continue;  // 사그라드는 혀는 속불이 먼저 꺼진다
+      const r1 = hash(sd + i * 7.3 + cyc * 1.91), r2 = hash(sd + i * 3.1 + cyc * 2.77), r3 = hash(sd + i * 5.3 + cyc * 3.13);
+      const s = (i + 0.5 + (r1 - 0.5) * 1.6) / K, k = lit(Math.min(1, Math.max(0, s))); if (k <= 0) continue;
+      const env = Math.sin(Math.PI * Math.min(1, a * 1.12)); if (env < 0.06) continue;   // 솟았다 사그라든다
+      const off = (r2 - 0.5) * 2 * hw * 0.42, bx = p.x0 + dx * s + nx * off, by = p.y0 + dy * s + ny * off + 4 - a * (6 + 8 * r3);
+      const hgt = (26 + 26 * r3) * Math.pow(env, 0.6) * k * gr * (0.9 + 0.1 * Math.sin(t * 19 + i * 2.7)) * ks;
+      const wid = (7 + 4 * r2) * (1 - 0.35 * a) * (0.6 + 0.4 * k) * kw, lean = wind + (r1 - 0.5) * 6 + Math.sin(t * (3 + 2 * h1) + i * 1.7) * 3;
+      flameTo(bx, by, bx + lean * (pass === 2 ? 0.45 : 1), by - hgt, wid, lean * (pass === 2 ? 0.4 : 0.85));
     }
-    ctx.fillStyle = rgba(pass ? F.y : F.o, (pass ? 0.95 : 0.86) * al); ctx.fill();
+    ctx.fillStyle = pass === 0 ? rgba(R, (L ? 0.62 : 0.55) * al) : pass === 1 ? rgba(F.o, 0.88 * al) : rgba(F.y, 0.95 * al); ctx.fill();
   }
 }
 // 잔광: 숨 쉬듯 밝기가 변하는 부드러운 빛 띠와, 띠를 따라 천천히 도는 빛 알갱이

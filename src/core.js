@@ -1379,7 +1379,7 @@ function fire(w, slot, st) {
         }
       }
       if (st.dragon && w.n % 5 === 0) {      // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화염 산탄 화상은 붙이지 않는다, T6)
-        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 780, c: '#ff7a2e' });
+        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 400, c: '#ff7a2e' });   // T9a: 천천히 (780 에서), 몸통이 길게 따라온다
         fx({ k: 'roar', d: 0.5, x: wx, y: wy - 8, sp: 0.3 });   // 아가리에서 터져 나오는 불꽃
       }
       return true;
