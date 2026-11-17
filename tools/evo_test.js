@@ -467,7 +467,7 @@ function scene(type, lines, secs, opt) {
     w.at = 0.001; Core.step(1 / 60); const sh = S.shells.filter((s) => s.air);
     assert.strictEqual(sh.length, 5, '레인마다 1발'); assert(S.fx.some((f) => f.k === 'airwarn' && Math.abs(f.y - 400) < 1e-9), '예고선');
     sh.forEach((s, j) => { assert(Math.abs(s.tx - (j + 0.5) * Core.LW) <= 7 && Math.abs(s.ty - 400) <= 8, '가로 한 줄 ' + j); near(s.dmg, st.dmg * cC, '한 발 D x 1c'); assert(s.wt >= Core.AIR_WARN - 1 / 60 - 1e-9, '예고선이 먼저'); if (j) assert(s.wt > sh[j - 1].wt, '왼쪽부터'); });
-    fly(1.3); near(took(t), st.dmg * cC, '표적 레인 폭탄'); assert.strictEqual(took(far), 0, '다른 높이는 그대로'); assert(!S.shells.length);
+    fly(Core.AIR_WARN + 4 * Core.AIR_GAP + Core.AIR_DROP + 0.1); near(took(t), st.dmg * cC, '표적 레인 폭탄'); assert(S.fx.filter((f) => f.k === 'airboom').length === 5 && S.fx.filter((f) => f.k === 'crater' && f.air).length === 5, '공습 폭발과 그을음 5개'); assert.strictEqual(took(far), 0, '다른 높이는 그대로'); assert(!S.shells.length);
     let warns = 1; const seen = new WeakSet(S.fx); for (let i = 0; i < 60 * 20.5; i++) { Core.step(1 / 60); for (const f of S.fx) if (f.k === 'airwarn' && !seen.has(f)) { seen.add(f); warns++; } }
     assert.strictEqual(warns, 3, '10초마다 (21초에 3번) ' + warns); }
   // 추적 미사일 1: 움직이는 표적을 따라가 맞힌다. 공격 속도 +15%. 표적은 저장되지 않는다 (직격 추가 피해는 T6 에서 뺐다)
@@ -639,7 +639,8 @@ function scene(type, lines, secs, opt) {
   { const { S, st, D } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); pool(S, st, 250, 300);
     const a = foe2(250, 300, { hp: 1400, maxHp: 1e4 }), b = foe2(250, 400, { hp: 1e9, maxHp: 1e9 }); Core.step(1 / 60);
     assert(a.dead, '15% 이하 녹임'); near(1e9 - b.hp, D * 15 * cD, '큰 폭발 15c D (반경 112)', 1e-6);
-    const np = S.pools.filter((p) => p.acid && p.sm); assert(np.length === 1 && np[0].t <= 2 && np[0].t > 1.9 && np[0].x === 250, '연쇄 용해: 2초 웅덩이 ' + np.map((p) => p.t)); }
+    const np = S.pools.filter((p) => p.acid && p.sm); assert(np.length === 1 && np[0].t <= 2 && np[0].t > 1.9 && np[0].x === 250, '연쇄 용해: 2초 웅덩이 ' + np.map((p) => p.t));
+    assert(np[0].fl === 1 && np[0].d === 2, '연쇄 용해 웅덩이는 폭발에서 번지는 그림 (fl)'); const bf = S.fx.find((f) => f.k === 'dsvb'); assert(bf && bf.lv === 5, '용해 폭발 그림: 큰 폭발 단계 5 ' + (bf && bf.lv)); }
   // 산성비 1: 8초마다 적이 가장 많은 레인에 3초. 초당 D x 0.2c 와 취약. 다른 레인은 그대로
   { const { w, S, st, D } = mk([[0, 0, 0], [1, 0, 0], [0, 0, 0]]); const L1 = [foe2(150, 200, { hp: 1e9, maxHp: 1e12 }), foe2(150, 400, { hp: 1e9, maxHp: 1e12 })], o = foe2(350, 300, { hp: 1e9, maxHp: 1e12 });
     w.rn = 0.001; Core.step(1 / 60); const r = S.pools.find((p) => p.kind === 'rain'); assert(r && r.lane === 1 && Math.abs(r.t - (3 - 1 / 60)) < 1e-9, '적이 가장 많은 레인, 3초');

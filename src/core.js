@@ -1171,8 +1171,13 @@ function shellBlast(s) {
   const st = s.st, R = s.R || st.blast;
   const n0 = S.fx.length;
   explode(s.tx, s.ty, R, s.dmg, st, st.cap);
-  if ((s.cb > 1 || s.mini || s.air) && S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].lt = 1;   // 화면용: 작은 폭발 (가볍게 그린다)
+  if ((s.cb > 1 || s.mini) && S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].lt = 1;   // 화면용: 작은 폭발 (가볍게 그린다)
   if (s.nuke) nukeBlast(s, R, n0);
+  else if (s.air) {                          // 공습: 하얗게 달아오른 속과 솟는 불기둥 ('airboom' 이 그리고 보통 폭발 그림은 숨긴다), 가로로 번진 그을음
+    if (S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].nk = 1;
+    fx({ k: 'crater', d: 2.6, x: s.tx, y: s.ty, r: R * 0.75, c: st.color, air: 1 });   // 그을음이 폭발 그림 밑에 깔리게 먼저
+    fx({ k: 'airboom', d: 0.95, x: s.tx, y: s.ty, r: R, c: st.color });
+  }
   else fx({ k: 'crater', d: 1.0, x: s.tx, y: s.ty, r: R * 0.75, c: st.color });   // 잠깐 남는 탄흔
   if (s.cw) carpetFollow(s);                 // 미사일 + 융단 폭격: 맞은 자리부터 레인을 따라 위로
   if (s.mini) return;                        // 분리 탄두는 파편, 집속, 화염을 내지 않는다
@@ -1529,7 +1534,7 @@ const EF_R = 45, EF_T = 2;                  // 전기장 반경, 유지 시간
 function cloudPos(slot, t, out) {
   out = out || [0, 0];
   out[0] = Math.max(60, Math.min(W - 60, (slot + 0.5) * LW + Math.sin(t * 0.23 + slot * 1.7) * LW * 1.1));
-  out[1] = 34 + 6 * Math.sin(t * 0.41 + slot);
+  out[1] = 46 + 6 * Math.sin(t * 0.41 + slot);
   return out;
 }
 // 낙뢰 한 줄기: 피해, 연출, 전기장. from: 출발점 [x, y] (없으면 하늘 위)
@@ -1752,21 +1757,26 @@ function ricochet(t, x, y, dmg, st) {
 // 산성 웅덩이
 // rk: 범위 배수, tt: 지속 시간 (작은 웅덩이: 연쇄 용해, 폭우, 부패). 작은 웅덩이는 무기마다 SMALL_MAX 개까지
 const SMALL_MAX = 14;
-function acidPool(x, y, st, rk, tt) {
+// fl: 용해 폭발에서 흘러나온 웅덩이 (화면에서 번져 나가게 그린다. 터지는 그림과 소리는 폭발이 낸다)
+function acidPool(x, y, st, rk, tt, fl) {
   if (rk) { let n = 0; for (const q of S.pools) if (q.acid && q.sm && q.st.w === st.w) n++; if (n >= SMALL_MAX) return; }
   const r = 75 * (1 + st.aRange + st.areaPct) * (rk || 1);
-  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: tt || 4, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd(), sm: rk ? 1 : 0 });
+  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: tt || 4, d: tt || 4, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd(), sm: rk ? 1 : 0, fl: fl ? 1 : 0 });
+  if (fl) return;
   fx({ k: 'splat', d: 0.35, x, y, r, c: st.color });
   snd('splat');
 }
 // 용해: 녹이고 산성 폭발 (처치 폭발이라 최대 타격 수 없음). 연쇄 용해: 그 자리에 새 웅덩이 (지속 절반)
 function dissolve(e, st) {
   const x = e.x, y = e.y;
-  fx({ k: 'dsv', d: 0.55, x, y, r: e.r, c: st.color });
+  fx({ k: 'dsv', d: 0.7, x, y, r: e.r, c: st.color, et: e.type });
   credit(st, e.hp, e); e.hp = 0; kill(e, st);
   if (boomDepth >= 2) return;
-  boomDepth++; explode(x, y, 70 * st.dsvR * (1 + st.areaPct), st.dmg * st.dsvD, st); boomDepth--;
-  if (st.dsvPool) acidPool(x, y, st, 1, 2);
+  const R = 70 * st.dsvR * (1 + st.areaPct), n0 = S.fx.length;
+  boomDepth++; explode(x, y, R, st.dmg * st.dsvD, st); boomDepth--;
+  if (S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].nk = 1;   // 화면: 보통 폭발 대신 'dsvb' (큰 폭발 단계 lv 에 따라 커지고 산 방울이 튄다)
+  fx({ k: 'dsvb', d: 1.7, x, y, r: R, c: st.color, lv: Math.round((st.dsvR - 1) / 0.12) });
+  if (st.dsvPool) acidPool(x, y, st, 1, 2, 1);
 }
 // 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우: 그친 자리에 작은 웅덩이 3개
 const RAIN_CD = 8;
@@ -1850,7 +1860,8 @@ function focusN(e, owner) {
   e.fcT = S.t; const n = e.fcN; if (n < 20) e.fcN = n + 1; return n;
 }
 const ORBP = [[0, 0], [0, 0], [0, 0], [0, 0]];
-const AIR_CD = 10, AIR_WARN = 0.6;   // 공습 간격, 예고선이 보이는 시간
+// 공습 간격, 예고선이 보이는 시간, 폭탄 간격 (폭격기가 레인 하나를 지나는 시간), 떨어지는 시간, 폭격기 높이 (화면에서 위로)
+const AIR_CD = 10, AIR_WARN = 0.8, AIR_GAP = 0.12, AIR_DROP = 0.3, AIR_ALT = 120;
 // 스킬이 있는 진화 무기가 매 스텝 하는 일
 function skillStep(w, i, st, dt) {
   const wx = (i + 0.5) * LW;
@@ -1935,12 +1946,12 @@ function skillStep(w, i, st, dt) {
       for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && (!t || e.y > t.y)) t = e;
       if (!t) { w.at = 0.25; break; }
       w.at = AIR_CD;
-      const y = Math.max(30, Math.min(H - 10, t.y + t.speed * H * (AIR_WARN + 0.3)));
-      fx({ k: 'airwarn', d: AIR_WARN + 0.7, y, w: AIR_WARN, c: st.color });   // 예고선
+      const y = Math.max(30, Math.min(H - 10, t.y + t.speed * H * (AIR_WARN + 2 * AIR_GAP + AIR_DROP)));
+      fx({ k: 'airwarn', d: AIR_WARN + 0.9, y, w: AIR_WARN, c: st.color });   // 예고선과 폭격기
       snd('air');
-      for (let j = 0; j < LANES; j++) {        // 자리와 때를 조금씩 흐트러뜨린다 (기계적으로 줄 맞춰 터지지 않게)
+      for (let j = 0; j < LANES; j++) {        // 폭격기가 레인 위를 지날 때 떨어뜨린다. 자리와 때를 조금씩 흐트러뜨린다 (기계적으로 줄 맞춰 터지지 않게)
         const tx = (j + 0.5) * LW + (rnd() - 0.5) * 14, ty = Math.max(20, Math.min(H - 6, y + (rnd() - 0.5) * 16));
-        S.shells.push({ drop: 1, air: 1, x0: tx, y0: ty - 260, tx, ty, p: 0, dur: 0.22, wt: AIR_WARN + 0.09 * j + rnd() * 0.03, st, dmg: st.dmg * st.air, R: st.blast });
+        S.shells.push({ drop: 1, air: 1, x0: tx, y0: ty - AIR_ALT, tx, ty, p: 0, dur: AIR_DROP, wt: AIR_WARN + AIR_GAP * j + rnd() * 0.02, st, dmg: st.dmg * st.air, R: st.blast });
       }
       break;
     }
@@ -2478,7 +2489,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
