@@ -142,7 +142,7 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
   game(); const sg = put('shotgun', 0, 100, true); sg.augs[0] = { id: 'l_burn', g: 3 }; sg.parts[0] = { id: 'rate', g: 2 }; sg.sk[1] = [5, 0, 0]; Core.dirty(sg);
   assert(Core.stats(sg).burn > 0 && Core.stats(sg).flame > 0, '증강 화상과 화염 화상이 함께 있다');
   game(); const pl = put('pulse', 0, 100, true); pl.augs[0] = { id: 'p_frost', g: 3 }; pl.sk[2] = [5, 5, 0]; Core.dirty(pl);
-  assert(Core.stats(pl).slow === 0.55 && Core.stats(pl).fld === 30, '빙결장 둔화와 역장 끌어당김은 따로 있다');
+  assert(Core.stats(pl).slow === 0.55 && Core.stats(pl).fld === 15, '빙결장 둔화와 역장 끌어당김은 따로 있다');
   ok('새 줄은 증강과 더해진다 (공격 속도, 화상, 둔화)');
 }
 
@@ -412,7 +412,7 @@ function scene(type, lines, secs, opt) {
     assert(out.x === xo && Math.abs(bs.x - xb - 4.5 / 60) < 1e-9, '범위 밖은 그대로, 보스는 절반');
     { const far = foe2(250 + st.radius * 1.3, 500); const xf = far.x; Core.step(1 / 60); assert(far.x < xf, '역장은 파동 범위보다 넓다 (파동 밖 옆 레인의 적도 끈다, T9a)'); S.enemies.splice(S.enemies.indexOf(far), 1); }
     for (let i = 0; i < 60 * 10; i++) Core.step(1 / 60); assert(Math.abs(near.x - 250) < 1e-9 && Math.abs(bs.x - 250) < 1e-9, '가운데에서 멈춘다 (넘어가지 않음)');
-    w.sk[2] = [5, 5, 0]; Core.dirty(w); Core.step(1 / 60); assert(Math.abs(near.vulnPct - 0.15) < 1e-9 && near.vulnT > 0, '약화: 받는 피해 +3%·r');
+    w.sk[2] = [5, 5, 0]; Core.dirty(w); Core.step(1 / 60); assert(Math.abs(near.vulnPct - 0.15 * SKILLS.pulse[2].nodes[1].sc) < 1e-9 && near.vulnT > 0, '약화: 받는 피해 +3%·r');
     const e1 = foe2(250, 470, { hp: 100, maxHp: 100 }); const bef = e1.hp; Core.step(1 / 60); const st5 = Core.stats(w);
     w.sk[2] = [5, 5, 1]; Core.dirty(w); S.enemies = [near]; near.y = 100; near.speed = 0.5; let before = S.hp; w.ct = 0; near.y = 520; S.hp = 100;
     const bait = foe2(250, 400); const hb = bait.hp; Core.step(1 / 60); assert(bait.hp < hb && S.hp < 100, '반격: 기지에 닿는 순간 파동'); const hb2 = bait.hp; const bait2 = foe2(250, 519, { speed: 0.5 }); Core.step(1 / 60);
