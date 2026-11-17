@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 11.5, burst: 1.05, mk: 0.281, exec: 1.836, mkb: 4.751, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 11.5, burst: 1.05, mk: 0.74, xf: 3.9, crk: 1.32, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -84,6 +84,14 @@ const occ = (mu) => 1 - Math.exp(-mu);                                // 적이 
 // 최대 타격 수 n (core.js 의 st.cap): 포아송 적 수 X 에서 E[min(X, n)], 적어도 하나 있을 때의 E[min(X, n) | X >= 1]
 function capE(mu, n) { if (!(n < 1e8) || mu < 1e-9) return mu; let s = 0; for (let i = 1; i <= n; i++) { const a = atLeast(mu, i); s += a; if (a < 1e-12) break; } return s; }
 const capC = (mu, n) => (mu < 1e-6 ? 1 : capE(mu, n) / occ(mu));
+// 조준 레이저 (T9e): 같은 표적을 x 번 쏠 때 [평균 겹, 겹이 다 찬 발의 비율]. 시작 겹 = 앞 표적이 죽을 때의 겹 x f (정상 상태)
+function stackRun(x, f) {
+  const MX = Core.MARK_MAX, n = Math.max(1, x), m = Math.ceil(n);
+  let s0 = 0; if (f > 0) for (let k = 0; k < 30; k++) s0 = f * Math.min(MX, s0 + n);
+  let sum = 0, full = 0;
+  for (let i = 1; i <= m; i++) { const w = i <= n ? 1 : n - (i - 1), s = Math.min(MX, s0 + i); sum += w * s; if (s >= MX - 1e-9) full += w; }
+  return [sum / n, full / n];
+}
 // 처치 타수 n(X): 끊김 없는 타수 X 에 마지막 탄의 낭비(평균 반 발)를 더하고, 한 방(1발) 밑으로는 내려가지 않게 부드럽게
 const nSoft = (x) => 0.5 * (x + 1.5 + Math.sqrt((x - 0.5) * (x - 0.5) + 0.05));
 // 문턱 효과(처형, 선제, 즉사): 체력 1 의 적을 한 발 1/X 로 깎을 때 필요한 (끊김 없는) 타수
@@ -312,12 +320,15 @@ function model(st, ref, c, lay, PP) {
     }
     case 'rail': {
       const behind = nIn(lam, 1.0 * H * 60) * 0.5;   // 표적 뒤 일직선 위 (폭 약 60)
-      const X0 = pc.K * pw.kw * (13 / W0.dmg) * (ref.dmg * q0) / (st.dmg * q), kpS = 1 / Math.max(1, X0);   // 표적 하나를 잡는 타수 (아래 X 와 같은 식), 한 발에 잡는 표적 수
-      // 주 표적 한 발: 조준 레이저 표식 겹수 (같은 표적을 X0 번 쏠 때 평균, 보스는 오래 쏜다), 처형 (일반 20%, 보스 5% 에서 끝)
-      const fX = (x) => (x <= 5 ? (x + 1) / 2 : (15 + 5 * (x - 5)) / x);
+      const X0 = pc.K * pw.kw * (13 / W0.dmg) * (ref.dmg * q0) / (st.dmg * q);   // 표적 하나를 잡는 타수 (아래 X 와 같은 식)
+      // 주 표적 한 발 (T9e): 조준 레이저는 표적을 고정해 죽을 때까지 쏘므로 겹이 실제로 쌓인다. 같은 표적을 X0 번 쏠 때의 평균 겹 (보스는 오래 쏜다).
+      //   표식 이전: 앞 표적이 죽을 때의 겹 x mkXfer 에서 시작. 균열: 겹이 다 찬 발마다 최대 체력(~ X0, D 단위)의 crk (보스 1/4), 한 발에 crkY 까지
       let main = 1;
-      if (st.mkD) main *= 1 + st.mkD * ((1 - beta) * fX(Math.max(1, X0)) + beta * fX(Math.max(1, X0 * 8))) * pm.mk;
-      if (st.mkExec) main *= 1 + ((1 - beta) * (1 / (1 - st.mkExec) - 1) + beta * (1 / 0.95 - 1)) * pm.exec;
+      if (st.mkD) {
+        const [aN, fN] = stackRun(X0, st.mkXfer), [aB, fB] = stackRun(X0 * 8, st.mkXfer), a0 = st.mkXfer ? stackRun(X0, 0)[0] : aN, b0 = st.mkXfer ? stackRun(X0 * 8, 0)[0] : aB;
+        main *= 1 + st.mkD * ((1 - beta) * (a0 + (aN - a0) * pm.xf) + beta * (b0 + (aB - b0) * pm.xf)) * pm.mk;   // pm.xf: 이어받은 겹의 몫 (측정에서는 계산보다 크다)
+        if (st.crk) main += ((1 - beta) * fN * Math.min(st.crk * X0, st.crkY) + beta * fB * Math.min(st.crk * X0 * 8 / 4, st.crkY)) * pm.crk;
+      }
       // 점사 (T9d): 뒤 발 bst 개 x bstD. 같은 표적 (표식 보너스도 받음), 표적이 죽었으면 다음 적이라 낭비가 거의 없다
       const bu = st.bst ? st.bst * st.bstD * pm.burst : 0;
       const side = st.twin || 0;   // 이중 저격 (주 표적 아닌 탄)
@@ -325,7 +336,6 @@ function model(st, ref, c, lay, PP) {
       // 과잉 살상의 최소 피해 몫 (낭비 회수는 killRate 의 carry): 적 체력 배수에 따라 처치 확률이 달라 killRate 에서 센다 (T9d)
       if (st.carry && st.carryMin) cy = { n: st.carry, min: st.carryMin, amp: st.carryAmp * pm.ovkA, X0, bb, k: pm.ovk, base: hits };
       dir = rate * hits;
-      if (st.mkBoom) dir += rate * kpS * st.mkBoom * splashN(90 * (1 + st.areaPct)) * pm.mkb;   // 표식 폭발: 표식 대상이 죽을 때
       burnN = rate * (1 + (st.twin ? 1 : 0) + st.bst);
       // 연속 사냥 (T9d): 저격이 처치하면 다음 대기 시간 -stk. 점사가 끝나고 조준(0.25초)해야 하므로 간격은 0.25 + 점사 시간 아래로 줄지 않는다. 처치 확률은 killRate 에서 (적 체력에 따라)
       if (st.stk) { stk = { e: 1 - Math.max(1 - st.stk, (0.25 + st.bst * Core.BURST_GAP) / st.cd), h: 1 + bu, kr: pw.kr, k: pm.stk }; }
@@ -806,11 +816,13 @@ function reportText(T, PP, fitInfo) {
 /* ---------- 영점 맞춤과 비교 ---------- */
 // 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
 // 2차분 무기: 첫 값으로 한 번 재서 기구 계수를 맞춘 뒤 계산기로 값을 바꿨으므로, 그 측정은 지금 값과 맞지 않아 fit 에 넣지 않고 맞춘 계수를 defaults() 에 고정한다
-//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.mk, m.exec, m.mkb. T9d 에서 횡단탄·도탄(m.cross, m.rico)을 지우고 연속 사냥 m.stk, 점사 m.burst 를 더함. 산성 _t5d -> m.rain, m.slime, m.dsv, m.rot)
+//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk. T9d 에서 횡단탄·도탄(m.cross, m.rico)을 지우고 연속 사냥 m.stk, 점사 m.burst 를 더함. 산성 _t5d -> m.rain, m.slime, m.dsv, m.rot)
 // T9c: 개틀링 궁극을 난사로 바꾼 뒤 잰 완성 (_t9c). 난사 기구 계수 m.spray 1.07 은 이 측정 하나로 맞춘 값 (같은 줄 뿌리의 측정/계산 1.06 을 뺀 나머지)
 // T9d: 저격포 과잉 살상(궁극 연속 사냥, 줄 배율 2)과 점사 줄의 완성·뿌리 (_t9d). 이 측정과 상위까지(_t9d_up, fit 에는 안 넣음)로 m.ovk 0.5, m.ovkA 0.55 (증폭 몫),
 //   m.stk 11.5 (연속 사냥. 세기 대부분이 '한 발에 잡을 수 있는 적부터' 표적 고르기에서 나오는데 계산기에는 적 체력이 섞인 모습이 없어 이 계수가 대신한다), m.burst 1.05 를 손으로 맞췄다
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt'];
+// T9e: 저격포 조준 레이저 줄을 고정·표식 이전·균열로 바꾼 뒤 잰 완성·뿌리 (_t9e)와 상위까지 (_t9e_up, fit 에는 안 넣음)로 m.mk 0.74 (고정해 쌓이는 겹. 집중 사격 효과도 이 계수가 대신한다),
+//   m.xf 3.9 (이어받은 겹의 몫. 측정에서는 계산보다 훨씬 크다), m.crk 1.32 (균열) 를 손으로 맞췄다 (4시나리오 기하평균. 물량은 저격포가 못 버텨 n/a). m.exec, m.mkb 는 지움
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt', 'skill_eq_report_t9e.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};

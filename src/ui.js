@@ -186,7 +186,8 @@ const Snd = (function () {
     boom: [90, () => { hiss(0.28, 0.2, 500, 0.6); tone('sine', 90, 40, 0.25, 0.17); }],
     nuke: [160, () => { tone('sine', 120, 26, 0.95, 0.26); hiss(0.8, 0.24, 360, 0.5); tone('triangle', 64, 30, 0.7, 0.1, 0.04); hiss(0.12, 0.08, 2600, 1, 'highpass'); }],   // 핵탄두: 낮고 긴 굉음
     rain: [600, () => { hiss(1.4, 0.06, 5200, 0.6, 'highpass'); hiss(1.2, 0.05, 900, 0.8, 'bandpass', 0.1); }],                              // 산성비: 쏴아 하는 빗소리
-    mkexec: [200, () => { tone('square', 980, 260, 0.14, 0.05); hiss(0.08, 0.1, 3000, 1, 'highpass'); }],                                       // 처형: 표식이 닫히는 소리
+    crack: [140, () => { hiss(0.02, 0.15, 4200, 1.2, 'highpass', 0.03); hiss(0.05, 0.12, 2600, 3, 'bandpass', 0.04); tone('triangle', 1500, 700, 0.05, 0.03, 0.04); }],   // 균열: 금 간 몸이 쩍 갈라지는 소리 (탕 바로 뒤)
+    mkslide: [200, () => tone('sine', 880, 1480, 0.12, 0.025)],                                                    // 표식 이전: 레이저가 다음 표적으로 옮겨 가는 작은 소리
     thunder: [110, () => { hiss(0.06, 0.2, 3800, 0.8, 'highpass'); tone('square', 2200, 260, 0.07, 0.035); hiss(0.55, 0.13, 280, 0.6, 'lowpass', 0.025); tone('sine', 78, 38, 0.45, 0.11, 0.02); }],   // 낙뢰: 날카롭게 찢는 소리와 낮은 우르릉
     ball: [300, () => { tone('sawtooth', 120, 180, 0.35, 0.03); hiss(0.3, 0.05, 2600, 4, 'bandpass'); }],                                   // 구전: 낮게 웅웅거리는 소리
     zap: [150, () => { hiss(0.18, 0.18, 3000, 1.5, 'bandpass'); tone('square', 1400, 120, 0.2, 0.05); tone('sine', 110, 45, 0.3, 0.12); }],      // 쌍구전 폭발: 지지직 터지는 소리
@@ -1006,8 +1007,8 @@ const SKICON = {
   relay: `<path d="M3 20l5-5M9 14l5-5M15 8l5-5" stroke-width="1.8"/><path d="M8 15.5V20H3.5M14 9.5V14H9.5M20 3.5V8h-4.5"/>`,
   streak: `<circle cx="12" cy="8" r="5.2" ${SOFT}/><path d="M12 1v3.6M12 11.4V15M5 8h3.6M15.4 8H19"/><path d="M2.5 18.5l3 3M5.5 18.5l-3 3M10.5 18.5l3 3M13.5 18.5l-3 3M18.5 18.5l3 3M21.5 18.5l-3 3"/>`,
   laserm: `<circle cx="14" cy="9" r="6" stroke-dasharray="6.5 3"/><circle cx="14" cy="9" r="1.8" ${FILL}/><path d="M3 22l9.2-11.2"/>`,
-  markboom: `<circle cx="12" cy="12" r="5" ${SOFT}/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4M4.5 4.5l2.8 2.8M16.7 16.7l2.8 2.8M4.5 19.5l2.8-2.8M16.7 7.3l2.8-2.8"/>`,
-  execm: `<path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke-width="2.4"/>`,
+  markxfer: `<path d="M2.5 16.5l4 4M6.5 16.5l-4 4"/><path d="M5.5 14C7 9.6 9.6 7.6 12.6 7.4" stroke-dasharray="2 2.2"/><circle cx="17.5" cy="7.5" r="4.4" stroke-dasharray="5.2 1.7"/><circle cx="17.5" cy="7.5" r="1.5" ${FILL}/>`,
+  crack: `<circle cx="10.5" cy="13.5" r="8" ${SOFT}/><path d="M10.5 13.5L8 9.6l.8-3.4M10.5 13.5l4.2 1.2 1.2 3.6M10.5 13.5l-.8 4.4-3 1.8M8 9.6L4.6 9"/><path d="M18.6 3.2l3 1.1-1.9 2.2zM15.4 1.6l1.9.5-1.1 1.4z" ${FILL}/>`,
   burst: `<path d="M12 22.5v-6" stroke-width="2.6"/><path d="M10.2 14v-3.4l1.8-2.4 1.8 2.4V14z" ${SOFT}/><path d="M10.2 7v-3.4L12 1.2l1.8 2.4V7z" ${SOFT}/>`,
   recoil: `<path d="M12 22.5V9" stroke-width="2.6"/><path d="M5.5 21l3-1.5-3-1.5 3-1.5-3-1.5 3-1.5M18.5 21l-3-1.5 3-1.5-3-1.5 3-1.5-3-1.5"/><path d="M9.2 5.2L12 2.4l2.8 2.8"/>`,
   burst3: `<path d="M12 22.8v-2.6" stroke-width="2.6"/><path d="M10.3 18.2v-2.5l1.7-2.1 1.7 2.1v2.5zM10.3 11.8V9.3l1.7-2.1 1.7 2.1v2.5zM10.3 5.4V2.9L12 .8l1.7 2.1v2.5z" ${SOFT}/><path d="M7 21.8l2.2-1M17 21.8l-2.2-1"/>`,
@@ -3828,7 +3829,7 @@ function drawAcidPool(p, nowT) {
     ctx.lineWidth = 1; ctx.strokeStyle = rgba(L ? VX.mix(p.c, -0.25) : VX.hot(p.c), 0.6 * al); ctx.stroke();
   }
 }
-/* ---------- 저격포: 저격선, 넘어가는 피해, 점사, 연속 사냥, 조준 레이저 표식, 처형 ---------- */
+/* ---------- 저격포: 저격선, 넘어가는 피해, 점사, 연속 사냥, 조준 레이저 (고정, 표식 이전, 균열) ---------- */
 // 저격선: 굵고 밝은 선이 서서히 사라지고 가는 흔적이 잠깐 남는다. 포구에 반동 표시. ri: 넘어가는 피해 (가늘고, 넘어간 자리에 불티)
 // bu: 점사 무기의 발 (1, 2, 3번째). 발마다 총구 불꽃이 터지고 탄피가 튀고 화약 연기가 조금 오른다 (반동 표시 대신)
 function drawRailFx(f, p) {
@@ -3927,33 +3928,86 @@ function drawStreak(x, H, w, col) {
     if (live && i === n - 1 && age < 0.3) { VX.add(); hotSpot(ex, ey, 5 + 4 * (1 - age / 0.3), c, 0.7 * (1 - age / 0.3)); VX.norm(); }
   }
 }
-// 조준 레이저: 표식 대상까지 가는 붉은 선과, 겹수만큼 이어지는 표식 테두리 (다섯 조각, 천천히 돈다)
-const MARK_D = '#ff4660', MARK_L = '#d42a45';
-function drawMark(k, w) {
+// 조준 레이저 (T9e): 고정한 적까지 이어진 붉은 레이저와 겹수만큼 이어지는 표식 테두리 (다섯 조각, 천천히 돈다. 이어받은 겹의 끝수는 조각 일부).
+//   새로 고정하면 테두리가 벌어졌다 조여 들고, 표식 이전이면 레이저 끝과 테두리가 죽은 자리에서 새 표적으로 미끄러진다 (지나온 자리에 옅은 자국).
+//   균열: 겹마다 몸에 금이 하나씩 뻗고 (새 금은 가운데에서 자라 나온다), 겹이 다 차면 금 사이로 붉은 빛이 새어 나온다
+const MARK_D = '#ff4660', MARK_L = '#d42a45', CRK = [];
+function drawMark(k, w, st) {
   const e = w.mk; if (!e || e.dead || e.y + e.r <= 0) return;
-  const H = C.H, x0 = (k + 0.5) * C.LW, y0 = H - 2, t = VX.t, L = VX.light, red = L ? MARK_L : MARK_D, n = Math.max(1, Math.min(5, w.mkN || 1));
+  const u = VX.ui(w), now = C.S.t;
+  if (u.lk !== e) { u.lk = e; u.lkT = now; u.cn = 0; }
+  const x0 = (k + 0.5) * C.LW, y0 = C.H - 2, t = VX.t, L = VX.light, red = L ? MARK_L : MARK_D, n = Math.max(0, Math.min(5, w.mkN || 0));
+  const mx = w.mkX, sl = mx ? Math.min(1, (now - mx.t) / 0.32) : 1, se = VX.ease(sl, 3);
+  const tx = sl < 1 ? mx.x + (e.x - mx.x) * se : e.x, ty = sl < 1 ? mx.y + (e.y - mx.y) * se : e.y;
   ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(e.x, e.y);
-  ctx.lineWidth = 3; ctx.strokeStyle = rgba(red, 0.12); ctx.stroke();
+  if (sl < 1) {                               // 미끄러진 자리: 옅어지는 가는 자국
+    ctx.beginPath(); ctx.moveTo(mx.x, mx.y); ctx.lineTo(tx, ty);
+    ctx.lineWidth = 2.5 * (1 - sl) + 0.5; ctx.strokeStyle = rgba(red, 0.4 * (1 - sl)); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(tx, ty);
+  ctx.lineWidth = 3; ctx.strokeStyle = rgba(red, L ? 0.16 : 0.12); ctx.stroke();
   ctx.lineWidth = 1; ctx.strokeStyle = rgba(red, 0.5 + 0.15 * Math.sin(t * 9 + k)); ctx.stroke();
-  const R = e.r + 7 + 1.2 * Math.sin(t * 5 + k), a0 = t * 0.9 + k;
+  const ql = mx ? 1 : Math.min(1, (now - u.lkT) / 0.28), R = e.r + 7 + 1.2 * Math.sin(t * 5 + k) + 15 * (1 - VX.ease(ql, 3)), a0 = t * 0.9 + k + 1.4 * (1 - ql);
+  const nf = Math.floor(n + 1e-6), fr = n - nf;
   for (let i = 0; i < 5; i++) {
-    const a = a0 + i * TAU / 5, on = i < n;
-    ctx.beginPath(); ctx.arc(e.x, e.y, R + (on ? 0 : 1), a, a + TAU / 5 * (on ? 0.72 : 0.35));
-    ctx.lineWidth = on ? 2 : 1; ctx.strokeStyle = rgba(red, on ? 0.92 : 0.3); ctx.stroke();
+    const a = a0 + i * TAU / 5, on = i < nf, part = !on && i === nf && fr > 0.05, b = part ? TAU / 5 * 0.72 * fr : 0;
+    if (part) {                               // 이어받은 겹의 끝수: 조각 일부만 밝게
+      ctx.beginPath(); ctx.arc(tx, ty, R, a, a + b); ctx.lineWidth = 2; ctx.strokeStyle = rgba(red, 0.92); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(tx, ty, R + (on ? 0 : 1), a + b, a + TAU / 5 * (on ? 0.72 : 0.35));
+    ctx.lineWidth = on ? 2 : 1; ctx.strokeStyle = rgba(red, on ? 0.92 * (0.4 + 0.6 * ql) : 0.3); ctx.stroke();
   }
-  VX.add(); VX.glow(e.x, e.y, 10, red, 0.35 + 0.1 * n); VX.norm();
+  if (st.crk && sl >= 1) drawCracks(e, u, n, red, now);
+  VX.add(); VX.glow(tx, ty, 10, red, 0.35 + 0.1 * n); VX.norm();
 }
-// 처형: 네 모서리 꺾쇠가 몸 쪽으로 닫히고 붉게 번쩍인다
-function drawMarkExec(f, p) {
-  const q = 1 - p, L = VX.light, red = L ? MARK_L : MARK_D, e = VX.ease(Math.min(1, q / 0.45), 3), R = (f.r + 22) * (1 - e) + f.r * 0.35 * e, s = 7 + 3 * (1 - e);
-  ctx.lineCap = 'round'; ctx.lineWidth = 2.2; ctx.strokeStyle = rgba(red, Math.min(1, p * 1.6)); ctx.beginPath();
-  for (let i = 0; i < 4; i++) {
-    const sx = i % 2 ? 1 : -1, sy = i < 2 ? -1 : 1, cx = f.x + sx * R, cy = f.y + sy * R;
-    ctx.moveTo(cx - sx * s, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy - sy * s);
+// 균열의 금: 적마다 정해진 무늬. 금마다 가장자리의 한 점에서 시작해 가운데를 비껴 안쪽으로 잘게 꺾이며 뻗고 (시작 쪽이 굵고 끝이 가늘다),
+//   몇 개는 중간에서 짧은 잔가지가 갈라진다. 가운데 한 점에 모이지 않게 해서 거미 다리처럼 보이지 않게 한다. 몸 모양으로 잘라 그린다
+const CRB = [];
+function drawCracks(e, u, n, red, now) {
+  const m = Math.min(5, Math.ceil(n - 1e-6)); if (m <= 0) return;
+  if (m > u.cn) { u.cT = u.cn ? now : now - 1; u.cn = m; }   // 새 금이 생긴 때 (처음 볼 때 이미 있던 금은 다 자란 것으로)
+  const sd = VX.ui(e).sd * 50, r = e.r, full = n >= 5 - 1e-6, L = VX.light, grow = Math.min(1, (now - u.cT) / 0.16);
+  CRK.length = 0; CRB.length = 0;
+  for (let i = 0; i < m; i++) {
+    const g = i === m - 1 ? grow : 1, a0 = (i * 0.382 + hash(sd)) * TAU, sx = e.x + Math.cos(a0) * r * 1.05, sy = e.y + Math.sin(a0) * r * 1.05;
+    const ad = a0 + Math.PI + (hash(sd + i * 2.3) - 0.5) * 1.3, dx = Math.cos(ad), dy = Math.sin(ad), len = r * (0.8 + 0.5 * hash(sd + i * 4.7)) * g;
+    const seg = [sx, sy]; let j0 = 0;
+    for (let k = 1; k <= 6; k++) {            // 잘게 꺾인 줄기: 옆으로 흔들리되 한쪽으로 멀리 가지 않는다
+      j0 = j0 * 0.5 + (hash(sd + i * 9 + k) - 0.5) * r * 0.2;
+      const d = len * k / 6; seg.push(sx + dx * d - dy * j0, sy + dy * d + dx * j0);
+    }
+    CRK.push(seg);
+    if (g >= 1 && hash(sd + i * 11) > 0.3) {  // 잔가지: 줄기 중간에서 비스듬히
+      const b = 4 + 2 * Math.floor(hash(sd + i * 19) * 2), bx = seg[b], by = seg[b + 1], ab = ad + (hash(sd + i * 13) > 0.5 ? 0.75 : -0.75), bl = r * (0.25 + 0.2 * hash(sd + i * 17));
+      CRB.push([bx, by, bx + Math.cos(ab) * bl * 0.5 + Math.cos(ab + 1.6) * r * 0.05, by + Math.sin(ab) * bl * 0.5 + Math.sin(ab + 1.6) * r * 0.05, bx + Math.cos(ab - 0.2) * bl, by + Math.sin(ab - 0.2) * bl]);
+    }
   }
-  ctx.stroke();
-  if (q > 0.4) { VX.add(); hotSpot(f.x, f.y, f.r * (0.6 + 0.9 * (q - 0.4)), red, Math.min(1, (p / 0.6) * 1.2)); VX.norm(); }
+  const trace = (list, upto) => { for (const c of list) { const nn = Math.min(c.length, upto); ctx.moveTo(c[0], c[1]); for (let j = 2; j < nn; j += 2) ctx.lineTo(c[j], c[j + 1]); } };
+  const dark = L ? 'rgba(60,0,12,' : 'rgba(22,0,8,', pu = full ? 0.8 + 0.2 * Math.sin(now * 7 + sd) : 1;
+  ctx.save(); enemyPath(e); ctx.clip();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (full) {                                 // 금 사이로 새는 붉은 빛
+    ctx.beginPath(); trace(CRK, 99); trace(CRB, 99); ctx.lineWidth = 4.5; ctx.strokeStyle = rgba(red, (L ? 0.36 : 0.45) * pu); ctx.stroke();
+  }
+  ctx.beginPath(); trace(CRK, 8); ctx.lineWidth = full ? 2 : 1.7; ctx.strokeStyle = dark + (full ? 0.78 : 0.72) + ')'; ctx.stroke();   // 시작 쪽 (굵게)
+  ctx.beginPath(); trace(CRK, 99); trace(CRB, 99); ctx.lineWidth = full ? 1.1 : 0.9; ctx.strokeStyle = dark + '0.7)'; ctx.stroke();      // 전체 (가늘게)
+  if (full) { ctx.beginPath(); trace(CRK, 10); ctx.lineWidth = 0.8; ctx.strokeStyle = rgba(VX.hot(red), 0.95 * pu); ctx.stroke(); }    // 달아오른 심
+  else if (!L) { ctx.beginPath(); trace(CRK, 10); ctx.lineWidth = 0.7; ctx.strokeStyle = rgba(VX.mix(red, 0.25), 0.8); ctx.stroke(); }   // 어두운 테마: 어두운 몸에 묻히지 않게 붉은 가는 선
+  ctx.restore();
+  if (full) { VX.add(); VX.glow(e.x, e.y, r * 1.1, red, (L ? 0.22 : 0.3) * pu); VX.norm(); }
+}
+// 균열 조각: 금이 간 몸에서 적 색 조각이 떨어져 나가 튀었다 떨어지고, 맞은 자리에 붉은 빛이 잠깐 번진다
+function drawChip(f, p) {
+  const u = VX.ui(f), T = f.d - Math.max(0, f.t), q = T / f.d, col = ECOL[f.et] || '#ff6b6b', L = VX.light, red = L ? MARK_L : MARK_D, sd = u.sd * 60, r = f.r;
+  if (u.n) for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.6, v = 40 + 60 * Math.random(); VX.spark(f.x + Math.cos(a) * r * 0.6, f.y + Math.sin(a) * r * 0.6, Math.cos(a) * v, Math.sin(a) * v, 0.25 + 0.2 * Math.random(), 1.2, VX.hot(red), 60, 3, 0); }
+  if (T < 0.2) { VX.add(); hotSpot(f.x, f.y, r * (0.5 + 0.6 * T / 0.2), red, 0.7 * (1 - T / 0.2)); VX.norm(); }
+  const nc = f.boss ? 7 : 4, al = Math.max(0, 1 - q * q);
+  for (let i = 0; i < nc; i++) {               // 조각: 몸 가장자리에서 떨어져 나와 바깥 위로 튀고 돌며 떨어진다
+    const a = (hash(sd + i * 3.3) - 0.5) * 3.4 - Math.PI / 2, v = 45 + hash(sd + i * 7.1) * 70, sz = (2.2 + hash(sd + i * 1.7) * 2.6) * (f.boss ? 1.4 : 1);
+    const d = r * 0.75 + v * (1 - Math.exp(-4 * T)) / 4, px = f.x + Math.cos(a) * d, py = f.y + Math.sin(a) * d + 180 * T * T, rot = hash(sd + i + 5) * 6.3 + T * (hash(sd + i + 9) - 0.5) * 18;
+    ctx.save(); ctx.translate(px, py); ctx.rotate(rot); ctx.beginPath(); ctx.moveTo(-sz, sz * 0.55); ctx.lineTo(sz, 0); ctx.lineTo(-sz * 0.25, -sz * 0.85); ctx.closePath();
+    ctx.fillStyle = rgba(col, al); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = L ? `rgba(60,0,10,${0.6 * al})` : rgba(red, 0.7 * al); ctx.stroke(); ctx.restore();
+  }
 }
 /* ---------- 전격기: 낙뢰, 전기장, 먹구름, 전기 줄, 구전 ---------- */
 // 지그재그 경로 (낙뢰 줄기): 옆으로 흔들리며 내려가다 끝에서 표적에 모인다. 점은 out 에 [x0, y0, x1, y1, ...]
@@ -4231,7 +4285,7 @@ function drawFx(f, H) {
     }
     case 'rail': drawRailFx(f, p); break;   // 저격선 (넘어가는 피해, 점사 포함)
     case 'hkx': drawHuntX(f, p); break;     // 연속 사냥: 처치한 자리의 ✕ 자국
-    case 'mkexec': drawMarkExec(f, p); break;   // 처형: 표식이 닫힌다
+    case 'chip': drawChip(f, p); break;         // 균열: 떨어져 나가는 조각
     case 'dsv': drawDissolve(f, p); break;      // 용해: 녹아 가라앉는 몸과 거품
     case 'dsvb': drawDsvBurst(f); break;        // 용해 폭발: 산 방울과 얼룩
     case 'muz': drawMuz(f, p); break;       // 블래스터 총구 섬광
@@ -4566,7 +4620,7 @@ function draw() {
     const st = C.stats(w), x = (k + 0.5) * C.LW;
     if (w.type === 'laser' && st.always) drawHoldBeam(k, st, w, 1, k * 7.3 + 1);   // 상시 빔: 꺼지지 않는 빔
     if (w.type === 'tesla' && st.cloud) drawCloud(k, st);   // 먹구름
-    if (w.type === 'rail' && st.mkD) drawMark(k, w);         // 조준 레이저 표식
+    if (w.type === 'rail' && st.mkD) drawMark(k, w, st);     // 조준 레이저: 고정 레이저, 표식, 균열
     if (w.type !== 'pulse') continue;
     if (st.fld) drawField(x, H, st.radius * C.FLD_R, st, w, k);   // 역장: 항상 켜진 막
     if (st.orbs) {

@@ -228,9 +228,9 @@ function layout(type, speed, line) {
   }
   const hpOf = (y) => (y >= 440 ? 1e4 : y >= 400 ? 2.5e4 : y >= 360 ? 6e4 : y >= 300 ? 2e5 : 1e12);   // 기지에 가까운 적일수록 죽기 쉽다. 안쪽 적은 안 죽는다
   if (type === 'acid') return L.map(([x, y], i) => foe2(x, y, { speed: speed || 0, hp: line === 1 ? 1e5 + i * 1e3 : 1500 + i * 260, maxHp: line === 1 ? 1e5 + i * 1e3 : 1500 + i * 260 }));   // 산성: 웅덩이에서 녹고 죽는 적이 나오게 (용해, 부패)
-  if (type === 'rail') {   // 저격포는 체력이 가장 많은 적을 노린다. 과잉 살상: 한 발에 죽는 적 / 조준 레이저: 한 적(표식)을 여러 번 쏴서 잡고 둘레에 약한 적 / 점사: 단단한 적
+  if (type === 'rail') {   // 저격포는 체력이 가장 많은 적을 노린다. 과잉 살상: 한 발에 죽는 적 / 조준 레이저: 고정한 적을 몇 발에 잡고 다음 적으로 (표식 이전, 균열이 보이게 여러 발에 죽는 적) / 점사: 단단한 적
     if (line === 0) for (let y = 150; y <= 450; y += 50) for (let x = 50; x <= 450; x += 100) L.push([x + 20, y + 13]);   // 과잉 살상: 한 발에 여럿이 죽으므로 연속 사냥이 이어지게 적을 더 둔다
-    const hp = (i) => (line === 0 ? 1200 + i * 45 : line === 1 ? (i === 6 ? 1.6e5 : 3000 + i * 300) : 3e4 + i * 7e3);
+    const hp = (i) => (line === 0 ? 1200 + i * 45 : line === 1 ? (i === 6 ? 7e4 : 4e4 + i * 2e3) : 3e4 + i * 7e3);
     return L.map(([x, y], i) => foe2(x, y, { speed: speed || 0, hp: hp(i), maxHp: hp(i) }));
   }
   return L.map(([x, y]) => foe2(x, y, { speed: speed || 0, hp: hpOf(y), maxHp: hpOf(y) }));
@@ -591,12 +591,12 @@ function scene(type, lines, secs, opt) {
   ok('전격기 새 줄 3개: 낙뢰(3번째, 전기장, 먹구름), 전류 사슬(줄, 긴 방전, 고압 방전), 구전(4번째, 대형, 쌍구전)과 줄 조합');
 }
 
-/* 7e. 저격포 새 줄: 과잉 살상(넘어가는 피해, 증폭 전달, 연속 사냥: 잡을 수 있는 적부터, 처치하면 빨리), 조준 레이저(겹, 표식 폭발, 처형), 점사(뒤 발, 반동 제어, 3점사) */
+/* 7e. 저격포 새 줄: 과잉 살상(넘어가는 피해, 증폭 전달, 연속 사냥: 잡을 수 있는 적부터, 처치하면 빨리), 조준 레이저(고정과 겹, 표식 이전, 균열), 점사(뒤 발, 반동 제어, 3점사) */
 {
   const mk = (sk) => { game(1); const w = put('rail', 2, 100, true); w.sk = sk; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; w.cd = 99; const st = Core.stats(w); st.crit = 0; return { w, S, st, D: st.dmg }; };
   const shoot = (w) => { const n0 = w.n; w.cd = 0; Core.step(1 / 60); w.cd = 99; assert.strictEqual(w.n, n0 + 1, '한 번 조준'); for (let i = 0; i < 16; i++) Core.step(1 / 60); assert(!(w.aimT > 0), '발사함'); };
   const near = (a, b, what) => assert(Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b)), `${what}: ${a} != ${b}`);
-  const foeH = (x, y, hp, o) => foe2(x, y, Object.assign({ hp, maxHp: 1e12 }, o || {}));   // 최대 체력을 크게 두면 처형 문턱과 무관하고, 받은 피해 = 처음 체력 - 지금 체력 (죽어도 음수로 남는다)
+  const foeH = (x, y, hp, o) => foe2(x, y, Object.assign({ hp, maxHp: 1e12 }, o || {}));   // 최대 체력을 크게 두면 균열은 한 발 상한에 걸리고, 받은 피해 = 처음 체력 - 지금 체력 (죽어도 음수로 남는다)
   const cO = SKILLS.rail[0].nodes[0].sc, cM = SKILLS.rail[1].nodes[0].sc, cR = SKILLS.rail[2].nodes[0].sc, G = Core.BURST_GAP;
   const bD = (r, u) => (0.1 + 0.06 * r + 0.07 * u) * cR;   // 점사 뒤 발 피해 (core.js 의 BURST_A, BURST_B, RECOIL_K)
   // 과잉 살상 2: 처치하고 남은 피해 (적어도 0.4c D)가 다음으로 체력이 많은 적에게, 처치할 때마다 이어서 (최대 2회)
@@ -606,19 +606,34 @@ function scene(type, lines, secs, opt) {
     assert.strictEqual(E.hp, 0.2 * D, '최대 2회'); assert(S.fx.filter((f) => f.k === 'rail' && f.ri).length >= 2, '넘어가는 선'); }
   // 증폭 전달 5: 넘어갈 때마다 +75%
   { const { w, D } = mk([[5, 5, 0], [0, 0, 0], [0, 0, 0]]); foeH(250, 300, 0.5 * D); const B = foeH(150, 300, 0.4 * D); shoot(w); near(0.4 * D - B.hp, Math.max(0.5, 0.4 * cO) * D * 1.75, '증폭 전달 x1.75'); }
-  // 조준 레이저 1: 같은 표적을 쏠 때마다 겹 +1 (최대 5), 피해 x (1 + 겹 x 0.1c). 표적이 바뀌면 처음부터. 표적 참조는 저장되지 않는다
+  // 조준 레이저 1: 표적을 고정해 죽을 때까지 노린다 (체력이 더 많은 적이 와도). 저격할 때마다 겹 +1 (최대 5), 피해 x (1 + 겹 x 0.1c). 고정한 적이 죽으면 풀리고 처음부터. 표적 참조는 저장되지 않는다
   { const { w, D } = mk([[0, 0, 0], [1, 0, 0], [0, 0, 0]]); const A = foeH(250, 300, 1e11); const got = [];
-    for (let k = 0; k < 6; k++) { const h = A.hp; shoot(w); got.push(+((h - A.hp) / D).toFixed(6)); }
+    shoot(w); got.push(+((1e11 - A.hp) / D).toFixed(6)); const B = foeH(150, 300, 5e11);
+    for (let k = 0; k < 5; k++) { const h = A.hp; shoot(w); got.push(+((h - A.hp) / D).toFixed(6)); }
     assert.deepStrictEqual(got, [1, 2, 3, 4, 5, 5].map((n) => +(1 + n * 0.1 * cM).toFixed(6)), '겹마다 피해 ' + got); assert(w.mk === A && w.mkN === 5 && !Object.keys(w).includes('mk'));
-    const B = foeH(150, 300, 2e11); shoot(w); assert(w.mk === B && w.mkN === 1, '표적이 바뀌면 처음부터'); }
-  // 표식 폭발 3: 표식 대상이 죽으면 반경 90 에 D x 1.8c
-  { const { w, D } = mk([[0, 0, 0], [5, 3, 0], [0, 0, 0]]); const A = foeH(250, 300, 1e11); shoot(w); A.hp = 1;
-    const p1 = foeH(310, 300, 0.5), p2 = foeH(250, 380, 0.5), far = foeH(250, 420, 0.5); shoot(w);
-    assert(A.dead, '표식 대상 처치'); near(0.5 - p1.hp, D * 1.8 * cM, '폭발 피해'); near(0.5 - p2.hp, D * 1.8 * cM, '폭발 피해 2'); assert.strictEqual(far.hp, 0.5, '반경 90 밖'); }
-  // 처형: 표식 대상의 체력이 30% (보스 5%) 이하가 되면 바로 처치
-  { const { w, S } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); const A = foe2(250, 300, { hp: 1e11, maxHp: 1e11 }); shoot(w);
-    A.hp = 0.31e11; Core.step(1 / 60); assert(!A.dead); A.hp = 0.3e11; Core.step(1 / 60); assert(A.dead && S.fx.some((f) => f.k === 'mkexec'), '30% 에서 처형');
-    const bo = foe2(250, 300, { hp: 1e11, maxHp: 1e11, boss: true, type: 'giant' }); shoot(w); assert(w.mk === bo); bo.hp = 0.06e11; Core.step(1 / 60); assert(!bo.dead, '보스는 30% 로는 아님'); bo.hp = 0.05e11; Core.step(1 / 60); assert(bo.dead, '보스는 5%'); }
+    assert.strictEqual(B.hp, 5e11, '고정: 체력이 더 많은 적이 와도 고정한 적만');
+    A.hp = 1; shoot(w); assert(A.dead && w.mk === null && w.mkN === 0, '고정한 적이 죽으면 풀림 (표식 이전 없음)');
+    shoot(w); assert(w.mk === B && w.mkN === 1, '새로 고정하면 처음부터'); }
+  // 표식 이전 3: 고정한 적이 죽으면 체력이 가장 많은 적으로 옮겨 가며 겹수 x 0.6. 다음 저격은 그 적 (겹 +1)
+  { const { w, D } = mk([[5, 0, 0], [5, 3, 0], [0, 0, 0]]); const A = foeH(250, 300, 1e11); for (let k = 0; k < 5; k++) shoot(w);
+    const B = foeH(150, 300, 2e11), C = foeH(350, 300, 3e11); A.hp = 1; shoot(w);
+    assert(A.dead && w.mk === C && Math.abs(w.mkN - 3) < 1e-9 && w.mkX, '체력이 가장 많은 적으로 옮겨 가며 3겹');
+    const h = C.hp; shoot(w); near((h - C.hp) / D, 1 + 4 * 0.5 * cM, '이어받은 겹 + 1'); assert.strictEqual(B.hp, 2e11);
+    w.sk[1] = [5, 5, 0]; Core.dirty(w); Core.stats(w).crit = 0; C.hp = 1; shoot(w); assert(w.mk === B && Math.abs(w.mkN - 5) < 1e-9, '표식 이전 5: 겹 전부'); }
+  // 균열: 겹이 다 찬 고정 표적은 저격이 맞을 때마다 최대 체력의 CRACK_P (보스 1/4) 를 더 깎는다. 한 발에 D x CRACK_Y 까지. 조각 연출
+  { const { w, S, D } = mk([[0, 0, 0], [5, 0, 1], [0, 0, 0]]); const P = Core.CRACK_P, Y = Core.CRACK_Y, m5 = 1 + 5 * 0.5 * cM;
+    const A = foe2(250, 300, { hp: 1e9 * D, maxHp: 10 * D }); let h = A.hp;
+    for (let k = 0; k < 4; k++) shoot(w);
+    assert(!S.fx.some((f) => f.k === 'chip'), '4겹까지는 균열 없음'); h = A.hp; shoot(w);
+    near((h - A.hp) / D, m5 + Math.min(P * 10, Y), '5겹: 최대 체력의 ' + P * 100 + '%'); assert(S.fx.some((f) => f.k === 'chip'), '조각 연출');
+    A.maxHp = 1e6 * D; h = A.hp; shoot(w); near((h - A.hp) / D, m5 + Y, '한 발에 D x ' + Y + ' 까지');
+    const bo = foe2(150, 300, { hp: 1e9 * D, maxHp: 10 * D, boss: true, type: 'giant' }); A.hp = 1; shoot(w);
+    for (let k = 0; k < 4; k++) shoot(w); h = bo.hp; shoot(w); assert(w.mk === bo); near((h - bo.hp) / D, m5 + Math.min(P * 10 / 4, Y), '보스는 1/4'); }
+  { const { w, S } = mk([[0, 0, 0], [5, 0, 0], [0, 0, 0]]); foeH(250, 300, 1e11); for (let k = 0; k < 6; k++) shoot(w); assert(!S.fx.some((f) => f.k === 'chip'), '균열 없으면 조각 없음'); }
+  // 점사 + 조준 레이저: 뒤 발도 고정한 적에게 겹 보너스, 표적이 죽으면 옮겨 간 표적에게
+  { const { w, D } = mk([[0, 0, 0], [5, 5, 0], [3, 0, 0]]); const A = foeH(250, 300, 1e11); shoot(w); for (let i = 0; i < 20; i++) Core.step(1 / 60);
+    A.hp = 0.5 * D; const B = foeH(150, 300, 2 * D), C = foeH(350, 300, 3 * D); shoot(w); for (let i = 0; i < 20; i++) Core.step(1 / 60);
+    assert(A.dead && w.mk === C && w.mkN === 2, '고정한 적을 처치하고 옮겨 감'); near(3 * D - C.hp, bD(3, 0) * (1 + 2 * 0.5 * cM) * D, '뒤 발은 옮겨 간 표적에게 (겹 보너스)'); assert.strictEqual(B.hp, 2 * D); }
   // 연속 사냥: 한 발에 잡을 수 있는 적부터 노린다 (그중 체력이 가장 많은 적, 없으면 체력이 가장 많은 적)
   { const { w, S, D } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const big = foeH(250, 300, 1e11), a = foeH(150, 300, 0.6 * D), b = foeH(350, 300, 0.9 * D), c = foeH(50, 300, 1.2 * D);
     w.cd = 0; Core.step(1 / 60); assert(w.aim === b, '한 발에 잡을 수 있는 적 중 체력이 가장 많은 적'); while (w.aimT > 0) Core.step(1 / 60); assert(b.dead && !big.dead && !c.dead, '그 적을 처치');
@@ -666,7 +681,7 @@ function scene(type, lines, secs, opt) {
   { game(1); const w = put('rail', 2, 50); w.augs[0] = { id: 'r_twin', g: 2 }; w.augs[1] = { id: 'r_through', g: 2 }; Core.dirty(w); Core.S.spawnAcc = -1e9; const st = Core.stats(w); st.crit = 0; w.cd = 99;
     foeH(250, 300, 1e11); const B = foeH(50, 100, 1e10), C = foeH(250, 200, 1e6); shoot(w);
     near(1e10 - B.hp, st.dmg * Core.AUGS.r_twin.v[2] / 100, '이중 저격 v%'); assert(1e6 - C.hp >= st.dmg * Core.AUGS.r_through.v[2] / 100 * (1 - 1e-6), '관통 저격 v%'); }
-  ok('저격포 새 줄 3개: 과잉 살상(넘어가는 피해, 증폭 전달, 연속 사냥), 조준 레이저(겹, 표식 폭발, 처형), 점사(뒤 발, 반동 제어, 3점사), 이중/관통 저격 버그 수정');
+  ok('저격포 새 줄 3개: 과잉 살상(넘어가는 피해, 증폭 전달, 연속 사냥), 조준 레이저(고정과 겹, 표식 이전, 균열), 점사(뒤 발, 반동 제어, 3점사), 이중/관통 저격 버그 수정');
 }
 /* 7f. 산성 분사기 새 줄: 용해(녹이기, 큰 폭발, 연쇄 용해), 산성비(비, 장마, 폭우), 점액 흔적(자국, 끈적한 자국, 부패) */
 {
