@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.131, cross: 5.362, mk: 0.281, exec: 1.836, rico: 3.908, mkb: 4.751, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 11.5, burst: 1.05, mk: 0.281, exec: 1.836, mkb: 4.751, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -130,7 +130,7 @@ function model(st, ref, c, lay, PP) {
   q *= 1 + closeSh * st.closePct;
   const q0 = 1 + ref.crit * (1 + ref.critDmg);
   const tf = (t === 'blaster' || t === 'shotgun' || t === 'tesla') ? Math.pow(r / W0.range, pw.kg) : 1;   // 사거리: 머무는 시간
-  let dir = 0, dot = 0, burnN = 0, hsz = 1, sig = [];   // hsz: 주 공격 한 발 크기 배수 (특수 탄 평균)
+  let dir = 0, dot = 0, burnN = 0, hsz = 1, sig = [], stk = null, cy = null;   // hsz: 주 공격 한 발 크기 배수 (특수 탄 평균)
   const splashN = (R) => nIn(lam, Math.PI * R * R);
   const sides = lay.sides;
   // 군중 제어: 같은 적을 다시 맞히는 간격 tau 에서 둔화/기절/밀치기를 '느려진 비율' sigma 로 바꾼다
@@ -318,15 +318,17 @@ function model(st, ref, c, lay, PP) {
       let main = 1;
       if (st.mkD) main *= 1 + st.mkD * ((1 - beta) * fX(Math.max(1, X0)) + beta * fX(Math.max(1, X0 * 8))) * pm.mk;
       if (st.mkExec) main *= 1 + ((1 - beta) * (1 / (1 - st.mkExec) - 1) + beta * (1 / 0.95 - 1)) * pm.exec;
-      // 도탄: 가까운 적에게 튕길 때마다 rkK 배 (탄마다)
-      let bounce = 0; if (st.rRico) { const pr = occ(nIn(lam, Math.PI * 260 * 260) * 0.6); let f = 1; for (let j = 0; j < st.rRico; j++) { f *= st.rRicoK * pr; bounce += f; } bounce *= pm.rico; }
-      const side = (st.twin || 0) + 2 * (st.triple || 0);   // 이중 저격, 삼연사 (주 표적 아닌 탄)
-      let hits = (main + side) * (1 + bounce) + (st.through ? st.through * behind : 0);
-      if (st.carry && st.carryMin) { let a = 0, f = 1; for (let j = 0; j < st.carry; j++) { f *= 1 + st.carryAmp; a += f * st.carryMin; } hits += kpS * (1 - bb) * a * pm.ovk; }   // 과잉 살상의 최소 피해 몫 (낭비 회수는 killRate 의 carry)
-      if (st.cross) hits += st.cross / 5 * nIn(lam, LANES * LW * 39) * pm.cross;   // 횡단탄: 5번째마다 그 높이의 모든 적
+      // 점사 (T9d): 뒤 발 bst 개 x bstD. 같은 표적 (표식 보너스도 받음), 표적이 죽었으면 다음 적이라 낭비가 거의 없다
+      const bu = st.bst ? st.bst * st.bstD * pm.burst : 0;
+      const side = st.twin || 0;   // 이중 저격 (주 표적 아닌 탄)
+      let hits = main * (1 + bu) + side + (st.through ? st.through * behind * (1 + bu) : 0);
+      // 과잉 살상의 최소 피해 몫 (낭비 회수는 killRate 의 carry): 적 체력 배수에 따라 처치 확률이 달라 killRate 에서 센다 (T9d)
+      if (st.carry && st.carryMin) cy = { n: st.carry, min: st.carryMin, amp: st.carryAmp * pm.ovkA, X0, bb, k: pm.ovk, base: hits };
       dir = rate * hits;
       if (st.mkBoom) dir += rate * kpS * st.mkBoom * splashN(90 * (1 + st.areaPct)) * pm.mkb;   // 표식 폭발: 표식 대상이 죽을 때
-      burnN = rate * (1 + (st.twin ? 1 : 0) + (st.triple ? 2 : 0));
+      burnN = rate * (1 + (st.twin ? 1 : 0) + st.bst);
+      // 연속 사냥 (T9d): 저격이 처치하면 다음 대기 시간 -stk. 점사가 끝나고 조준(0.25초)해야 하므로 간격은 0.25 + 점사 시간 아래로 줄지 않는다. 처치 확률은 killRate 에서 (적 체력에 따라)
+      if (st.stk) { stk = { e: 1 - Math.max(1 - st.stk, (0.25 + st.bst * Core.BURST_GAP) / st.cd), h: 1 + bu, kr: pw.kr, k: pm.stk }; }
       ccHit(tau, st.knock);
       break;
     }
@@ -385,7 +387,7 @@ function model(st, ref, c, lay, PP) {
   if (t === 'acid') { const cov = Math.min(0.9, ((1 + st.aMulti) * rate * 4 * capC(nIn(lam, Math.PI * 75 * 75), st.cap) + (st.rain ? (st.rain2 ? 2 : 1) * st.rainT / Core.RAIN_CD * lam * 1.5 : 0)) / Math.max(1, LANES * lam)); team += (0.10 + st.aVuln) * pw.vt * cov / 0.3; }
   const vf = (1 + vul) * (1 + team * (1 / sh - 1));
   const dr = st.dmg / ref.dmg;   // 모든 피해는 공격력에 비례한다. 지속 피해는 치명타, 보스 보정을 받지 않는다 (산성은 식 안에서 따로)
-  return { t, X, n1, sig: s, ccf, vf, D: t === 'acid' ? 0 : dir * q * dr, Dd: dot * dr, carry: st.carry, st, bb };
+  return { t, X, n1, sig: s, ccf, vf, D: t === 'acid' ? 0 : dir * q * dr, Dd: dot * dr, carry: st.carry, st, bb, stk, cy };
 }
 // 적 체력 배수 m 에서의 처치 속도 (초당 처치 수의 상대값)
 function killRate(mo, m) {
@@ -394,7 +396,16 @@ function killRate(mo, m) {
     const x = mo.X * m;
     let eff = x / killHits(x, mo.st, mo.bb);
     if (mo.carry && eff < 1) eff += (1 - eff) * Math.min(1, mo.carry / 2);   // 넘겨받는 피해 (과잉 살상): 낭비된 몫을 다음 적에게
-    dirPart = mo.D * eff;   // 문턱 효과(처형, 선제, 즉사)는 타수를 X 밑으로 줄여 eff > 1 이 될 수 있다 (T8 전에는 1 로 잘라 처형·선제가 낮게 나왔다)
+    dirPart = mo.D * eff;
+    if (mo.cy) {    // 과잉 살상: 처치(확률 kp)하면 넘어간 피해 d 가 다음 적에게. d 가 그 적을 처치할 확률 min(1, d x kp) 로만 다음 회차로 이어진다 (T9d: 늘 끝까지 이어진다고 보면 증폭 전달을 2배쯤 크게 봤다)
+      const c = mo.cy, kp = 1 / Math.max(1, c.X0 * m);
+      let a = 0, f = 1, go = 1; for (let j = 0; j < c.n; j++) { f *= 1 + c.amp; const d = f * c.min; a += go * d; go *= Math.min(1, d * kp); }
+      dirPart *= 1 + kp * (1 - c.bb) * a * c.k / c.base;
+    }
+    if (mo.stk) {   // 연속 사냥: 저격 한 번(점사 포함, 주 탄 h 발어치)이 처치할 확률 pk 만큼 다음 저격이 빨라진다
+      const k = mo.stk, pk = Math.min(1, k.h / killHits(x, mo.st, mo.bb));
+      dirPart *= 1 + (Math.pow(1 / (1 - pk * k.e), k.kr) - 1) * k.k;
+    }   // 문턱 효과(처형, 선제, 즉사)는 타수를 X 밑으로 줄여 eff > 1 이 될 수 있다 (T8 전에는 1 로 잘라 처형·선제가 낮게 나왔다)
   }
   return (dirPart + mo.Dd) / m * mo.ccf * mo.vf;
 }
@@ -795,9 +806,11 @@ function reportText(T, PP, fitInfo) {
 /* ---------- 영점 맞춤과 비교 ---------- */
 // 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
 // 2차분 무기: 첫 값으로 한 번 재서 기구 계수를 맞춘 뒤 계산기로 값을 바꿨으므로, 그 측정은 지금 값과 맞지 않아 fit 에 넣지 않고 맞춘 계수를 defaults() 에 고정한다
-//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.cross, m.mk, m.exec, m.rico, m.mkb. 산성 _t5d -> m.rain, m.slime, m.dsv, m.rot)
+//   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.mk, m.exec, m.mkb. T9d 에서 횡단탄·도탄(m.cross, m.rico)을 지우고 연속 사냥 m.stk, 점사 m.burst 를 더함. 산성 _t5d -> m.rain, m.slime, m.dsv, m.rot)
 // T9c: 개틀링 궁극을 난사로 바꾼 뒤 잰 완성 (_t9c). 난사 기구 계수 m.spray 1.07 은 이 측정 하나로 맞춘 값 (같은 줄 뿌리의 측정/계산 1.06 을 뺀 나머지)
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt'];
+// T9d: 저격포 과잉 살상(궁극 연속 사냥, 줄 배율 2)과 점사 줄의 완성·뿌리 (_t9d). 이 측정과 상위까지(_t9d_up, fit 에는 안 넣음)로 m.ovk 0.5, m.ovkA 0.55 (증폭 몫),
+//   m.stk 11.5 (연속 사냥. 세기 대부분이 '한 발에 잡을 수 있는 적부터' 표적 고르기에서 나오는데 계산기에는 적 체력이 섞인 모습이 없어 이 계수가 대신한다), m.burst 1.05 를 손으로 맞췄다
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};

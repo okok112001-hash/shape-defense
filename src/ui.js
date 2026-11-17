@@ -178,14 +178,14 @@ const Snd = (function () {
     pulse: [140, () => tone('sine', 260, 70, 0.2, 0.13)],
     mortar: [120, () => tone('sine', 140, 55, 0.14, 0.15)],
     tesla: [100, () => { hiss(0.07, 0.09, 3500, 3, 'bandpass'); tone('square', 1700, 900, 0.05, 0.025); }],
-    rail: [150, () => tone('sine', 700, 1500, 0.2, 0.03)],                                                   // 조준: 낮게 차오르는 소리
-    railfire: [150, () => { tone('sawtooth', 2600, 180, 0.12, 0.06); hiss(0.07, 0.1, 4500, 1, 'highpass'); }],   // 발사: 날카로운 소리
+    rail: [150, () => tone('triangle', 2100, 1700, 0.025, 0.012)],                                            // 조준: 작게 딸깍
+    railfire: [110, () => { hiss(0.03, 0.2, 5200, 0.7, 'highpass'); hiss(0.07, 0.24, 2300, 0.9, 'bandpass'); tone('sine', 165, 44, 0.22, 0.22); tone('triangle', 110, 46, 0.14, 0.09); hiss(0.18, 0.06, 1500, 0.7, 'lowpass', 0.1); hiss(0.24, 0.03, 900, 0.7, 'lowpass', 0.23); }],   // 저격: 짧고 날카로운 "탕" (잡음 터짐 + 낮은 쿵 + 짧은 메아리)
+    cycle: [160, () => { hiss(0.025, 0.1, 3000, 2.5, 'bandpass', 0.06); tone('square', 1700, 1050, 0.02, 0.025, 0.06); hiss(0.035, 0.12, 1900, 2, 'bandpass', 0.15); tone('square', 1150, 620, 0.03, 0.035, 0.15); }],   // 연속 사냥: 노리쇠 "철컥" (탕 바로 뒤에)
     acid: [170, () => { tone('sine', 380, 520, 0.08, 0.035); hiss(0.06, 0.04, 1500, 1.2, 'bandpass'); }],       // 던지는 소리
     splat: [90, () => { hiss(0.13, 0.06, 900, 1, 'lowpass'); tone('sine', 260, 120, 0.1, 0.035); }],          // 웅덩이에 철퍽
     boom: [90, () => { hiss(0.28, 0.2, 500, 0.6); tone('sine', 90, 40, 0.25, 0.17); }],
     nuke: [160, () => { tone('sine', 120, 26, 0.95, 0.26); hiss(0.8, 0.24, 360, 0.5); tone('triangle', 64, 30, 0.7, 0.1, 0.04); hiss(0.12, 0.08, 2600, 1, 'highpass'); }],   // 핵탄두: 낮고 긴 굉음
     rain: [600, () => { hiss(1.4, 0.06, 5200, 0.6, 'highpass'); hiss(1.2, 0.05, 900, 0.8, 'bandpass', 0.1); }],                              // 산성비: 쏴아 하는 빗소리
-    rico: [90, () => { tone('triangle', 2600, 1700, 0.07, 0.035); tone('sine', 3400, 3000, 0.05, 0.015, 0.02); }],                                 // 도탄: 튕기는 핑
     mkexec: [200, () => { tone('square', 980, 260, 0.14, 0.05); hiss(0.08, 0.1, 3000, 1, 'highpass'); }],                                       // 처형: 표식이 닫히는 소리
     thunder: [110, () => { hiss(0.06, 0.2, 3800, 0.8, 'highpass'); tone('square', 2200, 260, 0.07, 0.035); hiss(0.55, 0.13, 280, 0.6, 'lowpass', 0.025); tone('sine', 78, 38, 0.45, 0.11, 0.02); }],   // 낙뢰: 날카롭게 찢는 소리와 낮은 우르릉
     ball: [300, () => { tone('sawtooth', 120, 180, 0.35, 0.03); hiss(0.3, 0.05, 2600, 4, 'bandpass'); }],                                   // 구전: 낮게 웅웅거리는 소리
@@ -1001,16 +1001,16 @@ const SKICON = {
   ballb: `<circle cx="13.5" cy="10.5" r="7.5" ${SOFT}/><path d="M13.5 10.5l-3.5-3M13.5 10.5l4-2M13.5 10.5l1 4.5M2 18.5l4-2.5M4.5 22l3.5-3"/><circle cx="13.5" cy="10.5" r="2" ${FILL}/>`,
   bigball: `<circle cx="12" cy="12" r="10" ${SOFT}/><path d="M12 12l-4.5-4M12 12l5.5-2.5M12 12l1.5 6M12 12l-5.5 3"/><circle cx="12" cy="12" r="2.4" ${FILL}/>`,
   twinball: `<circle cx="5.5" cy="7" r="4" ${SOFT}/><circle cx="18.5" cy="7" r="4" ${SOFT}/><path d="M12 22.5l-4.5-11M12 22.5l4.5-11M18.5 1v2M22.5 7h-1.8M15.5 3.8L14.3 2.6M21.3 3.8l1.2-1.2"/>`,
-  // 저격포: 넘어가는 탄 / 표식 / 튕기는 탄
+  // 저격포: 넘어가는 탄 / 표식 / 점사 탄
   overkill: `<circle cx="6" cy="17" r="3.4" ${SOFT}/><path d="M2.5 13.5l7 7M9.5 13.5l-7 7"/><path d="M9.5 14L19 5.5M15 5h4.5v4.5"/>`,
   relay: `<path d="M3 20l5-5M9 14l5-5M15 8l5-5" stroke-width="1.8"/><path d="M8 15.5V20H3.5M14 9.5V14H9.5M20 3.5V8h-4.5"/>`,
-  crossb: `<path d="M12 22.5V12" stroke-width="2.6"/><path d="M1.5 12h21" stroke-width="2.6"/><circle cx="12" cy="12" r="3" ${FILL}/><path d="M5 9v6M19 9v6"/>`,
+  streak: `<circle cx="12" cy="8" r="5.2" ${SOFT}/><path d="M12 1v3.6M12 11.4V15M5 8h3.6M15.4 8H19"/><path d="M2.5 18.5l3 3M5.5 18.5l-3 3M10.5 18.5l3 3M13.5 18.5l-3 3M18.5 18.5l3 3M21.5 18.5l-3 3"/>`,
   laserm: `<circle cx="14" cy="9" r="6" stroke-dasharray="6.5 3"/><circle cx="14" cy="9" r="1.8" ${FILL}/><path d="M3 22l9.2-11.2"/>`,
   markboom: `<circle cx="12" cy="12" r="5" ${SOFT}/><path d="M12 1.5v4M12 18.5v4M1.5 12h4M18.5 12h4M4.5 4.5l2.8 2.8M16.7 16.7l2.8 2.8M4.5 19.5l2.8-2.8M16.7 7.3l2.8-2.8"/>`,
   execm: `<path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke-width="2.4"/>`,
-  ricob: `<path d="M3 22l5.5-12.5L14 17l7-14"/><circle cx="8.5" cy="9.5" r="2" ${FILL}/><circle cx="14" cy="17" r="2" ${FILL}/>`,
-  elastic: `<path d="M3 21.5l4-7 4 5 4-9 4 6" /><path d="M4 7c1.5-2.5 3-2.5 4.5 0s3 2.5 4.5 0 3-2.5 4.5 0" stroke-opacity=".55"/>`,
-  triple: `<path d="M6 22.5L8 3M12 22.5V1.5M18 22.5L16 3" stroke-width="2"/><circle cx="8" cy="3.5" r="1.6" ${FILL}/><circle cx="12" cy="2" r="1.6" ${FILL}/><circle cx="16" cy="3.5" r="1.6" ${FILL}/>`,
+  burst: `<path d="M12 22.5v-6" stroke-width="2.6"/><path d="M10.2 14v-3.4l1.8-2.4 1.8 2.4V14z" ${SOFT}/><path d="M10.2 7v-3.4L12 1.2l1.8 2.4V7z" ${SOFT}/>`,
+  recoil: `<path d="M12 22.5V9" stroke-width="2.6"/><path d="M5.5 21l3-1.5-3-1.5 3-1.5-3-1.5 3-1.5M18.5 21l-3-1.5 3-1.5-3-1.5 3-1.5-3-1.5"/><path d="M9.2 5.2L12 2.4l2.8 2.8"/>`,
+  burst3: `<path d="M12 22.8v-2.6" stroke-width="2.6"/><path d="M10.3 18.2v-2.5l1.7-2.1 1.7 2.1v2.5zM10.3 11.8V9.3l1.7-2.1 1.7 2.1v2.5zM10.3 5.4V2.9L12 .8l1.7 2.1v2.5z" ${SOFT}/><path d="M7 21.8l2.2-1M17 21.8l-2.2-1"/>`,
   // 산성 분사기: 녹는 방울 / 비 / 자국
   dsvb: `<path d="M12 2.5c3 4 5 6.6 5 9.3a5 5 0 0 1-10 0c0-2.7 2-5.3 5-9.3z" ${SOFT}/><path d="M3 20.5c2.5-1.6 5.5-1.6 9 0s6.5 1.6 9 0"/>`,
   bigdsv: `<circle cx="12" cy="12" r="4.5" ${SOFT}/><path d="M12 1.5v3.5M12 19v3.5M1.5 12H5M19 12h3.5M4.6 4.6l2.4 2.4M17 17l2.4 2.4M4.6 19.4L7 17M17 7l2.4-2.4"/>`,
@@ -3548,12 +3548,12 @@ function drawHeat(x, H, hl, k) {
 // 난사의 탄피: 총구 오른쪽으로 튀어 돌며 떨어지고, 기지 선에 한 번 튄 뒤 잠깐 누워 있다 사라진다 (화면 전용)
 const CAS = [];
 let casW = 0;
-function casingAdd(x, y, a) {
+function casingAdd(x, y, a, big) {   // big: 저격포 탄피 (길고 굵다, 조금 더 멀리 튄다)
   if (RM.matches) return;
   const o = CAS.length < 48 ? (CAS[CAS.length] = {}) : CAS[casW++ % 48];   // 가득 차면 오래된 것부터 덮어쓴다
-  const s = 55 + 55 * Math.random(), up = 80 + 70 * Math.random();
-  o.x = x; o.y = y; o.vx = Math.cos(a) * s + Math.sin(a) * 20; o.vy = Math.sin(a) * s - up; o.t = 0; o.d = 0.75 + 0.35 * Math.random();
-  o.r = Math.random() * TAU; o.w = (Math.random() < 0.5 ? -1 : 1) * (16 + 14 * Math.random()); o.b = 0; o.l = 3.8 + 1.4 * Math.random();
+  const s = (55 + 55 * Math.random()) * (big ? 1.25 : 1), up = 80 + 70 * Math.random();
+  o.x = x; o.y = y; o.vx = Math.cos(a) * s + Math.sin(a) * 20; o.vy = Math.sin(a) * s - up; o.t = 0; o.d = (0.75 + 0.35 * Math.random()) * (big ? 1.3 : 1);
+  o.r = Math.random() * TAU; o.w = (Math.random() < 0.5 ? -1 : 1) * (16 + 14 * Math.random()) * (big ? 0.7 : 1); o.b = 0; o.l = (3.8 + 1.4 * Math.random()) * (big ? 1.7 : 1); o.z = big ? 1.35 : 1;
 }
 function drawCasings(H) {
   if (VX.reset) { VX.reset = 0; CAS.length = 0; casW = 0; }
@@ -3574,7 +3574,7 @@ function drawCasings(H) {
       const a = Math.min(1, (o.d - o.t) / 0.25), cx = Math.cos(o.r) * o.l * 0.5, cy = Math.sin(o.r) * o.l * 0.5;
       ctx.globalAlpha = a;
       ctx.beginPath(); ctx.moveTo(o.x - cx, o.y - cy); ctx.lineTo(o.x + cx, o.y + cy);
-      if (pass === 0) { ctx.lineWidth = 2.1; ctx.strokeStyle = body; } else { ctx.lineWidth = 0.8; ctx.strokeStyle = hi; }
+      if (pass === 0) { ctx.lineWidth = 2.1 * o.z; ctx.strokeStyle = body; } else { ctx.lineWidth = 0.8 * o.z; ctx.strokeStyle = hi; }
       ctx.stroke();
     }
   }
@@ -3828,25 +3828,103 @@ function drawAcidPool(p, nowT) {
     ctx.lineWidth = 1; ctx.strokeStyle = rgba(L ? VX.mix(p.c, -0.25) : VX.hot(p.c), 0.6 * al); ctx.stroke();
   }
 }
-/* ---------- 저격포: 저격선, 도탄, 횡단탄, 조준 레이저 표식, 처형 ---------- */
-// 저격선: 굵고 밝은 선이 서서히 사라지고 가는 흔적이 잠깐 남는다. 포구에 반동 표시. ri: 도탄 (가늘고, 튕긴 자리에 불티), cr: 횡단탄 (가로)
+/* ---------- 저격포: 저격선, 넘어가는 피해, 점사, 연속 사냥, 조준 레이저 표식, 처형 ---------- */
+// 저격선: 굵고 밝은 선이 서서히 사라지고 가는 흔적이 잠깐 남는다. 포구에 반동 표시. ri: 넘어가는 피해 (가늘고, 넘어간 자리에 불티)
+// bu: 점사 무기의 발 (1, 2, 3번째). 발마다 총구 불꽃이 터지고 탄피가 튀고 화약 연기가 조금 오른다 (반동 표시 대신)
 function drawRailFx(f, p) {
-  const u = VX.ui(f), col = seenCol(f.c), L = VX.light, k = f.ri ? 0.55 : f.cr ? 0.85 : 1;
+  const u = VX.ui(f), col = seenCol(f.c), k = f.ri ? 0.55 : 1, a = Math.atan2(f.x1 - f.x0, f.y0 - f.y1);
   if (u.n) {
-    VX.trail(f.x0, f.y0, f.x1, f.y1, f.ri ? 1.8 : 3, col, f.cr ? 0.75 : 0.5, 1);
-    if (f.ri || f.cr) for (let i = 0; i < (f.cr ? 8 : 5); i++) { const a = Math.random() * TAU, s = 80 + 160 * Math.random(); VX.spark(f.x0, f.y0, Math.cos(a) * s, Math.sin(a) * s, 0.15 + 0.15 * Math.random(), 1.3, VX.hot(col), 0, 4, 1); }
+    VX.trail(f.x0, f.y0, f.x1, f.y1, f.ri ? 1.8 : 3, col, 0.5, 1);
+    if (f.ri) for (let i = 0; i < 5; i++) { const b = Math.random() * TAU, s = 80 + 160 * Math.random(); VX.spark(f.x0, f.y0, Math.cos(b) * s, Math.sin(b) * s, 0.15 + 0.15 * Math.random(), 1.3, VX.hot(col), 0, 4, 1); }
+    if (f.bu) railMuzBurst(f, a, col);
   }
   ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(f.x0, f.y0); ctx.lineTo(f.x1, f.y1);
   ctx.lineWidth = (14 * p + 2) * k; ctx.strokeStyle = rgba(col, 0.35 * p); ctx.stroke();
   ctx.lineWidth = (5 * p + 1) * k; ctx.strokeStyle = rgba(col, 0.95 * p); ctx.stroke();
   ctx.lineWidth = (2 * p + 0.5) * k; ctx.strokeStyle = `rgba(255,255,255,${p})`; ctx.stroke();
-  if (f.ri || f.cr) { VX.add(); hotSpot(f.x0, f.y0, (f.cr ? 16 : 9) + 8 * (1 - p), col, p); VX.norm(); }   // 꺾이거나 튕긴 자리
-  if (f.rc) {
+  if (f.ri) { VX.add(); hotSpot(f.x0, f.y0, 9 + 8 * (1 - p), col, p); VX.norm(); }   // 넘어간 자리
+  if (f.bu) drawRailMuz(f, p, a, u.sd);
+  else if (f.rc) {
     const q = 1 - p;
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(col, p); ctx.beginPath();
     ctx.moveTo(f.x0 - 10, f.y0 - 4); ctx.lineTo(f.x0, f.y0 - 14 - 8 * q); ctx.lineTo(f.x0 + 10, f.y0 - 4); ctx.stroke();
     ctx.beginPath(); ctx.arc(f.x0, f.y0 - 6, 6 + 10 * q, Math.PI, Math.PI * 2); ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+// 점사 한 발의 처음: 총구 앞으로 튀는 불티, 옆으로 튀는 큰 탄피
+function railMuzBurst(f, a, col) {
+  const sx = Math.sin(a), sy = -Math.cos(a), mx = f.x0 + sx * 11, my = f.y0 + sy * 11, F = fireCol();
+  casingAdd(f.x0, f.y0 - 8, a, 1);
+  for (let i = 0; i < 4; i++) {
+    const b = a + (Math.random() - 0.5) * 0.7, s = 160 + 200 * Math.random();
+    VX.spark(mx, my, Math.sin(b) * s, -Math.cos(b) * s, 0.07 + 0.08 * Math.random(), 1.2, i ? F.e : VX.hot(col), 0, 7, 1);
+  }
+}
+// 점사의 총구 불꽃: 앞으로 뻗는 불꽃 혀와 양옆 제동기에서 옆으로 터지는 짧은 불꽃 (발마다 길이와 기울기가 다르다), 그 뒤 옅은 화약 연기가 흔들리며 오른다
+function drawRailMuz(f, p, a, sd0) {
+  const L = VX.light, F = fireCol(), q = 1 - p, sd = sd0 * 61 + (f.bu || 0) * 7.7, sx = Math.sin(a), sy = -Math.cos(a), nx = -sy, ny = sx;
+  const mx = f.x0 + sx * 11, my = f.y0 + sy * 11;
+  if (p > 0.45) {
+    const e = (p - 0.45) / 0.55, g = 0.8 + 0.2 * VX.ease(Math.min(1, q * 4), 2);
+    VX.add(); hotSpot(mx, my, (12 + 5 * hash(sd)) * (0.6 + 0.4 * e), F.o, 0.95 * e); VX.norm();
+    for (let pass = 0; pass < 2; pass++) {
+      const ks = pass ? 0.5 : 1;
+      ctx.beginPath();
+      const len = (27 + 13 * hash(sd + 1)) * g * ks, ab = a + (hash(sd + 2) - 0.5) * 0.16;
+      flameTo(mx, my, mx + Math.sin(ab) * len, my - Math.cos(ab) * len, (pass ? 1.7 : 3.8), (hash(sd + 3) - 0.5) * 3);
+      for (const sg of [-1, 1]) {               // 제동기 옆 불꽃
+        const l2 = (11 + 8 * hash(sd + 4 + sg)) * g * ks, b = a + sg * (1.25 + 0.35 * hash(sd + 6 + sg));
+        flameTo(mx - sx * 2, my - sy * 2, mx - sx * 2 + Math.sin(b) * l2, my - sy * 2 - Math.cos(b) * l2, pass ? 1.1 : 2.5, sg * 1.5);
+      }
+      ctx.fillStyle = pass ? (L ? rgba(F.o, 0.95 * e) : `rgba(255,250,230,${0.95 * e})`) : rgba(L ? F.e : F.o, 0.85 * e); ctx.fill();
+    }
+  }
+  const sc = L ? '#7b8798' : '#c9d1db';         // 화약 연기: 퍼지며 옅어진다
+  for (let i = 0; i < 3; i++) {
+    const h = hash(sd + 11 + i), d = q * (10 + 14 * h), side = (h - 0.5) * 2;
+    const x = mx + sx * d * 0.6 + nx * side * (4 + 10 * q) + Math.sin(q * 6 + i * 2) * 2, y = my + sy * d * 0.6 + ny * side * (4 + 10 * q) - q * (6 + 8 * h);
+    VX.glow(x, y, 4 + 9 * q * (0.7 + 0.6 * h), sc, (L ? 0.32 : 0.2) * Math.sin(Math.PI * Math.min(1, q * 1.15)) * (0.6 + 0.4 * h));
+  }
+}
+// 연속 사냥: 저격으로 처치한 자리에 작은 ✕ 자국. 두 획이 차례로 빠르게 그어지고 (기울기와 길이가 조금씩 다르다), 남았다가 옅어진다
+function drawHuntX(f, p) {
+  const u = VX.ui(f), q = 1 - p, sd = u.sd * 37, col = seenCol(f.c), L = VX.light, T = q * f.d;
+  const s = 4.5 + Math.min(4, f.r * 0.22), rot = (hash(sd) - 0.5) * 0.5, al = Math.min(1, p / 0.55);
+  if (u.n) for (let i = 0; i < 4; i++) { const b = Math.random() * TAU, v = 40 + 70 * Math.random(); VX.spark(f.x, f.y, Math.cos(b) * v, Math.sin(b) * v, 0.15 + 0.1 * Math.random(), 1, VX.hot(col), 0, 6, 1); }
+  ctx.lineCap = 'round';
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.beginPath();
+    for (let i = 0; i < 2; i++) {
+      const g = Math.max(0, Math.min(1, (T - i * 0.06) / 0.07)); if (!g) continue;
+      const ang = rot + (i ? -1 : 1) * (0.78 + (hash(sd + 1 + i) - 0.5) * 0.25), l = s * (0.9 + 0.25 * hash(sd + 3 + i));
+      const cx = Math.cos(ang) * l, cy = Math.sin(ang) * l;
+      ctx.moveTo(f.x - cx, f.y - cy); ctx.lineTo(f.x - cx + 2 * cx * VX.ease(g, 2), f.y - cy + 2 * cy * VX.ease(g, 2));
+    }
+    if (pass === 0) { ctx.lineWidth = 4.2; ctx.strokeStyle = L ? rgba('#ffffff', 0.55 * al) : rgba(col, 0.25 * al); }
+    else { ctx.lineWidth = 1.9; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.15) : VX.hot(col), 0.95 * al); }
+    ctx.stroke();
+  }
+}
+// 연속 사냥의 연속 처치 눈금: 무기 왼쪽 기지 선 위에 다섯 획 묶음 (넷은 세로, 다섯째는 가로질러 긋는다)
+// 새 획은 위에서 내려 그어지며 한 번 빛나고, 연속이 끊기거나 한동안 처치가 없으면 흩어지며 옅어진다
+function drawStreak(x, H, w, col) {
+  const t = C.S.t, live = w.hs > 0, n = Math.min(5, live ? w.hs : w.hsL || 0); if (!n) return;
+  const age = t - (w.hsT == null ? -9 : w.hsT), end = live ? 0 : t - (w.hsE == null ? -9 : w.hsE);
+  const al = live ? (age < 3.5 ? 1 : Math.max(0, 1 - (age - 3.5) / 0.6)) : Math.max(0, 1 - end / 0.55);
+  if (al <= 0) return;
+  const L = VX.light, c = L ? VX.mix(col, -0.2) : col, by = H - 6.5, x0 = x - 38, drop = live ? 0 : end * 10;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const fresh = live && i === n - 1 ? Math.min(1, age / 0.12) : 1, sd = hash(i * 3.1 + 0.7), dy = drop * (0.6 + sd);
+    let ax, ay, bx, by2;
+    if (i < 4) { ax = x0 + i * 5.6 + (sd - 0.5) * 1.2; ay = by - 10; bx = ax + 1.6 + (sd - 0.5); by2 = by; }
+    else { ax = x0 - 3; ay = by - 2.5; bx = x0 + 20; by2 = by - 9; }
+    const ex = ax + (bx - ax) * VX.ease(fresh, 2), ey = ay + (by2 - ay) * VX.ease(fresh, 2) + dy;
+    ctx.beginPath(); ctx.moveTo(ax, ay + dy); ctx.lineTo(ex, ey);
+    ctx.lineWidth = 4; ctx.strokeStyle = L ? rgba('#ffffff', 0.6 * al) : rgba(c, 0.22 * al); ctx.stroke();
+    ctx.lineWidth = 1.9; ctx.strokeStyle = rgba(c, 0.95 * al); ctx.stroke();
+    if (live && i === n - 1 && age < 0.3) { VX.add(); hotSpot(ex, ey, 5 + 4 * (1 - age / 0.3), c, 0.7 * (1 - age / 0.3)); VX.norm(); }
   }
 }
 // 조준 레이저: 표식 대상까지 가는 붉은 선과, 겹수만큼 이어지는 표식 테두리 (다섯 조각, 천천히 돈다)
@@ -4151,7 +4229,8 @@ function drawFx(f, H) {
       ctx.moveTo(f.x1, f.y1 - rr - 5); ctx.lineTo(f.x1, f.y1 - rr + 4); ctx.moveTo(f.x1, f.y1 + rr + 5); ctx.lineTo(f.x1, f.y1 + rr - 4); ctx.stroke();
       break;
     }
-    case 'rail': drawRailFx(f, p); break;   // 저격선 (도탄, 횡단탄 포함)
+    case 'rail': drawRailFx(f, p); break;   // 저격선 (넘어가는 피해, 점사 포함)
+    case 'hkx': drawHuntX(f, p); break;     // 연속 사냥: 처치한 자리의 ✕ 자국
     case 'mkexec': drawMarkExec(f, p); break;   // 처형: 표식이 닫힌다
     case 'dsv': drawDissolve(f, p); break;      // 용해: 녹아 가라앉는 몸과 거품
     case 'dsvb': drawDsvBurst(f); break;        // 용해 폭발: 산 방울과 얼룩
@@ -4554,7 +4633,7 @@ function draw() {
   ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : TC.base;
   ctx.fillRect(0, H - 4, W, 4);
   if (bs.turret) { ctx.fillStyle = TC.turret; ctx.fillRect(W / 2 - 10, H - 17, 20, 13); ctx.fillRect(W / 2 - 3, H - 26, 6, 11); }
-  drawCasings(H);                            // 난사의 탄피
+  drawCasings(H);                            // 난사와 점사의 탄피
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k]; if (!w) continue;
     const x = (k + 0.5) * C.LW;
@@ -4568,9 +4647,14 @@ function draw() {
     if (ss && ss.rl >= 0) hl *= 0.2 + 0.8 * sprayCool(ss.rl);   // 난사 재장전: 포신이 식는 모습 (예열 단계는 그대로 남는다)
     if (hl > 0) drawHeat(x, H, hl, k);      // 예열: 무기 둘레가 달아오른다
     if (ss) drawSpray(x, H, ss, k, bst.color);   // 난사: 재장전과 탄띠
+    const rst = w.evo && w.type === 'rail' ? C.stats(w) : null, ka = rst && rst.bst && w.sT != null ? S.t - w.sT : 9;
+    const kick = ka >= 0 && ka < 0.14 && !RM.matches;   // 점사: 쏠 때마다 무기가 살짝 뒤로 튀었다 돌아온다
+    if (kick) { const e = Math.pow(1 - ka / 0.14, 2); ctx.save(); ctx.translate((hash(w.sT * 7.3) - 0.5) * 2.4 * e, 3.2 * e); }
     ctx.fillStyle = hl > 0 ? `rgb(255,${Math.round(110 + 100 * (1 - hl))},${Math.round(80 + 120 * (1 - hl))})` : C.WEAPONS[w.type].color; ctx.beginPath();
     ctx.moveTo(x, H - 13); ctx.lineTo(x + 9, H - 3); ctx.lineTo(x - 9, H - 3); ctx.closePath(); ctx.fill();
     if (bst && bst.tur) for (let q = 0; q < (bst.turTwin ? 2 : 1); q++) drawTurret(w, k, q, bst);
+    if (kick) ctx.restore();
+    if (rst && rst.stk) drawStreak(x, H, w, seenCol(rst.color));   // 연속 사냥: 연속 처치 눈금
   }
 }
 

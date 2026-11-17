@@ -260,6 +260,9 @@ const MIRV = [1, 1, 2, 2, 3];     // 분리 탄두: 랭크별 탄두 수
 // 난사 (개틀링 궁극, T9c): 탄띠 SPRAY_ON 초어치를 공격 속도 x(SPRAY_K x 줄 배율)로 쏘고 SPRAY_RL 초 재장전. 탄띠는 실제로 쏜 시간만큼 준다
 // 재장전은 예열 초기화(1.5초)보다 짧아 예열이 유지된다
 const SPRAY_ON = 2.4, SPRAY_RL = 1.2, SPRAY_K = 2.5;
+// 연속 사냥 (저격포 과잉 살상 궁극, T9d): 한 발에 잡을 수 있는 적부터 노리고, 저격으로 처치하면 다음 대기 시간 -STREAK_K (줄 배율과 무관. 세기는 대부분 표적 고르기에서 나온다)
+// 점사 (저격포 줄, T9d): BURST_GAP 초 간격으로 같은 표적에게 더 쏜다. 뒤 발 피해 (BURST_A + BURST_B x r) x 줄 배율, 반동 제어 +RECOIL_K x r
+const STREAK_K = 0.7, BURST_GAP = 0.18, BURST_A = 0.1, BURST_B = 0.06, RECOIL_K = 0.07;
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
@@ -334,15 +337,15 @@ const NEWSK = {
   // 저격포 - 과잉 살상
   overkill: { name: '과잉 살상', d: (k, c) => `적을 처치하면 남은 피해가 다음으로 체력이 많은 적에게 넘어감 (최대 ${k}회, 적어도 공격력의 ${pc(0.4 * c)}%)`, ap: (s, k, c) => { s.carry = k; s.carryMin = 0.4 * c; } },
   relay:    { name: '증폭 전달', d: (k) => `넘어갈 때마다 넘어가는 피해 +${15 * k}%`, ap: (s, k) => { s.carryAmp = 0.15 * k; } },
-  crossb:   { name: '횡단탄', d: (k, c) => `5번째 탄은 표적을 맞힌 뒤 가로로 꺾여 그 높이의 모든 적을 관통 (피해 공격력의 ${pc(3 * c)}%)`, ap: (s, k, c) => { s.cross = 3 * c; } },
+  streak:   { name: '연속 사냥', d: () => `한 발에 잡을 수 있는 적부터 노림. 저격으로 처치하면 (넘어간 피해 포함) 다음 저격 대기 시간 -${pc(STREAK_K)}%`, ap: (s) => { s.stk = STREAK_K; } },
   // 저격포 - 조준 레이저
   laserm:   { name: '조준 레이저', d: (k, c) => `표적에 붉은 표식. 같은 적을 저격할 때마다 1겹 쌓이고 (최대 5겹, 대상이 바뀌면 처음부터) 저격 피해 +겹수 x ${pc(0.1 * k * c)}%`, ap: (s, k, c) => { s.mkD = 0.1 * k * c; } },
   markboom: { name: '표식 폭발', d: (k, c) => `표식 대상이 죽으면 폭발 (반경 90, 공격력의 ${pc(0.6 * k * c)}%)`, ap: (s, k, c) => { s.mkBoom = 0.6 * k * c; } },
   execm:    { name: '처형', d: () => '표식 대상의 체력이 30% 이하 (보스는 5%)가 되면 즉시 처치', ap: (s) => { s.mkExec = 0.3; } },
-  // 저격포 - 도탄
-  ricob:    { name: '도탄', d: (k) => `탄이 표적을 맞힌 뒤 가까운 다른 적에게 ${k}번 튕김 (튕길 때마다 피해 x${5 * k}%)`, ap: (s, k) => { s.rRico = k; s.rRicoK = 0.05 * k; } },
-  elastic:  { name: '탄성', d: (k) => `튕길 때 남는 피해 +${3 * k}%p (튕길 때마다 x${25 + 3 * k}%)`, ap: (s, k) => { s.rRicoK = 0.25 + 0.03 * k; } },
-  triple:   { name: '삼연사', d: (k, c) => `한 번에 3발: 체력이 많은 순서로 다른 적 둘을 더 저격 (피해 ${pc(0.5 * c)}%), 각각 튕김`, ap: (s, k, c) => { s.triple = 0.5 * c; } },
+  // 저격포 - 점사
+  burst:    { name: '점사', d: (k, c) => `저격이 같은 적에게 ${BURST_GAP}초 뒤 1발 더 (피해 ${pc((BURST_A + BURST_B * k) * c)}%). 표적이 죽었으면 체력이 가장 많은 적에게`, ap: (s, k, c) => { s.bst = 1; s.bstD = (BURST_A + BURST_B * k) * c; } },
+  recoil:   { name: '반동 제어', d: (k, c) => `점사 탄 피해 +${pc(RECOIL_K * k * c)}%p`, ap: (s, k, c) => { s.bstD += RECOIL_K * k * c; } },
+  burst3:   { name: '3점사', d: () => `점사가 3발 (뒤의 두 발 피해는 같음)`, ap: (s) => { s.bst = 2; } },
   // 산성 분사기 - 용해
   dsvb:     { name: '용해', d: (k, c) => `웅덩이 안에서 체력이 ${3 * k}% 이하가 된 일반 적을 바로 녹임. 녹은 적은 산성 폭발 (반경 70, 공격력의 ${pc(1 * k * c)}%)`, ap: (s, k, c) => { s.dsv = 0.03 * k; s.dsvD = 1 * k * c; s.dsvR = 1; } },
   bigdsv:   { name: '큰 폭발', d: (k, c) => `용해 폭발 범위 +${12 * k}%, 피해 +${pc(2 * k * c)}%p`, ap: (s, k, c) => { s.dsvR = 1 + 0.12 * k; s.dsvD += 2 * k * c; } },
@@ -359,7 +362,7 @@ const NEWSK = {
 const SNW = (id, t) => mkNode(id, t, { nw: NEWSK[id], sc: 1 });
 // 줄: 이름, 노드 3개, 세기 배율(sc). 배율은 tools/balance_log.md 에 기록한다
 const LINE = (name, nodes, sc) => { nodes.forEach((n) => { if (n.nw) n.sc = sc == null ? 1 : sc; }); return { name, nodes }; };
-const SC_RAIL = [1, 0.8, 0.5];   // 저격포 줄 배율 (T5c: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
+const SC_RAIL = [2, 0.8, 1];   // 저격포 줄 배율 (T5c: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함. T9d: 과잉 살상 1 -> 2 와 점사 줄은 측정으로 정함)
 const SC_ACID = [0.5, 1.4, 0.5];   // 산성 분사기 줄 배율 (T5d: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
 const SKILLS = {
   blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('spray', 'cap')], 0.9),
@@ -380,9 +383,9 @@ const SKILLS = {
   tesla:   [LINE('낙뢰', [SNW('thunderb', 'root'), SNW('efield', 'up'), SNW('cloud', 'cap')]),
             LINE('전류 사슬', [SNW('arcb', 'root'), SNW('longarc', 'up'), SNW('hvarc', 'cap')], 0.7),
             LINE('구전', [SNW('ballb', 'root'), SNW('bigball', 'up'), SNW('twinball', 'cap')], 0.4)],
-  rail:    [LINE('과잉 살상', [SNW('overkill', 'root'), SNW('relay', 'up'), SNW('crossb', 'cap')], SC_RAIL[0]),
+  rail:    [LINE('과잉 살상', [SNW('overkill', 'root'), SNW('relay', 'up'), SNW('streak', 'cap')], SC_RAIL[0]),
             LINE('조준 레이저', [SNW('laserm', 'root'), SNW('markboom', 'up'), SNW('execm', 'cap')], SC_RAIL[1]),
-            LINE('도탄', [SNW('ricob', 'root'), SNW('elastic', 'up'), SNW('triple', 'cap')], SC_RAIL[2])],
+            LINE('점사', [SNW('burst', 'root'), SNW('recoil', 'up'), SNW('burst3', 'cap')], SC_RAIL[2])],
   acid:    [LINE('용해', [SNW('dsvb', 'root'), SNW('bigdsv', 'up'), SNW('chaindsv', 'cap')], SC_ACID[0]),
             LINE('산성비', [SNW('rainb', 'root'), SNW('monsoon', 'up'), SNW('downpour', 'cap')], SC_ACID[1]),
             LINE('점액 흔적', [SNW('slimeb', 'root'), SNW('sticky', 'up'), SNW('rot', 'cap')], SC_ACID[2])],
@@ -574,8 +577,8 @@ function blankStats(lanes, chain) {
     nuke: 0, nukeR: 0, nukeEvery: 0, nShock: 0, nShockKn: 0, nukeQuake: 0, carpet: 0, carpetD: 0, air: 0, msl: 0, mirv: 0, mirvD: 0, mslTwin: 0,
     // 전격기 스킬: 낙뢰, 전기장, 먹구름 / 전류 사슬, 긴 방전, 고압 방전 / 구전, 대형 구전, 쌍구전
     th: 0, thD: 0, efD: 0, cloud: 0, arc: 0, arcT: 0, arcW: 1, arcHv: 0, ball: 0, ballR: 0, ballT: 0, ballTwin: 0, ballBoom: 0,
-    // 저격포 스킬: 과잉 살상(carry), 증폭 전달, 횡단탄 / 조준 레이저, 표식 폭발, 처형 / 도탄, 탄성, 삼연사
-    carryMin: 0, carryAmp: 0, cross: 0, mkD: 0, mkBoom: 0, mkExec: 0, rRico: 0, rRicoK: 0, triple: 0,
+    // 저격포 스킬: 과잉 살상(carry), 증폭 전달, 연속 사냥(stk) / 조준 레이저, 표식 폭발, 처형 / 점사(bst 더 쏘는 발 수, bstD 뒤 발 피해), 반동 제어, 3점사
+    carryMin: 0, carryAmp: 0, stk: 0, mkD: 0, mkBoom: 0, mkExec: 0, bst: 0, bstD: 0,
     // 산성 분사기 스킬: 용해, 큰 폭발, 연쇄 용해 / 산성비, 장마, 폭우 / 점액 흔적, 끈적한 자국, 부패
     dsv: 0, dsvD: 0, dsvR: 1, dsvPool: 0, rain: 0, rainT: 0, rain2: 0, slime: 0, slimeT: 0, rot: 0,
     };
@@ -1036,6 +1039,7 @@ function kill(e, st) {
   if (e.dead) return;
   e.dead = true; S.kills++;
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
+  if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
   S.gold += e.gold * (1 + (st ? st.goldPct : 0) + bs.goldAll) * (e.boss && hasPact('hunt') ? 2 : 1);
   if (hasPact('blood') && ++S.bloodN >= PACT.bloodEvery) { S.bloodN = 0; S.hp = Math.min(S.maxHp, S.hp + S.maxHp * PACT.bloodHeal); }
@@ -1502,7 +1506,7 @@ function fire(w, slot, st) {
       const pool = S.enemies.filter(e => !e.dead && e.y + e.r > 0).sort((a, b) => b.hp - a.hp);
       if (!pool.length) return false;
       w.n++;
-      setAim(w, pool[0], wx, wy, st);
+      setAim(w, railTarget(w, pool, st), wx, wy, st);
       return true;
     }
     case 'acid': {                             // 산성 분사기: 전장의 무작위 적 위치에 산성 웅덩이를 던진다
@@ -1673,43 +1677,70 @@ function setAim(w, t, wx, wy, st) {
   const f = fx({ k: 'aim', d: RAIL_AIM, x0: wx, y0: wy, x1: t.x, y1: t.y, c: st.color });
   Object.defineProperty(w, 'aimFx', { value: f, writable: true, configurable: true, enumerable: false });
 }
+// 저격 한 발 (주 표적, 이중 저격, 점사의 뒤 발): 관통 저격, 저격선, 피해, 과잉 살상. bu: 점사 무기의 발 (화면: 총구 불꽃, 탄피)
+function snipe(w, wx, wy, t, mul, main, st, pool, used, bu) {
+  const tx = t.x, ty = t.y, dx = tx - wx, dy = ty - wy, len = Math.hypot(dx, dy) || 1;
+  let ex = tx, ey = ty;
+  if (st.through) {                      // 관통 저격: 표적 뒤 일직선상의 적도 맞힌다
+    const ux = dx / len, uy = dy / len;
+    for (const o of S.enemies) {
+      if (o === t || o.dead || o.y + o.r <= 0) continue;
+      const ox = o.x - wx, oy = o.y - wy, pr = ox * ux + oy * uy;
+      if (pr > len && Math.abs(ox * uy - oy * ux) <= o.r + 4) hit(o, st.dmg * mul * st.through, st);
+    }
+    ex = wx + ux * 1200; ey = wy + uy * 1200;
+  }
+  fx({ k: 'rail', d: 0.22, x0: wx, y0: wy, x1: ex, y1: ey, rc: main ? 1 : 0, bu: bu || 0, c: st.color });
+  hit(t, st.dmg * mul, st);
+  if (main && st.carry && t.dead) carryOver(t, tx, ty, pool, used, st);
+}
+// 저격 표적: 체력이 가장 많은 적 (pool 은 체력 내림차순). 연속 사냥: 한 발(치명타 빼고)에 잡을 수 있는 적이 있으면 그중 체력이 가장 많은 적
+function railTarget(w, pool, st) {
+  if (st.stk) for (const e of pool) if (e.hp <= st.dmg * markMul(w, e, st)) return e;
+  return pool[0];
+}
+const markMul = (w, t, st) => (st.mkD && w.mk === t ? 1 + w.mkN * st.mkD : 1);   // 조준 레이저: 표식 대상이면 겹수만큼
+// 연속 사냥: 지금 저격하는 무기와 그 저격(넘어간 피해, 관통, 그로 인한 폭발 포함)으로 처치한 수. kill() 이 센다
+let snipeW = null, snipeN = 0;
+// 저격(또는 점사의 한 발)이 끝났을 때: 처치했으면 다음 대기 시간을 줄이고 (저격 하나에 한 번) 연속 처치 +1. last: 점사까지 다 쏨 -> 이번 저격에 처치가 없으면 연속이 끊긴다
+function snipeEnd(w, st, last) {
+  const killed = snipeN > 0; snipeW = null; snipeN = 0;
+  if (!st.stk) return;
+  if (killed && w.hk !== w.n) { w.hk = w.n; w.cd = Math.max(0, w.cd - st.stk * st.cd); w.hs = (w.hs || 0) + 1; w.hsT = S.t; snd('cycle'); }
+  if (last && w.hk !== w.n && w.hs) { w.hsL = w.hs; w.hsE = S.t; w.hs = 0; }
+}
 function railShoot(w, slot, st) {
   const wx = (slot + 0.5) * LW, wy = H - 2;
   const pool = S.enemies.filter(e => !e.dead && e.y + e.r > 0).sort((a, b) => b.hp - a.hp);
   if (!pool.length) return;
   const aim = w.aim;
-  const first = aim && !aim.dead && aim.y + aim.r > 0 ? aim : pool[0];   // 표적이 죽었으면 다시 고른다
+  const first = aim && !aim.dead && aim.y + aim.r > 0 ? aim : railTarget(w, pool, st);   // 표적이 죽었으면 다시 고른다
   w.aim = null; w.aimFx = null;
-  let mul0 = 1;
   if (st.mkD) {                              // 조준 레이저: 같은 적을 다시 쏘면 겹이 쌓인다 (대상이 바뀌면 처음부터)
     if (w.mk === first) w.mkN = Math.min(5, (w.mkN || 0) + 1);
     else { hide(w, 'mk', first); hide(first, 'mkW', w); w.mkN = 1; }
-    mul0 = 1 + w.mkN * st.mkD;
   }
-  const shots = [[first, mul0, true]], used = [first];
-  const more = (mul) => { const o = pool.find(e => used.indexOf(e) < 0); if (o) { used.push(o); shots.push([o, mul, false]); } };
-  if (st.twin) more(st.twin);                // 이중 저격: 두 번째로 체력이 많은 적
-  if (st.triple) { more(st.triple); more(st.triple); }   // 삼연사: 다음 둘
-  const crossNow = st.cross > 0 && w.n % 5 === 0;
-  for (const [t, mul, main] of shots) {
-    if (t.dead) continue;
-    const tx = t.x, ty = t.y, dx = tx - wx, dy = ty - wy, len = Math.hypot(dx, dy) || 1;
-    let ex = tx, ey = ty;
-    if (st.through) {                      // 관통 저격: 표적 뒤 일직선상의 적도 맞힌다
-      const ux = dx / len, uy = dy / len;
-      for (const o of S.enemies) {
-        if (o === t || o.dead || o.y + o.r <= 0) continue;
-        const ox = o.x - wx, oy = o.y - wy, pr = ox * ux + oy * uy;
-        if (pr > len && Math.abs(ox * uy - oy * ux) <= o.r + 4) hit(o, st.dmg * mul * st.through, st);
-      }
-      ex = wx + ux * 1200; ey = wy + uy * 1200;
-    }
-    fx({ k: 'rail', d: 0.22, x0: wx, y0: wy, x1: ex, y1: ey, rc: main ? 1 : 0, c: st.color });
-    hit(t, st.dmg * mul, st);
-    if (main && crossNow) crossShot(t, tx, ty, st);
-    if (st.rRico) ricochet(t, tx, ty, st.dmg * mul, st);
-    if (main && st.carry && t.dead) carryOver(t, tx, ty, pool, used, st);
-  }
+  const shots = [[first, markMul(w, first, st), true]], used = [first];
+  if (st.twin) { const o = pool.find(e => used.indexOf(e) < 0); if (o) { used.push(o); shots.push([o, st.twin, false]); } }   // 이중 저격: 두 번째로 체력이 많은 적
+  snipeW = w; snipeN = 0;
+  for (const [t, mul, main] of shots) if (!t.dead) snipe(w, wx, wy, t, mul, main, st, pool, used, st.bst ? 1 : 0);
+  snipeEnd(w, st, !st.bst);
+  hide(w, 'sT', S.t);                        // 화면용: 마지막으로 쏜 때 (점사의 총구 튐)
+  snd('railfire');
+  if (st.bst) { w.bq = st.bst; w.bT = BURST_GAP; hide(w, 'bTg', first); }   // 점사: 같은 표적에게 더 쏜다
+}
+// 점사의 뒤 발: 같은 표적 (죽었으면 체력이 가장 많은 적). 피해 bstD, 표식 대상이면 겹수 보너스도 받는다
+function burstShot(w, slot, st) {
+  if (!st.bst) { w.bq = 0; return; }
+  const pool = S.enemies.filter(e => !e.dead && e.y + e.r > 0).sort((a, b) => b.hp - a.hp);
+  let t = w.bTg;
+  if (!t || t.dead || t.y + t.r <= 0) t = pool[0];
+  snipeW = w; snipeN = 0;
+  if (!t) { w.bq = 0; snipeEnd(w, st, true); return; }
+  hide(w, 'bTg', t);
+  snipe(w, (slot + 0.5) * LW, H - 2, t, st.bstD * markMul(w, t, st), true, st, pool, [t], 1 + st.bst - w.bq);
+  snipeEnd(w, st, !(w.bq > 0));
+  hide(w, 'sT', S.t);
   snd('railfire');
 }
 // 과잉 살상: 처치하고 남은 피해(적어도 carryMin)가 다음으로 체력이 많은 적에게 넘어간다. 증폭 전달: 넘어갈 때마다 커진다. 처치하지 못하면 멈춘다
@@ -1723,29 +1754,6 @@ function carryOver(t, x, y, pool, used, st) {
     if (!o.dead) break;
     over = Math.max(-o.hp, st.dmg * st.carryMin); x = o.x; y = o.y;
   }
-}
-// 횡단탄: 맞힌 자리에서 가로로 꺾여 그 높이의 모든 적을 관통한다
-function crossShot(t, x, y, st) {
-  for (let i = 0; i < S.enemies.length; i++) { const o = S.enemies[i]; if (o !== t && !o.dead && o.y + o.r > 0 && Math.abs(o.y - y) <= o.r * 0.6 + 8) hit(o, st.dmg * st.cross, st); }
-  fx({ k: 'rail', d: 0.32, x0: x, y0: y, x1: -10, y1: y, cr: 1, c: st.color });
-  fx({ k: 'rail', d: 0.32, x0: x, y0: y, x1: W + 10, y1: y, cr: 1, c: st.color });
-}
-// 도탄: 맞힌 자리에서 가까운 다른 적에게 차례로 튕긴다 (튕길 때마다 rRicoK 배)
-const RICO_R = 260;
-function ricochet(t, x, y, dmg, st) {
-  const done = [t];
-  for (let k = 0; k < st.rRico; k++) {
-    let nx = null, bd = RICO_R;
-    for (let i = 0, n = S.enemies.length; i < n; i++) {
-      const o = S.enemies[i]; if (o.dead || o.y + o.r <= 0 || done.indexOf(o) >= 0) continue;
-      const d = Math.hypot(o.x - x, o.y - y); if (d < bd) { bd = d; nx = o; }
-    }
-    if (!nx) break;
-    dmg *= st.rRicoK; done.push(nx);
-    fx({ k: 'rail', d: 0.2, x0: x, y0: y, x1: nx.x, y1: nx.y, ri: 1, c: st.color });
-    x = nx.x; y = nx.y; hit(nx, dmg, st);
-  }
-  if (done.length > 1) snd('rico');
 }
 // 산성 웅덩이
 // rk: 범위 배수, tt: 지속 시간 (작은 웅덩이: 연쇄 용해, 폭우, 부패). 작은 웅덩이는 무기마다 SMALL_MAX 개까지
@@ -2165,13 +2173,17 @@ function step(dt) {
       w.ag -= dt;
       if (w.ag <= 0) { w.ag = 0; const st = stats(w); if (fire(w, i, Object.assign({}, st, { dmg: st.dmg * st.again }))) snd(st.spray ? 'spray' : w.type); }
     }
+    if (w.bq > 0) {                          // 점사: 같은 표적에게 BURST_GAP 초 간격으로 더 쏜다
+      w.bT -= dt;
+      if (w.bT <= 1e-9) { w.bT += BURST_GAP; w.bq--; burstShot(w, i, stats(w)); }
+    }
     if (w.aimT > 0) {                        // 저격포 조준 중: 표적을 따라가다 시간이 되면 발사
       w.aimT -= dt;
       const f = w.aimFx, a = w.aim;
       if (f && a && !a.dead) { f.x1 = a.x; f.y1 = a.y; }
       if (w.aimT <= 0) { w.aimT = 0; railShoot(w, i, stats(w)); }
     }
-    if (w.cd <= 0) {
+    if (w.cd <= 0 && !(w.bq > 0)) {          // 점사가 끝나기 전에는 다음 조준을 시작하지 않는다
       const st = stats(w);
       if (fire(w, i, st)) {
         snd(st.spray ? 'spray' : w.type);
@@ -2491,7 +2503,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, BURST_GAP, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

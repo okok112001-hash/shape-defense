@@ -6,7 +6,7 @@
    --mix: 섞인 팀 [블래스터, W, 블래스터, W, 블래스터] (모두 진화 0강, 블래스터는 스킬 없음). 같은 무기 다섯 자루가 버티지 못하는 무기(박격포)용.
      운반 칸(1, 3)에만 스킬을 주고, 운반 칸 공격력 +100/+300/+700/+1500% 가짜 마디의 ln M* 꺾은선에서 같은 M* 가 되는 공격력 배수를 R 로 읽는다
      (같은 무기 팀의 R 과 같은 뜻: "그 무기의 공격력 몇 배어치"). 검증은 가짜 +50% 가 1.50 으로 나오는지.
-   사용: node tools/skill_eq.js [--only blaster.0,laser] [--runs 4] [--tag 이름] [--root|--full] [--nofake] [--jit 0.2] [--from 1] [--mix] */
+   사용: node tools/skill_eq.js [--only blaster.0,laser] [--runs 4] [--tag 이름] [--root|--full|--up] [--nofake] [--jit 0.2] [--from 1] [--mix] */
 const { isMainThread, parentPort } = require('worker_threads');
 const path = require('path');
 const fs = require('fs');
@@ -51,7 +51,7 @@ const S0 = val('--from') ? +val('--from') : 1;               // 시드 S0..S0+N-
 const JIT = val('--jit') != null ? +val('--jit') : 0.2;
 const TAG = val('--tag');
 const ONLY = val('--only') ? val('--only').split(',') : null;
-const VARS = args.includes('--root') ? ['root'] : args.includes('--full') ? ['full'] : ['full', 'root'];
+const VARS = args.includes('--up') ? ['up'] : args.includes('--root') ? ['root'] : args.includes('--full') ? ['full'] : ['full', 'root'];   // --up: 뿌리 5 + 상위 5 (궁극 몫을 따로 볼 때)
 const MIX = args.includes('--mix');
 const CARRY = [1, 3];                                          // --mix 의 운반 칸
 const FIRST = ['blaster', 'shotgun', 'laser', 'pulse'];       // 1차분 (새 트리). 2차분은 --only 로 이름을 줄 때만
@@ -75,7 +75,7 @@ for (const W of types) {
   for (const id of FAKE_IDS) cfgs.push({ key: W + '|' + id, W, kind: 'fake', fid: id, spec: team(W, zero(), id) });
 }
 for (const x of lines) for (const v of VARS) {
-  const sk = zero(); sk[x.l] = v === 'full' ? x.max.slice() : [x.max[0], 0, 0];
+  const sk = zero(); sk[x.l] = v === 'full' ? x.max.slice() : v === 'up' ? [x.max[0], x.max[1], 0] : [x.max[0], 0, 0];
   cfgs.push({ key: x.id + '|' + v, W: x.W, kind: v, line: x, spec: team(x.W, sk) });
 }
 
@@ -171,7 +171,7 @@ const { gm, pad, lpad, fnvStr } = L;
   }
   const sum = [];
   for (const v of VARS) {
-    out.push(`[줄 측정: ${v === 'full' ? '완성 (뿌리 5, 상위 5, 궁극 1 = 11점)' : '뿌리만 (5점)'}]  셀 = 시나리오별 R`);
+    out.push(`[줄 측정: ${v === 'full' ? '완성 (뿌리 5, 상위 5, 궁극 1 = 11점)' : v === 'up' ? '궁극 빼고 (뿌리 5, 상위 5 = 10점)' : '뿌리만 (5점)'}]  셀 = 시나리오별 R`);
     out.push(hdr);
     for (const x of lines) {
       const c = cfgs.find((q) => q.key === x.id + '|' + v);
