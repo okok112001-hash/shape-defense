@@ -295,9 +295,21 @@ function scene(type, lines, secs, opt) {
     assert(Core.heatLevel(w) > 0.9, '달아오름 표시값');
     for (let i = 0; i < 100; i++) { Core.S.enemies.length = 0; Core.step(1 / 60); }   // 1.5초 이상 쉬면
     assert.strictEqual(Core.heatLevel(w), 0, '예열 초기화'); }
-  { game(1); const w = put('blaster', 2, 100, true); w.sk[0] = [0, 0, 1]; Core.dirty(w); foe2(250, 200); foe2(150, 300); foe2(350, 300); Core.S.spawnAcc = -1e9; w.cd = 0; Core.step(1 / 60);
-    const bs = Core.S.bullets; assert.strictEqual(bs.length, 3, '삼연장: 탄 줄기 3개'); const st = Core.stats(w);
-    assert(bs.some((b) => Math.abs(b.dmg - st.dmg * st.triD) < 1e-9) && Math.abs(st.triD - 0.5 * SKILLS.blaster[0].nodes[2].sc) < 1e-12 && bs.filter((b) => b.vx < -1).length === 1 && bs.filter((b) => b.vx > 1).length === 1, '옆 레인 탄 피해 50%'); }
+  { game(1); const w = put('blaster', 2, 100, true); w.sk[0] = [5, 5, 1]; Core.dirty(w); foe2(250, 200); const S = Core.S; S.spawnAcc = -1e9; w.cd = 0; const st = Core.stats(w);
+    assert(Math.abs(st.spray - Core.SPRAY_K * SKILLS.blaster[0].nodes[2].sc) < 1e-12, '난사 배수: SPRAY_K x 줄 배율');
+    const T = [], cds = [], angs = []; let racks = 0, hot = 1;
+    for (let i = 0; i < 60 * 9; i++) { const n0 = w.n; S.snd.length = 0; Core.step(1 / 60); if (S.snd.includes('rack')) racks++; if (w.n > n0) { T.push(S.t); cds.push(w.cd); const b = S.bullets[S.bullets.length - 1]; angs.push(Math.atan2(b.vx, -b.vy)); } if (w.rl && Core.heatLevel(w) < 0.9) hot = 0; }
+    const gaps = []; for (let i = 1; i < T.length; i++) gaps.push(T[i] - T[i - 1]);
+    const rl = gaps.map((g, i) => (g > 0.5 ? i : -1)).filter((i) => i >= 0);
+    assert(rl.length >= 2 && racks >= 2, '난사: 탄띠를 다 쓰면 재장전 ' + rl.length + ' ' + racks);
+    for (const i of rl) assert(Math.abs(gaps[i] - 1.2) < 0.06, '재장전 1.2초 ' + gaps[i]);
+    const burst = T[rl[1]] - T[rl[0] + 1], fast = gaps.slice(rl[0] + 1, rl[1]), cdW = st.cd / (1 + st.warmR * 10) / st.spray;
+    assert(Math.abs(burst - 2.4) < 0.1, '난사 2.4초어치 ' + burst);
+    assert(Math.abs(fast.reduce((a, b) => a + b, 0) / fast.length - cdW) < cdW * 0.08, '난사 중 간격 = 예열 최대 간격 / 배수 ' + cdW);
+    assert(hot, '재장전 1.2초 동안 예열이 유지된다');
+    const da = angs.map((a) => a - Math.atan2(0, 1)); assert(Math.max(...da) > 0.02 && Math.min(...da) < -0.02 && Math.max(...da.map(Math.abs)) <= 0.04 + 1e-9, '난사 탄은 ±0.04 rad 안에서 흩뿌려진다');
+    S.enemies.length = 0; const bl = w.bl; for (let i = 0; i < 300; i++) Core.step(1 / 60);
+    assert(w.bl === bl && !w.rl, '적이 없어 쉬는 동안 탄띠가 줄지 않는다'); }
   { game(1); const w = put('blaster', 2, 100, true); w.sk[1] = [5, 5, 1]; Core.dirty(w); foe2(250, 200); Core.S.spawnAcc = -1e9; const st = Core.stats(w); let giants = 0, shots = 0;
     for (let i = 0; i < 600; i++) { const n0 = w.n; w.cd = Math.min(w.cd, 0); Core.step(1 / 60); if (w.n > n0) { shots++; const gb = Core.S.bullets.filter((b) => b.big && !b.sn); gb.forEach((b) => { b.sn = 1; }); if (gb.length) { giants++; assert(shots % 6 === 0 && gb[0].r >= 40 && gb[0].pierce >= 99 && Math.abs(gb[0].dmg - st.dmg * 2 * SKILLS.blaster[1].nodes[2].sc) < 1e-6 * st.dmg, '거대탄: 6번째, 레인 폭, 2배, 모두 관통'); } } if (shots >= 18) break; }
     assert(giants >= 3, '거대탄이 6번째마다'); assert(Math.abs(st.pk - 0.55) < 1e-12, '가속 관통 5단계: 관통당 -45%'); }

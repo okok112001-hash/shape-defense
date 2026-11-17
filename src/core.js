@@ -257,11 +257,14 @@ const mkNode = (id, t, o) => Object.assign({ id, t, max: SK_MAX[t] }, o);
 const pc = (x) => r1(x * 100);   // 0.12 -> 12
 const BAY = [1, 1, 1, 2, 2];      // 폭탄창: 랭크별 더하는 발수
 const MIRV = [1, 1, 2, 2, 3];     // 분리 탄두: 랭크별 탄두 수
+// 난사 (개틀링 궁극, T9c): 탄띠 SPRAY_ON 초어치를 공격 속도 x(SPRAY_K x 줄 배율)로 쏘고 SPRAY_RL 초 재장전. 탄띠는 실제로 쏜 시간만큼 준다
+// 재장전은 예열 초기화(1.5초)보다 짧아 예열이 유지된다
+const SPRAY_ON = 2.4, SPRAY_RL = 1.2, SPRAY_K = 2.5;
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
   warm:     { name: '예열', d: (k, c) => `쉬지 않고 쏘면 발사마다 공격 속도 +${r1(0.6 * k * c)}% (최대 +${r1(6 * k * c)}%). 1.5초 쉬면 초기화`, ap: (s, k, c) => { s.warm = k; s.warmR = 0.006 * k * c; } },
-  tri:      { name: '삼연장', d: (k, c) => `양옆 레인에도 동시에 발사 (옆 레인 탄 피해 ${pc(0.5 * c)}%)`, ap: (s, k, c) => { s.tri = 1; s.triD = 0.5 * c; } },
+  spray:    { name: '난사', d: (k, c) => `${SPRAY_ON}초 동안 공격 속도 x${r1(SPRAY_K * c)}로 난사, ${SPRAY_RL}초 재장전 (쏘는 동안만 탄띠가 줄어듦)`, ap: (s, k, c) => { s.spray = SPRAY_K * c; } },
   lightb:   { name: '광탄', d: (k) => `탄이 빛살로 바뀌고 적 ${k}명을 추가로 관통 (관통할 때마다 피해 -65%)`, ap: (s, k) => { s.beam = k; s.pierce += k; s.pk = 0.35; } },
   accel:    { name: '가속 관통', d: (k) => `관통할 때 줄어드는 피해를 ${4 * k}%p 완화 (관통당 -${65 - 4 * k}%)`, ap: (s, k) => { s.pk = Math.min(1, 0.35 + 0.04 * k); } },
   gigab:    { name: '거대탄', d: (k, c) => `6번째 발사마다 레인 폭 거대탄: 피해 ${r1(2 * c)}배, 모든 적 관통`, ap: (s, k, c) => { s.gnt = 1; s.gntM = 2 * c; s.gntEvery = 6; } },
@@ -359,7 +362,7 @@ const LINE = (name, nodes, sc) => { nodes.forEach((n) => { if (n.nw) n.sc = sc =
 const SC_RAIL = [1, 0.8, 0.5];   // 저격포 줄 배율 (T5c: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
 const SC_ACID = [0.5, 1.4, 0.5];   // 산성 분사기 줄 배율 (T5d: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
 const SKILLS = {
-  blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('tri', 'cap')], 0.9),
+  blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('spray', 'cap')], 0.9),
             LINE('광탄', [SNW('lightb', 'root'), SNW('accel', 'up'), SNW('gigab', 'cap')]),
             LINE('보조 포탑', [SNW('turret', 'root'), SNW('turboost', 'up'), SNW('twinturr', 'cap')], 0.6)],
   shotgun: [LINE('슬러그', [SNW('slugb', 'root'), SNW('heavyb', 'up'), SNW('twinslug', 'cap')], 0.4),
@@ -559,8 +562,8 @@ function blankStats(lanes, chain) {
     vuln: 0, vulnT: 0, through: 0, twin: 0, carry: 0, poolAcid: 0,
     aVuln: 0, aRange: 0, aSlow: 0, aMulti: 0,   // 산성 웅덩이
     spread: 0, nolimit: 0,             // 범위 공격의 최대 타격 수 (다중 타격기, 제한 해제기)
-    // 블래스터 스킬: 개틀링, 예열, 삼연장 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
-    gat: 0, warm: 0, warmR: 0, tri: 0, triD: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, gntEvery: 4, tur: 0, turD: 0, turRate: 0, turTwin: 0,
+    // 블래스터 스킬: 개틀링, 예열, 난사 / 광탄, 가속 관통, 거대탄 / 보조 포탑, 과급, 쌍포탑
+    gat: 0, warm: 0, warmR: 0, spray: 0, beam: 0, pk: 0.55, gnt: 0, gntM: 0, gntEvery: 4, tur: 0, turD: 0, turRate: 0, turTwin: 0,
     // 산탄포 스킬: 슬러그 / 용의 숨결 / 지뢰
     slugKn: 0, slugStun: 0, slugTwin: 0, slugEvery: 0, flame: 0, sea: 0, dragon: 0, mine: 0, mineMax: 0, mineCd: 0, mineChain: 0,
     // 레이저 스킬: 지속 빔 / 프리즘 / 용융
@@ -1328,7 +1331,7 @@ function fire(w, slot, st) {
   switch (w.type) {
     case 'blaster': {
       const t = nearestPref(wx, st); if (!t) return false;
-      const ang = Math.atan2(t.x - wx, wy - t.y);
+      const ang = Math.atan2(t.x - wx, wy - t.y) + (st.spray ? (rnd() - 0.5) * 0.08 : 0);   // 난사: 레인 안에서 살짝 흩뿌려진다 (±0.04 rad)
       const n = 1 + st.shots, dist = st.range * H + 50;
       w.n++;
       const hl = heatOf(w, st);
@@ -1336,24 +1339,14 @@ function fire(w, slot, st) {
       if (st.gat) { o.sp = 1250; o.th = 1; }      // 개틀링: 가늘고 빠른 탄
       if (st.beam) o.bm = 1;                       // 광탄: 빛살
       if (hl) o.hl = hl;
-      const mz = fx({ k: 'muz', d: st.gat ? 0.07 : 0.1, x: wx, y: wy - 8, a: ang, c: o.c, g: st.gat ? 1 : 0, hl });   // 총구 섬광 (개틀링은 짧게 깜빡임)
+      const bo = st.spray ? (w.n % 3 - 1) * 2.6 : 0;   // 난사: 돌아가는 포신 셋의 자리 (화면용)
+      fx({ k: 'muz', d: st.gat ? 0.07 : 0.1, x: wx + Math.cos(ang) * bo, y: wy - 8 + Math.sin(ang) * bo, a: ang, c: o.c, g: st.gat ? 1 : 0, hl, sp: st.spray ? 1 : 0 });   // 총구 섬광 (개틀링은 짧게 깜빡임. 난사는 탄피가 튄다)
       if (st.gnt && w.n % st.gntEvery === 0) {        // 거대탄: 레인 폭, 모든 적 관통
         bullet(wx, wy, ang, st.dmg * st.gntM, st, H + 120, { pierce: 99, r: 44, rico: 0, split: 0, big: 1, sp: 760, c: st.color });
       } else {
         for (let i = 0; i < n; i++) {
           const off = i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.09;
           bullet(wx, wy, ang + off, st.dmg * (i === 0 ? 1 : st.shotMul || CFG.extraShotMul), st, dist, o);
-        }
-      }
-      if (st.tri) {                          // 삼연장: 양옆 레인에도 동시에 발사
-        const one = oneLane(st);
-        for (let d = -1; d <= 1; d += 2) {
-          const j = slot + d; if (j < 0 || j >= LANES) continue;
-          const cx = (j + 0.5) * LW, t2 = nearest(cx, one);
-          const tx = t2 ? t2.x : cx, ty = t2 ? t2.y : H - st.range * H * 0.8;
-          const a2 = Math.atan2(tx - wx, wy - ty);
-          if (mz) mz[d < 0 ? 'al' : 'ar'] = a2;   // 화면용: 옆 줄기의 방향
-          bullet(wx, wy, a2, st.dmg * st.triD, st, dist, o);
         }
       }
       return true;
@@ -1852,6 +1845,8 @@ function turretPos(slot, k) {
   const side = (slot > 0 ? -1 : 1) * (k ? -1 : 1), j = slot + side >= 0 && slot + side < LANES ? slot + side : slot - side;
   return [(slot + 0.5) * LW + side * 30, H - 22, j];
 }
+// 난사: 재장전 진행(0~1, 재장전 중이 아니면 -1), 남은 탄띠(0~1), 재장전이 끝난 뒤 지난 시간. 화면 표시용
+function sprayState(w) { return { rl: w && w.rl ? Math.max(0, Math.min(1, 1 - w.cd / SPRAY_RL)) : -1, b: w && w.bl != null ? Math.max(0, w.bl / SPRAY_ON) : 1, end: w && w.rlE != null ? S.t - w.rlE : 9 }; }
 // 예열: 지금 단계(0~1). 화면 표시용
 function heatLevel(w) { const st = w && stats(w); return st && st.warm ? heatOf(w, st) / HEAT_MAX : 0; }
 // 초점: 같은 적에게 틱마다 쌓이는 횟수 (최대 20). owner = 지속 빔 또는 상시 빔의 무기
@@ -2165,9 +2160,10 @@ function step(dt) {
     const w = S.slots[i]; if (!w) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
     w.cd -= dt;
+    if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
       w.ag -= dt;
-      if (w.ag <= 0) { w.ag = 0; const st = stats(w); if (fire(w, i, Object.assign({}, st, { dmg: st.dmg * st.again }))) snd(w.type); }
+      if (w.ag <= 0) { w.ag = 0; const st = stats(w); if (fire(w, i, Object.assign({}, st, { dmg: st.dmg * st.again }))) snd(st.spray ? 'spray' : w.type); }
     }
     if (w.aimT > 0) {                        // 저격포 조준 중: 표적을 따라가다 시간이 되면 발사
       w.aimT -= dt;
@@ -2178,7 +2174,7 @@ function step(dt) {
     if (w.cd <= 0) {
       const st = stats(w);
       if (fire(w, i, st)) {
-        snd(w.type);
+        snd(st.spray ? 'spray' : w.type);
         let cd = st.cd;
         if (st.ramp) { w.rp = Math.min(st.ramp, (w.rp || 0) + 0.03); cd /= 1 + w.rp; }
         if (st.warm) {                       // 예열: 쉬지 않고 쏠수록 빨라진다 (1.5초 쉬면 초기화)
@@ -2186,7 +2182,13 @@ function step(dt) {
           w.ht = Math.min(HEAT_MAX, (w.ht || 0) + 1); w.lf = S.t; cd /= 1 + st.warmR * w.ht;
         }
         if (st.again) w.ag = 0.13;
-        w.cd = st.dbl && rnd() < st.dbl ? Math.min(0.1, cd) : cd;
+        if (st.spray) {                      // 난사: 탄띠를 쏜 시간만큼 줄이고, 다 쓰면 재장전 (발사 간격이 짧아 남은 시간을 넘겨 끊김 없이 쏜다)
+          cd /= st.spray;
+          if (w.bl == null) w.bl = SPRAY_ON;
+          w.bl -= cd;
+          if (w.bl <= 1e-9) { w.bl = SPRAY_ON; w.rl = 1; w.cd = SPRAY_RL; }
+          else w.cd = Math.max(0, cd + Math.max(w.cd, -cd));
+        } else w.cd = st.dbl && rnd() < st.dbl ? Math.min(0.1, cd) : cd;
       } else { w.cd = 0.05; if (w.rp) w.rp = Math.max(0, w.rp - 0.02); }
     }
     { const st = stats(w); if (st.evo) skillStep(w, i, st, dt); }
@@ -2489,7 +2491,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

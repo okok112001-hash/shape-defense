@@ -171,6 +171,8 @@ const Snd = (function () {
   // [최소 간격(ms), 재생 함수]
   const DEF = {
     blaster: [70, () => tone('square', 880, 420, 0.06, 0.045)],
+    spray: [45, () => { tone('square', 150, 62, 0.045, 0.05); hiss(0.035, 0.07, 1300, 0.9, 'lowpass'); }],                                   // 난사: 짧고 낮은 "두두두"
+    rack: [200, () => { hiss(0.03, 0.13, 3200, 2.5, 'bandpass'); tone('square', 1900, 1100, 0.025, 0.03); hiss(0.045, 0.15, 2100, 2, 'bandpass', 0.085); tone('square', 1250, 680, 0.035, 0.04, 0.085); tone('triangle', 240, 140, 0.07, 0.07, 0.085); }],   // 재장전 끝: 철컥
     shotgun: [110, () => { hiss(0.09, 0.13, 1800); tone('sine', 160, 70, 0.08, 0.1); }],
     laser: [120, () => tone('sawtooth', 1400, 300, 0.16, 0.045)],
     pulse: [140, () => tone('sine', 260, 70, 0.2, 0.13)],
@@ -942,7 +944,7 @@ const SKICON = {
   // 블래스터: 포신 / 빛살 / 포탑
   gatling: `<path d="M7 3v12M12 3v12M17 3v12M5 8.5h14"/><path d="M5 15h14v5.5H5z" ${SOFT}/>`,
   warm: `<path d="M7 14v3M12 14v3M17 14v3"/><path d="M5 17h14v4.5H5z" ${SOFT}/><path d="M7 10.5c-2-2 2-4.5 0-7.5M12 10.5c-2-2 2-4.5 0-7.5M17 10.5c-2-2 2-4.5 0-7.5"/>`,
-  tri: `<path d="M12 21.5V7.5M12 21.5L5 9.5M12 21.5l7-12"/><circle cx="12" cy="4.5" r="2.3" ${FILL}/><circle cx="4" cy="7.5" r="2.3" ${FILL}/><circle cx="20" cy="7.5" r="2.3" ${FILL}/>`,
+  spray: `<path d="M5 17h14v4.5H5z" ${SOFT}/><path d="M7 14v3M12 14v3M17 14v3"/><path d="M6.9 11.4l-.5-2.6M12 11.4V8.7M17.1 11.4l.5-2.6M5.9 6.1l-.5-2.7M12 6V3.2M18.1 6.1l.5-2.7"/>`,
   lightb: `<path d="M12 1.5l2.4 10.5L12 22.5 9.6 12z" ${SOFT}/><path d="M5 5.5v5M19 13.5v5"/>`,
   accel: `<rect x="5.5" y="11" width="13" height="7" rx="1" ${SOFT}/><path d="M12 22.5V2.5M8 6.5l4-4 4 4"/>`,
   gigab: `<circle cx="12" cy="9.5" r="7.8" ${SOFT}/><path d="M7 20.5v2M12 20v2.5M17 20.5v2"/>`,
@@ -2459,7 +2461,8 @@ const VX = (() => {
   v.begin = (S) => {
     v.light = theme.scheme === 'light';
     const t = S ? S.t : 0; dt = t - lastT; lastT = t; v.t = RM.matches ? 0 : t;
-    if (dt < 0) { P.length = 0; T.length = 0; dt = 0; } else if (dt > 0.1) dt = 0.1;
+    if (dt < 0) { P.length = 0; T.length = 0; dt = 0; v.reset = 1; } else if (dt > 0.1) dt = 0.1;
+    v.dt = dt;
     if (!dt) return;
     for (let i = P.length - 1; i >= 0; i--) {
       const o = P[i]; o.t -= dt;
@@ -3247,12 +3250,14 @@ function heatHex(col, n) {
   const u = Math.min(1, n / 10);
   return VX.light ? VX.lerp(VX.mix(col, -0.3), '#d93a08', u) : VX.lerp(col, '#fff4dc', u * 0.9);
 }
-// 블래스터 총구 섬광: 길이와 방향이 쏠 때마다 다른 불꽃 혀 몇 가닥. 개틀링(f.g)은 가늘고 짧게, 삼연장은 옆 줄기 쪽으로도 뻗는다
+// 블래스터 총구 섬광: 길이와 방향이 쏠 때마다 다른 불꽃 혀 몇 가닥. 개틀링(f.g)은 가늘고 짧게. 난사(f.sp)는 조금 더 크게 터지고 탄피가 튄다 (돌아가는 포신 자리는 core 가 정한다)
 function drawMuz(f, p) {
   const u = VX.ui(f), q = 1 - p, sd = u.sd * 71, hl = f.hl || 0, h = hl / 10, F = fireCol(), L = VX.light;
   const base = C.WEAPONS.blaster.color, cb = L ? VX.mix(base, -0.3) : base, col = hl ? VX.lerp(cb, F.o, 0.35 + 0.65 * h) : cb, core = L ? VX.mix(base, 0.55) : '#ffffff';
+  const big = f.sp ? 1.22 : 1;
   if (u.n) {
     const sx = Math.sin(f.a), sy = -Math.cos(f.a);
+    if (f.sp) casingAdd(f.x, f.y + 3, f.a);
     for (let i = f.g ? 1 : 2; i > 0; i--) {     // 옆으로 튀는 짧은 빛줄기
       const sgn = Math.random() < 0.5 ? -1 : 1, s = 120 + 160 * Math.random(), fw = 0.2 + 0.5 * Math.random();
       VX.spark(f.x, f.y, (-sy * sgn + sx * fw) * s, (sx * sgn + sy * fw) * s, 0.08 + 0.08 * Math.random(), 1.3, hl ? F.e : VX.hot(base), 0, 6, 1);
@@ -3260,11 +3265,11 @@ function drawMuz(f, p) {
     if (h > 0.25 && Math.random() < h) VX.spark(f.x + (Math.random() - 0.5) * 8, f.y - 2, (Math.random() - 0.5) * 70, -50 - 70 * Math.random(), 0.35 + 0.4 * Math.random(), 0.9 + 0.9 * Math.random(), Math.random() < 0.5 ? F.e : F.y, -30, 1.6, 2);   // 달아오르면 불티
   }
   const grow = (0.55 + 0.45 * VX.ease(q, 2)) * (0.4 + 0.6 * p), al = Math.min(1, p * 2.4);
-  VX.add(); hotSpot(f.x, f.y, (f.g ? 8 : 11) + 4 * q + 3 * h, hl ? F.o : base, 0.9 * p); VX.norm();
+  VX.add(); hotSpot(f.x, f.y, ((f.g ? 8 : 11) + 4 * q + 3 * h) * big, hl ? F.o : base, 0.9 * p); VX.norm();
   for (let pass = 0; pass < 2; pass++) {
     const ks = pass ? 0.55 : 1;
     ctx.beginPath();
-    const main = (f.g ? 13 + 10 * hash(sd) : 18 + 8 * hash(sd)) * grow * ks, mw = (f.g ? 2.6 : 3.8) * (pass ? 0.5 : 1);
+    const main = (f.g ? 13 + 10 * hash(sd) : 18 + 8 * hash(sd)) * grow * ks * big, mw = (f.g ? 2.6 : 3.8) * (pass ? 0.5 : 1) * big;
     let a = f.a + (hash(sd + 1) - 0.5) * (f.g ? 0.3 : 0.12);
     flameTo(f.x, f.y, f.x + Math.sin(a) * main, f.y - Math.cos(a) * main, mw, (hash(sd + 2) - 0.5) * 3);
     for (let i = 0; i < 2; i++) {               // 양옆의 짧은 가닥
@@ -3272,11 +3277,6 @@ function drawMuz(f, p) {
       if (f.g && hash(sd + 9 + i) < 0.35) continue;
       a = f.a + side * (0.75 + 0.6 * hash(sd + 3 + i));
       flameTo(f.x, f.y, f.x + Math.sin(a) * len, f.y - Math.cos(a) * len, mw * 0.7, side * 2);
-    }
-    for (let i = 0; i < 2; i++) {               // 삼연장: 옆 줄기 쪽
-      const a2 = i ? f.ar : f.al; if (a2 == null) continue;
-      const len = (11 + 9 * hash(sd + 12 + i)) * grow * ks;
-      flameTo(f.x, f.y, f.x + Math.sin(a2) * len, f.y - Math.cos(a2) * len, mw * 0.8, (hash(sd + 14 + i) - 0.5) * 3);
     }
     ctx.fillStyle = rgba(pass ? core : col, (pass ? 0.95 : 0.9) * al); ctx.fill();
   }
@@ -3544,6 +3544,66 @@ function drawHeat(x, H, hl, k) {
     ctx.strokeStyle = rgba(F.o, a); ctx.stroke();
   }
   ctx.lineCap = 'butt';
+}
+// 난사의 탄피: 총구 오른쪽으로 튀어 돌며 떨어지고, 기지 선에 한 번 튄 뒤 잠깐 누워 있다 사라진다 (화면 전용)
+const CAS = [];
+let casW = 0;
+function casingAdd(x, y, a) {
+  if (RM.matches) return;
+  const o = CAS.length < 48 ? (CAS[CAS.length] = {}) : CAS[casW++ % 48];   // 가득 차면 오래된 것부터 덮어쓴다
+  const s = 55 + 55 * Math.random(), up = 80 + 70 * Math.random();
+  o.x = x; o.y = y; o.vx = Math.cos(a) * s + Math.sin(a) * 20; o.vy = Math.sin(a) * s - up; o.t = 0; o.d = 0.75 + 0.35 * Math.random();
+  o.r = Math.random() * TAU; o.w = (Math.random() < 0.5 ? -1 : 1) * (16 + 14 * Math.random()); o.b = 0; o.l = 3.8 + 1.4 * Math.random();
+}
+function drawCasings(H) {
+  if (VX.reset) { VX.reset = 0; CAS.length = 0; casW = 0; }
+  if (!CAS.length) return;
+  const dt = VX.dt || 0, gy = H - 5.5, L = VX.light, body = L ? '#9a6c1c' : '#d9a646', hi = L ? '#d9b25a' : '#fff0c2';
+  ctx.lineCap = 'round';
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < CAS.length; i++) {
+      const o = CAS[i];
+      if (pass === 0 && dt) {
+        o.t += dt;
+        if (o.t < o.d) {
+          o.vy += 720 * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.r += o.w * dt;
+          if (o.y > gy) { o.y = gy; if (o.b++ < 1) { o.vy *= -0.32; o.vx *= 0.55; o.w *= 0.5; } else { o.vy = 0; o.vx *= 0.6; o.w = 0; } }   // 한 번 튀고 눕는다
+        }
+      }
+      if (o.t >= o.d) continue;
+      const a = Math.min(1, (o.d - o.t) / 0.25), cx = Math.cos(o.r) * o.l * 0.5, cy = Math.sin(o.r) * o.l * 0.5;
+      ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.moveTo(o.x - cx, o.y - cy); ctx.lineTo(o.x + cx, o.y + cy);
+      if (pass === 0) { ctx.lineWidth = 2.1; ctx.strokeStyle = body; } else { ctx.lineWidth = 0.8; ctx.strokeStyle = hi; }
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+}
+// 난사의 재장전: 총구가 달아올랐다 식으며 김이 오르고, 무기 아래의 가는 탄띠가 왼쪽부터 차올라 무기로 들어간다. 다 차면 철컥 하고 한 번 빛난다
+// 쏘는 동안에는 남은 탄띠가 옅게 줄어든다
+const sprayCool = (q) => Math.min(1, 0.45 + q * 9) * Math.pow(1 - q, 1.4);   // 재장전 중 포신의 달아오름 (막 멈춘 직후 가장 뜨겁다)
+function drawSpray(x, H, ss, k, col) {
+  const L = VX.light, F = fireCol(), t = VX.t, hw = C.LW * 0.36, by = H - 6.5, bc = L ? VX.mix(col, -0.3) : col;
+  const q = ss.rl, belt = q >= 0 ? q : ss.b;
+  ctx.fillStyle = L ? 'rgba(40,52,72,.16)' : 'rgba(255,255,255,.10)'; ctx.fillRect(x - hw, by - 1.2, hw * 2, 2.4);   // 탄띠 자리
+  ctx.fillStyle = rgba(bc, q >= 0 ? 0.95 : 0.45); ctx.fillRect(x - hw, by - 1.2, hw * 2 * belt, 2.4);
+  if (q >= 0) {
+    const e = sprayCool(q), hx = x - hw + hw * 2 * q;
+    VX.add(); VX.glow(hx, by, 6, bc, 0.9); hotSpot(x, H - 12, 4 + 6 * e, F.o, 0.85 * e); VX.norm();
+    if (e > 0.25 && VX.rate(10 * e)) VX.spark(x + (Math.random() - 0.5) * 6, H - 13, (Math.random() - 0.5) * 30, -30 - 40 * Math.random(), 0.3 + 0.3 * Math.random(), 0.9 + 0.6 * Math.random(), F.e, -20, 1.5, 2);
+    const st = Math.min(1, q * 5) * (0.4 + 0.6 * (1 - q)), sc = L ? '#7b8798' : '#d5dde6';   // 김: 식는 동안 피어올라 퍼지며 흩어진다
+    for (let i = 0; i < 4; i++) {
+      const tt = t * 1.1 + i / 4 + k * 0.29, cyc = Math.floor(tt), ph = tt - cyc, sd = hash(cyc * 5.1 + i * 3.7 + k);
+      const a = Math.sin(Math.PI * Math.min(1, ph * 1.1)) * st * (L ? 0.5 : 0.36); if (a < 0.02) continue;
+      const rr = 5 + 13 * ph + 3 * sd, yy = H - 15 - ph * (30 + 14 * sd), xx = x + (sd - 0.5) * 8 + Math.sin(ph * 4 + sd * 6) * (2 + 5 * ph) + (hash(sd * 9) - 0.5) * 18 * ph;
+      VX.glow(xx, yy, rr, sc, a, rr * 0.8);
+    }
+  }
+  if (ss.end < 0.3) {                             // 철컥: 탄띠가 한 번 빛나고 총구에 작은 불빛
+    const a = 1 - ss.end / 0.3;
+    VX.add(); VX.glow(x, by, hw * 1.1, bc, 0.6 * a, 6); hotSpot(x, H - 12, 3 + 5 * a, bc, 0.8 * a); VX.norm();
+  }
 }
 // 보조 포탑: 무기 옆에 살짝 떠서 흔들리는 작은 포탑. 조준한 쪽으로 돌고, 쏠 때 포신이 밀렸다가 돌아온다
 function drawTurret(w, k, q, st) {
@@ -4494,6 +4554,7 @@ function draw() {
   ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : TC.base;
   ctx.fillRect(0, H - 4, W, 4);
   if (bs.turret) { ctx.fillStyle = TC.turret; ctx.fillRect(W / 2 - 10, H - 17, 20, 13); ctx.fillRect(W / 2 - 3, H - 26, 6, 11); }
+  drawCasings(H);                            // 난사의 탄피
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k]; if (!w) continue;
     const x = (k + 0.5) * C.LW;
@@ -4502,11 +4563,14 @@ function draw() {
       ctx.fillStyle = rgba(col, 0.18 + 0.3 * q); ctx.beginPath(); ctx.arc(x, H - 14, 8 + 16 * q, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = rgba(col, 0.9); ctx.beginPath(); ctx.arc(x, H - 14, 2 + 4 * q, 0, Math.PI * 2); ctx.fill();
     }
-    const hl = w.evo ? C.heatLevel(w) : 0;
+    const bst = w.evo && w.type === 'blaster' ? C.stats(w) : null, ss = bst && bst.spray ? C.sprayState(w) : null;
+    let hl = w.evo ? C.heatLevel(w) : 0;
+    if (ss && ss.rl >= 0) hl *= 0.2 + 0.8 * sprayCool(ss.rl);   // 난사 재장전: 포신이 식는 모습 (예열 단계는 그대로 남는다)
     if (hl > 0) drawHeat(x, H, hl, k);      // 예열: 무기 둘레가 달아오른다
+    if (ss) drawSpray(x, H, ss, k, bst.color);   // 난사: 재장전과 탄띠
     ctx.fillStyle = hl > 0 ? `rgb(255,${Math.round(110 + 100 * (1 - hl))},${Math.round(80 + 120 * (1 - hl))})` : C.WEAPONS[w.type].color; ctx.beginPath();
     ctx.moveTo(x, H - 13); ctx.lineTo(x + 9, H - 3); ctx.lineTo(x - 9, H - 3); ctx.closePath(); ctx.fill();
-    if (w.evo && w.type === 'blaster') { const st = C.stats(w); if (st.tur) for (let q = 0; q < (st.turTwin ? 2 : 1); q++) drawTurret(w, k, q, st); }
+    if (bst && bst.tur) for (let q = 0; q < (bst.turTwin ? 2 : 1); q++) drawTurret(w, k, q, bst);
   }
 }
 

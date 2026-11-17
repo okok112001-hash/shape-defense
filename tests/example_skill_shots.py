@@ -17,7 +17,7 @@ window.STEP=(n,cond)=>{const S=Core.S;for(let i=0;i<n;i++){S.hp=S.maxHp;window._
 # (weapon type, line index, label, enemy setup js, cond js, max frames)
 COL=lambda ys,hp,x=250,t='basic',sp=0:";".join(f"E('{t}',{x},{y},{hp},{sp})" for y in ys)
 TILES=[
- ('blaster',0,'블래스터 · 개틀링 (예열 + 삼연장)', COL([130,190,250,310],1e12,250)+";"+COL([170,240,310],1e12,150,'runner')+";"+COL([170,240,310],1e12,350,'runner'), "Core.heatLevel(Core.S.slots[2])>0.95&&Core.S.bullets.length>=3", 400),
+ ('blaster',0,'블래스터 · 개틀링 (예열 + 난사)', COL([130,190,250,310],1e12,250)+";"+COL([170,240,310],1e12,150,'runner')+";"+COL([170,240,310],1e12,350,'runner'), "Core.heatLevel(Core.S.slots[2])>0.95&&Core.S.bullets.length>=6", 400),
  ('blaster',1,'블래스터 · 광탄 (거대탄)', COL([140,200,260,320,380],1e12,250,'heavy'), "Core.S.bullets.some(b=>b.big&&b.r>30&&b.y<400&&b.y>250)", 600),
  ('blaster',2,'블래스터 · 보조 포탑 (쌍포탑)', COL([230,330,420],1e12,150,'heavy')+";"+COL([230,330,420],1e12,350,'heavy')+";"+COL([250,350],1e12,250), "Core.S.fx.some(f=>f.k==='boom'&&f.r===45)", 600),
  ('shotgun',0,'산탄포 · 슬러그 (쌍열)', COL([330,400],1e12,150,'heavy')+";"+COL([330,400],1e12,250,'heavy')+";"+COL([330,400],1e12,350,'heavy'), "Core.S.bullets.filter(b=>b.big).length>=3&&Core.S.bullets.every(b=>b.y>200)", 900),

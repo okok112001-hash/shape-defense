@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.131, cross: 5.362, mk: 0.281, exec: 1.836, rico: 3.908, mkb: 4.751, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.131, cross: 5.362, mk: 0.281, exec: 1.836, rico: 3.908, mkb: 4.751, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -160,14 +160,17 @@ function model(st, ref, c, lay, PP) {
       }
       dir = rate * shot * busy * tf;
       burnN = rate * one * busy * tf;
-      if (st.tri) { const bs = occ(lam * r); dir += rate * sides * st.triD * bs * one * tf; burnN += rate * sides * st.triD * bs; }
       if (st.tur) {   // 보조 포탑 (쌍포탑: 둘, 맞으면 작은 폭발)
         const n = st.turTwin ? 2 : 1, bs = occ(lam * r) * Math.min(1, sides / n);
         const per = st.turD * (1 + st.turRate) * bs * (1 + (st.turTwin ? 0.4 * splashN(45) : 0));
         dir += rate / (1 + st.dbl) * n * per * tf;
       }
       if (st.warm) dir *= 1 + st.warmR * 9 * busy;
-      ccHit(tau, st.knock);
+      if (st.spray) {   // 난사 (T9c): 탄띠 ON 초어치를 x spray 로 쏘고 RL 초 재장전. 탄띠는 쏠 때만 줄어 재장전이 적 없는 시간과 겹치면 덜 손해 (적이 있을 확률 busy)
+        const A = st.spray * Core.SPRAY_ON / (Core.SPRAY_ON + Core.SPRAY_RL * busy), f = Math.pow(A, pw.kr) * pm.spray;
+        dir *= f; burnN *= f;
+      }
+      ccHit(st.spray ? tau / (st.spray * Core.SPRAY_ON / (Core.SPRAY_ON + Core.SPRAY_RL)) : tau, st.knock);
       break;
     }
     case 'shotgun': {
@@ -793,7 +796,8 @@ function reportText(T, PP, fitInfo) {
 // 뒤의 파일이 같은 줄을 덮어 쓴다. T6(줄 세기 맞추기) 뒤의 측정이 지금 수치다: t6b = 1차분 12줄, t6c = 지뢰 배율 0.42
 // 2차분 무기: 첫 값으로 한 번 재서 기구 계수를 맞춘 뒤 계산기로 값을 바꿨으므로, 그 측정은 지금 값과 맞지 않아 fit 에 넣지 않고 맞춘 계수를 defaults() 에 고정한다
 //   (전격기 _t5b -> m.efield 0.488, m.arc 0.596, m.ball 0.586. 저격포 _t5c -> m.ovk, m.cross, m.mk, m.exec, m.rico, m.mkb. 산성 _t5d -> m.rain, m.slime, m.dsv, m.rot)
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt'];
+// T9c: 개틀링 궁극을 난사로 바꾼 뒤 잰 완성 (_t9c). 난사 기구 계수 m.spray 1.07 은 이 측정 하나로 맞춘 값 (같은 줄 뿌리의 측정/계산 1.06 을 뺀 나머지)
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};
