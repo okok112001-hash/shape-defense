@@ -301,7 +301,7 @@ const NEWSK = {
   orbit:    { name: '궤도 확장', d: (k) => `궤도 반경 +${6 * k}%, 구체 크기 +${8 * k}%`, ap: (s, k) => { s.orbRad = 1 + 0.06 * k; s.orbSize = 1 + 0.08 * k; } },
   orbchain: { name: '전기 사슬', d: (k, c) => `구체끼리 번개 줄로 이어짐. 줄에 닿는 적도 피해 (구체 피해의 ${pc(0.6 * c)}%)와 0.3초 기절 (보스 제외, 적 하나당 2초에 한 번)`, ap: (s, k, c) => { s.orbChain = 1; s.orbChainD = 0.6 * c; } },
   // 펄스 - 역장
-  fieldb:   { name: '역장', d: (k, c) => `무기 주변에 항상 켜진 역장 (파동 범위의 70%). 안의 적을 무기 앞으로 끌어 모으며 (초당 레인 폭의 ${6 * k}%, 보스는 절반) 초당 공격력의 ${pc(0.2 * k * c)}% 압착 피해`, ap: (s, k, c) => { s.fld = 6 * k; s.fldDps = 0.2 * k * c; } },
+  fieldb:   { name: '역장', d: (k, c) => `무기 주변에 항상 켜진 넓은 역장 (파동 범위의 150%). 안의 적을 무기 앞으로 천천히 끌어 모으며 (초당 레인 폭의 ${3 * k}%, 보스는 절반) 초당 공격력의 ${pc(0.2 * k * c)}% 압착 피해`, ap: (s, k, c) => { s.fld = 3 * k; s.fldDps = 0.2 * k * c; } },
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
   counter:  { name: '반격', d: () => '적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번)', ap: (s) => { s.counter = 1; } },
   // 박격포 - 핵탄두
@@ -370,7 +370,7 @@ const SKILLS = {
             LINE('용융', [SNW('meltb', 'root'), SNW('afterh', 'up'), SNW('vanish', 'cap')])],
   pulse:   [LINE('초신성', [SNW('novab', 'root'), SNW('afterg', 'up'), SNW('twinstar', 'cap')]),
             LINE('위성 구체', [SNW('orbb', 'root'), SNW('orbit', 'up'), SNW('orbchain', 'cap')], 1.8),
-            LINE('역장', [SNW('fieldb', 'root'), SNW('weaken', 'up'), SNW('counter', 'cap')])],
+            LINE('역장', [SNW('fieldb', 'root'), SNW('weaken', 'up'), SNW('counter', 'cap')], 0.45)],   // T9a: 역장을 넓혀 압착이 닿는 적이 늘어 배율 0.45
   mortar:  [LINE('핵탄두', [SNW('nukeb', 'root'), SNW('shockw', 'up'), SNW('chainuke', 'cap')], 0.6),
             LINE('융단 폭격', [SNW('carpet', 'root'), SNW('bombbay', 'up'), SNW('airstrike', 'cap')], 0.8),
             LINE('미사일', [SNW('missile', 'root'), SNW('mirv', 'up'), SNW('twinm', 'cap')])],
@@ -1625,21 +1625,26 @@ function ballTick(p, dt, seen) {
   }
 }
 
-// 프리즘: 빔이 첫 적에 닿는 자리에서 양옆으로 갈라져 옆 레인의 윗쪽 적을 맞힌다. 무지개: 한 번 더 갈라져 바깥 레인까지
+// 역장의 반경 (파동 범위의 배수). T9a: 0.7 에서 1.5 로 넓히고 끌어당김은 초당 6·r 에서 3·r 로 약하게 (파동보다 넓어 옆 레인의 적을 파동 안으로 끌어온다)
+const FLD_R = 1.5;
+// 프리즘 (T9a): 갈라지는 점은 본줄기 위(레인 가운데, 첫 적의 높이)다. 가지는 비스듬히 옆 레인 가운데로 뻗은 뒤 그 레인을 따라 위로 꺾인다(나뭇가지).
+// 무지개: 옆 레인 가지가 조금 위에서 한 번 더 갈라져 바깥 레인으로 (가운데 무기면 양쪽에 두 갈래씩). 맞는 적은 그 레인에서 꺾이는 점(조금 아래까지)보다 위
+const PR_RISE = 50, PR_GAP = 40;
 function prismSplit(w, slot, st, first, m) {
-  const one = oneLane(st), top = H - st.range * H, base = st.dmg * m * (st.prism + st.prismUp), reach = st.lanes + 1;
+  const one = oneLane(st), top = H - st.range * H, base = st.dmg * m * (st.prism + st.prismUp), wx = (slot + 0.5) * LW;
   for (let side = -1; side <= 1; side += 2) {
-    const dmax = st.rainbow ? (side < 0 ? slot - st.lanes : LANES - 1 - slot - st.lanes) : 1;   // 이 쪽에 덮을 레인 수
-    let px = first.x, py = first.y;
-    for (let d = 1; d <= Math.max(1, dmax); d++) {
+    const n = Math.max(1, st.rainbow ? (side < 0 ? slot - st.lanes : LANES - 1 - slot - st.lanes) : 1);   // 이 쪽에 덮을 레인 수
+    const step = Math.min(PR_RISE + PR_GAP, Math.max(16, (first.y - top - 16) / (n + 0.2))), rise = step * PR_RISE / (PR_RISE + PR_GAP);
+    let px = wx + side * st.lanes * LW, py = first.y;
+    for (let d = 1; d <= n; d++) {
       const j = slot + side * (st.lanes + d); if (j < 0 || j >= LANES) break;
-      const cx = (j + 0.5) * LW, y1 = first.y - (first.y - top) * d / Math.max(1, dmax), mul = d === 1 ? 1 : 0.6;
+      const cx = (j + 0.5) * LW, bend = Math.max(top + 4, py - rise), mul = d === 1 ? 1 : 0.6;
       const pl = [];
-      for (const e of S.enemies) if (!e.dead && e.y < first.y && inReach(e, cx, one)) pl.push(e);
-      capPick(pl, st.cap);                    // 갈라진 빔 하나도 최대 타격 수까지
+      for (const e of S.enemies) if (!e.dead && e.y < first.y && e.y < bend + 20 && inReach(e, cx, one)) pl.push(e);
+      const cut = capPick(pl, st.cap);       // 갈라진 빔 하나도 최대 타격 수까지
       for (const e of pl) hit(e, base * mul, st);
-      fx({ k: 'dbeam', d: 0.2, x0: px, y0: py, x1: cx, y1, c: st.color, rb: st.rainbow ? (side < 0 ? d : d + 4) : 0 });
-      px = cx; py = y1;
+      fx({ k: 'dbeam', d: 0.2, x0: px, y0: py, xb: cx, yb: bend, x1: cx, y1: cut ? Math.min(bend - 4, Math.max(top, capTop(pl))) : top, ab: cut ? 1 : 0, c: st.color, rb: st.rainbow ? (side < 0 ? d : d + 4) : 0 });
+      px = cx; py = bend - (step - rise);    // 다음 가지는 이 레인 줄기에서 조금 위로 올라간 자리에서 갈라진다
     }
   }
 }
@@ -1943,7 +1948,7 @@ function skillStep(w, i, st, dt) {
       if (w.nv > 0) { w.nv -= dt; if (w.nv <= 0) { w.nv = 0; novaBlast(i, st, 0.7, false); } }   // 쌍성: 곧바로 한 번 더
       if (w.ct > 0) w.ct -= dt;
       if (st.fld) {                          // 역장: 항상 켜져 있다. 안의 적을 옆으로 끌어 무기 앞(가운데)에 모으고 (아래로는 끌지 않는다) 압착 피해를 준다
-        const R = st.radius * 0.7, pull = st.fld * dt, list = FLD; list.length = 0;
+        const R = st.radius * FLD_R, pull = st.fld * dt, list = FLD; list.length = 0;
         for (let j = 0, n = S.enemies.length; j < n; j++) {
           const e = S.enemies[j];
           if (e.dead || e.y + e.r <= 0 || !within(e.x - wx, e.y - H, R + e.r * 0.5)) continue;
@@ -2473,7 +2478,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, cloudPos, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, RICO_R, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

@@ -241,7 +241,7 @@ function model(st, ref, c, lay, PP) {
         if (st.orbChain && st.orbs > 1) { const segs = st.orbs === 2 ? 1 : st.orbs; dot += segs * st.orbDps * st.orbChainD * band * 0.8; sig.push(Math.min(0.5, 0.15 * segs * band / Math.max(1, mu)) * (1 - bb)); }
       }
       if (st.fld) sig.push(Math.min(0.6, st.fld / 100 * 0.12 * pm.fld) * (1 - 0.5 * bb));   // 역장: 끌어당겨 무기 앞에 모은다 (머무는 시간으로 본다)
-      if (st.fldDps) { const Rf = R * 0.7; dot += st.fldDps * capE(nIn(lam, Math.PI * Rf * Rf / 2) * pm.crush, N); }   // 압착 (T6): 역장 안 적에게 지속 피해
+      if (st.fldDps) { const Rf = R * 1.5; dot += st.fldDps * capE(nIn(lam, Math.PI * Rf * Rf / 2) * pm.crush, N); }   // 압착 (T6): 역장 안 적에게 지속 피해
       ccHit(tau, st.knock, covOf(mu));
       break;
     }

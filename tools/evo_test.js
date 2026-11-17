@@ -407,10 +407,11 @@ function scene(type, lines, secs, opt) {
     S.enemies.length = 0; const a = Core.orbPos(2, s2, 0, S.t + 1 / 60), b = Core.orbPos(2, s2, 1, S.t + 1 / 60); const m = foe2((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); Core.step(1 / 60);
     assert(m.hp < 1e12 && m.stunT > 0.2, '전기 사슬: 줄에 닿은 적은 피해와 0.3초 기절'); const st0 = m.stunT; m.stunT = 0; Core.step(1 / 60); assert(m.stunT === 0, '적 하나당 2초에 한 번'); }
   { game(1); const w = put('pulse', 2, 100, true); w.sk[2] = [3, 0, 0]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; w.cd = 99; const st = Core.stats(w);
-    const near = foe2(290, 480), out = foe2(290, 520 - st.radius * 0.7 - 120), bs = foe2(210, 480, { boss: true, type: 'giant' }); const x0 = near.x, y0 = near.y, xo = out.x, xb = bs.x; Core.step(1 / 60);
-    assert(Math.abs(x0 - near.x - 18 / 60) < 1e-9 && near.y === y0 && near.slowPct === 0, '역장: 안의 적을 무기 쪽으로 초당 6·r 끌어당김 (아래로는 안 끌고 둔화 없음)');
-    assert(out.x === xo && Math.abs(bs.x - xb - 9 / 60) < 1e-9, '범위 밖은 그대로, 보스는 절반');
-    for (let i = 0; i < 60 * 5; i++) Core.step(1 / 60); assert(Math.abs(near.x - 250) < 1e-9 && Math.abs(bs.x - 250) < 1e-9, '가운데에서 멈춘다 (넘어가지 않음)');
+    const near = foe2(290, 480), out = foe2(290, 520 - st.radius * Core.FLD_R - 120), bs = foe2(210, 480, { boss: true, type: 'giant' }); const x0 = near.x, y0 = near.y, xo = out.x, xb = bs.x; Core.step(1 / 60);
+    assert(Math.abs(x0 - near.x - 9 / 60) < 1e-9 && near.y === y0 && near.slowPct === 0, '역장: 안의 적을 무기 쪽으로 초당 3·r 끌어당김 (아래로는 안 끌고 둔화 없음, T9a)');
+    assert(out.x === xo && Math.abs(bs.x - xb - 4.5 / 60) < 1e-9, '범위 밖은 그대로, 보스는 절반');
+    { const far = foe2(250 + st.radius * 1.3, 500); const xf = far.x; Core.step(1 / 60); assert(far.x < xf, '역장은 파동 범위보다 넓다 (파동 밖 옆 레인의 적도 끈다, T9a)'); S.enemies.splice(S.enemies.indexOf(far), 1); }
+    for (let i = 0; i < 60 * 10; i++) Core.step(1 / 60); assert(Math.abs(near.x - 250) < 1e-9 && Math.abs(bs.x - 250) < 1e-9, '가운데에서 멈춘다 (넘어가지 않음)');
     w.sk[2] = [5, 5, 0]; Core.dirty(w); Core.step(1 / 60); assert(Math.abs(near.vulnPct - 0.15) < 1e-9 && near.vulnT > 0, '약화: 받는 피해 +3%·r');
     const e1 = foe2(250, 470, { hp: 100, maxHp: 100 }); const bef = e1.hp; Core.step(1 / 60); const st5 = Core.stats(w);
     w.sk[2] = [5, 5, 1]; Core.dirty(w); S.enemies = [near]; near.y = 100; near.speed = 0.5; let before = S.hp; w.ct = 0; near.y = 520; S.hp = 100;
@@ -419,7 +420,7 @@ function scene(type, lines, secs, opt) {
   { game(1); const w = put('pulse', 2, 100, true); w.sk[2] = [5, 0, 0]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; w.cd = 99; const st = Core.stats(w);   // 압착 (T6)
     assert(Math.abs(st.fldDps - 0.2 * 5 * SKILLS.pulse[2].nodes[0].sc) < 1e-9, '압착: 초당 20%·r x 배율');
     const ins = []; for (let i = 0; i < 12; i++) ins.push(foe2(232 + (i % 4) * 12, 470 + Math.floor(i / 4) * 10));
-    const out = foe2(250, 520 - st.radius * 0.7 - 120); Core.step(1 / 60);
+    const out = foe2(250, 520 - st.radius * Core.FLD_R - 120); Core.step(1 / 60);
     const hit = ins.filter((e) => e.hp < 1e12), miss = ins.filter((e) => e.hp === 1e12);
     assert.strictEqual(hit.length, st.cap, '압착: 최대 타격 수까지');
     assert(Math.min(...hit.map((e) => e.y)) >= Math.max(...miss.map((e) => e.y)), '압착: 기지에 가까운 적부터');
