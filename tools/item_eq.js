@@ -92,7 +92,7 @@ const itemSel = ONLY ? ONLY.filter((x) => !teams.some((t) => t.sel === x)) : [];
 const unknown = itemSel.filter((x) => !teams.some((t) => t.items.some((it) => it.id === x)));
 if (unknown.length) { console.error('모르는 이름: ' + unknown.join(',') + ' (--only 는 무기 id, P5, 항목 id)'); process.exit(1); }
 const def = (it) => (it.kind === 'aug' ? Core.AUGS[it.id] : Core.PARTS[it.id]);
-const gradesOf = (min) => (GRADES ? GRADES.filter((g) => g >= min && g <= 3) : [Math.max(2, min)]);
+const gradesOf = (min, max = 3) => (GRADES ? GRADES.filter((g) => g >= min && g <= max) : [Math.min(max, Math.max(2, min))]);
 const mkSpec = (t, put) => t.types.map((ty, i) => {
   const on = put && t.carry.includes(i);
   return { t: ty, p: on && put.p ? [put.p] : [], a: on && put.a ? [put.a] : [] };
@@ -102,7 +102,7 @@ for (const t of teams) {
   if (teamSel.length && !teamSel.includes(t.sel)) continue;
   const items = itemSel.length ? t.items.filter((it) => itemSel.includes(it.id)) : t.items;
   const subs = [];
-  for (const it of items) for (const g of gradesOf(def(it).min)) {
+  for (const it of items) for (const g of gradesOf(def(it).min, def(it).max != null ? def(it).max : 3)) {
     subs.push({ key: `${t.name}|${it.kind}|${it.id}|${g}`, team: t.name, kind: it.kind, id: it.id, g, name: def(it).name,
       spec: mkSpec(t, it.kind === 'aug' ? { a: [it.id, g] } : { p: [it.id, g] }) });
   }

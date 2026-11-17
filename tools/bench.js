@@ -250,9 +250,9 @@ const get = (spec, sk, N, ref) => cache.get(specKey(spec, sk, getM(ref || spec, 
 
 /* ---------- 비교 대상 만들기 ---------- */
 let GRADES_MODE = 'all', ONLY = null;           // --grades ends|all, --only id,id
-const gradesOf = (min) => {
-  if (/^[0-3]$/.test(GRADES_MODE)) return [Math.max(min, +GRADES_MODE)];   // --grades 0..3: 그 등급만 (그 등급이 min보다 낮으면 min)
-  const a = []; for (let g = min; g <= 3; g++) a.push(g); return GRADES_MODE === 'ends' ? [...new Set([min, 3])] : a;
+const gradesOf = (min, max = 3) => {   // max: 그 항목이 나오는 가장 높은 등급 (T8)
+  if (/^[0-3]$/.test(GRADES_MODE)) return [Math.min(max, Math.max(min, +GRADES_MODE))];   // --grades 0..3: 그 등급만 (범위 밖이면 가까운 끝)
+  const a = []; for (let g = min; g <= max; g++) a.push(g); return GRADES_MODE === 'ends' ? [...new Set([min, max])] : a;
 };
 const keep = (id) => !ONLY || ONLY.includes(id);
 const five = (t) => Array.from({ length: 5 }, () => ({ t, p: [], a: [] }));
@@ -270,7 +270,7 @@ function mkAugs() {
     for (const id of Core.AUG_POOL[T]) {
       if (!keep(id)) continue;
       const A = AUGS[id];
-      for (const g of gradesOf(A.min)) subs.push({ id, name: A.name, w: T, grade: g, spec: mk([id, g]), ref });
+      for (const g of gradesOf(A.min, A.max != null ? A.max : 3)) subs.push({ id, name: A.name, w: T, grade: g, spec: mk([id, g]), ref });
     }
   }
   return subs;
@@ -298,7 +298,7 @@ function mkParts() {
   for (const id of Core.WEAPON_PART_IDS) {
     if (!keep(id)) continue;
     const P = PARTS[id];
-    for (const g of gradesOf(P.min)) subs.push({ id, name: P.name, grade: g, spec: mk([id, g]), ref });
+    for (const g of gradesOf(P.min, P.max != null ? P.max : 3)) subs.push({ id, name: P.name, grade: g, spec: mk([id, g]), ref });
   }
   return subs;
 }

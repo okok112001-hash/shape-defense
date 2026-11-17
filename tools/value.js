@@ -417,7 +417,7 @@ module.exports = { Core, CB, CTX, P, statsOf, model, killRate, eqOf, eqAll, LAY,
 
 /* ---------- 측정 자료 읽기 (영점) ---------- */
 const PART_TEAM = ['shotgun', 'blaster', 'laser', 'tesla', 'mortar'];   // tools/item_eq.js 의 P5 팀
-const ITEM_EQ_EXTRA = ['item_eq_t8a.json', 'item_eq_t8b.json'];   // 표본 밖 확인용 측정 (T8, fit 에는 안 씀)
+const ITEM_EQ_EXTRA = ['item_eq_t8a.json', 'item_eq_t8b.json', 'item_eq_t8c.json', 'item_eq_t8d.json'];   // 표본 밖 확인용 측정 (T8, fit 에는 안 씀)
 // T8 에서 둘째 수치(w)를 새로 단 항목: 그 전 측정은 w 가 없으니 당시 고정값으로 계산한다 (연발 추가 탄 피해 32%, 철갑 산탄 관통당 -45%)
 const LEGACY_W = { b_multi: 32, s_pierce: 45 };
 function loadItemEq(file) {
@@ -644,7 +644,26 @@ const wid = (s) => [...String(s)].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e
 const pad = (s, n) => String(s) + ' '.repeat(Math.max(0, n - wid(s)));
 const lpad = (s, n) => ' '.repeat(Math.max(0, n - wid(s))) + String(s);
 const pct = (v) => (v == null || isNaN(v) ? '-' : v >= 99 ? '포화' : (v >= 0 ? '+' : '') + Math.round(v * 100));
-const gradesFrom = (min) => [0, 1, 2, 3].filter((g) => g >= min);
+const gradesFrom = (min, max = 3) => [0, 1, 2, 3].filter((g) => g >= min && g <= max);
+const gMax = (D) => (D.max != null ? D.max : 3);
+// 예산 기준 영웅 가치 (T8 에서 고정): 무기 파츠 21, 증강 50 (T3 영웅 평균). 무기 파츠도 공용 증강처럼 가장 잘 맞는 무기로 판정하므로 평균을 쓰면 기준이 따라 움직인다
+const HERO_BUDGET = { part: 0.21, aug: 0.50 };
+// 계산기와 측정이 어긋나 측정으로 판정한 항목 (T8). 예산 밖 목록에 함께 적는다
+const MEAS_NOTE = {
+  exec: '블래스터·레이저·펄스 영웅 15 / 19 / 20, 전설 25 / 34 / 40 으로 예산 안 (계산기가 약 1.4배 크게 본다)',
+  first: '범위 무기에서 계산기의 약 2배, 저격포 1.4배. 낮춘 뒤 저격포 영웅 19 / 전설 46, 펄스 14 / 33',
+  t_slow: '계산기의 약 0.8배. 일반 15, 희귀 21',
+  b_frost: '일반 12, 희귀(80%) 15 라 일반에만 둔다',
+  l_freeze: '0.55초 27, 0.95초 43 (희귀·영웅 예산 안)',
+  s_knock: '세기 48 에서 46 (영웅 예산 안). 세기를 바꿔도 거의 그대로라 영웅에만 둔다',
+  c_wide: '계산기의 약 0.8배 (웅덩이 하나 더 82 / 예측 103)',
+  s_pierce: '희귀에서 계산기의 약 0.6배',
+  t_stun: '계산기의 약 2배 (44% 에서 12, 65% 에서 17 -> 희귀 90%)',
+  m_shrap: '영웅 100 / 계산기 38 (박격포 측정은 고르지 않다)',
+  command: '짝 생존 +18~21%, 기지 파츠 평균의 약 1.4배',
+  wire: '짝 생존 +20% (식이 거칠다)', h_fence: '짝 생존: 세기 4 에서 +16%', h_turret: '짝 생존 +21%',
+  h_wave: '짝 생존: 영웅 12초 +7%, 전설 6초 +32% -> 영웅 9초', h_bomb: '짝 생존: 문턱 60 / 80% 모두 +26% (60초 대기로 포화)',
+};
 const AREA_W = WEAPON_IDS.filter((t) => WEAPONS[t].cap && !WEAPONS[t].capSk);   // 범위 무기 (최대 타격 수가 있는 무기)
 const layFor = (t, PP) => Object.assign({}, t === 'laser' ? LAY.I5 : LAY.X2, { share: (PP || P).w[t].sh || (t === 'laser' ? 1 : 0.4) });
 function partVal(id, g, t, PP) { return eqAll(statsOf(t, { p: [[id, g]] }), statsOf(t, {}), layFor(t, PP), PP); }
@@ -658,23 +677,24 @@ function buildTables(PP) {
   // 무기 파츠: 무기 8종의 종합 가치, 평균
   for (const id of Core.WEAPON_PART_IDS) {
     const D = PARTS[id], row = { id, name: D.name, min: D.min, g: {} };
-    for (const g of gradesFrom(D.min)) {
+    for (const g of gradesFrom(D.min, gMax(D))) {
       const per = {}; let s = 0, best = null;
-      for (const t of WEAPON_IDS) { per[t] = partVal(id, g, t, PP).all; s += per[t]; if (AREA_W.includes(t) && (best == null || per[t] > per[best])) best = t; }
-      // 범위 무기 전용(area) 파츠는 가장 잘 맞는 범위 무기로 판정한다 (공용 증강과 같은 방식). 평균에는 그 값을 쓴다
-      row.g[g] = { per, avg: D.area ? per[best] : s / WEAPON_IDS.length, all8: s / WEAPON_IDS.length, best: D.area ? best : null };
+      for (const t of WEAPON_IDS) { per[t] = partVal(id, g, t, PP).all; s += per[t]; if ((!D.area || AREA_W.includes(t)) && (best == null || per[t] > per[best])) best = t; }
+      // 판정은 가장 잘 맞는 무기 (T8, 사용자 지시: 강한 쪽을 상한으로. 범위 무기 전용은 범위 무기 중에서). avg 칸에 그 값을 쓴다
+      row.g[g] = { per, avg: per[best], all8: s / WEAPON_IDS.length, best };
     }
     row.area = !!D.area;
     out.parts.push(row);
   }
   const pHero = out.parts.filter((r) => r.id !== 'gold' && !r.area).map((r) => heroEq([0, 1, 2, 3].map((g) => (r.g[g] ? r.g[g].avg : 0)), r.min));   // 영웅 평균에는 범위 무기 전용 파츠를 넣지 않는다
-  out.partHero = pHero.reduce((a, b) => a + b, 0) / pHero.length;
+  out.partHeroMean = pHero.reduce((a, b) => a + b, 0) / pHero.length;
+  out.partHero = HERO_BUDGET.part;
   // 증강: 자기 무기 (공용은 8종 중 가장 잘 맞는 무기)
   for (const id of Object.keys(AUGS)) {
     const A = AUGS[id]; if (A.for === 'base' || A.pool === false) continue;
     const ws = A.for === 'all' ? WEAPON_IDS : [A.for];
     const row = { id, name: A.name, min: A.min, for: A.for, g: {} };
-    for (const g of gradesFrom(A.min)) {
+    for (const g of gradesFrom(A.min, gMax(A))) {
       let best = null, s = 0; const per = {};
       for (const t of ws) { const e = augVal(id, g, t, PP); per[t] = e; s += e.all; if (!best || e.all > best.e.all) best = { t, e }; }
       row.g[g] = { best: best.t, e: best.e, avg: s / ws.length, per };
@@ -682,10 +702,11 @@ function buildTables(PP) {
     out.augs.push(row);
   }
   const aHero = out.augs.map((r) => heroEq([0, 1, 2, 3].map((g) => (r.g[g] ? r.g[g].e.all : 0)), r.min));
-  out.augHero = aHero.reduce((a, b) => a + b, 0) / aHero.length;
+  out.augHeroMean = aHero.reduce((a, b) => a + b, 0) / aHero.length;
+  out.augHero = HERO_BUDGET.aug;
   // 기지 파츠, 기지 증강
-  for (const id of Core.BASE_PART_IDS) { const D = PARTS[id]; const row = { kind: 'part', id, name: D.name, min: D.min, g: {} }; for (const g of gradesFrom(D.min)) row.g[g] = baseFSG('part', id, g, null, null, PP); out.base.push(row); }
-  for (const id of Object.keys(AUGS).filter((k) => AUGS[k].for === 'base')) { const A = AUGS[id]; const row = { kind: 'aug', id, name: A.name, min: A.min, g: {} }; for (const g of gradesFrom(A.min)) row.g[g] = baseFSG('aug', id, g, null, null, PP); out.base.push(row); }
+  for (const id of Core.BASE_PART_IDS) { const D = PARTS[id]; const row = { kind: 'part', id, name: D.name, min: D.min, g: {} }; for (const g of gradesFrom(D.min, gMax(D))) row.g[g] = baseFSG('part', id, g, null, null, PP); out.base.push(row); }
+  for (const id of Object.keys(AUGS).filter((k) => AUGS[k].for === 'base')) { const A = AUGS[id]; const row = { kind: 'aug', id, name: A.name, min: A.min, g: {} }; for (const g of gradesFrom(A.min, gMax(A))) row.g[g] = baseFSG('aug', id, g, null, null, PP); out.base.push(row); }
   for (const kind of ['part', 'aug']) {
     const hs = out.base.filter((r) => r.kind === kind).map((r) => heroEq([0, 1, 2, 3].map((g) => (r.g[g] ? r.g[g].tot : 0)), r.min) / 100);
     out['base' + kind + 'Hero'] = hs.reduce((a, b) => a + b, 0) / hs.length;
@@ -720,18 +741,19 @@ function reportText(T, PP, fitInfo) {
   o.push('[단위] 화력 가치 1 = 그 항목을 단 무기의 공격력 +1% 와 같은 세기 (적 체력이 몇 배까지 되어도 버티는가, tools/skill_eq.js 의 R 과 같은 뜻: 가치 = (R-1) x 100).');
   o.push('  종합 = 시나리오 5개(정예, 물량, 표준, 보스전, 초반)의 기하평균. 표의 숫자는 종합 가치(+%). 공격력 파츠/증강은 정의상 수치 그대로다.');
   o.push(`  기지 항목: F = 모든 무기 공격력 +% 어치, S = 기지 유효 체력 +%, G = 재화 +%. 교환 비율 1 S = ${(PP.x.aS / PP.x.aF).toFixed(2)} F, 1 G = ${(PP.x.aG / PP.x.aF).toFixed(2)} F (회복은 ${PP.x.Treg}초 동안 모인 양을 유효 체력으로 센다).`);
-  o.push(`  등급 예산 = [${GRADE_RATIO.join(', ')}] x 같은 칸 종류의 영웅 평균. 예산의 1.5배 넘으면 "강함", 1/1.5 밑이면 "약함".`);
+  o.push(`  등급 예산 = [${GRADE_RATIO.join(', ')}] x 영웅 기준(무기 파츠 ${Math.round(T.partHero * 100)}, 증강 ${Math.round(T.augHero * 100)} 고정, 기지 항목은 영웅 평균). 예산의 1.5배 넘으면 "강함", 1/1.5 밑이면 "약함".`);
+  o.push('  무기 파츠와 공용 증강은 가장 잘 맞는 무기로 판정한다(강한 쪽이 상한. 맞지 않는 무기에서는 약해도 된다). 등급 범위(min~max) 밖은 나오지 않는다.');
   o.push('');
-  o.push(`=== 무기 파츠 (무기 8종 각각에 달았을 때 종합 가치, 영웅 평균 ${(T.partHero * 100).toFixed(1)}) ===`);
-  o.push('  ' + pad('파츠', 22) + pad('등급', 6) + WEAPON_IDS.map((t) => lpad(t.slice(0, 6), 8)).join('') + lpad('평균', 8) + lpad('예산', 7) + lpad('비', 6) + '  판정');
+  o.push(`=== 무기 파츠 (무기 8종 각각에 달았을 때 종합 가치. 판정은 가장 잘 맞는 무기, 영웅 기준 ${(T.partHero * 100).toFixed(0)}, 참고: 8종 평균의 영웅 평균 ${(T.partHeroMean * 100).toFixed(1)}) ===`);
+  o.push('  ' + pad('파츠', 22) + pad('등급', 6) + WEAPON_IDS.map((t) => lpad(t.slice(0, 6), 8)).join('') + lpad('최고', 8) + lpad('예산', 7) + lpad('비', 6) + '  판정');
   for (const r of T.parts) for (const g in r.g) {
     const x = r.g[g], j = judge(x.avg, GRADE_RATIO[g] * T.partHero);
-    o.push('  ' + pad(`${r.id} ${r.name}`, 22) + pad(GR[g], 6) + WEAPON_IDS.map((t) => lpad(pct(x.per[t]), 8)).join('') + lpad(pct(x.avg), 8) + lpad(f0(GRADE_RATIO[g] * T.partHero), 7) + lpad(r.id === 'gold' ? '-' : j.r.toFixed(2), 6) + '  ' + (r.id === 'gold' ? '재화(성장)' : j.flag) + (r.area ? `  (범위 무기 전용: ${x.best} 기준, 8종 평균 ${pct(x.all8)})` : ''));
+    o.push('  ' + pad(`${r.id} ${r.name}`, 22) + pad(GR[g], 6) + WEAPON_IDS.map((t) => lpad(pct(x.per[t]), 8)).join('') + lpad(pct(x.avg), 8) + lpad(f0(GRADE_RATIO[g] * T.partHero), 7) + lpad(r.id === 'gold' ? '-' : j.r.toFixed(2), 6) + '  ' + (r.id === 'gold' ? '재화(성장)' : j.flag) + `  (${x.best}${r.area ? ', 범위 무기 전용' : ''}, 8종 평균 ${pct(x.all8)})`);
   }
   o.push('  (gold 채굴 칩은 성장 항목이라 화력 0. 기지 항목의 G 와 같은 단위로 보면 이 무기 처치 몫(약 1/5) x 수치)');
-  o.push('  (범위 무기 전용 파츠(다중 타격기, 제한 해제기)의 "평균" 칸은 가장 잘 맞는 범위 무기 값이고, 영웅 평균(예산 기준)에는 넣지 않는다)');
+  o.push('  ("최고" 칸 = 가장 잘 맞는 무기의 값(범위 무기 전용 파츠는 범위 무기 중에서). 판정은 이 값으로 한다)');
   o.push('');
-  o.push(`=== 증강 (자기 무기에 달았을 때, 공용 a_* 는 가장 잘 맞는 무기. 영웅 평균 ${(T.augHero * 100).toFixed(1)}) ===`);
+  o.push(`=== 증강 (자기 무기에 달았을 때, 공용 a_* 는 가장 잘 맞는 무기. 영웅 기준 ${(T.augHero * 100).toFixed(0)}, 참고: 영웅 평균 ${(T.augHeroMean * 100).toFixed(1)}) ===`);
   o.push('  ' + pad('증강', 24) + pad('등급', 6) + pad('무기', 9) + CTX.map((c) => lpad(CTX_KO[c], 8)).join('') + lpad('종합', 8) + lpad('예산', 7) + lpad('비', 6) + '  판정');
   for (const r of T.augs) for (const g in r.g) {
     const x = r.g[g], j = judge(x.e.all, GRADE_RATIO[g] * T.augHero);
@@ -756,13 +778,14 @@ function reportText(T, PP, fitInfo) {
   }
   o.push('  (박격포는 T5a 의 새 트리. 이 무기는 같은 무기 다섯 자루가 버티지 못해 skill_eq.js --mix(섞인 팀)로 잰다. 융단 폭격·충격파 기구 계수는 아직 영점 전. 전격기, 저격포, 산성은 아직 옛 트리(증강 효과를 나눠 담은 노드). 저격포 관통 저격, 이중 저격은 core.js 의 100 나누기 중복으로 피해가 1/100 이다)');
   o.push('');
-  o.push('=== 예산에서 크게 벗어난 항목 (수치는 바꾸지 않았다. 제안용) ===');
+  o.push('=== 예산에서 크게 벗어난 항목 (계산기 판정) ===');
   for (const kind of ['무기 파츠', '증강', '기지 파츠', '기지 증강']) {
     const L = T.flags.filter((f) => f.kind === kind).sort((a, b) => b.r - a.r);
     if (!L.length) continue;
     o.push(`  [${kind}]`);
-    for (const f of L) o.push(`    ${pad(f.label, 30)} ${pad(GR[f.g], 5)} 가치 ${lpad((f.v * 100).toFixed(1), 6)}  예산 ${lpad((f.budget * 100).toFixed(1), 6)}  x${f.r.toFixed(2)} ${f.flag}`);
+    for (const f of L) { const mn = MEAS_NOTE[f.label.split(' ')[0]]; o.push(`    ${pad(f.label, 30)} ${pad(GR[f.g], 5)} 가치 ${lpad((f.v * 100).toFixed(1), 6)}  예산 ${lpad((f.budget * 100).toFixed(1), 6)}  x${f.r.toFixed(2)} ${f.flag}${mn ? '  [측정: ' + mn + ']' : ''}`); }
   }
+  o.push('  ([측정: ...] = 계산기와 측정이 달라 측정으로 판정한 항목. 수치는 그 측정에 맞춰 두었다. tools/balance_log.md 의 T8)');
   return o.join('\n') + '\n';
 }
 
