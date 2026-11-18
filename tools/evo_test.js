@@ -726,10 +726,23 @@ function scene(type, lines, secs, opt) {
     w.rn = 0.001; Core.step(1 / 60); const r = S.pools.find((p) => p.kind === 'rain'); assert(r && r.lane === 1 && Math.abs(r.t - (3 - 1 / 60)) < 1e-9, '적이 가장 많은 레인, 3초');
     run(1); near(1e9 - L1[0].hp, D * Core.RAIN_K * cN * 1.1 * (61 / 60), '초당 D x RAIN_K c (취약 10% 포함)', 1e-3); assert(L1[1].vulnT > 0, '취약'); assert.strictEqual(o.hp, 1e9, '다른 레인');
     run(2.1); assert(!S.pools.some((p) => p.kind === 'rain'), '3초 뒤 그침'); assert(w.rn > Core.RAIN_CD - 3.5 && w.rn < Core.RAIN_CD, 'RAIN_CD 초마다'); }
-  // 장마 5: 3 + 5 RAIN_UP 초. 폭우: 두 레인, 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)
+  // 장마 5: 3 + 5 RAIN_UP 초. 폭우 (T10d): 두 레인, 비가 오는 동안 레인마다 PUD_SITE 곳 x PUD_LOBE 덩이의 웅덩이가 고여 커지고, 그친 뒤 PUD_DRY 초 동안 줄어든다
   { const { w, S } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); foe2(150, 200); foe2(150, 300); foe2(350, 300); w.rn = 0.001; Core.step(1 / 60);
     const rs = S.pools.filter((p) => p.kind === 'rain'); const RT = 3 + 5 * Core.RAIN_UP; assert(rs.length === 2 && Math.abs(rs[0].t - (RT - 1 / 60)) < 1e-9, '폭우 두 레인, 장마 3 + 5 RAIN_UP 초');
-    run(RT + 0.05); const sm = S.pools.filter((p) => p.acid && p.sm); assert.strictEqual(sm.length, 6, '레인마다 작은 웅덩이 3개'); sm.forEach((p) => assert(Math.abs(p.r - 37.5) < 1e-9 && p.t <= 2, '범위 50%, 2초')); }
+    const pd = S.pools.filter((p) => p.rp), base = 75 * Core.PUD_R; assert.strictEqual(pd.length, 2 * Core.PUD_SITE * Core.PUD_LOBE, '레인마다 PUD_SITE x PUD_LOBE 덩이');
+    assert(pd.every((p) => p.r === 0 && p.rm <= base * 1.1 + 1e-9 && Math.abs(p.x - (p.rp.lane + 0.5) * 100) <= 18 + base * 0.95 + 1e-9 && rs.some((r) => r.lane === p.rp.lane)), '비가 내리는 레인 안, 처음에는 반경 0');
+    run(RT / 2); assert(pd.some((p) => p.r > 0 && p.r < p.rm), '비가 오는 동안 커지는 중');
+    run(RT / 2 - 1 / 60 - 1 / 120); pd.forEach((p) => near(p.r, p.rm, '그칠 때 가장 큼', 1e-3));
+    run(Core.PUD_DRY / 2); pd.forEach((p) => near(p.r, p.rm * Math.sqrt(0.5), '그친 뒤 줄어듦 (넓이 절반)', 2e-2));
+    run(Core.PUD_DRY / 2 + 0.05); assert(!S.pools.some((p) => p.rp), '마르면 사라짐'); }
+  // 고이는 웅덩이의 피해 범위는 그림의 반경 (Core.puddleR) 을 따른다: 중심에서 39.5 인 적 (반경 19) 은 웅덩이 반경 30 부터 맞는다
+  { const { S, st } = mk([[0, 0, 0], [0, 0, 0], [0, 0, 0]]); const g = { lane: 2, gr: 2 };
+    const p = pool(S, st, 250, 300, { rp: g, rm: 40, s0: 0.5, t: 2 + Core.PUD_DRY, d: 2 + Core.PUD_DRY }), e = foe2(250 + 39.5, 300, { hp: 1e9, maxHp: 1e12 });
+    let age = 0; const adv = (sec) => { const n = Math.round(sec * 60); run(n / 60); age += n / 60; };
+    const tIn = 0.5 + 1.5 * Math.pow(30 / 40, 1 / 0.6), tOut = 2 + Core.PUD_DRY * (1 - (30 / 40) ** 2);   // 커지며 30 이 되는 때, 줄며 30 아래가 되는 때
+    adv(tIn - 0.05); assert.strictEqual(e.hp, 1e9, '반경이 닿기 전에는 피해 없음 ' + p.r);
+    adv(0.1); assert(e.hp < 1e9 && e.vulnT > 0, '반경이 커져 닿으면 피해 ' + p.r); near(p.r, Core.puddleR(p), 'puddleR');
+    adv(tOut + 0.05 - age); const h = e.hp; adv(0.5); assert.strictEqual(e.hp, h, '마르며 줄어 닿지 않으면 피해 없음 ' + p.r); }
   // 점액 흔적 1: 웅덩이를 밟은 적이 3초 동안 22px 마다 자국 (반경 22, 2초). 자국 위의 적은 초당 D x 0.15c
   { const { S, st, D } = mk([[0, 0, 0], [0, 0, 0], [1, 0, 0]]); pool(S, st, 250, 300, { t: 0.05 }); const m = foe2(250, 300, { speed: 0.1, hp: 1e9, maxHp: 1e12 });
     run(0.1); assert(m.slT > 2.8, '자국 남기기 시작'); run(3.2); const sl = S.pools.filter((p) => p.kind === 'slime');

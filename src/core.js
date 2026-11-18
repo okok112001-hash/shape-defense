@@ -283,6 +283,9 @@ const SLUG_N = 9, SLUG_K = 3, SLUG_KN = 36, SLUG_STN = 0.18;
 const DRAGON_N = 15, DRAGON_M = 3, GIANT_N = 18, GIANT_M = 6;
 const BALL_N2 = 12, BALL_TW = 1.5, BALL_BOOM_R = 140, BALL_BOOM = 4.2, BALL_STUN = 1.2;
 const RAIN_CD = 16, RAIN_K = 0.55, RAIN_UP = 0.4;
+//   폭우 (T10d): 비가 오는 동안 레인의 PUD_SITE 곳에 웅덩이가 고여 커지고 (한 곳에 PUD_LOBE 덩이가 번져 이어짐), 그친 뒤 PUD_DRY 초 동안 말라 줄어든다.
+//   덩이 하나의 가장 큰 반경은 75 x PUD_R (범위 증강 포함, 덩이마다 흐트러짐). 피해 범위는 그림의 반경을 따른다
+const PUD_SITE = 3, PUD_LOBE = 3, PUD_R = 0.45, PUD_DRY = 2;
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
@@ -373,7 +376,7 @@ const NEWSK = {
   // 산성 분사기 - 산성비
   rainb:    { name: '산성비', d: (k, c) => `${RAIN_CD}초마다 적이 가장 많은 레인 전체에 3초간 산성비. 비 맞는 적은 초당 공격력의 ${pc(RAIN_K * k * c)}% 피해와 웅덩이의 취약 효과 (최대 ${BIG_CAP}배 많은 적)`, ap: (s, k, c) => { s.rain = RAIN_K * k * c; s.rainT = 3; } },
   monsoon:  { name: '장마', d: (k) => `산성비 지속 +${r1(RAIN_UP * k)}초`, ap: (s, k) => { s.rainT = 3 + RAIN_UP * k; } },
-  downpour: { name: '폭우', d: () => '산성비가 2레인에 동시에 내리고, 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)', ap: (s) => { s.rain2 = 1; } },
+  downpour: { name: '폭우', d: () => `산성비가 2레인에 동시에 내리고, 비가 오는 동안 웅덩이가 고여 커짐 (그친 뒤 ${PUD_DRY}초 동안 말라 줄어듦)`, ap: (s) => { s.rain2 = 1; } },
   // 산성 분사기 - 점액 흔적
   slimeb:   { name: '점액 흔적', d: (k, c) => `웅덩이를 밟은 적이 3초 동안 지나간 자리에 산성 자국 (반경 22, 2초)을 남김. 자국 위의 적은 초당 공격력의 ${pc(0.15 * k * c)}% 피해`, ap: (s, k, c) => { s.slime = 0.15 * k * c; s.slimeT = 2; } },
   sticky:   { name: '끈적한 자국', d: (k) => `자국 유지 +${r1(0.5 * k)}초, 자국 피해 +${40 * k}%`, ap: (s, k) => { s.slimeT = 2 + 0.5 * k; s.slime *= 1 + 0.4 * k; } },
@@ -1832,7 +1835,7 @@ function dissolve(e, st) {
   fx({ k: 'dsvb', d: 1.7, x, y, r: R, c: st.color, lv: Math.round((st.dsvR - 1) / 0.12) });
   if (st.dsvPool) acidPool(x, y, st, 1, 2, 1);
 }
-// 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수 x BIG_CAP 까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우: 그친 자리에 작은 웅덩이 3개
+// 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수 x BIG_CAP 까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우의 고이는 웅덩이는 puddles
 function rainTick(p, dt, seen) {
   const st = p.st, got = gotOf(seen, p.wk), list = CAND, hw = LW / 2; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
@@ -1848,7 +1851,28 @@ function rainTick(p, dt, seen) {
     dot(e, p.dps * dt, st);
   }
   bigFrom(null);
-  if (p.t <= 0 && p.end) for (let k = 0; k < 3; k++) acidPool(p.x + (rnd() - 0.5) * LW * 0.5, H * (0.25 + 0.6 * (k + rnd()) / 3), st, 0.5, 2);
+}
+// 폭우 (T10d): 비가 오는 동안 레인의 PUD_SITE 곳(높이를 고르게 나눠 흐트러뜨림)에 웅덩이가 고인다. 한 곳에 덩이 PUD_LOBE 개:
+// 첫 덩이가 먼저 생기고, 다음 덩이는 옆자리에 늦게 생겨 번져 이어진다. 덩이 하나가 보통 웅덩이 하나다(같은 무기의 웅덩이끼리 겹쳐도 피해는 한 번).
+// 반경은 비가 그칠 때까지 커지고 (u^0.6) 그친 뒤 PUD_DRY 초 동안 줄어든다 (넓이가 고르게 줄게 sqrt). rp: 같은 비의 덩이 묶음 (화면에서 하나로 이어 그린다)
+function puddles(lane, st) {
+  const g = { lane, gr: st.rainT }, d = st.rainT + PUD_DRY, base = 75 * (1 + st.aRange + st.areaPct) * PUD_R, cx = (lane + 0.5) * LW;
+  for (let k = 0; k < PUD_SITE; k++) {
+    const sx = cx + (rnd() - 0.5) * LW * 0.36, sy = H * (0.22 + 0.62 * (k + rnd()) / PUD_SITE);
+    let s0 = 0.1 + 0.5 * rnd();
+    for (let j = 0; j < PUD_LOBE; j++) {
+      const a = rnd() * Math.PI * 2, dd = j ? base * (0.6 + 0.35 * rnd()) : 0, rm = base * (j ? 0.6 + 0.3 * rnd() : 0.9 + 0.2 * rnd());
+      S.pools.push({ acid: 1, rp: g, x: sx + Math.cos(a) * dd, y: sy + Math.sin(a) * dd * 0.8, r: 0, rm, s0: Math.min(s0, g.gr * 0.7), t: d, d, dps: st.dmg, st, c: st.color, vuln: 0.10 + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd() });
+      s0 += 0.35 + 0.4 * rnd();
+    }
+  }
+}
+// 고이는 웅덩이의 지금 반경 (판정과 그림이 같은 값을 쓴다)
+function puddleR(p) {
+  const age = p.d - p.t, gr = p.rp.gr;
+  if (age < p.s0) return 0;
+  if (age < gr) return p.rm * Math.pow((age - p.s0) / (gr - p.s0), 0.6);
+  return p.rm * Math.sqrt(Math.max(0, 1 - (age - gr) / PUD_DRY));
 }
 // 점액 흔적: 웅덩이를 밟은 적이 3초 동안 22px 움직일 때마다 자국을 남긴다 (모든 무기 합쳐 SLIME_MAX 개, 넘치면 가장 오래된 것을 바꾼다)
 const SLIME_R = 22, SLIME_MAX = 80;
@@ -1864,6 +1888,7 @@ function slimeDrop(e) {
 }
 
 function acidTick(p, dt, seen) {
+  if (p.r < 1) return;                       // 고이기 전의 폭우 웅덩이
   const st = p.st, cm = 1 + st.crit * (1 + st.critDmg);   // 지속 피해에는 치명타 기댓값을 반영
   let got = seen.get(st.w); if (!got) seen.set(st.w, got = new Set());
   // 웅덩이 하나가 한 틱에 닿는 적은 최대 타격 수까지 (기지에 가까운 적부터). 같은 무기의 다른 웅덩이가 이번 스텝에 이미 닿은 적은 빼고 센다
@@ -2023,7 +2048,10 @@ function skillStep(w, i, st, dt) {
       if (!any) { w.rn = 0.5; break; }
       w.rn = RAIN_CD;
       const order = [0, 1, 2, 3, 4].sort((a, b) => cnt[b] - cnt[a] || a - b);
-      for (let k = 0; k < (st.rain2 ? 2 : 1); k++) S.pools.push({ kind: 'rain', wk: w, lane: order[k], x: (order[k] + 0.5) * LW, t: st.rainT, d: st.rainT, dps: st.dmg * st.rain, st, c: st.color, vuln: 0.10 + st.aVuln, end: st.rain2, sd: rnd() });
+      for (let k = 0; k < (st.rain2 ? 2 : 1); k++) {
+        S.pools.push({ kind: 'rain', wk: w, lane: order[k], x: (order[k] + 0.5) * LW, t: st.rainT, d: st.rainT, dps: st.dmg * st.rain, st, c: st.color, vuln: 0.10 + st.aVuln, sd: rnd() });
+        if (st.rain2) puddles(order[k], st);   // 폭우: 비가 오는 동안 고이는 웅덩이
+      }
       snd('rain');
       break;
     }
@@ -2372,7 +2400,7 @@ function step(dt) {
   let eSeen = null, rSeen = null, bSeen = null, nSeen = null, lSeen = null;   // 전격기: 전기장, 줄, 구체 / 산성비, 점액 자국 (종류마다 따로)
   for (const p of S.pools) {
     p.t -= dt;
-    if (p.acid) { acidTick(p, dt, aSeen); continue; }
+    if (p.acid) { if (p.rp) p.r = puddleR(p); acidTick(p, dt, aSeen); continue; }   // 폭우의 고이는 웅덩이: 반경이 커졌다 줄어든다
     switch (p.kind) {
       case 'fire': fireTick(p, dt, aSeen); continue;
       case 'efield': fieldTick(p, dt, eSeen || (eSeen = new Map())); continue;
@@ -2591,7 +2619,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

@@ -351,12 +351,19 @@ function model(st, ref, c, lay, PP) {
       const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct;
       const vu = 0.10 + st.aVuln, per = np * cm * bm * (1 + vu);   // 웅덩이 하나의 초당 피해 (D 단위)
       const kr = 0.3 / Math.max(1, pc.K * pw.kw);              // 피해 1 당 처치 수 (처치 폭발과 같은 근사)
-      // 산성비 (T5d): RAIN_CD 초마다 rainT 초, 레인 하나 (폭우: 둘) 전체. 적이 가장 많은 레인이라 평균의 1.5배. 폭우는 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)
+      // 산성비 (T5d): RAIN_CD 초마다 rainT 초, 레인 하나 (폭우: 둘) 전체. 적이 가장 많은 레인이라 평균의 1.5배. 폭우는 고이는 웅덩이 (T10d)
       let extra = 0;
       if (st.rain) {
         const nl = st.rain2 ? 2 : 1, inL = bigE(lam * 1.5, N, NB);   // 레인 전체: 최대 타격 수 x BIG_CAP (T10c)
         extra += nl * st.rainT / Core.RAIN_CD * st.rain * inL * (1 + vu) * pm.rain;
-        if (st.rain2) extra += nl * 3 * 2 / Core.RAIN_CD * capC(nIn(lam, Math.PI * rr * rr * 0.25), N) * 0.8 * cm * (1 + vu);
+        if (st.rain2) {   // 폭우 (T10d): 비가 오는 동안 고여 커지는 웅덩이 (레인마다 PUD_SITE 곳 x PUD_LOBE 덩이), 그친 뒤 PUD_DRY 초 동안 마름. 같은 곳의 뒤 덩이는 겹쳐 0.7 만 센다
+          const b0 = 75 * (1 + st.aRange + st.areaPct) * Core.PUD_R, gr = st.rainT, T = gr + Core.PUD_DRY, K = 24; let hs = 0;
+          for (let j = 0; j < Core.PUD_LOBE; j++) {
+            const p = { rp: { gr }, rm: b0 * (j ? 0.75 : 1), s0: Math.min(gr * 0.7, 0.35 + 0.55 * j), d: T };
+            for (let i = 0; i < K; i++) { p.t = T * (1 - (i + 0.5) / K); const r = Core.puddleR(p); hs += (j ? 0.7 : 1) * capE(nIn(lam, Math.PI * r * r), N) * T / K; }   // 아무 데나 고이므로 비어 있을 수도 있다 (capE)
+          }
+          extra += nl * Core.PUD_SITE * hs / Core.RAIN_CD * cm * (1 + vu);
+        }
       }
       let dd = pools * per + extra;
       // 점액 흔적: 웅덩이를 밟은 적이 3초 동안 22px 마다 자국 (뒤따르는 같은 레인의 적이 밟는다). 모든 무기 합쳐 80개
@@ -832,8 +839,9 @@ function reportText(T, PP, fitInfo) {
 //   표적 고르기 몫 m.stkT 0.37 (대기 감소를 끈 측정 2.19 / 상위까지 1.76 에 맞춤)과 대기 감소 몫 m.stk 1.8 (완성 2.48) 을 따로 손으로 맞췄다 (전에는 m.stk 11.5 하나가 둘을 대신했다)
 // T10c: 간격 스킬을 드물고 크게 바꾼 뒤 잰 완성·뿌리. _t10c_a 의 슬러그·용의 숨결, _t10c_b 의 초신성·광탄·구전, _t10c_c 의 산성비가 지금 값이다 (뒤 파일이 앞의 옛 값을 덮어 쓴다).
 //   큰 한 방의 늘어난 최대 타격 수 몫에 m.big 0.7 을 손으로 맞췄다. 산성비는 계산기가 크게 본다 (비가 레인을 비우는 포화를 못 봄, T10e)
+// T10d: 폭우의 웅덩이를 비가 오는 동안 고여 커지는 웅덩이로 바꾼 뒤 잰 산성비 완성·뿌리 (_t10d_a).
 const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt', 'skill_eq_report_t9e.txt', 'skill_eq_report_t10b.txt',
-  'skill_eq_report_t10c_a.txt', 'skill_eq_report_t10c_b.txt', 'skill_eq_report_t10c_c.txt'];
+  'skill_eq_report_t10c_a.txt', 'skill_eq_report_t10c_b.txt', 'skill_eq_report_t10c_c.txt', 'skill_eq_report_t10d_a.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};

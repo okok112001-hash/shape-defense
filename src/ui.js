@@ -3892,6 +3892,75 @@ function drawAcidPool(p, nowT) {
     ctx.lineWidth = 1; ctx.strokeStyle = rgba(L ? VX.mix(p.c, -0.25) : VX.hot(p.c), 0.6 * al); ctx.stroke();
   }
 }
+// 폭우의 고이는 웅덩이 (T10d): 같은 비의 덩이들을 따로 캔버스에 하나로 이어 그려 (겹친 곳에 테두리가 생기지 않고 번져 이어진다) 한 번에 옮긴다.
+// 덩이마다 가장자리를 고르지 않게 흐트러뜨리고 (정해진 굴곡 + 천천히 일렁임), 비가 오는 동안에는 빗방울이 떨어져 물결이 번진다.
+// 그친 뒤에는 줄어들며, 가장 컸던 자리에 옅은 젖은 자국이 남았다가 함께 사라진다. 판정 반경(p.r)과 그림의 반경이 같다
+const PUD_K = 12, PUD_M = 48, PUD_F = new Float32Array(PUD_M * PUD_K), PUD_C = new Float32Array(PUD_M * PUD_K), PUD_S = new Float32Array(PUD_M * PUD_K), PUD_L = [], PUD_CV = [];
+let pudFr = 0, pudN = 0;
+function pudPath(g2, n, big, s, add) {
+  g2.beginPath();
+  for (let i = 0; i < n; i++) {
+    const p = PUD_L[i], R = (big ? p.rm : p.r) * s, o = i * PUD_K; if (R + add < 0.6) continue;
+    let px = 0, py = 0;
+    for (let k = 0; k <= PUD_K + 1; k++) {   // 이웃 점의 가운데를 잇는 곡선 (각지지 않게)
+      const j = o + k % PUD_K, rr = R * PUD_F[j] + add, qx = p.x + PUD_C[j] * rr, qy = p.y + PUD_S[j] * rr;
+      if (k === 1) g2.moveTo((px + qx) / 2, (py + qy) / 2);
+      else if (k > 1) g2.quadraticCurveTo(px, py, (px + qx) / 2, (py + qy) / 2);
+      px = qx; py = qy;
+    }
+    g2.closePath();
+  }
+}
+function drawPuddles(g, nowT) {
+  const u = VX.ui(g); if (u.fr === pudFr) return; u.fr = pudFr;
+  const L = PUD_L; L.length = 0;
+  for (const p of C.S.pools) if (p.rp === g && L.length < PUD_M) L.push(p);
+  const n = L.length; if (!n) return;
+  const p0 = L[0], age = p0.d - p0.t, dry = age > g.gr ? Math.min(1, (age - g.gr) / C.PUD_DRY) : 0, col = p0.c, Lt = VX.light, wob = RM.matches ? 0 : 1, ts = nowT / 320;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (let i = 0; i < n; i++) {
+    const p = L[i], e = (dry ? p.rm : p.r) * 1.2 + 3, o = i * PUD_K;
+    for (let k = 0; k < PUD_K; k++) {
+      const a = k * TAU / PUD_K + p.sd * 9;
+      PUD_C[o + k] = Math.cos(a); PUD_S[o + k] = Math.sin(a);
+      PUD_F[o + k] = 1 + 0.3 * (hash(p.sd * 40 + k * 1.7) - 0.5) + wob * 0.045 * Math.sin(ts + k * 1.9 + p.sd * 9);
+    }
+    if (e < 4) continue;
+    if (p.x - e < x0) x0 = p.x - e; if (p.x + e > x1) x1 = p.x + e; if (p.y - e < y0) y0 = p.y - e; if (p.y + e > y1) y1 = p.y + e;
+  }
+  if (x1 < x0) return;
+  const k = dpr * sc, cw = Math.ceil((x1 - x0) * k), ch = Math.ceil((y1 - y0) * k);
+  let cv2 = PUD_CV[pudN]; if (!cv2) { cv2 = PUD_CV[pudN] = document.createElement('canvas'); cv2.width = cv2.height = 1; cv2.g = cv2.getContext('2d'); }
+  pudN++;
+  if (cv2.width < cw || cv2.height < ch) { cv2.width = Math.max(cv2.width, cw); cv2.height = Math.max(cv2.height, ch); }
+  const g2 = cv2.g;
+  g2.setTransform(1, 0, 0, 1, 0, 0); g2.clearRect(0, 0, cw, ch);
+  g2.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
+  if (dry) { pudPath(g2, n, 1, 1, 0); g2.fillStyle = rgba(col, (Lt ? 0.16 : 0.12) * (1 - dry)); g2.fill(); }   // 젖은 자국 (가장 컸던 자리)
+  pudPath(g2, n, 0, 1, 1.1); g2.fillStyle = rgba(col, 0.75); g2.fill();   // 가장자리 띠: 바깥 덩어리에서 안쪽 덩어리를 파낸다
+  pudPath(g2, n, 0, 1, -1.1); g2.globalCompositeOperation = 'destination-out'; g2.fillStyle = '#000'; g2.fill();
+  g2.globalCompositeOperation = 'source-over'; g2.fillStyle = rgba(col, 0.26); g2.fill();
+  pudPath(g2, n, 0, 0.62, 0); g2.fillStyle = rgba(col, 0.14); g2.fill();
+  ctx.drawImage(cv2, 0, 0, cw, ch, x0, y0, cw / k, ch / k);
+  // 비가 오는 동안: 빗방울이 떨어진 자리에 물결 (덩이마다 하나씩 번갈아, 퍼지며 옅어진다). 거품은 늘
+  const tS = VX.t, hot = Lt ? VX.mix(col, -0.3) : VX.hot(col);   // 물결은 게임 시간 (멈추면 같이 멈춘다)
+  ctx.lineWidth = 1;
+  if (!dry && !RM.matches) for (let i = 0; i < n; i++) {
+    const p = L[i]; if (p.r < 7) continue;
+    const per = 0.45 + 0.35 * hash(p.sd * 7), tt = tS / per + hash(p.sd * 3), cyc = Math.floor(tt), ph = tt - cyc;
+    const a = hash(cyc * 1.7 + p.sd * 11) * TAU, d = Math.sqrt(hash(cyc * 2.3 + p.sd * 5)) * 0.6 * p.r, rr = 1.5 + (2.5 + 0.22 * p.r) * VX.ease(ph, 2);
+    ctx.beginPath(); ctx.ellipse(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.8, rr, rr * 0.5, 0, 0, TAU);
+    ctx.strokeStyle = rgba(hot, 0.65 * (1 - ph)); ctx.stroke();
+  }
+  ctx.beginPath(); let any = false;
+  for (let i = 0; i < n; i++) {
+    const p = L[i]; if (p.r < 9) continue;
+    const ph = (nowT / 1100 + hash(p.sd * 13)) % 1, cyc = Math.floor(nowT / 1100 + hash(p.sd * 13)), a = hash(cyc + p.sd * 17) * TAU, d = Math.sqrt(hash(cyc * 1.3 + p.sd * 19)) * 0.55 * p.r;
+    const bx = p.x + Math.cos(a) * d, by = p.y + Math.sin(a) * d * 0.8 - ph * 4, br = 1.3 + 3 * ph * Math.min(1, p.r / 25);
+    ctx.moveTo(bx + br, by); ctx.arc(bx, by, br, 0, TAU); any = true;
+  }
+  if (any) { ctx.fillStyle = rgba(col, 0.3); ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(col, 0.9); ctx.stroke(); }
+}
 /* ---------- 저격포: 저격선, 넘어가는 피해, 점사, 연속 사냥, 조준 레이저 (고정, 표식 이전, 균열) ---------- */
 // 저격선: 굵고 밝은 선이 서서히 사라지고 가는 흔적이 잠깐 남는다. 포구에 반동 표시. ri: 넘어가는 피해 (가늘고, 넘어간 자리에 불티)
 // bu: 점사 무기의 발 (1, 2, 3번째). 발마다 총구 불꽃이 터지고 탄피가 튀고 화약 연기가 조금 오른다 (반동 표시 대신)
@@ -4629,6 +4698,7 @@ function draw() {
     if (dw && dw.kind === 'w') drawRange(dw, +drag.over.dataset.slot);
   }
   const bs = C.bstats(), nowT = performance.now();
+  pudFr++; pudN = 0;                         // 폭우 웅덩이: 이번 그림에서 그린 비 묶음, 쓴 따로 캔버스 수
   if (bs.nearSlow) {                         // 감속 철조망 구역
     ctx.fillStyle = 'rgba(110,200,255,.06)'; ctx.fillRect(0, H * 0.75, W, H * 0.25);
     ctx.strokeStyle = 'rgba(110,200,255,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 7]); ctx.beginPath(); ctx.moveTo(0, H * 0.75); ctx.lineTo(W, H * 0.75); ctx.stroke(); ctx.setLineDash([]);
@@ -4640,7 +4710,7 @@ function draw() {
   }
   for (const p of S.pools) {
     if (p.kind) { drawKindPool(p, nowT, H); continue; }
-    if (p.acid) { drawAcidPool(p, nowT); continue; }   // 산성 웅덩이
+    if (p.acid) { if (p.rp) drawPuddles(p.rp, nowT); else drawAcidPool(p, nowT); continue; }   // 산성 웅덩이 (폭우의 고이는 웅덩이는 같은 비끼리 한 번에)
     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     ctx.fillStyle = p.c ? rgba(p.c, 0.1 + 0.12 * Math.min(1, p.t)) : `rgba(255,140,60,${0.1 + 0.12 * Math.min(1, p.t)})`; ctx.fill();
     ctx.strokeStyle = p.c ? rgba(p.c, 0.55) : 'rgba(255,160,80,.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 5]); ctx.stroke(); ctx.setLineDash([]);
@@ -4665,7 +4735,7 @@ function draw() {
   }
   drawAimOut(aimOut, nowW, H);
   let dsvP = null;                           // 용해를 찍은 무기의 웅덩이 (녹기 시작하는 적)
-  for (const p of S.pools) if (p.acid && p.st.dsv) (dsvP || (dsvP = [])).push(p);
+  for (const p of S.pools) if (p.acid && p.st.dsv && p.r >= 1) (dsvP || (dsvP = [])).push(p);
   for (const e of S.enemies) {
     const age = e.boss && e.born != null ? S.t - e.born : 9, mt = dsvP && !e.boss && !e.dead ? meltOf(e, dsvP) : 0;
     if (age < 0.3) {                         // 보스 등장: 작게 시작해 살짝 넘쳤다가 제 크기로 (보이는 효과만)
