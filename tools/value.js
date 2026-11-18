@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 1.8, stkT: 0.37, burst: 1.05, mk: 0.74, xf: 3.9, crk: 1.32, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 1.8, stkT: 0.37, burst: 1.05, mk: 0.74, xf: 3.9, crk: 1.32, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050, big: 0.7 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -150,6 +150,8 @@ function model(st, ref, c, lay, PP) {
     if (st.freeze) sig.push(cov * (Math.min(0.9, st.freeze / tau) * (1 - bb) + bb * 0.4 * Math.min(1, 1 / tau)));
   };
   const covOf = (mu) => (mu > 1e-6 ? capE(mu, N) / mu : 1);
+  // 큰 한 방 (T10c): 최대 타격 수가 N 에서 st.capBig 로 늘어난 몫 중 실제로 맞는 비율 pm.big (T10c 측정에 맞춤: 초신성 완성 3.20 / 뿌리 1.48 에 예측 3.18 / 1.56, 쌍구전 완성 3.10 에 2.92. 산성비는 비가 레인을 비워 남는 피해를 계산기가 못 봐 예측 4.1 / 1.9 로 크다: T10e 에서 다시 맞춘다)
+  const NB = st.capBig, bigE = (mu, n0, nb) => capE(mu, n0) + pm.big * (capE(mu, nb) - capE(mu, n0)), bigC = (mu) => (mu < 1e-6 ? 1 : bigE(mu, N, NB) / occ(mu));
   const tau = st.cd / (1 + st.dbl), Rv0 = cb.v;   // Rv0: 적의 평균 속도 (px/초)
   switch (t) {
     case 'blaster': {
@@ -198,9 +200,9 @@ function model(st, ref, c, lay, PP) {
         sig.push(Math.min(0.9, st.slugKn / (cb.v * Math.max(1, slugT))) * (1 - bb) * Math.min(1, sl / lanesN));
         if (st.slugStun) sig.push(Math.min(0.9, st.slugStun / slugT) * (1 - bb) * Math.min(1, sl / lanesN));
       }
-      if (st.dragon) {   // 용 머리: 5번째마다 정면 레인 끝까지 모든 적 (줄지 않음). 화상은 붙이지 않는다 (T6)
+      if (st.dragon) {   // 용 머리: DRAGON_N 번째마다 정면 레인 끝까지 모든 적 (줄지 않음). 화상은 붙이지 않는다 (T6)
         const g = lam * 1.1 + 0.3;
-        dir += rate / 5 * st.dragon * g;
+        dir += rate / Core.DRAGON_N * st.dragon * g;
       }
       if (st.flame) dot += burnN * st.flame * Math.min(3, tau) * pm.flame;   // 화염 산탄: 맞은 적마다 공격력 x flame 초당, 3초. 화상은 쌓이지 않아(가장 센 것 하나) 여러 자루가 겹치면 덜 센다 (flame 계수)
       if (st.sea) {   // 불바다: 탄 길의 먼 절반에 2초 불길 (레인마다 최대 3줄)
@@ -237,10 +239,10 @@ function model(st, ref, c, lay, PP) {
       const ech = 1 + st.echo;
       let hits = n * ech;
       if (st.nova) {
-        const R2 = R * st.novaR, n2 = capC(nIn(lam, Math.PI * R2 * R2 / 2), N), e = st.novaEvery;
+        const R2 = R * st.novaR, n2 = bigC(nIn(lam, Math.PI * R2 * R2 / 2)), e = st.novaEvery;   // 큰 한 방: 최대 타격 수 x BIG_CAP (T10c)
         const nv = st.nova * n2 * (1 + (st.twinStar ? 0.7 : 0));
         hits = ((e - 1) * n * ech + nv) / e;
-        if (st.halo) dot += st.halo * capE(nIn(lam, Math.PI * R2 * R2 / 2), N) * Math.min(1, 1.5 / (e * tau));
+        if (st.halo) dot += st.halo * bigE(nIn(lam, Math.PI * R2 * R2 / 2), N, NB) * Math.min(1, Core.HALO_T / (e * tau));
       }
       dir = rate * hits;
       burnN = rate * n;
@@ -266,8 +268,8 @@ function model(st, ref, c, lay, PP) {
       const tw = 1 + st.mslTwin;                          // 쌍발: 둘째 미사일
       let shell = (one + mirv) * tw; sc *= tw;
       if (st.nuke) {                                      // 핵탄두 차례 (nukeEvery 번째마다, 미사일이어도 1발)
-        const e = st.nukeEvery, Rn = R * st.nukeR;
-        const nk = st.nuke * (1 + around(Rn)) + mirv + (st.nShock ? st.nShock * capE(Math.max(0, splashN(2 * Rn) - splashN(Rn)) * 0.6, N) : 0);
+        const e = st.nukeEvery, Rn = R * st.nukeR;   // 핵탄두와 충격파: 최대 타격 수 x BIG_CAP (T10c)
+        const nk = st.nuke * (1 + bigE(splashN(Rn) * 0.7, N - 1, NB - 1)) + mirv + (st.nShock ? st.nShock * bigE(Math.max(0, splashN(2 * Rn) - splashN(Rn)) * 0.6, N, NB) : 0);
         shell = ((e - 1) * shell + nk) / e; sc = ((e - 1) * sc + st.nuke) / e; hsz = ((e - 1) * hsz + st.nuke) / e;
         if (st.nShock) sig.push(Math.min(0.6, st.nShockKn / (cb.v * tau * e * 1.5)) * 0.5 * pm.shock * (1 - bb));   // 충격파 밀어내기: 앞쪽 적의 절반쯤
       }
@@ -275,7 +277,7 @@ function model(st, ref, c, lay, PP) {
       if (st.cluster) ex += st.cluster * 0.8 * capE(splashN(R * 0.6) * 0.8, N);
       if (st.shrap) ex += st.shrap * 0.25 * occ(nIn(lam, 170 * 30));
       dir = rate * (shell + ex * sc);
-      if (st.air) dir += st.air * Math.min(LANES, Math.max(1, lam * LANES)) * (1 + around(R * Core.AIR_R)) / Core.AIR_CD;   // 공습 (T10a): AIR_CD 초마다 표적(레인마다 가장 앞의 적, 빈 레인 몫은 다른 적)마다 1발 (발사 속도와 무관)
+      if (st.air) dir += st.air * Math.min(LANES, Math.max(1, lam * LANES)) * (1 + bigE(splashN(R * Core.AIR_R) * 0.7, N - 1, NB - 1)) / Core.AIR_CD;   // 공습 (T10a): AIR_CD 초마다 표적(레인마다 가장 앞의 적, 빈 레인 몫은 다른 적)마다 1발 (발사 속도와 무관)
       burnN = rate * nb;
       if (st.pool) dot += rate * sc * st.pool * 3 * capE(splashN(R) * 0.7 + 0.5, N);
       ccHit(tau * 1.5, st.knock);
@@ -306,13 +308,13 @@ function model(st, ref, c, lay, PP) {
         dot += on * dps * capE(cnt + segs * by, N * Math.max(1, segs)) * pm.arc;
         if (st.arcHv) dot += segs / Math.max(st.arcT, 2 * tau) * busy * dps * (0.5 + by) * pm.arc;   // 고압 방전: 사라질 때 닿아 있던 적
       }
-      if (st.ball) {                                           // 구전: 4번째 공격마다 (쌍구전: 둘). 닿는 범위 안 적 수 x 지속 시간
-        const nb = st.ballTwin ? 2 : 1, Rb = st.ballR * (1 + st.areaPct) + 9.5, per = fire / 4 * nb;
+      if (st.ball) {                                           // 구전: 4번째 공격마다 (쌍구전: BALL_N2 번째마다 둘). 닿는 범위 안 적 수 x 지속 시간
+        const nb = st.ballTwin ? 2 : 1, Rb = st.ballR * (1 + st.areaPct) + 9.5, per = fire / (st.ballTwin ? Core.BALL_N2 : 4) * nb;   // 쌍구전: BALL_N2 번째마다 둘 (T10c)
         dot += per * st.ballT * st.ball * capE(nIn(lam, Math.PI * Rb * Rb), N) * pm.ball;
         if (st.ballTwin) {
-          const nB = capE(splashN(Core.BALL_BOOM_R * (1 + st.areaPct)), N);
+          const nB = bigE(splashN(Core.BALL_BOOM_R * (1 + st.areaPct)), N, NB);
           dir += per * st.ballBoom * nB;
-          sig.push(Math.min(0.5, per * 0.8 * nB / Math.max(1, allN)) * (1 - bb));
+          sig.push(Math.min(0.5, per * Core.BALL_STUN * nB / Math.max(1, allN)) * (1 - bb));
         }
       }
       ccHit(tau * 1.3, st.knock);
@@ -349,10 +351,10 @@ function model(st, ref, c, lay, PP) {
       const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct;
       const vu = 0.10 + st.aVuln, per = np * cm * bm * (1 + vu);   // 웅덩이 하나의 초당 피해 (D 단위)
       const kr = 0.3 / Math.max(1, pc.K * pw.kw);              // 피해 1 당 처치 수 (처치 폭발과 같은 근사)
-      // 산성비 (T5d): 8초마다 rainT 초, 레인 하나 (폭우: 둘) 전체. 적이 가장 많은 레인이라 평균의 1.5배. 폭우는 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)
+      // 산성비 (T5d): RAIN_CD 초마다 rainT 초, 레인 하나 (폭우: 둘) 전체. 적이 가장 많은 레인이라 평균의 1.5배. 폭우는 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)
       let extra = 0;
       if (st.rain) {
-        const nl = st.rain2 ? 2 : 1, inL = capE(lam * 1.5, N);
+        const nl = st.rain2 ? 2 : 1, inL = bigE(lam * 1.5, N, NB);   // 레인 전체: 최대 타격 수 x BIG_CAP (T10c)
         extra += nl * st.rainT / Core.RAIN_CD * st.rain * inL * (1 + vu) * pm.rain;
         if (st.rain2) extra += nl * 3 * 2 / Core.RAIN_CD * capC(nIn(lam, Math.PI * rr * rr * 0.25), N) * 0.8 * cm * (1 + vu);
       }
@@ -828,7 +830,10 @@ function reportText(T, PP, fitInfo) {
 //   m.xf 3.9 (이어받은 겹의 몫. 측정에서는 계산보다 훨씬 크다), m.crk 1.32 (균열) 를 손으로 맞췄다 (4시나리오 기하평균. 물량은 저격포가 못 버텨 n/a). m.exec, m.mkb 는 지움
 // T10b: 연속 사냥의 대기 감소를 연속 처치마다 STREAK_F 배로 줄이고 (-90%, -54%, -32%…) 잰 과잉 살상 완성·뿌리 (_t10b, _t9d 의 rail.0 을 덮어 씀).
 //   표적 고르기 몫 m.stkT 0.37 (대기 감소를 끈 측정 2.19 / 상위까지 1.76 에 맞춤)과 대기 감소 몫 m.stk 1.8 (완성 2.48) 을 따로 손으로 맞췄다 (전에는 m.stk 11.5 하나가 둘을 대신했다)
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt', 'skill_eq_report_t9e.txt', 'skill_eq_report_t10b.txt'];
+// T10c: 간격 스킬을 드물고 크게 바꾼 뒤 잰 완성·뿌리. _t10c_a 의 슬러그·용의 숨결, _t10c_b 의 초신성·광탄·구전, _t10c_c 의 산성비가 지금 값이다 (뒤 파일이 앞의 옛 값을 덮어 쓴다).
+//   큰 한 방의 늘어난 최대 타격 수 몫에 m.big 0.7 을 손으로 맞췄다. 산성비는 계산기가 크게 본다 (비가 레인을 비우는 포화를 못 봄, T10e)
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt', 'skill_eq_report_t9e.txt', 'skill_eq_report_t10b.txt',
+  'skill_eq_report_t10c_a.txt', 'skill_eq_report_t10c_b.txt', 'skill_eq_report_t10c_c.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};

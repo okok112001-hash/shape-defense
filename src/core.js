@@ -268,6 +268,21 @@ const STREAK_K = 0.9, STREAK_F = 0.6, BURST_GAP = 0.18, BURST_A = 0.1, BURST_B =
 // 조준 레이저 (저격포 줄, T9e): 표적을 고정해 죽을 때까지 노리고, 저격할 때마다 겹 +1 (최대 MARK_MAX). 표식 이전: 고정한 적이 죽으면 다음 표적으로 옮겨 가며 겹 일부를 이어받는다
 // 균열 (궁극): 겹이 다 찬 고정 표적은 저격이 맞을 때마다 최대 체력의 CRACK_P (보스는 1/4)를 더 깎는다. 한 발에 공격력의 CRACK_Y 배까지 (줄 배율과 무관)
 const MARK_MAX = 5, CRACK_P = 0.1, CRACK_Y = 3;
+// 간격 스킬 "드물고 크게" (T10c, 사용자 결정 B): 간격을 2~3배로 넓히고 한 방 피해를 올린다. 같은 화력을 자주 나눠 때리면 적이 안 죽는다.
+//   큰 한 방의 최대 타격 수는 무기 최대 타격 수의 BIG_CAP 배 (st.capBig). 거대탄, 슬러그, 용 머리는 원래 제한이 없다
+//   초신성: NOVA_N 번째 파동마다 피해 x(1 + NOVA_K r), 쌍성 TWIN_N 번째. 잔광 HALO_T 초
+//   핵탄두: NUKE_N 번째 포탄마다 범위 x(NUKE_R0 + 0.1 r), 피해 x(1 + NUKE_K r), 연쇄 핵 NUKE_N2 번째
+//   슬러그: SLUG_N 번째 발사마다 피해 (0.4 + 0.2 r) x SLUG_K, 밀어냄 SLUG_KN, 묵직한 탄 기절 SLUG_STN r 초
+//   용 머리: DRAGON_N 번째 발사마다 공격력 x DRAGON_M. 거대탄: GIANT_N 번째 발사마다 x GIANT_M
+//   쌍구전: BALL_N2 번째 공격마다 구체 둘 (하나의 피해 x BALL_TW), 사라질 때 반경 BALL_BOOM_R 에 공격력 x BALL_BOOM, BALL_STUN 초 기절
+//   산성비: RAIN_CD 초마다, 초당 공격력의 RAIN_K r. 장마 지속 +RAIN_UP r 초 (비가 레인을 금방 비워 간격 x2 에 그쳤다)
+const BIG_CAP = 3;
+const NOVA_N = 15, NOVA_K = 0.36, TWIN_N = 9, HALO_T = 3;
+const NUKE_N = 12, NUKE_R0 = 2.0, NUKE_K = 0.5, NUKE_N2 = 5;
+const SLUG_N = 9, SLUG_K = 3, SLUG_KN = 36, SLUG_STN = 0.18;
+const DRAGON_N = 15, DRAGON_M = 3, GIANT_N = 18, GIANT_M = 6;
+const BALL_N2 = 12, BALL_TW = 1.5, BALL_BOOM_R = 140, BALL_BOOM = 4.2, BALL_STUN = 1.2;
+const RAIN_CD = 16, RAIN_K = 0.55, RAIN_UP = 0.4;
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
@@ -275,18 +290,18 @@ const NEWSK = {
   spray:    { name: '난사', d: (k, c) => `${SPRAY_ON}초 동안 공격 속도 x${r1(SPRAY_K * c)}로 난사, ${SPRAY_RL}초 재장전 (쏘는 동안만 탄띠가 줄어듦)`, ap: (s, k, c) => { s.spray = SPRAY_K * c; } },
   lightb:   { name: '광탄', d: (k) => `탄이 빛살로 바뀌고 적 ${k}명을 추가로 관통 (관통할 때마다 피해 -65%)`, ap: (s, k) => { s.beam = k; s.pierce += k; s.pk = 0.35; } },
   accel:    { name: '가속 관통', d: (k) => `관통할 때 줄어드는 피해를 ${4 * k}%p 완화 (관통당 -${65 - 4 * k}%)`, ap: (s, k) => { s.pk = Math.min(1, 0.35 + 0.04 * k); } },
-  gigab:    { name: '거대탄', d: (k, c) => `6번째 발사마다 레인 폭 거대탄: 피해 ${r1(2 * c)}배, 모든 적 관통`, ap: (s, k, c) => { s.gnt = 1; s.gntM = 2 * c; s.gntEvery = 6; } },
+  gigab:    { name: '거대탄', d: (k, c) => `${GIANT_N}번째 발사마다 레인 폭 거대탄: 피해 ${r1(GIANT_M * c)}배, 모든 적 관통`, ap: (s, k, c) => { s.gnt = 1; s.gntM = GIANT_M * c; s.gntEvery = GIANT_N; } },
   turret:   { name: '보조 포탑', d: (k, c) => `옆에 작은 포탑이 떠서 옆 레인을 공격 (피해 공격력의 ${pc(0.12 * k * c)}%)`, ap: (s, k, c) => { s.tur = k; s.turD = 0.12 * k * c; } },
   turboost: { name: '포탑 과급', d: (k) => `포탑 공격 속도 +${10 * k}%`, ap: (s, k) => { s.turRate = 0.1 * k; } },
   twinturr: { name: '쌍포탑', d: () => '반대쪽에 포탑 하나 더. 포탑 탄이 맞으면 작은 폭발 (반경 45, 탄 피해 40%)', ap: (s) => { s.turTwin = 1; } },
   // 산탄포 - 슬러그
-  slugb:    { name: '슬러그탄', d: (k, c) => `3번째 발사마다 정면에 대형 탄: 피해 공격력의 ${pc((0.4 + 0.2 * k) * c)}%, 모든 적 관통, 밀어냄 12`, ap: (s, k, c) => { s.slug = (0.4 + 0.2 * k) * c; s.slugKn += 12; s.slugEvery = 3; } },
-  heavyb:   { name: '묵직한 탄', d: (k) => `슬러그에 맞은 적이 ${r1(0.06 * k)}초 기절 (보스 제외)`, ap: (s, k) => { s.slugStun = 0.06 * k; } },
+  slugb:    { name: '슬러그탄', d: (k, c) => `${SLUG_N}번째 발사마다 정면에 대형 탄: 피해 공격력의 ${pc((0.4 + 0.2 * k) * SLUG_K * c)}%, 모든 적 관통, 밀어냄 ${SLUG_KN}`, ap: (s, k, c) => { s.slug = (0.4 + 0.2 * k) * SLUG_K * c; s.slugKn += SLUG_KN; s.slugEvery = SLUG_N; } },
+  heavyb:   { name: '묵직한 탄', d: (k) => `슬러그에 맞은 적이 ${r1(SLUG_STN * k)}초 기절 (보스 제외)`, ap: (s, k) => { s.slugStun = SLUG_STN * k; } },
   twinslug: { name: '쌍열', d: () => '슬러그를 정면과 양옆 3레인 모두에 발사', ap: (s) => { s.slugTwin = 1; } },
   // 산탄포 - 용의 숨결
   flameb:   { name: '화염 산탄', d: (k, c) => `산탄이 부채꼴 불꽃으로 바뀜. 맞은 적은 3초간 초당 공격력의 ${pc(0.3 * k * c)}% 화상`, ap: (s, k, c) => { s.flame = 0.3 * k * c; } },
   sea:      { name: '불바다', d: (k, c) => `탄이 지나간 자리에 2초간 불길이 남음. 불길 위의 적은 초당 공격력의 ${pc(0.06 * k * c)}% 피해`, ap: (s, k, c) => { s.sea = 0.06 * k * c; } },
-  dragon:   { name: '용 머리', d: (k, c) => `5번째 발사마다 용 머리 불길이 정면 레인 끝까지 뻗음. 닿는 모든 적에게 공격력의 ${pc(1 * c)}% 피해`, ap: (s, k, c) => { s.dragon = 1 * c; } },
+  dragon:   { name: '용 머리', d: (k, c) => `${DRAGON_N}번째 발사마다 용 머리 불길이 정면 레인 끝까지 뻗음. 닿는 모든 적에게 공격력의 ${pc(DRAGON_M * c)}% 피해`, ap: (s, k, c) => { s.dragon = DRAGON_M * c; } },
   // 산탄포 - 지뢰
   mineb:    { name: '산탄 지뢰', d: (k, c) => `4초마다 사거리 안에 지뢰를 깜. 밟으면 폭발 (반경 60, 공격력의 ${pc(0.6 * k * c)}%). 최대 3개, 12초 유지`, ap: (s, k, c) => { s.mine = 0.6 * k * c; s.mineMax += 3; s.mineCd += 4; } },
   quickm:   { name: '빠른 매설', d: (k) => `설치 간격 -${r1(0.4 * k)}초 (${r1(4 - 0.4 * k)}초), 최대 ${3 + (k >= 3 ? 1 : 0) + (k >= 5 ? 1 : 0)}개`, ap: (s, k) => { s.mineCd -= 0.4 * k; s.mineMax += (k >= 3 ? 1 : 0) + (k >= 5 ? 1 : 0); } },
@@ -304,9 +319,9 @@ const NEWSK = {
   afterh:   { name: '긴 열기', d: (k, c) => `용융선 유지 +${r1(0.4 * k)}초, 피해 +${pc(0.2 * k * c)}%, 선 위의 적 ${5 * k}% 둔화`, ap: (s, k, c) => { s.meltT += 0.4 * k; s.meltSlow = 0.05 * k; s.melt *= 1 + 0.2 * k * c; } },
   vanish:   { name: '소멸', d: () => '이 무기의 빔이나 용융선으로 체력 15% 이하가 된 일반 적은 즉시 증발', ap: (s) => { s.vap = 0.15; } },
   // 펄스 - 초신성
-  novab:    { name: '초신성', d: (k, c) => `5번째 파동마다 거대 파동: 범위 x${r1(1.4 + 0.16 * k)}, 피해 x${r1(1 + 0.2 * k * c)}`, ap: (s, k, c) => { s.nova = 1 + 0.2 * k * c; s.novaR = 1.4 + 0.16 * k; s.novaEvery = 5; } },
-  afterg:   { name: '잔광', d: (k, c) => `초신성이 지나간 범위에 1.5초간 빛의 고리가 남아 초당 공격력의 ${pc(0.1 * k * c)}% 피해`, ap: (s, k, c) => { s.halo = 0.1 * k * c; } },
-  twinstar: { name: '쌍성', d: () => '3번째 파동마다 초신성이 터지고, 곧바로 한 번 더 터짐 (두 번째 피해 70%)', ap: (s) => { s.twinStar = 1; s.novaEvery = 3; } },
+  novab:    { name: '초신성', d: (k, c) => `${NOVA_N}번째 파동마다 거대 파동: 범위 x${r1(1.4 + 0.16 * k)}, 피해 x${r1(1 + NOVA_K * k * c)}, 최대 ${BIG_CAP}배 많은 적을 때림`, ap: (s, k, c) => { s.nova = 1 + NOVA_K * k * c; s.novaR = 1.4 + 0.16 * k; s.novaEvery = NOVA_N; } },
+  afterg:   { name: '잔광', d: (k, c) => `초신성이 지나간 범위에 ${HALO_T}초간 빛의 고리가 남아 초당 공격력의 ${pc(0.1 * k * c)}% 피해`, ap: (s, k, c) => { s.halo = 0.1 * k * c; } },
+  twinstar: { name: '쌍성', d: () => `${TWIN_N}번째 파동마다 초신성이 터지고, 곧바로 한 번 더 터짐 (두 번째 피해 70%)`, ap: (s) => { s.twinStar = 1; s.novaEvery = TWIN_N; } },
   // 펄스 - 위성 구체
   orbb:     { name: '위성 구체', d: (k, c) => `구체 ${[1, 2, 2, 3, 3][k - 1]}개가 범위 가장자리를 돌며 닿는 적에게 초당 공격력의 ${pc((0.3 + 0.1 * k) * c)}% 피해`, ap: (s, k, c) => { s.orbs = [1, 2, 2, 3, 3][k - 1]; s.orbDps = (0.3 + 0.1 * k) * c; } },
   orbit:    { name: '궤도 확장', d: (k) => `궤도 반경 +${6 * k}%, 구체 크기 +${8 * k}%`, ap: (s, k) => { s.orbRad = 1 + 0.06 * k; s.orbSize = 1 + 0.08 * k; } },
@@ -316,13 +331,13 @@ const NEWSK = {
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
   counter:  { name: '반격', d: () => '적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번)', ap: (s) => { s.counter = 1; } },
   // 박격포 - 핵탄두
-  nukeb:    { name: '핵탄두', d: (k, c) => `4번째 포탄마다 핵탄두: 폭발 범위 x${r1(1.5 + 0.1 * k)}, 피해 x${r1(1 + 0.1 * k * c)}`, ap: (s, k, c) => { s.nuke = 1 + 0.1 * k * c; s.nukeR = 1.5 + 0.1 * k; s.nukeEvery = 4; } },
+  nukeb:    { name: '핵탄두', d: (k, c) => `${NUKE_N}번째 포탄마다 핵탄두: 폭발 범위 x${r1(NUKE_R0 + 0.1 * k)}, 피해 x${r1(1 + NUKE_K * k * c)}, 최대 ${BIG_CAP}배 많은 적을 때림`, ap: (s, k, c) => { s.nuke = 1 + NUKE_K * k * c; s.nukeR = NUKE_R0 + 0.1 * k; s.nukeEvery = NUKE_N; } },
   shockw:   { name: '충격파', d: (k, c) => `핵탄두가 터지면 폭발 범위의 2배까지 충격파: 바깥의 적을 밀어내고 (세기 ${10 + 4 * k}, 보스 제외) 공격력의 ${pc(0.1 * k * c)}% 피해`, ap: (s, k, c) => { s.nShock = 0.1 * k * c; s.nShockKn = 10 + 4 * k; } },
-  chainuke: { name: '연쇄 핵', d: () => '2번째 포탄마다 핵탄두. 터질 때 화면이 흔들림', ap: (s) => { s.nukeEvery = 2; s.nukeQuake = 1; } },
+  chainuke: { name: '연쇄 핵', d: () => `${NUKE_N2}번째 포탄마다 핵탄두. 터질 때 화면이 흔들림`, ap: (s) => { s.nukeEvery = NUKE_N2; s.nukeQuake = 1; } },
   // 박격포 - 융단 폭격
   carpet:   { name: '융단 폭격', d: (k, c) => `포탄이 표적 레인을 따라 세로 한 줄로 떨어지는 3발로 나뉨. 한 발 피해 공격력의 ${pc((0.3 + 0.03 * k) * c)}%, 폭발 범위 80% (핵탄두는 나뉘지 않음)`, ap: (s, k, c) => { s.carpet = 3; s.carpetD = (0.3 + 0.03 * k) * c; } },
   bombbay:  { name: '폭탄창', d: (k, c) => `발수 +${BAY[k - 1]} (${3 + BAY[k - 1]}발), 한 발 피해 +${pc(0.01 * k * c)}%p`, ap: (s, k, c) => { s.carpet += BAY[k - 1]; s.carpetD += 0.01 * k * c; } },
-  airstrike: { name: '공습', d: (k, c) => `${AIR_CD}초마다 폭격기가 레인마다 가장 앞의 적에게 1발 (빈 레인 몫은 다른 적에게). 폭발 범위 x${AIR_R}, 한 발 피해 공격력의 ${pc(1 * c)}%`, ap: (s, k, c) => { s.air = 1 * c; } },
+  airstrike: { name: '공습', d: (k, c) => `${AIR_CD}초마다 폭격기가 레인마다 가장 앞의 적에게 1발 (빈 레인 몫은 다른 적에게). 폭발 범위 x${AIR_R}, 한 발 피해 공격력의 ${pc(1 * c)}%, 최대 ${BIG_CAP}배 많은 적을 때림`, ap: (s, k, c) => { s.air = 1 * c; } },
   // 박격포 - 미사일
   missile:  { name: '추적 미사일', d: (k) => `포탄이 표적을 따라가는 미사일로 바뀜 (빗나가지 않음). 공격 속도 +${15 * k}%`, ap: (s, k) => { s.msl = 1; s.ratePct += 0.15 * k; } },
   mirv:     { name: '분리 탄두', d: (k, c) => `착탄 직전에 소형 탄두 ${MIRV[k - 1]}개가 갈라져 주변의 다른 적에게 날아감 (피해 공격력의 ${pc((0.1 + 0.01 * k) * c)}%, 폭발 범위 50%)`, ap: (s, k, c) => { s.mirv = MIRV[k - 1]; s.mirvD = (0.1 + 0.01 * k) * c; } },
@@ -338,7 +353,7 @@ const NEWSK = {
   // 전격기 - 구전
   ballb:    { name: '구전', d: (k, c) => `4번째 공격마다 천천히 떠가는 번개 구체를 표적 쪽으로 띄움 (4초). 닿는 적은 초당 공격력의 ${pc(0.3 * k * c)}% 피해`, ap: (s, k, c) => { s.ball = 0.3 * k * c; s.ballR = 46; s.ballT = 4; } },
   bigball:  { name: '대형 구전', d: (k) => `구체 크기 +${5 * k}%, 지속 +${r1(0.3 * k)}초`, ap: (s, k) => { s.ballR = 46 * (1 + 0.05 * k); s.ballT = 4 + 0.3 * k; } },
-  twinball: { name: '쌍구전', d: (k, c) => `구체 2개 (하나의 피해 70%)가 좌우로 갈라져 나가고, 사라질 때 터짐 (반경 110, 공격력의 ${pc(2 * c)}%, 0.8초 기절, 보스 제외)`, ap: (s, k, c) => { s.ballTwin = 1; s.ball *= 0.7; s.ballBoom = 2 * c; } },
+  twinball: { name: '쌍구전', d: (k, c) => `${BALL_N2}번째 공격마다 구체 2개 (하나의 피해 ${pc(BALL_TW)}%)가 좌우로 갈라져 나가고, 사라질 때 크게 터짐 (반경 ${BALL_BOOM_R}, 공격력의 ${pc(BALL_BOOM * c)}%, ${BALL_STUN}초 기절, 보스 제외, 최대 ${BIG_CAP}배 많은 적)`, ap: (s, k, c) => { s.ballTwin = 1; s.ball *= BALL_TW; s.ballBoom = BALL_BOOM * c; } },
   // 저격포 - 과잉 살상
   overkill: { name: '과잉 살상', d: (k, c) => `적을 처치하면 남은 피해가 다음으로 체력이 많은 적에게 넘어감 (최대 ${k}회, 적어도 공격력의 ${pc(0.4 * c)}%)`, ap: (s, k, c) => { s.carry = k; s.carryMin = 0.4 * c; } },
   relay:    { name: '증폭 전달', d: (k) => `넘어갈 때마다 넘어가는 피해 +${15 * k}%`, ap: (s, k) => { s.carryAmp = 0.15 * k; } },
@@ -356,8 +371,8 @@ const NEWSK = {
   bigdsv:   { name: '큰 폭발', d: (k, c) => `용해 폭발 범위 +${12 * k}%, 피해 +${pc(2 * k * c)}%p`, ap: (s, k, c) => { s.dsvR = 1 + 0.12 * k; s.dsvD += 2 * k * c; } },
   chaindsv: { name: '연쇄 용해', d: () => '용해 폭발이 그 자리에 새 웅덩이를 남김 (지속 절반)', ap: (s) => { s.dsvPool = 1; } },
   // 산성 분사기 - 산성비
-  rainb:    { name: '산성비', d: (k, c) => `8초마다 적이 가장 많은 레인 전체에 3초간 산성비. 비 맞는 적은 초당 공격력의 ${pc(0.2 * k * c)}% 피해와 웅덩이의 취약 효과`, ap: (s, k, c) => { s.rain = 0.2 * k * c; s.rainT = 3; } },
-  monsoon:  { name: '장마', d: (k) => `산성비 지속 +${r1(0.6 * k)}초`, ap: (s, k) => { s.rainT = 3 + 0.6 * k; } },
+  rainb:    { name: '산성비', d: (k, c) => `${RAIN_CD}초마다 적이 가장 많은 레인 전체에 3초간 산성비. 비 맞는 적은 초당 공격력의 ${pc(RAIN_K * k * c)}% 피해와 웅덩이의 취약 효과 (최대 ${BIG_CAP}배 많은 적)`, ap: (s, k, c) => { s.rain = RAIN_K * k * c; s.rainT = 3; } },
+  monsoon:  { name: '장마', d: (k) => `산성비 지속 +${r1(RAIN_UP * k)}초`, ap: (s, k) => { s.rainT = 3 + RAIN_UP * k; } },
   downpour: { name: '폭우', d: () => '산성비가 2레인에 동시에 내리고, 그친 자리에 작은 웅덩이 3개 (범위 50%, 2초)', ap: (s) => { s.rain2 = 1; } },
   // 산성 분사기 - 점액 흔적
   slimeb:   { name: '점액 흔적', d: (k, c) => `웅덩이를 밟은 적이 3초 동안 지나간 자리에 산성 자국 (반경 22, 2초)을 남김. 자국 위의 적은 초당 공격력의 ${pc(0.15 * k * c)}% 피해`, ap: (s, k, c) => { s.slime = 0.15 * k * c; s.slimeT = 2; } },
@@ -611,6 +626,7 @@ function stats(w) {
   s.blast = (d.blast || 0) * (rg + s.areaPct);
   s.capOn = !!d.cap && (!d.capSk || s.sea > 0 || s.efD > 0 || s.arc > 0 || s.ball > 0);   // 화면용: 이 무기에 제한이 걸리는 범위 공격이 있다
   s.cap = d.cap && !s.nolimit ? d.cap + s.spread : CAP_NONE;
+  s.capBig = s.cap < CAP_NONE ? s.cap * BIG_CAP : CAP_NONE;   // 간격 스킬의 큰 한 방 (T10c)
   s.jump = 140 * rg;
   s.crit = Math.min(1, s.crit);
   s.color = d.color;
@@ -1040,6 +1056,24 @@ function appearBoss() {
 }
 
 /* ---------- 피해 처리 ---------- */
+// 큰 한 방 (T10c: 초신성, 핵탄두·충격파, 공습, 거대탄, 슬러그, 용 머리, 쌍구전 폭발, 산성비)이 때리는 동안 BIGK 에 그 자리(와 탄의 방향)를 둔다.
+// 그동안 죽은 일반 적은 'pop' 대신 'fling' 으로 쓰러진다: 맞은 자리에서 바깥으로 (탄이면 탄이 가는 쪽으로) 날아가며 돌고 흩어진다 (화면용, 난수를 쓰지 않는다)
+const BIGO = { x: 0, y: 0, k: '', vx: 0, vy: 0 };
+let BIGK = null;
+function bigFrom(x, y, k, vx, vy) {
+  if (x == null) { BIGK = null; return; }
+  BIGO.x = x; BIGO.y = y; BIGO.k = k; BIGO.vx = vx || 0; BIGO.vy = vy || 0; BIGK = BIGO;
+}
+function flingFx(e) {
+  const b = BIGK;
+  let ax, ay;
+  if (b.vx || b.vy) {                        // 탄: 가는 쪽으로, 탄 길에서 벗어난 만큼 옆으로
+    const l = Math.hypot(b.vx, b.vy), fx_ = b.vx / l, fy = b.vy / l, side = (e.x - b.x) * -fy + (e.y - b.y) * fx_;
+    ax = fx_ - fy * Math.max(-0.8, Math.min(0.8, side / 40)); ay = fy + fx_ * Math.max(-0.8, Math.min(0.8, side / 40));
+  } else { ax = e.x - b.x; ay = e.y - b.y; if (ax * ax + ay * ay < 1) ay = -1; }
+  const l = Math.hypot(ax, ay);
+  fx({ k: 'fling', d: 0.8, x: e.x, y: e.y, r: e.r, ty: e.type, ax: ax / l, ay: ay / l, b: b.k });
+}
 function kill(e, st) {
   if (e.dead) return;
   e.dead = true; S.kills++;
@@ -1049,7 +1083,8 @@ function kill(e, st) {
   S.gold += e.gold * (1 + (st ? st.goldPct : 0) + bs.goldAll) * (e.boss && hasPact('hunt') ? 2 : 1);
   if (hasPact('blood') && ++S.bloodN >= PACT.bloodEvery) { S.bloodN = 0; S.hp = Math.min(S.maxHp, S.hp + S.maxHp * PACT.bloodHeal); }
   if (bs.heal && rndH() < bs.heal && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * 0.01);   // 수리 장치: 최대 체력의 1%
-  fx({ k: 'pop', d: 0.25, x: e.x, y: e.y, r: e.r, boss: e.boss });
+  if (BIGK && !e.boss) flingFx(e);           // 큰 한 방으로 쓰러짐 (T10c)
+  else fx({ k: 'pop', d: 0.25, x: e.x, y: e.y, r: e.r, boss: e.boss });
   if (e.boss) fx({ k: 'bosskill', d: 1.1, x: e.x, y: e.y, r: e.r, type: e.type });   // 보스 처치 연출 (화면 흔들림 포함)
   snd(e.boss ? 'bossdie' : 'kill');
   if (bs.magnet && rnd() < bs.magnet) {
@@ -1184,7 +1219,8 @@ function explode(x, y, R, dmg, st, n) {
 function shellBlast(s) {
   const st = s.st, R = s.R || st.blast;
   const n0 = S.fx.length;
-  explode(s.tx, s.ty, R, s.dmg, st, st.cap);
+  if (s.nuke || s.air) bigFrom(s.tx, s.ty, s.nuke ? 'nuke' : 'air');
+  explode(s.tx, s.ty, R, s.dmg, st, s.nuke || s.air ? st.capBig : st.cap);   // 핵탄두, 공습: 큰 한 방 (T10c)
   if ((s.cb > 1 || s.mini) && S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].lt = 1;   // 화면용: 작은 폭발 (가볍게 그린다)
   if (s.nuke) nukeBlast(s, R, n0);
   else if (s.air) {                          // 공습: 하얗게 달아오른 속과 솟는 불기둥 ('airboom' 이 그리고 보통 폭발 그림은 숨긴다), 가로로 번진 그을음
@@ -1193,6 +1229,7 @@ function shellBlast(s) {
     fx({ k: 'airboom', d: 0.95, x: s.tx, y: s.ty, r: R, c: st.color });
   }
   else fx({ k: 'crater', d: 1.0, x: s.tx, y: s.ty, r: R * 0.75, c: st.color });   // 잠깐 남는 탄흔
+  bigFrom(null);
   if (s.cw) carpetFollow(s);                 // 미사일 + 융단 폭격: 맞은 자리부터 레인을 따라 위로
   if (s.mini) return;                        // 분리 탄두는 파편, 집속, 화염을 내지 않는다
   for (let k = 0; k < st.shrap; k++) {
@@ -1218,7 +1255,7 @@ function nukeBlast(s, R, n0) {
     const d = Math.hypot(o.x - s.tx, o.y - s.ty);
     if (d > R + o.r * 0.5 && d <= 2 * R + o.r * 0.5) list.push(o);
   }
-  capPick(list, st.cap);
+  capPick(list, st.capBig);
   for (const o of list) { hit(o, st.dmg * st.nShock, st, true); if (!o.boss && !o.dead) o.y = Math.max(-o.r, o.y - st.nShockKn); }
 }
 // 미사일: 조종점(cx, cy)을 지나 지금 표적 자리(tx, ty)로 가는 2차 곡선. 표적은 저장되지 않게 숨김 속성
@@ -1353,7 +1390,7 @@ function fire(w, slot, st) {
       const bo = st.spray ? (w.n % 3 - 1) * 2.6 : 0;   // 난사: 돌아가는 포신 셋의 자리 (화면용)
       fx({ k: 'muz', d: st.gat ? 0.07 : 0.1, x: wx + Math.cos(ang) * bo, y: wy - 8 + Math.sin(ang) * bo, a: ang, c: o.c, g: st.gat ? 1 : 0, hl, sp: st.spray ? 1 : 0 });   // 총구 섬광 (개틀링은 짧게 깜빡임. 난사는 탄피가 튄다)
       if (st.gnt && w.n % st.gntEvery === 0) {        // 거대탄: 레인 폭, 모든 적 관통
-        bullet(wx, wy, ang, st.dmg * st.gntM, st, H + 120, { pierce: 99, r: 44, rico: 0, split: 0, big: 1, sp: 760, c: st.color });
+        bullet(wx, wy, ang, st.dmg * st.gntM, st, H + 120, { pierce: 99, r: 44, rico: 0, split: 0, big: 1, bk: 'giant', sp: 760, c: st.color });   // bk: 큰 한 방 (맞아 죽은 적이 날아간다, T10c)
       } else {
         for (let i = 0; i < n; i++) {
           const off = i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.09;
@@ -1381,14 +1418,14 @@ function fire(w, slot, st) {
         if (st.sea) seaStrip(w, j, wx, wy, ang, st);   // 불바다: 탄이 지나간 궤적에 불길
       }
       if (st.slug && w.n % st.slugEvery === 0) {      // 슬러그탄 (쌍열: 양옆 레인에도)
-        const sd = { pierce: 99, r: 12, kn: st.slugKn, stn: st.slugStun, big: 1, slg: 1 };
+        const sd = { pierce: 99, r: 12, kn: st.slugKn, stn: st.slugStun, big: 1, slg: 1, bk: 'slug' };
         for (let j = st.slugTwin ? Math.max(0, slot - 1) : slot, je = st.slugTwin ? Math.min(LANES - 1, slot + 1) : slot; j <= je; j++) {
           bullet((j + 0.5) * LW, wy, 0, st.dmg * st.slug, st, H + 120, sd);
           fx({ k: 'slugf', d: 0.3, x: (j + 0.5) * LW, y: wy - 6, c: st.color });   // 발사 순간의 충격 고리
         }
       }
-      if (st.dragon && w.n % 5 === 0) {      // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화염 산탄 화상은 붙이지 않는다, T6)
-        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, sp: 400, c: '#ff7a2e' });   // T9a: 천천히 (780 에서), 몸통이 길게 따라온다
+      if (st.dragon && w.n % DRAGON_N === 0) {   // 용 머리: 정면 레인 끝까지 뻗는 불길. 닿는 모든 적에게 같은 피해 (화염 산탄 화상은 붙이지 않는다, T6)
+        bullet(wx, wy, 0, st.dmg * st.dragon, st, H + 120, { pierce: 999, r: 30, rico: 0, split: 0, drg: 1, bk: 'dragon', sp: 400, c: '#ff7a2e' });   // T9a: 천천히 (780 에서), 몸통이 길게 따라온다
         fx({ k: 'roar', d: 0.5, x: wx, y: wy - 8, sp: 0.3 });   // 아가리에서 터져 나오는 불꽃
       }
       return true;
@@ -1428,7 +1465,7 @@ function fire(w, slot, st) {
       if (!list.length) return false;
       w.n++;
       capPick(list, st.cap);                   // 최대 타격 수 (기지에 가까운 적부터)
-      if (st.nova && w.n % st.novaEvery === 0) {      // 초신성 (쌍성: 3번째 파동마다, 곧바로 한 번 더)
+      if (st.nova && w.n % st.novaEvery === 0) {      // 초신성 (쌍성: TWIN_N 번째 파동마다, 곧바로 한 번 더)
         novaBlast(slot, st, 1, true);
         if (st.twinStar) w.nv = 0.25;
         return true;
@@ -1506,7 +1543,7 @@ function fire(w, slot, st) {
         const pool = S.enemies.filter(e => !e.dead && e.y + e.r > 0);
         for (let k = 0; k < st.th && pool.length; k++) strike(w, pool.splice(Math.floor(rnd() * pool.length), 1)[0], st.dmg * st.thD, st, null);
       }
-      if (st.ball && w.n % 4 === 0) launchBall(w, wx, wy, first, st);   // 구전: 4번째 공격마다
+      if (st.ball && w.n % (st.ballTwin ? BALL_N2 : 4) === 0) launchBall(w, wx, wy, first, st);   // 구전: 4번째 공격마다 (쌍구전: BALL_N2 번째마다 둘)
       return true;
     }
     case 'rail': {                             // 저격포: 체력이 가장 많은 적을 고르고, 0.25초 조준선을 보인 뒤 발사
@@ -1600,8 +1637,8 @@ function arcTick(p, dt, seen) {
     fx({ k: 'arcz', d: 0.3, x0: p.x0, y0: p.y0, x1: p.x1, y1: p.y1, c: p.st.color });
   }
 }
-// 구전: 천천히 떠가는 번개 구체. 벽에 닿으면 튕긴다. 쌍구전이면 둘이 좌우로 갈라지고 사라질 때 터진다
-const BALL_SPD = 70, BALL_BOOM_R = 110, BALL_SPLIT = 0.42;
+// 구전: 천천히 떠가는 번개 구체. 벽에 닿으면 튕긴다. 쌍구전이면 (BALL_N2 번째 공격마다) 둘이 좌우로 갈라지고 사라질 때 크게 터진다 (T10c)
+const BALL_SPD = 70, BALL_SPLIT = 0.42;
 function launchBall(w, wx, wy, tg, st) {
   const a0 = Math.atan2(tg.x - wx, wy - 10 - tg.y), n = st.ballTwin ? 2 : 1;   // 0 = 위쪽
   for (let k = 0; k < n; k++) {
@@ -1627,8 +1664,10 @@ function ballTick(p, dt, seen) {
   if (p.t <= 0 && p.boom) {                 // 쌍구전: 사라질 때 터진다 (최대 타격 수까지, 기절은 보스 제외)
     const st = p.st, R = BALL_BOOM_R * (1 + st.areaPct), all = [];
     for (let i = 0, n = S.enemies.length; i < n; i++) { const o = S.enemies[i]; if (!o.dead && o.y + o.r > 0 && within(o.x - p.x, o.y - p.y, R + o.r * 0.5)) all.push(o); }
-    capPick(all, st.cap);
-    for (const o of all) { hit(o, p.boom, st, true); if (!o.boss && !o.dead) o.stunT = Math.max(o.stunT, 0.8); }
+    capPick(all, st.capBig);   // 큰 한 방 (T10c)
+    bigFrom(p.x, p.y, 'ball');
+    for (const o of all) { hit(o, p.boom, st, true); if (!o.boss && !o.dead) o.stunT = Math.max(o.stunT, BALL_STUN); }
+    bigFrom(null);
     fx({ k: 'ballboom', d: 0.55, x: p.x, y: p.y, r: R, c: st.color });
     snd('zap');
   }
@@ -1661,10 +1700,12 @@ function prismSplit(w, slot, st, first, m) {
 function novaBlast(slot, st, mult, flash) {
   const wx = (slot + 0.5) * LW, R2 = st.radius * st.novaR, list = [];
   for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && within(e.x - wx, e.y - H, R2 + e.r * 0.5)) list.push(e);
-  capPick(list, st.cap);
+  capPick(list, st.capBig);   // 큰 한 방: 최대 타격 수 x BIG_CAP (T10c)
+  bigFrom(wx, H, 'nova');
   for (const e of list) hit(e, st.dmg * st.nova * mult, st);
+  bigFrom(null);
   fx({ k: 'ring', d: 0.8, x: wx, y: H, r: R2, c: st.color, fat: 1, nova: flash ? 1 : 2 });   // nova: 1 첫 폭발, 2 쌍성의 두 번째 (화면이 따로 그린다)
-  if (st.halo) keepPool('halo', st.w, slot, (p) => { p.x = wx; p.y = H; p.r = R2; p.t = 1.5; p.dps = st.dmg * st.halo; p.st = st; p.c = st.color; });
+  if (st.halo) keepPool('halo', st.w, slot, (p) => { p.x = wx; p.y = H; p.r = R2; p.t = HALO_T; p.big = 1; p.dps = st.dmg * st.halo; p.st = st; p.c = st.color; });   // big: 초신성 범위라 최대 타격 수 x BIG_CAP
 }
 // 반격: 적이 기지에 닿을 때 파동 1회
 function counterPulse(slot, st) {
@@ -1791,21 +1832,22 @@ function dissolve(e, st) {
   fx({ k: 'dsvb', d: 1.7, x, y, r: R, c: st.color, lv: Math.round((st.dsvR - 1) / 0.12) });
   if (st.dsvPool) acidPool(x, y, st, 1, 2, 1);
 }
-// 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우: 그친 자리에 작은 웅덩이 3개
-const RAIN_CD = 8;
+// 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수 x BIG_CAP 까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우: 그친 자리에 작은 웅덩이 3개
 function rainTick(p, dt, seen) {
   const st = p.st, got = gotOf(seen, p.wk), list = CAND, hw = LW / 2; list.length = 0;
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
     if (!e.dead && e.y + e.r > 0 && Math.abs(e.x - p.x) <= hw + e.r * 0.4 && !got.has(e)) list.push(e);
   }
-  capPick(list, st.cap);
+  capPick(list, st.capBig);   // 레인 전체라 최대 타격 수 x BIG_CAP (T10c)
+  if (list.length) bigFrom(p.x, H, 'rain');   // 비에 쓰러진 적은 녹아 가라앉는다 (화면용)
   for (let i = 0, n = list.length; i < n; i++) {
     const e = list[i]; got.add(e);
     e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, p.vuln); e.vulnT = Math.max(e.vulnT, 1);
     if (st.rot) hide(e, 'vuW', st.w);
     dot(e, p.dps * dt, st);
   }
+  bigFrom(null);
   if (p.t <= 0 && p.end) for (let k = 0; k < 3; k++) acidPool(p.x + (rnd() - 0.5) * LW * 0.5, H * (0.25 + 0.6 * (k + rnd()) / 3), st, 0.5, 2);
 }
 // 점액 흔적: 웅덩이를 밟은 적이 3초 동안 22px 움직일 때마다 자국을 남긴다 (모든 무기 합쳐 SLIME_MAX 개, 넘치면 가장 오래된 것을 바꾼다)
@@ -1972,7 +2014,7 @@ function skillStep(w, i, st, dt) {
       for (const e of list) hit(e, mul * (st.focus ? 1 + st.focus * focusN(e, w) : 1) * (e === lf ? 1 + st.lens : 1), st, !full, false, !full);
       break;
     }
-    case 'acid': {                           // 산성비: 8초마다 적이 가장 많은 레인 (폭우: 둘)
+    case 'acid': {                           // 산성비: RAIN_CD 초마다 적이 가장 많은 레인 (폭우: 둘)
       if (!st.rain) break;
       w.rn = (w.rn == null ? 2 : w.rn) - dt;
       if (w.rn > 0) break;
@@ -2055,7 +2097,7 @@ function poolTick(p, dt) {
     if (e.dead || e.y + e.r <= 0) continue;
     if (melt ? !(Math.abs(e.x - p.x) > 8 + e.r * 0.8 || e.y + e.r < p.y) : within(e.x - p.x, e.y - p.y, p.r + e.r * 0.5)) list.push(e);
   }
-  capPick(list, st.cap);
+  capPick(list, p.big ? st.capBig : st.cap);   // big: 잔광 (초신성 범위, T10c)
   for (let i = 0, n = list.length; i < n; i++) {
     const e = list[i]; if (e.dead) continue;
     dot(e, p.dps * dt, st, melt);
@@ -2274,7 +2316,9 @@ function step(dt) {
       if (e.dead || b.hit.indexOf(e) >= 0) continue;
       if (Math.hypot(e.x - b.x, e.y - b.y) <= e.r + b.r) {
         b.hit.push(e);
+        if (b.bk) bigFrom(b.x, b.y, b.bk, b.vx, b.vy);   // 거대탄, 슬러그, 용 머리: 맞아 죽은 적이 탄이 가는 쪽으로 날아간다 (T10c)
         hit(e, b.dmg, b.st, false, false, false, b.drg);
+        if (b.bk) bigFrom(null);
         if (b.kn && !e.boss && !e.dead && !(b.slg && S.t - (e.slkT == null ? -9 : e.slkT) < 1)) {   // 슬러그는 같은 적을 1초에 한 번만 밀어낸다 (여러 자루가 겹쳐도)
           e.y = Math.max(-e.r, e.y - b.kn); if (b.slg) e.slkT = S.t;
         }
@@ -2547,7 +2591,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

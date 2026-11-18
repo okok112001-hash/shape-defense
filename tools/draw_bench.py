@@ -8,6 +8,7 @@
      python tools/draw_bench.py paper index.html none none drawFireStrip VX.glow   # 함수를 꺼 보며 범인 찾기
      DRAW_TEAM=mortar python tools/draw_bench.py paper index.html none none none   # 박격포 다섯 자루 (줄마다 무거운 조합, T5a)
      DRAW_TEAM=tesla python tools/draw_bench.py paper index.html none none none    # 전격기 다섯 자루 (같은 조합, T5b). rail, acid 도 같다 (T5c, T5d)
+     DRAW_FLING=1 python tools/draw_bench.py paper index.html none none none     # 큰 한 방에 쓰러지는 적(fling) 40개를 늘 띄워 둔다 (T10c. 기준 html 은 fling 을 그리지 않아 그 비용이 빠진다)
    읽는 법: 첫 측정은 준비(JIT, 스프라이트 생성) 때문에 늘 느리니 버리고, 나머지 평균을 기준과 비교한다. 잡음이 +-10% 쯤이다.
    알게 된 것: 이 환경에서는 넓이보다 drawImage 호출 수가 비용을 정한다(빛 번짐 한 장에 약 0.3ms). 큰 빛 번짐을 여러 장 겹치지 말 것."""
 import asyncio, os, pathlib, sys
@@ -52,6 +53,10 @@ window.__game = {'''
           S.slots.forEach((w, k) => { w.skp = 20; w.sk = (['mortar', 'tesla', 'rail', 'acid'].includes(w.type) ? MK[k] : SK[w.type]).map(r => r.slice()); Core.dirty(w); });
           S.slotDirty = true; S.invDirty = true; }''', os.environ.get('DRAW_TEAM', ''))
         await pg.evaluate(FOE)
+        if os.environ.get('DRAW_FLING'):
+            await pg.evaluate('''() => { const o = Core.step, K = ['nova', 'nuke', 'dragon', 'ball', 'rain', 'giant', 'slug', 'air'], T = ['basic', 'runner', 'swarm', 'heavy']; let j = 0;
+              Core.step = (dt) => { o(dt); const S = Core.S; let n = 0; for (const f of S.fx) if (f.k === 'fling') n++;
+                for (; n < 40; n++, j++) S.fx.push({ k: 'fling', d: 0.8, t: 0.8 * ((j * 0.37) % 1), x: 40 + (j * 83) % 420, y: 120 + (j * 151) % 480, r: 19, ty: T[j % 4], ax: Math.cos(j), ay: -Math.abs(Math.sin(j)), b: K[j % 8] }); }; }''')
         cdp = await c.new_cdp_session(pg)
         await cdp.send('Emulation.setCPUThrottlingRate', {'rate': 4})
         await pg.evaluate('() => { for (let i = 0; i < 240; i++) { window.__tick(1); window.__flush(); } }')

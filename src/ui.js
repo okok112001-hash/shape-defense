@@ -2319,6 +2319,57 @@ function drawSummon(pb, H) {
   ctx.closePath(); ctx.lineWidth = 1.9; ctx.strokeStyle = rgba(col, (0.6 + 0.2 * pu) * al); ctx.stroke(); ctx.restore();
   ctx.restore();
 }
+// 큰 한 방에 쓰러진 적 (T10c, core.js 의 flingFx): 맞은 쪽에서 바깥으로 (탄이면 탄이 가는 쪽으로) 날려 가며 돌고, 작아지며 흐려진다.
+// 지나온 길에 옅게 끌린 자국이 남고, 끝 무렵 몸이 조각 셋으로 부서져 흩어진다. 거리, 방향, 도는 빠르기는 적마다 조금씩 다르다 (자리의 해시).
+// 용 머리는 그을려 검게 타며 불티가 튀고, 쌍구전은 테두리가 지직거린다. 산성비는 날리지 않고 녹아 가라앉는다 (drawRainMelt)
+function drawFling(f, p) {
+  const q = 1 - p, sd = f.x * 0.37 + f.y * 0.71, h1 = hash(sd), h2 = hash(sd + 3.1), h3 = hash(sd + 5.7), col = ECOL[f.ty] || ECOL.basic;
+  if (f.b === 'rain') { drawRainMelt(f, q, col, h1, h2); return; }
+  const ja = (h1 - 0.5) * 0.7, cj = Math.cos(ja), sj = Math.sin(ja), ax = f.ax * cj - f.ay * sj, ay = f.ax * sj + f.ay * cj, ang = Math.atan2(ay, ax);
+  const far = (f.b === 'nuke' || f.b === 'air' ? 1.35 : 1) * (34 + f.r * 1.2) * (0.7 + 0.6 * h2), at = (u) => far * VX.ease(u, 3);
+  const d = at(q), x = f.x + ax * d, y = f.y + ay * d, k = 1 - 0.4 * VX.ease(q, 2), al = Math.min(1, p * 1.8);
+  const burn = f.b === 'dragon', bc = burn ? VX.lerp(col, VX.mix(col, VX.light ? -0.7 : -0.6), Math.min(1, q * 2.2)) : col;
+  if (burn && VX.ui(f).n) for (let i = 0; i < 3; i++) {   // 처음 한 번: 불티
+    const a = ang + (Math.random() - 0.5) * 1.6, s = 60 + 90 * Math.random();
+    VX.spark(f.x, f.y, Math.cos(a) * s, Math.sin(a) * s - 30, 0.5 + 0.4 * Math.random(), 1.2 + Math.random(), i ? '#ffb347' : '#ff7a2e', -40, 3, 2);
+  }
+  const d0 = at(Math.max(0, q - 0.25));     // 끌린 자국: 지나온 길의 뒤쪽 (한 획)
+  if (d - d0 > 2) {
+    ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(f.x + ax * d0, f.y + ay * d0); ctx.lineTo(x - ax * f.r * 0.3 * k, y - ay * f.r * 0.3 * k);
+    ctx.lineWidth = f.r * 0.9 * k; ctx.strokeStyle = rgba(burn ? '#ff7a2e' : bc, 0.16 * al); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  const spin = (h3 < 0.5 ? -1 : 1) * (1.4 + 2.4 * h3) * VX.ease(q, 2), brk = Math.max(0, (q - 0.45) / 0.55);
+  if (brk < 1) {                             // 몸: 돌며 작아지고, 맞은 순간 잠깐 번쩍
+    ctx.save(); ctx.translate(x, y); ctx.rotate(spin); ctx.scale(k, k);
+    enemyPath({ type: f.ty, x: 0, y: 0, r: f.r }); ctx.globalAlpha = al * (1 - brk);
+    ctx.fillStyle = q < 0.12 ? TC.hit : rgba(bc, 0.25); ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = f.b === 'ball' && hash(sd + Math.floor(VX.t * 30)) > 0.55 ? (VX.light ? C.WEAPONS.tesla.color : '#ffffff') : bc; ctx.stroke();
+    ctx.globalAlpha = 1; ctx.restore();
+  }
+  if (brk > 0) {                             // 조각 셋이 흩어진다
+    ctx.fillStyle = rgba(bc, 0.85 * al); ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const a = ang + (i - 1) * 1.3 + (hash(sd + i * 7.7) - 0.5) * 0.8, s = f.r * (0.5 + 0.9 * brk) * (0.6 + 0.6 * hash(sd + i * 2.3)), z = f.r * 0.32 * (1 - 0.6 * brk);
+      const cx = x + Math.cos(a) * s, cy = y + Math.sin(a) * s, r0 = spin * 1.7 + i * 2;
+      ctx.moveTo(cx + Math.cos(r0) * z, cy + Math.sin(r0) * z); ctx.lineTo(cx + Math.cos(r0 + 2.3) * z * 0.8, cy + Math.sin(r0 + 2.3) * z * 0.8); ctx.lineTo(cx + Math.cos(r0 + 4.1) * z * 0.6, cy + Math.sin(r0 + 4.1) * z * 0.6); ctx.closePath();
+    }
+    ctx.fill();
+  }
+}
+// 산성비에 쓰러진 적: 몸이 산 색으로 물들며 납작하게 퍼져 가라앉고, 방울 둘이 흘러내린다
+function drawRainMelt(f, q, col, h1, h2) {
+  const e = VX.ease(q, 2), ac = C.WEAPONS.acid.color, mc = VX.lerp(col, VX.light ? VX.mix(ac, -0.3) : ac, Math.min(1, q * 2)), al = Math.min(1, (1 - q) * 1.5);
+  ctx.save(); ctx.translate(f.x, f.y + f.r * 0.45 * e); ctx.scale(1 + 0.4 * e, 1 - 0.72 * e);
+  enemyPath({ type: f.ty, x: 0, y: 0, r: f.r }); ctx.globalAlpha = al;
+  ctx.fillStyle = rgba(mc, 0.3 + 0.2 * e); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = mc; ctx.stroke();
+  ctx.globalAlpha = 1; ctx.restore();
+  ctx.fillStyle = rgba(mc, 0.8 * al); ctx.beginPath();
+  for (let i = 0; i < 2; i++) {
+    const dx = (i ? 0.45 - 0.2 * h2 : -0.35 + 0.2 * h1) * f.r, dy = f.r * (0.3 + 1.1 * VX.ease(Math.max(0, q - 0.1 - 0.15 * i), 2)) * (0.8 + 0.4 * (i ? h1 : h2)), rr = 2.6 * (1 - 0.5 * q);
+    ctx.moveTo(f.x + dx + rr, f.y + dy); ctx.arc(f.x + dx, f.y + dy, rr, 0, TAU);
+  }
+  ctx.fill();
+}
 // 보스 처치 연출: 보스 모양이 하얗게 번쩍, 고리 둘, 조각들 (흔들림은 draw 에서)
 function drawBossKill(f) {
   const T = f.d - Math.max(0, f.t), q = T / f.d, col = ECOL[f.type] || '#ff3d3d', x = f.x, y = f.y, r = f.r;
@@ -4420,6 +4471,7 @@ function drawFx(f, H) {
       break;
     }
     case 'bosskill': drawBossKill(f); break;
+    case 'fling': drawFling(f, p); break;   // 큰 한 방에 쓰러진 적 (T10c)
     case 'pop':
       ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1.7 - p * 0.7), 0, Math.PI * 2);
       ctx.lineWidth = f.boss ? 5 : 2; ctx.strokeStyle = `rgba(255,150,150,${p})`; ctx.stroke();
