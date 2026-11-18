@@ -116,6 +116,15 @@ function killHits(X, st, bb, thrX) {     // 흔들기(×0.7, ×1, ×1.43) 평균
   return s / 3;
 }
 
+// 부식 겹 (T10e): 웅덩이 안에 tIn 초 있다가 나간 적. aIn = 안에 있는 동안 평균 겹, ss = 안의 겹-초, sOut = 나갈 때 겹,
+//   post = 나간 뒤의 겹-초 (CORR_HOLD 초 유지, 그 뒤 CORR_DROP 초마다 한 겹), tp = 나간 뒤 겹이 남는 시간, aPost = 그동안 평균 겹
+function corrRun(tIn) {
+  const K = Core.CORR_MAX, dt = Core.CORR_DT; let ss = 0;
+  for (let k = 1; k <= K; k++) { const a = (k - 1) * dt, b = k === K ? tIn : Math.min(tIn, k * dt); if (b > a) ss += k * (b - a); }
+  const sOut = Math.min(K, 1 + Math.floor(tIn / dt)), post = sOut * Core.CORR_HOLD + Core.CORR_DROP * sOut * (sOut - 1) / 2, tp = Core.CORR_HOLD + Core.CORR_DROP * (sOut - 1);
+  return { aIn: ss / Math.max(1e-6, tIn), ss, sOut, post, tp, aPost: post / tp };
+}
+
 /* ---------- 처치 속도 모형 ---------- */
 // E = (직접 피해 x 낭비 보정 + 지속 피해) x 군중 제어 x 취약. 단위는 상대값이라 같은 무기끼리 비율만 의미가 있다.
 // ref: 같은 무기의 맨 능력치 (처치 타수의 기준), lay: 배치
@@ -138,7 +147,7 @@ function model(st, ref, c, lay, PP) {
   q *= 1 + closeSh * st.closePct;
   const q0 = 1 + ref.crit * (1 + ref.critDmg);
   const tf = (t === 'blaster' || t === 'shotgun' || t === 'tesla') ? Math.pow(r / W0.range, pw.kg) : 1;   // 사거리: 머무는 시간
-  let dir = 0, dot = 0, burnN = 0, hsz = 1, sig = [], stk = null, cy = null;   // hsz: 주 공격 한 발 크기 배수 (특수 탄 평균)
+  let dir = 0, dot = 0, burnN = 0, hsz = 1, sig = [], stk = null, cy = null, corrTeam = 0;   // hsz: 주 공격 한 발 크기 배수 (특수 탄 평균), corrTeam: 산성 부식의 팀 몫 (T10e)
   const splashN = (R) => nIn(lam, Math.PI * R * R);
   const sides = lay.sides;
   // 군중 제어: 같은 적을 다시 맞히는 간격 tau 에서 둔화/기절/밀치기를 '느려진 비율' sigma 로 바꾼다
@@ -349,13 +358,16 @@ function model(st, ref, c, lay, PP) {
       const rr = 75 * (1 + st.aRange + st.areaPct), np = capC(nIn(lam, Math.PI * rr * rr), N) * 0.8;
       let pools = (1 + st.aMulti) * rate * 4;                 // 살아 있는 웅덩이 수 (웅덩이-초 / 초)
       const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct;
-      const vu = 0.10 + st.aVuln, per = np * cm * bm * (1 + vu);   // 웅덩이 하나의 초당 피해 (D 단위)
+      // 부식 겹 (T10e): 웅덩이를 지나는 시간 tIn (지름 x 0.85 / 속도, 끈적한 산 둔화 반영, 웅덩이 수명 4초의 0.6 까지) 동안의 평균 겹 x 겹당 값
+      const cv = Core.CORR_K + st.aVuln, sl0 = Math.max(st.aSlow, st.slow) * (1 - 0.5 * bb);
+      const tIn = Math.min(2.4, 1.7 * rr / Math.max(1, Rv0 * (1 - sl0))), cP = corrRun(tIn), cR = st.rain ? corrRun(st.rainT) : null;
+      const vu = cP.aIn * cv, per = np * cm * bm * (1 + vu);   // 웅덩이 하나의 초당 피해 (D 단위)
       const kr = 0.3 / Math.max(1, pc.K * pw.kw);              // 피해 1 당 처치 수 (처치 폭발과 같은 근사)
       // 산성비 (T5d): RAIN_CD 초마다 rainT 초, 레인 하나 (폭우: 둘) 전체. 적이 가장 많은 레인이라 평균의 1.5배. 폭우는 고이는 웅덩이 (T10d)
       let extra = 0;
       if (st.rain) {
         const nl = st.rain2 ? 2 : 1, inL = bigE(lam * 1.5, N, NB);   // 레인 전체: 최대 타격 수 x BIG_CAP (T10c)
-        extra += nl * st.rainT / Core.RAIN_CD * st.rain * inL * (1 + vu) * pm.rain;
+        extra += nl * st.rainT / Core.RAIN_CD * st.rain * inL * (1 + cR.aIn * cv) * pm.rain;
         if (st.rain2) {   // 폭우 (T10d): 비가 오는 동안 고여 커지는 웅덩이 (레인마다 PUD_SITE 곳 x PUD_LOBE 덩이), 그친 뒤 PUD_DRY 초 동안 마름. 같은 곳의 뒤 덩이는 겹쳐 0.7 만 센다
           const b0 = 75 * (1 + st.aRange + st.areaPct) * Core.PUD_R, gr = st.rainT, T = gr + Core.PUD_DRY, K = 24; let hs = 0;
           for (let j = 0; j < Core.PUD_LOBE; j++) {
@@ -369,7 +381,7 @@ function model(st, ref, c, lay, PP) {
       // 점액 흔적: 웅덩이를 밟은 적이 3초 동안 22px 마다 자국 (뒤따르는 같은 레인의 적이 밟는다). 모든 무기 합쳐 80개
       if (st.slime) {
         const enter = pools * np * Rv0 / (2 * rr), marks = Math.min(80 / LANES, enter * 3 * Rv0 / 22 * st.slimeT);
-        dd += marks * st.slime * capE(nIn(lam, Math.PI * 31.5 * 31.5) * 1.5, N) * (1 + vu) * pm.slime;
+        dd += marks * st.slime * capE(nIn(lam, Math.PI * 31.5 * 31.5) * 1.5, N) * (1 + cP.aPost * cv) * pm.slime;   // 자국을 밟는 적은 웅덩이에서 나와 부식이 남아 있다
       }
       // 용해: 문턱 아래는 녹인다 (처형과 같은 몫), 녹은 적은 폭발, 연쇄 용해는 그 자리에 2초 웅덩이. 부패: 취약이 걸린 채 죽은 적 자리에 작은 웅덩이
       if (st.dsv) {
@@ -379,6 +391,10 @@ function model(st, ref, c, lay, PP) {
         if (st.dsvPool) dd += ks * 2 * per * pm.dsv;
       }
       if (st.rot) dd += dd * kr * 0.6 * 2 * capC(nIn(lam, Math.PI * rr * rr * 0.36), N) * 0.8 * cm * (1 + vu) * pm.rot;
+      // 부식의 팀 몫 (T10e): 웅덩이·비에 닿은 적이 부식을 지니는 시간 비율 (겹친 몫은 1 - e^-x) x 그동안의 평균 겹 x 겹당 값
+      { const enterP = pools * np / tIn, enterR = st.rain ? (st.rain2 ? 2 : 1) * bigE(lam * 1.5, N, NB) / Core.RAIN_CD : 0;
+        const tt = enterP * (tIn + cP.tp) + (cR ? enterR * (st.rainT + cR.tp) : 0), ss = enterP * (cP.ss + cP.post) + (cR ? enterR * (cR.ss + cR.post) : 0);
+        corrTeam = tt > 0 ? (1 - Math.exp(-tt / Math.max(1, LANES * lam))) * (ss / tt) * cv : 0; }
       dot = dd; q = 1;
       const cov = Math.min(0.9, (pools * np + (st.rain ? (st.rain2 ? 2 : 1) * st.rainT / Core.RAIN_CD * lam * 1.5 : 0)) / Math.max(1, LANES * lam));
       const sl = Math.max(st.aSlow, st.slow); if (sl) sig.push(sl * cov * (1 - 0.5 * bb));
@@ -404,7 +420,7 @@ function model(st, ref, c, lay, PP) {
   let team = 0;
   if (st.vuln) team += st.vuln * pw.vt;
   if (st.fldVuln) team += st.fldVuln * pw.vt;
-  if (t === 'acid') { const cov = Math.min(0.9, ((1 + st.aMulti) * rate * 4 * capC(nIn(lam, Math.PI * 75 * 75), st.cap) + (st.rain ? (st.rain2 ? 2 : 1) * st.rainT / Core.RAIN_CD * lam * 1.5 : 0)) / Math.max(1, LANES * lam)); team += (0.10 + st.aVuln) * pw.vt * cov / 0.3; }
+  if (t === 'acid') team += corrTeam * pw.vt / 0.3;   // 부식 겹의 팀 몫 (T10e. 그 전에는 취약 10% x 덮는 비율)
   const vf = (1 + vul) * (1 + team * (1 / sh - 1));
   const dr = st.dmg / ref.dmg;   // 모든 피해는 공격력에 비례한다. 지속 피해는 치명타, 보스 보정을 받지 않는다 (산성은 식 안에서 따로)
   return { t, X, n1, sig: s, ccf, vf, D: t === 'acid' ? 0 : dir * q * dr, Dd: dot * dr, carry: st.carry, st, bb, stk, cy };
@@ -693,7 +709,7 @@ const MEAS_NOTE = {
   b_frost: '일반 12, 희귀(80%) 15 라 일반에만 둔다',
   l_freeze: '0.55초 27, 0.95초 43 (희귀·영웅 예산 안)',
   s_knock: '세기 48 에서 46 (영웅 예산 안). 세기를 바꿔도 거의 그대로라 영웅에만 둔다',
-  c_wide: '계산기의 약 0.8배 (웅덩이 하나 더 82 / 예측 103)',
+  c_wide: 'T10e 섞인 팀(team_eq): 둘 더 373 / 계산기 332 (부식 덕에 웅덩이 수가 팀 전체를 돕는다) -> 하나 더 (계산기 152). T8 에는 계산기의 약 0.8배 (82 / 103)',
   s_pierce: '희귀에서 계산기의 약 0.6배',
   t_stun: '계산기의 약 2배 (44% 에서 12, 65% 에서 17 -> 희귀 90%)',
   m_shrap: '영웅 100 / 계산기 38 (박격포 측정은 고르지 않다)',

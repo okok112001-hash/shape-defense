@@ -1338,6 +1338,7 @@ function statusSvg(kind, L) {
   body += sq;
   if (kind === 'slow') body += `<rect x="${x - r}" y="${y - r}" width="${r * 2}" height="${r * 2}" fill="rgba(110,200,255,.42)"/>`;
   if (kind === 'burn') body += `<rect x="${x - r}" y="${y - r}" width="${r * 2}" height="${r * 2}" fill="none" stroke="rgba(255,150,50,.95)" stroke-width="2.5" stroke-dasharray="5 4"/>`;
+  if (kind === 'cor') { const ac = L ? LIGHT_WC.acid : C.WEAPONS.acid.color; body += `<path d="M${x - r} ${y + 1}q${r * 0.5} -2.5 ${r} 0t${r} 0V${y + r}H${x - r}z" fill="${ac}" fill-opacity=".55"/><path d="M${x - 4.5} ${y + r}h3l-.6 5a1.4 1.4 0 0 1 -1.8 0zM${x + 4} ${y + r}h2.6l-.5 3.4a1.2 1.2 0 0 1 -1.6 0z" fill="${ac}"/><circle cx="${x + 5.3}" cy="${y + r + 7}" r="1.1" fill="${ac}"/>`; }
   const my = 11;
   if (kind === 'burn') body += `<path d="M${x} ${my - 9}Q${x + 8} ${my - 1} ${x + 5} ${my + 5}Q${x} ${my + 9} ${x - 5} ${my + 5}Q${x - 8} ${my - 1} ${x} ${my - 9}" fill="#ff8a2a"/><circle cx="${x}" cy="${my + 2}" r="3" fill="#ffe08a"/>`;
   else if (kind === 'slow' || kind === 'ice') body += snow(my);
@@ -1406,7 +1407,7 @@ function helpHtml() {
   const evoNode = (w, cap) => hnode(hbox(icon('blaster', 22, w) + `<em class="bdg">${cap}</em>`, 'slot'), w ? '진화' : '100강');
   const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>
     <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 100 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
-  const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
+  const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(bossCard).join('')}</div>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
     ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
@@ -2269,6 +2270,7 @@ function drawEnemy(e) {
   enemyPath(e); e.r = r0;
   ctx.fillStyle = e.flash > 0 ? TC.hit : iced ? 'rgba(160,230,255,.5)' : rgba(col, e.boss ? 0.28 : 0.2);
   ctx.fill();
+  if (drawCorr(e)) { if (e.flash > 0) e.r = r0 * 1.2; enemyPath(e); e.r = r0; }   // 부식 겹: 몸이 산 색으로 차오른다 (경로를 다시 잡고 테두리)
   ctx.lineWidth = e.boss ? 4 : 2.5; ctx.strokeStyle = iced ? '#d6f6ff' : e.stunT > 0 ? '#fff3a0' : e.slowT > 0 ? '#8fe3ff' : col; ctx.stroke();
   if (e.type === 'giant') { ctx.beginPath(); ngon(e.x, e.y, e.r * 0.55, 8, Math.PI / 8); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke(); }
   if (e.type === 'split') {
@@ -2292,6 +2294,57 @@ function drawEnemy(e) {
   }
 }
 function hash(n) { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }   // 흔들림이 일정한 가짜 난수
+// 부식 겹 (T10e): 산이 몸 아래에서부터 차오르듯 물든다 (높이 = 겹 / 최대 겹, 바뀌면 천천히 따라가고, 수면은 적마다 다르게 일렁인다).
+// 겹수만큼 몸 밑에서 방울이 늘어지다 떨어지며 작아진다 (자리, 빠르기, 길이는 적마다 다르게). 다 차면 수면에서 작은 거품이 오른다.
+// 그렸으면 true (지금 경로가 바뀌었으니 부르는 쪽이 테두리 경로를 다시 잡는다)
+const CORR_WY = new Float32Array(7);   // 수면 높이 (점 7개)
+function corrBot(e, dx) {   // 몸 아래쪽 가장자리의 높이 (방울이 매달리는 곳)
+  const r = e.r, a = Math.abs(dx);
+  switch (e.type) {
+    case 'basic': return e.y + r * 0.85;
+    case 'runner': return e.y + r - 2 * a;
+    case 'swarm': return e.y + r - a;
+    default: return e.y + r * 0.9 * Math.sqrt(Math.max(0, 1 - (a / r) * (a / r)));
+  }
+}
+function drawCorr(e) {
+  if (!(e.cor > 0) && !(e.cvis > 0)) return false;   // 부식이 없는 적 (대부분): 바로 끝
+  const tgt = (e.cor || 0) / C.CORR_MAX;
+  e.cvis = e.cvis == null ? tgt : e.cvis + (tgt - e.cvis) * Math.min(1, (VX.dt || 0.016) * 4);   // 화면용: 보이는 높이가 천천히 따라간다
+  if (e.cvis < 0.02 && !(e.cor > 0)) { e.cvis = 0; return false; }
+  const L = VX.light, col = L ? LIGHT_WC.acid : C.WEAPONS.acid.color, t = VX.t, sd = VX.ui(e).sd * 40, r = e.r, lv = e.cvis;
+  const sy = e.y + r - 1.86 * r * lv, x0 = e.x - r - 3, x1 = e.x + r + 3, amp = r * (0.05 + 0.05 * lv), WY = CORR_WY;   // 가득 차도 위쪽에 물결이 조금 보이게 (0.93)
+  for (let i = 0; i <= 6; i++) WY[i] = sy + Math.sin(t * (2.2 + hash(sd + i) * 1.6) + sd + i * 1.7) * amp * (0.5 + hash(sd + i * 2.3));
+  ctx.save(); enemyPath(e); ctx.clip();
+  ctx.beginPath(); ctx.moveTo(x0, e.y + r + 3);
+  for (let i = 0; i <= 6; i++) ctx.lineTo(x0 + (x1 - x0) * i / 6, WY[i]);
+  ctx.lineTo(x1, e.y + r + 3); ctx.closePath();
+  ctx.fillStyle = rgba(col, (L ? 0.3 : 0.26) + 0.3 * lv); ctx.fill();
+  ctx.beginPath(); for (let i = 0; i <= 6; i++) { const xx = x0 + (x1 - x0) * i / 6; if (i) ctx.lineTo(xx, WY[i]); else ctx.moveTo(xx, WY[i]); }   // 수면: 밝은 가는 선
+  ctx.lineWidth = 1.2; ctx.strokeStyle = rgba(L ? VX.mix(col, 0.35) : VX.mix(col, 0.45), 0.8); ctx.stroke();
+  ctx.restore();
+  // 늘어지다 떨어지는 방울 (겹수만큼)
+  const n = Math.max(1, Math.round(lv * C.CORR_MAX)), sp = e.type === 'runner' || e.type === 'swarm' ? 0.35 : 1.25, w0 = Math.min(2.4, 1 + 0.06 * r), rd = Math.min(r, 22);   // 큰 적(보스)도 방울 크기는 비슷하게
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const h1 = hash(sd + i * 3.7), h2 = hash(sd + i * 5.3), dx = (h1 - 0.5) * r * sp, xx = e.x + dx, y0 = corrBot(e, dx) - 1.5;
+    const ph = (t * (0.45 + 0.4 * h2) + hash(sd + i * 1.9)) % 1, L0 = rd * (0.18 + 0.22 * lv) * (0.7 + 0.6 * h2), w = w0 * (0.8 + 0.4 * h1);
+    if (ph < 0.7) {                          // 늘어지는 방울
+      const len = L0 * (0.25 + 0.75 * ph / 0.7);
+      ctx.moveTo(xx - w, y0); ctx.lineTo(xx + w, y0); ctx.lineTo(xx + w * 0.5, y0 + len); ctx.arc(xx, y0 + len, w * 0.75, 0, Math.PI); ctx.closePath();
+    } else {                                  // 떨어지며 작아지는 방울
+      const q = (ph - 0.7) / 0.3, fy = y0 + L0 + q * rd * 0.7, fr = w * 0.75 * (1 - 0.7 * q);
+      ctx.moveTo(xx + fr, fy); ctx.arc(xx, fy, fr, 0, TAU);
+    }
+  }
+  ctx.fillStyle = rgba(L ? VX.mix(col, -0.15) : col, 0.85); ctx.fill();
+  if (e.cor >= C.CORR_MAX && lv > 0.9) {    // 다 차면 수면의 작은 거품
+    ctx.beginPath();
+    for (let i = 0; i < 2; i++) { const ph = (t * (0.9 + 0.5 * hash(sd + i * 7.1)) + hash(sd + i * 4.4)) % 1, bx = e.x + (hash(sd + i * 6.2) - 0.5) * r * 0.9, by = e.y + r * (0.6 - 1.3 * ph), br = 0.8 + 1.6 * ph; ctx.moveTo(bx + br, by); ctx.arc(bx, by, br, 0, TAU); }
+    ctx.lineWidth = 1; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.35) : VX.hot(col), 0.7); ctx.stroke();
+  }
+  return true;
+}
 // 보스 소환진: 예고 동안 등장 자리에서 이중 고리가 천천히 돌며 안쪽으로 좁혀든다
 // 소환진 밖의 전장은 살짝 어두워지고(적과 탄은 이 뒤에 그려져 그대로 보인다), 고리는 천천히 맥동한다
 function drawSummon(pb, H) {

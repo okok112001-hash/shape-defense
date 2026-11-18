@@ -10,7 +10,9 @@
      a.<증강>.<등급> 증강 (등급 0~3. 예 acid+a.c_corrode.2)
      p.<파츠>.<등급> 무기 파츠
      s<줄>.<랭크 셋> 진화 스킬 (예 acid+s1.551 = 줄 1 을 뿌리 5, 상위 5, 궁극 1)
-   사용: node tools/team_eq.js --cand acid,acid+d-40,blaster+d50 [--ref blaster] [--team blaster,shotgun,laser,rail] [--runs 4] [--from 1] [--jit 0.2] [--only few,mix] [--tag 이름]
+   --base <후보>: R 과 환산을 그 후보 팀에 대한 비로 본다 (예 --base acid 이면 R = M*(acid+증강) / M*(acid), 환산 = 같은 비를 내는 기준 무기 공격력 증가).
+     증강의 값어치를 "그 칸의 블래스터 공격력 몇 % 어치"로 읽을 때 쓴다 (T10e: 산성은 블래스터 한 칸어치로 맞췄으므로)
+   사용: node tools/team_eq.js --cand acid,acid+d-40,blaster+d50 [--ref blaster] [--base acid] [--team blaster,shotgun,laser,rail] [--runs 4] [--from 1] [--jit 0.2] [--only few,mix] [--tag 이름]
    결과: tools/team_eq_report[_이름].txt */
 const { isMainThread, parentPort } = require('worker_threads');
 const path = require('path');
@@ -47,7 +49,7 @@ const val = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : nu
 const N = +(val('--runs') || 4), S0 = +(val('--from') || 1), JIT = val('--jit') != null ? +val('--jit') : 0.2, TAG = val('--tag');
 const TEAM = (val('--team') || 'blaster,shotgun,laser,rail').split(',');
 if (TEAM.length !== 4) { console.error('--team 은 무기 넷'); process.exit(1); }
-const REF = val('--ref') || 'blaster';
+const REF = val('--ref') || 'blaster', BASE = val('--base') || null;
 const SC = val('--only') ? val('--only').split(',') : B.SC;
 const zero = () => [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
 function parse(txt) {
@@ -66,6 +68,7 @@ function parse(txt) {
 }
 const teamOf = (o) => [0, 1, 2, 3, 4].map((i) => (i === 2 ? o : { t: TEAM[i < 2 ? i : i - 1], p: [], a: [], evo: 1, sk: zero() }));
 const names = [REF, ...(val('--cand') || '').split(',').filter((x) => x && x !== REF)];
+if (BASE && !names.includes(BASE)) names.push(BASE);
 const cfgs = names.map((nm) => ({ nm, spec: teamOf(parse(nm)) }));
 // 기준 무기의 가짜 공격력 마디 (x = ln(1 + d))
 const knots = [[0, REF]];
@@ -88,7 +91,7 @@ const { gm, pad, lpad, fnvStr } = L;
   out.push(`생성: ${new Date().toISOString()}  시드 ${S0}..${S0 + N - 1}, 체력 흔들기 ±${JIT} (ln), 목표 비율 ${T}, 소요 ${((Date.now() - t0) / 60000).toFixed(1)}분, 시뮬레이션 ${sims}판, 워커 ${os.cpus().length}개`);
   out.push('');
   out.push(`[방법] 팀 = [${TEAM[0]}, ${TEAM[1]}, W, ${TEAM[2]}, ${TEAM[3]}], 모두 진화 0강. 칸 2 의 W 만 바꾼다. 시나리오는 bench.js 와 같다(워밍업 10초 + 측정 120초, 기지는 죽지 않음).`);
-  out.push(`  R = M*(후보 팀) / M*(기준 팀, W = ${REF}). M* = 팀이 "무기 없을 때 피해의 ${T * 100}%"만 받는 적 체력 배수 (skill_eq.js 와 같은 방법).`);
+  out.push(`  R = M*(후보 팀) / M*(${BASE ? BASE + ' 팀 (--base)' : '기준 팀, W = ' + REF}). M* = 팀이 "무기 없을 때 피해의 ${T * 100}%"만 받는 적 체력 배수 (skill_eq.js 와 같은 방법).`);
   if (knots.length > 1) out.push(`  환산 = ${REF} 공격력 가짜 마디 (${knots.slice(1).map((k) => k[1]).join(', ')}) 의 ln M* 꺾은선에서 같은 M* 가 되는 ${REF} 공격력 증가 (%). "!" = 마디 밖이라 끝 구간을 늘여 읽음.`);
   out.push('');
   out.push('[기준 팀의 M*] ' + SC.map((sk) => { const r = res.get(REF + '|' + sk); return `${sk} ${ok(r) ? Math.exp(r.lnM).toPrecision(4) : r ? r.fail : 'ERR'}`; }).join('  '));
@@ -101,10 +104,10 @@ const { gm, pad, lpad, fnvStr } = L;
     return p1[1] !== p0[1] ? { x: p0[0] + (p1[0] - p0[0]) * (y - p0[1]) / (p1[1] - p0[1]), out: true } : null;
   };
   const hdr = '  ' + pad('후보', 30) + SC.map((sk) => lpad(sk, 7)).join('') + lpad('기하평균', 10) + (knots.length > 1 ? SC.map((sk) => lpad('환' + sk.slice(0, 2), 7)).join('') + lpad('환산', 8) : '') + lpad('오차%', 7);
-  out.push('[R = M*(후보) / M*(기준)]' + (knots.length > 1 ? '  환xx = 시나리오별 환산 %, 환산 = 기하평균 R 을 같은 식으로 (마디 기하평균 꺾은선)' : ''));
+  out.push(`[R = M*(후보) / M*(${BASE || '기준'})]` + (knots.length > 1 ? '  환xx = 시나리오별 환산 %, 환산 = 기하평균 R 을 같은 식으로 (마디 기하평균 꺾은선)' : ''));
   out.push(hdr);
   for (const c of cfgs) {
-    const qs = SC.map((sk) => { const a = res.get(c.nm + '|' + sk), z = res.get(REF + '|' + sk); return ok(a) && ok(z) ? { R: Math.exp(a.lnM - z.lnM), se: Math.hypot(a.se || 0, z.se || 0), y: a.lnM } : { s: a ? a.fail || 'ERR' : 'ERR' }; });
+    const qs = SC.map((sk) => { const a = res.get(c.nm + '|' + sk), z = res.get((BASE || REF) + '|' + sk), r0 = res.get(REF + '|' + sk); return ok(a) && ok(z) && ok(r0) ? { R: Math.exp(a.lnM - z.lnM), se: Math.hypot(a.se || 0, z.se || 0), y: a.lnM - z.lnM + r0.lnM } : { s: a ? a.fail || 'ERR' : 'ERR' }; });
     const good = qs.filter((q) => q.R != null), g = good.length === SC.length ? gm(good.map((q) => q.R)) : NaN;
     let line = '  ' + pad(c.nm, 30) + qs.map((q) => lpad(q.R != null ? q.R.toFixed(3) : q.s, 7)).join('') + lpad(isNaN(g) ? '-' : g.toFixed(3), 10);
     if (knots.length > 1) {

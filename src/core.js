@@ -222,10 +222,10 @@ const AUGS = {
   r_through: { name: '관통 저격', min: 2, for: 'rail', v: [0, 0, 150, 375], ap: mx('through'), d: v => `탄이 표적 뒤 일직선상의 적도 관통 (피해 ${v}%)` },
   r_twin:    { name: '이중 저격', min: 2, for: 'rail', v: [0, 0, 45, 110], ap: mx('twin'),    d: v => `두 번째로 체력이 많은 적도 저격 (피해 ${v}%)` },
   // 산성 분사기
-  c_corrode: { name: '부식액',   abbr: '부식', min: 0, for: 'acid', v: [9.8, 20, 39, 98], ap: pct('aVuln'), d: v => `부식 한 겹이 늘리는 피해 +${r1(v / CORR_MAX)}%p` },
-  c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, max: 2, for: 'acid', v: [13, 26, 57, 57], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
+  c_corrode: { name: '부식액',   abbr: '부식', min: 0, for: 'acid', v: [2, 4.5, 9, 20], ap: pct('aVuln'), d: v => `부식 한 겹이 늘리는 피해 +${v}%p` },
+  c_range:   { name: '넓은 웅덩이', abbr: '넓이', min: 0, max: 2, for: 'acid', v: [10, 19, 38, 38], ap: pct('aRange'), d: v => `웅덩이 범위 +${v}%` },
   c_pool:    { name: '끈적한 산', abbr: '끈적', min: 0, for: 'acid', v: [11, 21, 42, 80], ap: mx('aSlow'), d: v => `웅덩이 안의 적을 ${v}% 둔화` },
-  c_wide:    { name: '다중 투척', min: 3, for: 'acid', v: [2, 2, 2, 2], ap: add('aMulti'), d: v => `웅덩이를 ${v}개 더 던짐` },
+  c_wide:    { name: '다중 투척', min: 3, for: 'acid', v: [1, 1, 1, 1], ap: add('aMulti'), d: v => `웅덩이를 ${v}개 더 던짐` },
   // 기지 증강 (기지 강화 5단계마다)
   h_armor:  { name: '강화 장갑',   min: 0, for: 'base', v: [7.5, 15, 30, 75], w: [2, 4, 8, 20], ap: (s, v, w) => { s.hpPct += v / 100; s.dmgRed += w / 100; }, d: (v, w) => `기지 최대 체력 +${v}% · 기지가 받는 피해 -${w}%` },
   h_supply: { name: '보급선',     min: 0, for: 'base', v: [1.8, 3.5, 7, 18],   ap: pct('goldAll'), d: v => `재화 획득 +${v}%` },
@@ -287,9 +287,11 @@ const RAIN_CD = 16, RAIN_K = 0.55, RAIN_UP = 0.4;
 //   덩이 하나의 가장 큰 반경은 75 x PUD_R (범위 증강 포함, 덩이마다 흐트러짐). 피해 범위는 그림의 반경을 따른다
 const PUD_SITE = 3, PUD_LOBE = 3, PUD_R = 0.45, PUD_DRY = 2;
 // 부식 겹 (T10e, 사용자 결정): 산성 웅덩이(산성비, 고이는 웅덩이, 작은 웅덩이 포함) 안에 있으면 처음 닿을 때 1겹, 그 뒤 CORR_DT 초마다 1겹 (최대 CORR_MAX).
-//   겹당 받는 모든 피해 +(CORR_K + 부식액 / CORR_MAX). 나간 뒤 CORR_HOLD 초 유지하고, 그 뒤 CORR_DROP 초마다 1겹씩 빠진다.
+//   겹당 받는 모든 피해 +(CORR_K + 증강 부식액). 나간 뒤 CORR_HOLD 초 유지하고, 그 뒤 CORR_DROP 초마다 1겹씩 빠진다.
 //   산성 무기가 여럿이어도 겹은 하나로 센다 (두 자루는 손해). 다른 취약(표식, 약화)과는 따로 곱한다
 const CORR_K = 0.13, CORR_MAX = 5, CORR_DT = 0.5, CORR_HOLD = 3, CORR_DROP = 0.5;
+// 용해 (T10e): 웅덩이 안에서 체력이 DSV_T x 랭크 이하가 된 일반 적을 녹인다. 부식으로 팀 화력이 웅덩이 안 적에게 몰려 물량에서 연쇄가 너무 커져 3% 에서 낮춤
+const DSV_T = 0.02, DSV_POOL = 0.6;   // 연쇄 용해의 새 웅덩이: 범위 DSV_POOL 배, 2초 (T10e: 범위 그대로면 물량에서 연쇄가 이어져 궁극 몫이 너무 컸다)
 const NEWSK = {
   // 블래스터 - 개틀링
   gatling:  { name: '개틀링 포신', d: (k, c) => `공격 속도 +${pc(0.15 * k * c)}%, 탄 피해 -${5 * k}%. 탄이 가늘고 빨라짐`, ap: (s, k, c) => { s.gat = k; s.ratePct += 0.15 * k * c; } },
@@ -374,9 +376,9 @@ const NEWSK = {
   recoil:   { name: '반동 제어', d: (k, c) => `점사 탄 피해 +${pc(RECOIL_K * k * c)}%p`, ap: (s, k, c) => { s.bstD += RECOIL_K * k * c; } },
   burst3:   { name: '3점사', d: () => `점사가 3발 (뒤의 두 발 피해는 같음)`, ap: (s) => { s.bst = 2; } },
   // 산성 분사기 - 용해
-  dsvb:     { name: '용해', d: (k, c) => `웅덩이 안에서 체력이 ${3 * k}% 이하가 된 일반 적을 바로 녹임. 녹은 적은 산성 폭발 (반경 70, 공격력의 ${pc(1 * k * c)}%)`, ap: (s, k, c) => { s.dsv = 0.03 * k; s.dsvD = 1 * k * c; s.dsvR = 1; } },
+  dsvb:     { name: '용해', d: (k, c) => `웅덩이 안에서 체력이 ${pc(DSV_T * k)}% 이하가 된 일반 적을 바로 녹임. 녹은 적은 산성 폭발 (반경 70, 공격력의 ${pc(1 * k * c)}%)`, ap: (s, k, c) => { s.dsv = DSV_T * k; s.dsvD = 1 * k * c; s.dsvR = 1; } },
   bigdsv:   { name: '큰 폭발', d: (k, c) => `용해 폭발 범위 +${12 * k}%, 피해 +${pc(2 * k * c)}%p`, ap: (s, k, c) => { s.dsvR = 1 + 0.12 * k; s.dsvD += 2 * k * c; } },
-  chaindsv: { name: '연쇄 용해', d: () => '용해 폭발이 그 자리에 새 웅덩이를 남김 (지속 절반)', ap: (s) => { s.dsvPool = 1; } },
+  chaindsv: { name: '연쇄 용해', d: () => `용해 폭발이 그 자리에 작은 웅덩이를 남김 (범위 ${pc(DSV_POOL)}%, 2초)`, ap: (s) => { s.dsvPool = 1; } },
   // 산성 분사기 - 산성비
   rainb:    { name: '산성비', d: (k, c) => `${RAIN_CD}초마다 적이 가장 많은 레인 전체에 3초간 산성비. 비 맞는 적은 초당 공격력의 ${pc(RAIN_K * k * c)}% 피해를 받고 부식이 쌓임 (최대 ${BIG_CAP}배 많은 적)`, ap: (s, k, c) => { s.rain = RAIN_K * k * c; s.rainT = 3; } },
   monsoon:  { name: '장마', d: (k) => `산성비 지속 +${r1(RAIN_UP * k)}초`, ap: (s, k) => { s.rainT = 3 + RAIN_UP * k; } },
@@ -390,7 +392,7 @@ const SNW = (id, t) => mkNode(id, t, { nw: NEWSK[id], sc: 1 });
 // 줄: 이름, 노드 3개, 세기 배율(sc). 배율은 tools/balance_log.md 에 기록한다
 const LINE = (name, nodes, sc) => { nodes.forEach((n) => { if (n.nw) n.sc = sc == null ? 1 : sc; }); return { name, nodes }; };
 const SC_RAIL = [2, 0.3, 1];   // 저격포 줄 배율 (T5c: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함. T9d: 과잉 살상 1 -> 2 와 점사 줄은 측정으로 정함)
-const SC_ACID = [0.5, 1.4, 0.5];   // 산성 분사기 줄 배율 (T5d: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함)
+const SC_ACID = [0.25, 0.75, 0.21];   // 산성 분사기 줄 배율 (T5d: 첫 값으로 한 번 잰 측정에 계산기 계수를 맞추고 계산기로 정함. T10e: 부식 겹과 함께 섞인 팀 측정으로 다시 정함 0.5, 1.4, 0.5 ->)
 const SKILLS = {
   blaster: [LINE('개틀링', [SNW('gatling', 'root'), SNW('warm', 'up'), SNW('spray', 'cap')], 0.9),
             LINE('광탄', [SNW('lightb', 'root'), SNW('accel', 'up'), SNW('gigab', 'cap')]),
@@ -1834,7 +1836,7 @@ const SMALL_MAX = 14;
 function acidPool(x, y, st, rk, tt, fl) {
   if (rk) { let n = 0; for (const q of S.pools) if (q.acid && q.sm && q.st.w === st.w) n++; if (n >= SMALL_MAX) return; }
   const r = 75 * (1 + st.aRange + st.areaPct) * (rk || 1);
-  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: tt || 4, d: tt || 4, st, c: st.color, cv: CORR_K + st.aVuln / CORR_MAX, slow: Math.max(st.aSlow, st.slow), sd: rnd(), sm: rk ? 1 : 0, fl: fl ? 1 : 0 });
+  S.pools.push({ acid: 1, x, y, r, dps: st.dmg, t: tt || 4, d: tt || 4, st, c: st.color, cv: CORR_K + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd(), sm: rk ? 1 : 0, fl: fl ? 1 : 0 });
   if (fl) return;
   fx({ k: 'splat', d: 0.35, x, y, r, c: st.color });
   snd('splat');
@@ -1849,7 +1851,7 @@ function dissolve(e, st) {
   boomDepth++; explode(x, y, R, st.dmg * st.dsvD, st); boomDepth--;
   if (S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].nk = 1;   // 화면: 보통 폭발 대신 'dsvb' (큰 폭발 단계 lv 에 따라 커지고 산 방울이 튄다)
   fx({ k: 'dsvb', d: 1.7, x, y, r: R, c: st.color, lv: Math.round((st.dsvR - 1) / 0.12) });
-  if (st.dsvPool) acidPool(x, y, st, 1, 2, 1);
+  if (st.dsvPool) acidPool(x, y, st, DSV_POOL, 2, 1);
 }
 // 산성비: 레인 하나 전체. 비 맞는 적은 지속 피해와 웅덩이의 취약 효과 (최대 타격 수 x BIG_CAP 까지, 같은 무기의 비는 겹쳐도 한 번만). 폭우의 고이는 웅덩이는 puddles
 function rainTick(p, dt, seen) {
@@ -1878,7 +1880,7 @@ function puddles(lane, st) {
     let s0 = 0.1 + 0.5 * rnd();
     for (let j = 0; j < PUD_LOBE; j++) {
       const a = rnd() * Math.PI * 2, dd = j ? base * (0.6 + 0.35 * rnd()) : 0, rm = base * (j ? 0.6 + 0.3 * rnd() : 0.9 + 0.2 * rnd());
-      S.pools.push({ acid: 1, rp: g, x: sx + Math.cos(a) * dd, y: sy + Math.sin(a) * dd * 0.8, r: 0, rm, s0: Math.min(s0, g.gr * 0.7), t: d, d, dps: st.dmg, st, c: st.color, cv: CORR_K + st.aVuln / CORR_MAX, slow: Math.max(st.aSlow, st.slow), sd: rnd() });
+      S.pools.push({ acid: 1, rp: g, x: sx + Math.cos(a) * dd, y: sy + Math.sin(a) * dd * 0.8, r: 0, rm, s0: Math.min(s0, g.gr * 0.7), t: d, d, dps: st.dmg, st, c: st.color, cv: CORR_K + st.aVuln, slow: Math.max(st.aSlow, st.slow), sd: rnd() });
       s0 += 0.35 + 0.4 * rnd();
     }
   }
@@ -2065,7 +2067,7 @@ function skillStep(w, i, st, dt) {
       w.rn = RAIN_CD;
       const order = [0, 1, 2, 3, 4].sort((a, b) => cnt[b] - cnt[a] || a - b);
       for (let k = 0; k < (st.rain2 ? 2 : 1); k++) {
-        S.pools.push({ kind: 'rain', wk: w, lane: order[k], x: (order[k] + 0.5) * LW, t: st.rainT, d: st.rainT, dps: st.dmg * st.rain, st, c: st.color, cv: CORR_K + st.aVuln / CORR_MAX, sd: rnd() });
+        S.pools.push({ kind: 'rain', wk: w, lane: order[k], x: (order[k] + 0.5) * LW, t: st.rainT, d: st.rainT, dps: st.dmg * st.rain, st, c: st.color, cv: CORR_K + st.aVuln, sd: rnd() });
         if (st.rain2) puddles(order[k], st);   // 폭우: 비가 오는 동안 고이는 웅덩이
       }
       snd('rain');
@@ -2636,7 +2638,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
