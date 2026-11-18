@@ -47,7 +47,7 @@ python tests/smoke.py                     # 브라우저에서 15초 플레이, 
 - 세션을 동시에 여러 개 돌려 태스크를 나눠 하지 않는다. 모든 세션이 이 폴더 하나를 같이 쓰므로 미커밋 수정·빌드·커밋이 섞이고, `draw_bench.py` 시간 측정이 서로의 CPU 사용으로 틀어진다.
 
 ## 사용량 한도(5시간)에 걸렸을 때
-- **기다렸다가 이어 가기는 설정이 한다.** `~/.claude/settings.json` 의 `env`: `CLAUDE_CODE_RETRY_WATCHDOG=1`(한도에 걸린 요청을 버리지 않고 리셋 시각까지 기다렸다가 다시 보내, 하던 턴이 그대로 이어짐), `CLAUDE_CODE_RETRY_WATCHDOG_USAGE_LIMIT_RECHECK_MS=600000`(기다리는 동안 10분마다 풀렸는지 확인). 2026-11-16 에 넣었고 그 뒤에 시작한 세션에 적용된다(확인: `echo $CLAUDE_CODE_RETRY_WATCHDOG` 가 1). 이 설정을 지우지 않는다. 실제로 한도에 걸려 이어진 적은 아직 확인하지 못했다.
+- **기다렸다가 이어 가기는 설정이 한다.** `~/.claude/settings.json` 의 `env`: `CLAUDE_CODE_RETRY_WATCHDOG=1`(한도에 걸린 요청을 버리지 않고 리셋 시각까지 기다렸다가 다시 보내, 하던 턴이 그대로 이어짐), `CLAUDE_CODE_RETRY_WATCHDOG_USAGE_LIMIT_RECHECK_MS=600000`(기다리는 동안 10분마다 풀렸는지 확인). 2026-11-16 에 넣었고 그 뒤에 시작한 세션에 적용된다(확인: `echo $CLAUDE_CODE_RETRY_WATCHDOG` 가 1). 이 설정을 지우지 않는다. 2026-11-18 T10c·T10e 세션이 5시간 한도에 걸렸다가 리셋 뒤 스스로 이어서 끝낸 것을 확인했다.
 - 그래서 한도가 걱정돼도 작업을 일부러 멈추거나 세션을 끝내지 않는다. 지금 남은 5시간 한도와 리셋 시각은 `get_session` 의 `rate_limit_info`(`resetsAt`)로 볼 수 있다.
 - 세션이 끊겨도 다음 세션이 이어 가게 한다: 태스크 안 항목을 하나 끝낼 때마다 `docs/tasks.md` 에서 그 항목 앞에 `(완료)` 를 붙이고 커밋한다. 오래 걸리는 측정은 결과를 파일로 남긴다.
 - 사용자가 "이어서"라고 하면 `docs/tasks.md` 의 진행 기록, `git status`, `git log` 를 보고 남은 항목부터 한다.
