@@ -474,14 +474,24 @@ function scene(type, lines, secs, opt) {
     assert.deepStrictEqual(Array.from({ length: 5 }, (_, r) => { w.sk[1] = [5, r + 1, 0]; Core.dirty(w); return Core.stats(w).carpet; }), [4, 4, 4, 5, 5], '폭탄창 발수 +1/+1/+1/+2/+2'); }
   // 핵탄두 차례에는 나뉘지 않는다
   { const { w, S } = mk([[1, 0, 0], [5, 0, 0], [0, 0, 0]]); foe2(250, 400); w.n = 3; fireOnce(w); assert(S.shells.length === 1 && S.shells[0].nuke, '핵탄두는 나뉘지 않음'); S.shells.length = 0; fireOnce(w); assert.strictEqual(S.shells.length, 3); }
-  // 공습: 10초마다 가장 가까운 적 높이에 레인마다 1발 (D x 1c), 예고선 뒤 왼쪽부터 차례로
-  { const { w, S, st } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); const t = foe2(250, 400), far = foe2(450, 120);
+  // 공습 (T10a): AIR_CD 초마다 레인마다 그 레인의 가장 앞의 적에게 1발 (D x 1c, 범위 x AIR_R). 빈 레인 몫은 고른 표적의 폭발 범위 밖에서 가장 앞의 적에게 (적 하나에 한 발, 남으면 버림).
+  // 폭격기 길(airTrack) 아래에서 떨어지고, 왼쪽부터 차례로
+  { const { w, S, st } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); const R = st.blast * Core.AIR_R;
+    const t = foe2(250, 400), back = foe2(255, 400 - 2.2 * R), close = foe2(262, 400 - 0.5 * R), far = foe2(450, 120);
     w.at = 0.001; Core.step(1 / 60); const sh = S.shells.filter((s) => s.air);
-    assert.strictEqual(sh.length, 5, '레인마다 1발'); assert(S.fx.some((f) => f.k === 'airwarn' && Math.abs(f.y - 400) < 1e-9), '예고선');
-    sh.forEach((s, j) => { assert(Math.abs(s.tx - (j + 0.5) * Core.LW) <= 7 && Math.abs(s.ty - 400) <= 8, '가로 한 줄 ' + j); near(s.dmg, st.dmg * cC, '한 발 D x 1c'); assert(s.wt >= Core.AIR_WARN - 1 / 60 - 1e-9, '예고선이 먼저'); if (j) assert(s.wt > sh[j - 1].wt, '왼쪽부터'); });
-    fly(Core.AIR_WARN + 4 * Core.AIR_GAP + Core.AIR_DROP + 0.1); near(took(t), st.dmg * cC, '표적 레인 폭탄'); assert(S.fx.filter((f) => f.k === 'airboom').length === 5 && S.fx.filter((f) => f.k === 'crater' && f.air).length === 5, '공습 폭발과 그을음 5개'); assert.strictEqual(took(far), 0, '다른 높이는 그대로'); assert(!S.shells.length);
-    let warns = 1; const seen = new WeakSet(S.fx); for (let i = 0; i < 60 * 20.5; i++) { Core.step(1 / 60); for (const f of S.fx) if (f.k === 'airwarn' && !seen.has(f)) { seen.add(f); warns++; } }
-    assert.strictEqual(warns, 3, '10초마다 (21초에 3번) ' + warns); }
+    assert.strictEqual(sh.length, 3, '레인 둘 + 빈 레인 몫 하나 (범위 안의 적은 빼고 남는 몫은 버림) ' + sh.length);
+    const f = S.fx.find((x) => x.k === 'airwarn'); assert(f && f.pt.length === 3 && f.g.length >= 2, '예고: 표적 표시와 폭격기 길');
+    const on = (e) => sh.filter((s) => Math.hypot(s.tx - e.x, s.ty - e.y) <= 8).length;
+    assert(on(t) === 1 && on(back) === 1 && on(far) === 1 && on(close) === 0, '표적: 레인마다 가장 앞 + 범위 밖의 다른 적');
+    for (const s of sh) { near(s.dmg, st.dmg * cC, '한 발 D x 1c'); near(s.R, R, '범위 x AIR_R'); assert(s.wt >= Core.AIR_WARN - 1 / 60 - 1e-9, '예고가 먼저'); assert(s.y0 < s.ty - 30, '위에서 떨어짐'); near(s.y0, Core.airTrack(f.g, s.tx) - Core.AIR_ALT, '폭격기 길 아래'); }
+    const byX = sh.slice().sort((a, b) => a.tx - b.tx); for (let j = 1; j < byX.length; j++) assert(byX[j].wt >= byX[j - 1].wt - 0.021, '왼쪽부터');
+    for (let i = 1; i < f.g.length; i++) assert(Math.abs(f.g[i][1] - f.g[i - 1][1]) <= Core.AIR_SLOPE * (f.g[i][0] - f.g[i - 1][0]) + 1e-9, '길이 완만');
+    fly(Math.max(...sh.map((s) => s.wt + s.dur)) + 0.1);
+    for (const e of [t, back, far]) near(took(e), st.dmg * cC, '표적 폭탄'); near(took(close), st.dmg * cC, '범위 안의 적도 맞음');
+    assert(S.fx.filter((x) => x.k === 'airboom').length === 3 && S.fx.filter((x) => x.k === 'crater' && x.air).length === 3, '공습 폭발과 그을음 3개'); assert(!S.shells.length);
+    let warns = 1; const seen = new WeakSet(S.fx); for (let i = 0; i < 60 * (2 * Core.AIR_CD + 0.5); i++) { Core.step(1 / 60); for (const x of S.fx) if (x.k === 'airwarn' && !seen.has(x)) { seen.add(x); warns++; } }
+    assert.strictEqual(warns, 3, 'AIR_CD 초마다 ' + warns);
+    S.enemies.length = 0; w.at = 0.001; Core.step(1 / 60); assert(!S.shells.some((s) => s.air), '적이 없으면 미룸'); assert(w.at > 0 && w.at <= 0.25, '0.25초 뒤 다시'); }
   // 추적 미사일 1: 움직이는 표적을 따라가 맞힌다. 공격 속도 +15%. 표적은 저장되지 않는다 (직격 추가 피해는 T6 에서 뺐다)
   { const { w, S, st } = mk([[0, 0, 0], [0, 0, 0], [1, 0, 0]]); const t = foe2(150, 200, { speed: 0.12 }); fireOnce(w); const m = S.shells[0];
     assert(m.ms === 1 && m.tg === t && !Object.keys(m).includes('tg') && !JSON.stringify(S.shells).includes('"tg"'), '미사일, 표적은 숨김 속성');

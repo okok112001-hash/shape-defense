@@ -9,13 +9,15 @@
    "새는 비율" = 그 판에서 무기 없을 때 대비 기지 피해. 낮으면(적을 거의 다 잡으면) 더 잡을 적이 없어 R 이 눌린다.
    --alone: 블래스터 없이 박격포 두 자루만 (적을 다 잡아 R 이 눌리는 것을 피한다, 대신 적이 더 빽빽하다).
    --hp k: 적 체력을 k 배 (완성 줄이 적을 다 잡아 눌리는 것을 피한다. 체력이 높으면 낭비도 준다).
-   사용: node tools/mortar_eff.js [--alone] [--hp 3] [--runs 4] [--tag 이름]   결과: tools/mortar_eff_report[_이름].txt */
+   --up: 줄마다 "상위까지"(뿌리 5 + 상위 5) 줄도 잰다 (궁극의 몫 = 완성 - 상위까지. 유효 피해는 더해지므로 빼서 본다).
+   --only k: 줄 k(0, 1, 2)만 잰다.
+   사용: node tools/mortar_eff.js [--alone] [--hp 3] [--runs 4] [--up] [--only 1] [--tag 이름]   결과: tools/mortar_eff_report[_이름].txt */
 const fs = require('fs');
 const path = require('path');
 const B = require('./bench.js');
 const args = process.argv.slice(2);
 const val = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null; };
-const N = +(val('--runs') || 4), TAG = val('--tag'), JIT = 0.2, ALONE = args.includes('--alone'), HPX = +(val('--hp') || 1);
+const N = +(val('--runs') || 4), TAG = val('--tag'), JIT = 0.2, ALONE = args.includes('--alone'), HPX = +(val('--hp') || 1), UP = args.includes('--up'), ONLY = val('--only');
 B.init(); const Core = B.core();
 for (const [id, d] of Object.entries({ _me_k1: 1, _me_k3: 3 })) Core.PARTS[id] = { name: `가짜: 공격력 +${d * 100}%`, v: [d, d, d, d], ap: (s, v) => { s.dmgPct += v; } };
 
@@ -35,7 +37,9 @@ const CFG = [
   { name: '참고: 공격력 +300%', spec: team(zero(), '_me_k3') },
 ];
 for (let k = 0; k < 3; k++) {
+  if (ONLY != null && +ONLY !== k) continue;
   CFG.push({ name: `${NAMES[k]} 뿌리만`, spec: team(lineSk(k, [5, 0, 0])) });
+  if (UP) CFG.push({ name: `${NAMES[k]} 상위까지`, spec: team(lineSk(k, [5, 5, 0])) });
   CFG.push({ name: `${NAMES[k]} 완성`, spec: team(lineSk(k, [5, 5, 1])) });
 }
 

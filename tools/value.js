@@ -275,7 +275,7 @@ function model(st, ref, c, lay, PP) {
       if (st.cluster) ex += st.cluster * 0.8 * capE(splashN(R * 0.6) * 0.8, N);
       if (st.shrap) ex += st.shrap * 0.25 * occ(nIn(lam, 170 * 30));
       dir = rate * (shell + ex * sc);
-      if (st.air) dir += st.air * (nb + (LANES - 1) * lane(R)) / Core.AIR_CD;   // 공습: 10초마다 레인마다 1발 (발사 속도와 무관)
+      if (st.air) dir += st.air * Math.min(LANES, Math.max(1, lam * LANES)) * (1 + around(R * Core.AIR_R)) / Core.AIR_CD;   // 공습 (T10a): AIR_CD 초마다 표적(레인마다 가장 앞의 적, 빈 레인 몫은 다른 적)마다 1발 (발사 속도와 무관)
       burnN = rate * nb;
       if (st.pool) dot += rate * sc * st.pool * 3 * capE(splashN(R) * 0.7 + 0.5, N);
       ccHit(tau * 1.5, st.knock);

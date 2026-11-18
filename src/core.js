@@ -320,7 +320,7 @@ const NEWSK = {
   // 박격포 - 융단 폭격
   carpet:   { name: '융단 폭격', d: (k, c) => `포탄이 표적 레인을 따라 세로 한 줄로 떨어지는 3발로 나뉨. 한 발 피해 공격력의 ${pc((0.3 + 0.03 * k) * c)}%, 폭발 범위 80% (핵탄두는 나뉘지 않음)`, ap: (s, k, c) => { s.carpet = 3; s.carpetD = (0.3 + 0.03 * k) * c; } },
   bombbay:  { name: '폭탄창', d: (k, c) => `발수 +${BAY[k - 1]} (${3 + BAY[k - 1]}발), 한 발 피해 +${pc(0.01 * k * c)}%p`, ap: (s, k, c) => { s.carpet += BAY[k - 1]; s.carpetD += 0.01 * k * c; } },
-  airstrike: { name: '공습', d: (k, c) => `10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 폭격. 레인마다 1발, 한 발 피해 공격력의 ${pc(1 * c)}%`, ap: (s, k, c) => { s.air = 1 * c; } },
+  airstrike: { name: '공습', d: (k, c) => `${AIR_CD}초마다 폭격기가 레인마다 가장 앞의 적에게 1발 (빈 레인 몫은 다른 적에게). 폭발 범위 x${AIR_R}, 한 발 피해 공격력의 ${pc(1 * c)}%`, ap: (s, k, c) => { s.air = 1 * c; } },
   // 박격포 - 미사일
   missile:  { name: '추적 미사일', d: (k) => `포탄이 표적을 따라가는 미사일로 바뀜 (빗나가지 않음). 공격 속도 +${15 * k}%`, ap: (s, k) => { s.msl = 1; s.ratePct += 0.15 * k; } },
   mirv:     { name: '분리 탄두', d: (k, c) => `착탄 직전에 소형 탄두 ${MIRV[k - 1]}개가 갈라져 주변의 다른 적에게 날아감 (피해 공격력의 ${pc((0.1 + 0.01 * k) * c)}%, 폭발 범위 50%)`, ap: (s, k, c) => { s.mirv = MIRV[k - 1]; s.mirvD = (0.1 + 0.01 * k) * c; } },
@@ -1873,8 +1873,59 @@ function focusN(e, owner) {
   e.fcT = S.t; const n = e.fcN; if (n < 20) e.fcN = n + 1; return n;
 }
 const ORBP = [[0, 0], [0, 0], [0, 0], [0, 0]];
-// 공습 간격, 예고선이 보이는 시간, 폭탄 간격 (폭격기가 레인 하나를 지나는 시간), 떨어지는 시간, 폭격기 높이 (화면에서 위로)
-const AIR_CD = 10, AIR_WARN = 0.8, AIR_GAP = 0.12, AIR_DROP = 0.3, AIR_ALT = 120;
+// 공습 간격, 예고선이 보이는 시간, 폭탄 간격 (폭격기가 레인 하나를 지나는 시간), 떨어지는 시간 (폭격기 높이만큼 떨어질 때), 폭격기 높이 (화면에서 위로),
+// 폭발 범위 배수 (T10a), 폭격기 길의 기울기 한도 (매듭 사이 평균. 부드럽게 이어 가장 가파른 곳은 1.5배)
+const AIR_CD = 15, AIR_WARN = 0.8, AIR_GAP = 0.12, AIR_DROP = 0.3, AIR_ALT = 120, AIR_R = 1.3, AIR_SLOPE = 0.7;
+// 공습 폭격기가 지나는 길 (땅 위 자리, 화면용과 같이 쓴다): 매듭 [x, y] 사이를 부드럽게 잇는다 (매듭에서 기울기 0). 매듭 밖은 끝 매듭 높이
+function airTrack(g, x) {
+  if (x <= g[0][0]) return g[0][1];
+  for (let i = 1; i < g.length; i++) {
+    if (x > g[i][0]) continue;
+    const a = g[i - 1], b = g[i], u = (x - a[0]) / Math.max(1e-6, b[0] - a[0]);
+    return a[1] + (b[1] - a[1]) * u * u * (3 - 2 * u);
+  }
+  return g[g.length - 1][1];
+}
+// 공습 (T10a): 레인마다 그 레인에서 기지에 가장 가까운 적. 빈 레인 몫은 이미 고른 표적의 폭발 범위 밖에서 기지에 가장 가까운 적 (적 하나에 한 발, 모자라면 덜 떨어뜨린다).
+// 폭격기는 표적들 위를 왼쪽에서 오른쪽으로 부드럽게 휘어 지나가며, 표적 위를 지날 때 떨어뜨린다 (폭탄은 폭격기 아래에서 표적까지 떨어진다)
+function airStrike(st) {
+  const live = [], near = [], pick = [], R = st.blast * AIR_R;
+  for (const e of S.enemies) if (!e.dead && e.y + e.r > 0) live.push(e);
+  if (!live.length) return false;
+  for (const e of live) { const l = Math.max(0, Math.min(LANES - 1, Math.floor(e.x / LW))); if (!near[l] || e.y > near[l].y) near[l] = e; }
+  for (let l = 0; l < LANES; l++) if (near[l]) pick.push(near[l]);
+  if (pick.length < LANES) {
+    live.sort(byNear);
+    for (const e of live) {
+      if (pick.length >= LANES) break;
+      if (pick.indexOf(e) < 0 && pick.every((p) => Math.hypot(e.x - p.x, e.y - p.y) > R)) pick.push(e);
+    }
+  }
+  const tg = pick.map((e) => {                  // 떨어질 때의 자리를 앞질러 본다. 자리를 조금씩 흐트러뜨린다 (기계적으로 맞춰 터지지 않게)
+    const x = Math.max(8, Math.min(W - 8, e.x + (rnd() - 0.5) * 10)), tt = AIR_WARN + AIR_GAP * (x / LW - 0.5) + AIR_DROP;
+    return { x, y: Math.max(20, Math.min(H - 6, e.y + e.speed * H * tt + (rnd() - 0.5) * 10)) };
+  }).sort((a, b) => a.x - b.x);
+  const g = [];                                 // 폭격기 길의 매듭: 같은 레인쯤의 표적은 한 매듭으로 (평균 높이, 가장 위 표적보다 40 이상은 위로 떨어지게)
+  for (const t of tg) {
+    const k = g[g.length - 1];
+    if (k && t.x - k[0] < LW * 0.5) { k[3]++; k[0] += (t.x - k[0]) / k[3]; k[1] += (t.y - k[1]) / k[3]; k[2] = Math.min(k[2], t.y); }
+    else g.push([t.x, t.y, t.y, 1]);
+  }
+  for (const k of g) k[1] = Math.min(k[1], k[2] + AIR_ALT - 40);
+  for (let i = 1; i < g.length; i++) g[i][1] = Math.min(g[i][1], g[i - 1][1] + AIR_SLOPE * (g[i][0] - g[i - 1][0]));   // 기울기 한도: 높은 쪽(아래)을 끌어올리기만 한다
+  for (let i = g.length - 2; i >= 0; i--) g[i][1] = Math.min(g[i][1], g[i + 1][1] + AIR_SLOPE * (g[i + 1][0] - g[i][0]));
+  const knots = g.map((k) => [k[0], k[1]]), pts = [];
+  let end = 0;
+  for (const t of tg) {
+    const gy = airTrack(knots, t.x), fall = t.y - gy + AIR_ALT, dur = AIR_DROP * Math.sqrt(Math.max(40, fall) / AIR_ALT);
+    const wt = AIR_WARN + AIR_GAP * (t.x / LW - 0.5) + rnd() * 0.02;
+    S.shells.push({ drop: 1, air: 1, x0: t.x, y0: gy - AIR_ALT, tx: t.x, ty: t.y, p: 0, dur, wt, st, dmg: st.dmg * st.air, R });
+    pts.push([t.x, t.y, wt + dur]); end = Math.max(end, wt + dur);
+  }
+  fx({ k: 'airwarn', d: Math.max(AIR_WARN + 0.9, end + 0.15), g: knots, pt: pts, w: AIR_WARN, c: st.color });   // 예고 (폭격기가 지날 길과 표적 표시)와 폭격기
+  snd('air');
+  return true;
+}
 // 스킬이 있는 진화 무기가 매 스텝 하는 일
 function skillStep(w, i, st, dt) {
   const wx = (i + 0.5) * LW;
@@ -1942,21 +1993,11 @@ function skillStep(w, i, st, dt) {
       strike(w, pool[Math.floor(rnd() * pool.length)], st.dmg * st.cloud, st, cloudPos(i, S.t));
       break;
     }
-    case 'mortar': {                         // 공습: 10초마다 기지에 가장 가까운 적의 높이에 가로 한 줄 (레인마다 1발, 왼쪽부터 차례로)
+    case 'mortar': {                         // 공습: 10초마다 레인마다 기지에 가장 가까운 적에게 (빈 레인 몫은 다른 적에게)
       if (!st.air) break;
       w.at = (w.at == null ? 3 : w.at) - dt;
       if (w.at > 0) break;
-      let t = null;
-      for (const e of S.enemies) if (!e.dead && e.y + e.r > 0 && (!t || e.y > t.y)) t = e;
-      if (!t) { w.at = 0.25; break; }
-      w.at = AIR_CD;
-      const y = Math.max(30, Math.min(H - 10, t.y + t.speed * H * (AIR_WARN + 2 * AIR_GAP + AIR_DROP)));
-      fx({ k: 'airwarn', d: AIR_WARN + 0.9, y, w: AIR_WARN, c: st.color });   // 예고선과 폭격기
-      snd('air');
-      for (let j = 0; j < LANES; j++) {        // 폭격기가 레인 위를 지날 때 떨어뜨린다. 자리와 때를 조금씩 흐트러뜨린다 (기계적으로 줄 맞춰 터지지 않게)
-        const tx = (j + 0.5) * LW + (rnd() - 0.5) * 14, ty = Math.max(20, Math.min(H - 6, y + (rnd() - 0.5) * 16));
-        S.shells.push({ drop: 1, air: 1, x0: tx, y0: ty - AIR_ALT, tx, ty, p: 0, dur: AIR_DROP, wt: AIR_WARN + AIR_GAP * j + rnd() * 0.02, st, dmg: st.dmg * st.air, R: st.blast });
-      }
+      w.at = airStrike(st) ? AIR_CD : 0.25;
       break;
     }
     case 'pulse': {
@@ -2504,7 +2545,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,

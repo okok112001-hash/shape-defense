@@ -3150,26 +3150,28 @@ function bomberPath(x, y, sy) {
   for (let i = BOMBER.length - 2; i > 0; i--) { const q = BOMBER[i]; ctx.lineTo(x + q[0], y - q[1] * sy); }
   ctx.closePath();
 }
-// 공습: 기지에 가장 가까운 적의 높이에 가로로 왼쪽부터 번지는 띠가 깜빡이고, 레인마다 표적 표시가 차례로 맺힌다 (0.8초).
-// 폭격기가 왼쪽에서 날아와 레인 위를 지날 때마다 폭탄을 떨어뜨린다 (땅에는 그림자). 폭탄이 닿은 레인의 표시는 사라진다
+// 공습 (T10a): 폭격기가 지날 길(땅 위, 표적들 위를 완만하게 휘어 감)이 왼쪽부터 번지며 깜빡이고, 표적마다 표시가 차례로 맺힌다 (0.8초).
+// 폭격기가 왼쪽에서 날아와 길을 따라 기울며 지나가고, 표적 위를 지날 때 폭탄을 떨어뜨린다 (땅에는 그림자). 폭탄이 닿은 표적의 표시는 벌어지며 사라진다
 function drawAirWarn(f) {
-  const u = VX.ui(f), T = f.d - f.t, Wd = C.W, LW = C.LW, y = f.y, col = seenCol(f.c), L = VX.light, w = f.w, sd = u.sd * 53, G = C.AIR_GAP, DR = C.AIR_DROP;
-  const end = w + G * (C.LANES - 1) + DR, sweep = Math.min(1, T / 0.3), out = T > end ? Math.max(0, 1 - (T - end) / 0.3) : 1, blink = 0.72 + 0.28 * Math.sin(T * 26);
-  const a = Math.min(1, T / 0.12) * out * blink, lc = L ? VX.mix(col, -0.3) : VX.hot(col);
+  if (!f.g || !f.pt) return;
+  const u = VX.ui(f), T = f.d - f.t, Wd = C.W, LW = C.LW, g = f.g, pt = f.pt, col = seenCol(f.c), L = VX.light, w = f.w, sd = u.sd * 53, G = C.AIR_GAP;
+  let end = 0; for (const q of pt) end = Math.max(end, q[2]);
+  const sweep = Math.min(1, T / 0.3), out = T > end ? Math.max(0, 1 - (T - end) / 0.3) : 1, blink = 0.72 + 0.28 * Math.sin(T * 26);
+  const a = Math.min(1, T / 0.12) * out * blink, lc = L ? VX.mix(col, -0.3) : VX.hot(col), gy = (x) => C.airTrack(g, x);
   VX.add();
-  VX.glow(Wd * sweep / 2, y, Wd * sweep * 0.55 + 10, col, 0.42 * a, 10);
+  VX.glow(Wd * sweep / 2, gy(Wd * sweep / 2), Wd * sweep * 0.55 + 10, col, 0.36 * a, 10);
   VX.norm();
-  ctx.lineCap = 'round'; ctx.lineWidth = 1.8; ctx.strokeStyle = rgba(lc, 0.85 * a);
+  ctx.lineCap = 'round'; ctx.lineWidth = 1.8; ctx.strokeStyle = rgba(lc, 0.8 * a);
   ctx.beginPath();
-  for (let i = 0, n = 26; i <= n; i++) {     // 살짝 일렁이는 선
-    const x = Wd * sweep * i / n, yy = y + Math.sin(i * 1.3 + T * 9 + sd) * 1.2;
+  for (let i = 0, n = 30; i <= n; i++) {     // 폭격기가 지날 길: 살짝 일렁이는 선
+    const x = Wd * sweep * i / n, yy = gy(x) + Math.sin(i * 1.3 + T * 9 + sd) * 1.2;
     if (i) ctx.lineTo(x, yy); else ctx.moveTo(x, yy);
   }
   ctx.stroke();
   ctx.lineWidth = 1.7; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.3) : col, 0.9);
-  for (let j = 0; j < C.LANES; j++) {        // 표적 표시: 왼쪽부터 차례로 맺히고, 그 레인에 폭탄이 닿으면 벌어지며 사라진다. 크기와 자리가 조금씩 다르다
-    const tj = T - 0.08 - j * 0.09, hit = w + G * j + DR; if (tj <= 0 || T > hit + 0.08) continue;
-    const k = Math.min(1, tj / 0.18), x = (j + 0.5) * LW + (hash(sd + j * 3.7) - 0.5) * 10, s0 = 7 + 3 * hash(sd + j * 1.9);
+  for (let j = 0; j < pt.length; j++) {      // 표적 표시: 왼쪽부터 차례로 맺히고, 폭탄이 닿으면 벌어지며 사라진다. 크기가 조금씩 다르다
+    const q = pt[j], tj = T - 0.08 - j * 0.09, hit = q[2]; if (tj <= 0 || T > hit + 0.08) continue;
+    const k = Math.min(1, tj / 0.18), x = q[0], y = q[1], s0 = 7 + 3 * hash(sd + j * 1.9);
     const sz = s0 * (1.6 - 0.6 * VX.ease(k)) * (T > hit ? 1 + (T - hit) * 6 : 1), al = k * (T > hit ? 1 - (T - hit) / 0.08 : 0.75 + 0.25 * blink);
     if (al < 0.03) continue;
     ctx.globalAlpha = al; ctx.beginPath();
@@ -3177,25 +3179,35 @@ function drawAirWarn(f) {
     ctx.stroke();
   }
   ctx.globalAlpha = 1; ctx.lineCap = 'butt';
-  const xb = 0.5 * LW + (T - w) * LW / G;     // 폭격기: 레인 j 위를 지나는 때가 폭탄 j 를 떨어뜨리는 때
+  const xb = 0.5 * LW + (T - w) * LW / G;     // 폭격기: x 가 표적 x 를 지나는 때가 그 폭탄을 떨어뜨리는 때 (core 의 airStrike 와 같은 식)
   if (xb < -60 || xb > Wd + 60) return;
-  const yb = y - C.AIR_ALT, wob = Math.sin(T * 7 + sd) * 1.2;
-  bomberPath(xb, y + 3, 0.42);               // 땅의 그림자
+  const y0 = gy(xb), ang = Math.atan2(gy(xb + 4) - gy(xb - 4), 8), yb = y0 - C.AIR_ALT, wob = Math.sin(T * 7 + sd) * 1.2;
+  ctx.save(); ctx.translate(xb, y0 + 3); ctx.rotate(ang);
+  bomberPath(0, 0, 0.42);                    // 땅의 그림자
   ctx.fillStyle = L ? 'rgba(30,34,46,.2)' : 'rgba(0,0,0,.34)'; ctx.fill();
-  const tl = Math.min(240, xb + 60);          // 날개 끝의 비행운: 뒤로 길게 옅어진다
+  ctx.restore();
+  const tl = Math.min(240, xb + 60);          // 날개 끝의 비행운: 지나온 길을 따라 뒤로 길게 옅어진다
   if (tl > 4) {
-    const g = ctx.createLinearGradient(xb - 14, 0, xb - 14 - tl, 0), tc = L ? '120,128,145' : '210,218,235';
-    g.addColorStop(0, `rgba(${tc},${L ? 0.55 : 0.45})`); g.addColorStop(1, `rgba(${tc},0)`);
-    ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.beginPath();
-    for (const sg of [-1, 1]) { const ey = yb + wob + sg * 30 * 0.55; ctx.moveTo(xb - 14, ey); ctx.lineTo(xb - 14 - tl, ey + sg * 2); }
+    const gr = ctx.createLinearGradient(xb - 14, 0, xb - 14 - tl, 0), tc = L ? '120,128,145' : '210,218,235';
+    gr.addColorStop(0, `rgba(${tc},${L ? 0.55 : 0.45})`); gr.addColorStop(1, `rgba(${tc},0)`);
+    ctx.strokeStyle = gr; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.beginPath();
+    for (const sg of [-1, 1]) {
+      for (let i = 0, n = 8; i <= n; i++) {
+        const x = xb - 14 - tl * i / n, ey = gy(x) - C.AIR_ALT + wob + sg * (30 * 0.55 + 2 * i / n);
+        if (i) ctx.lineTo(x, ey); else ctx.moveTo(x, ey);
+      }
+    }
     ctx.stroke(); ctx.lineCap = 'butt';
   }
-  bomberPath(xb, yb + wob, 0.55);
+  ctx.save(); ctx.translate(xb, yb + wob); ctx.rotate(ang);
+  bomberPath(0, 0, 0.55);
   ctx.fillStyle = L ? '#596173' : '#a3abbf'; ctx.fill();
   ctx.lineWidth = 1.3; ctx.strokeStyle = L ? '#373d4b' : 'rgba(230,236,248,.85)'; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(xb + 30, yb + wob); ctx.lineTo(xb - 34, yb + wob); ctx.lineWidth = 2.2; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.2) : col, 0.9); ctx.stroke();   // 등줄기 (무기 색)
+  ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(-34, 0); ctx.lineWidth = 2.2; ctx.strokeStyle = rgba(L ? VX.mix(col, -0.2) : col, 0.9); ctx.stroke();   // 등줄기 (무기 색)
+  ctx.restore();
   VX.add();
-  for (const sg of [-1, 1]) VX.glow(xb - 6, yb + wob + sg * 17 * 0.55, 7, fireCol().o, L ? 0.55 : 0.7);   // 엔진 불빛
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  for (const sg of [-1, 1]) { const lx = -6, ly = sg * 17 * 0.55; VX.glow(xb + lx * ca - ly * sa, yb + wob + lx * sa + ly * ca, 7, fireCol().o, L ? 0.55 : 0.7); }   // 엔진 불빛
   VX.norm();
 }
 // 공습 폭발: 일반 포탄보다 크고, 속이 하얗게 달아오른 뒤 불기둥이 위로 솟았다가 사그라든다. 불티와 연기가 오른다
