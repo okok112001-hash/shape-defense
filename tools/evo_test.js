@@ -256,7 +256,7 @@ function scene(type, lines, secs, opt) {
     for (const f of S.fx) if (!seenF.has(f)) { seenF.add(f); o.fx[f.k] = (o.fx[f.k] || 0) + 1; }
   }
   o.dealt = +(w.dealt || 0).toPrecision(9); o.n = w.n;
-  o.foes = foes.map((e) => [+e.hp.toPrecision(9), +e.y.toFixed(3), +e.x.toFixed(3), +e.slowPct.toFixed(4), e.stunT > 0 ? 1 : 0, e.fT > 0 ? 1 : 0, +(e.vulnT > 0 ? e.vulnPct : 0).toFixed(4), e.dead ? 1 : 0]);
+  o.foes = foes.map((e) => [+e.hp.toPrecision(9), +e.y.toFixed(3), +e.x.toFixed(3), +e.slowPct.toFixed(4), e.stunT > 0 ? 1 : 0, e.fT > 0 ? 1 : 0, +(e.vulnT > 0 ? e.vulnPct : 0).toFixed(4), e.cor || 0, e.dead ? 1 : 0]);
   finite(num(Core.stats(w)), type + ' scene stats');
   for (const e of foes) assert(Number.isFinite(e.hp) && Number.isFinite(e.y), type + ' scene enemy');
   assert(Number.isFinite(S.dealt) && Number.isFinite(S.gold));
@@ -708,12 +708,12 @@ function scene(type, lines, secs, opt) {
   const mk = (sk) => { game(1); const w = put('acid', 2, 100, true); w.sk = sk; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; w.cd = 99; w.rn = 99; const st = Core.stats(w); st.crit = 0; return { w, S, st, D: st.dmg }; };
   const run = (sec, each) => { for (let i = 0, n = Math.round(sec * 60); i < n; i++) { Core.step(1 / 60); if (each) each(); } };
   const near = (a, b, what, tol) => assert(Math.abs(a - b) <= (tol || 1e-4) * Math.max(1, Math.abs(b)), `${what}: ${a} != ${b}`);
-  const pool = (S, st, x, y, o) => { const p = Object.assign({ acid: 1, x, y, r: 75, dps: st.dmg, t: 4, st, c: st.color, vuln: 0.1, slow: 0, sd: 0 }, o || {}); S.pools.push(p); return p; };
+  const pool = (S, st, x, y, o) => { const p = Object.assign({ acid: 1, x, y, r: 75, dps: st.dmg, t: 4, st, c: st.color, cv: Core.CORR_K, slow: 0, sd: 0 }, o || {}); S.pools.push(p); return p; };
   const cD = SKILLS.acid[0].nodes[0].sc, cN = SKILLS.acid[1].nodes[0].sc, cS = SKILLS.acid[2].nodes[0].sc;
   // 용해 1: 웅덩이 안에서 체력 3% 이하가 된 일반 적을 녹이고 반경 70 에 D x c 폭발. 보스는 녹지 않는다
   { const { S, st, D } = mk([[1, 0, 0], [0, 0, 0], [0, 0, 0]]); pool(S, st, 250, 300);
     const a = foe2(250, 300, { hp: 100.05, maxHp: 1e4 }), b = foe2(250, 360, { hp: 1e9, maxHp: 1e9 }), far = foe2(250, 420, { hp: 1e9, maxHp: 1e9 }), bo = foe2(260, 290, { hp: 1e6, maxHp: 1e8, boss: true, type: 'giant' });
-    Core.step(1 / 60); assert(a.dead && S.fx.some((f) => f.k === 'dsv'), '3% 이하 녹임'); near(1e9 - b.hp, D * cD + D / 60 * 1.1, '폭발 D x c (+ 웅덩이 한 틱)', 1e-6); assert.strictEqual(far.hp, 1e9, '반경 70 밖');
+    Core.step(1 / 60); assert(a.dead && S.fx.some((f) => f.k === 'dsv'), '3% 이하 녹임'); near(1e9 - b.hp, D * cD + D / 60 * (1 + Core.CORR_K), '폭발 D x c (+ 웅덩이 한 틱, 부식 1겹)', 1e-6); assert.strictEqual(far.hp, 1e9, '반경 70 밖');
     assert(!bo.dead, '보스는 녹지 않음'); assert(!S.pools.some((p) => p.acid && p.sm), '연쇄 용해 전에는 새 웅덩이 없음'); }
   // 큰 폭발 5 + 연쇄 용해: 범위 x1.6, 피해 (5 + 10)c D, 그 자리에 2초 웅덩이
   { const { S, st, D } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); pool(S, st, 250, 300);
@@ -721,10 +721,10 @@ function scene(type, lines, secs, opt) {
     assert(a.dead, '15% 이하 녹임'); near(1e9 - b.hp, D * 15 * cD, '큰 폭발 15c D (반경 112)', 1e-6);
     const np = S.pools.filter((p) => p.acid && p.sm); assert(np.length === 1 && np[0].t <= 2 && np[0].t > 1.9 && np[0].x === 250, '연쇄 용해: 2초 웅덩이 ' + np.map((p) => p.t));
     assert(np[0].fl === 1 && np[0].d === 2, '연쇄 용해 웅덩이는 폭발에서 번지는 그림 (fl)'); const bf = S.fx.find((f) => f.k === 'dsvb'); assert(bf && bf.lv === 5, '용해 폭발 그림: 큰 폭발 단계 5 ' + (bf && bf.lv)); }
-  // 산성비 1: RAIN_CD 초마다 적이 가장 많은 레인에 3초. 초당 D x RAIN_K c 와 취약. 다른 레인은 그대로
+  // 산성비 1: RAIN_CD 초마다 적이 가장 많은 레인에 3초. 초당 D x RAIN_K c 와 부식 겹. 다른 레인은 그대로
   { const { w, S, st, D } = mk([[0, 0, 0], [1, 0, 0], [0, 0, 0]]); const L1 = [foe2(150, 200, { hp: 1e9, maxHp: 1e12 }), foe2(150, 400, { hp: 1e9, maxHp: 1e12 })], o = foe2(350, 300, { hp: 1e9, maxHp: 1e12 });
     w.rn = 0.001; Core.step(1 / 60); const r = S.pools.find((p) => p.kind === 'rain'); assert(r && r.lane === 1 && Math.abs(r.t - (3 - 1 / 60)) < 1e-9, '적이 가장 많은 레인, 3초');
-    run(1); near(1e9 - L1[0].hp, D * Core.RAIN_K * cN * 1.1 * (61 / 60), '초당 D x RAIN_K c (취약 10% 포함)', 1e-3); assert(L1[1].vulnT > 0, '취약'); assert.strictEqual(o.hp, 1e9, '다른 레인');
+    run(1); near(1e9 - L1[0].hp, D * Core.RAIN_K * cN * (61 + 93 * Core.CORR_K) / 60, '초당 D x RAIN_K c (부식 1, 2, 3겹: 30, 30, 1 스텝)', 1e-3); assert(L1[1].cor === 3, '부식 3겹 ' + L1[1].cor); assert.strictEqual(o.hp, 1e9, '다른 레인');
     run(2.1); assert(!S.pools.some((p) => p.kind === 'rain'), '3초 뒤 그침'); assert(w.rn > Core.RAIN_CD - 3.5 && w.rn < Core.RAIN_CD, 'RAIN_CD 초마다'); }
   // 장마 5: 3 + 5 RAIN_UP 초. 폭우 (T10d): 두 레인, 비가 오는 동안 레인마다 PUD_SITE 곳 x PUD_LOBE 덩이의 웅덩이가 고여 커지고, 그친 뒤 PUD_DRY 초 동안 줄어든다
   { const { w, S } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); foe2(150, 200); foe2(150, 300); foe2(350, 300); w.rn = 0.001; Core.step(1 / 60);
@@ -741,19 +741,55 @@ function scene(type, lines, secs, opt) {
     let age = 0; const adv = (sec) => { const n = Math.round(sec * 60); run(n / 60); age += n / 60; };
     const tIn = 0.5 + 1.5 * Math.pow(30 / 40, 1 / 0.6), tOut = 2 + Core.PUD_DRY * (1 - (30 / 40) ** 2);   // 커지며 30 이 되는 때, 줄며 30 아래가 되는 때
     adv(tIn - 0.05); assert.strictEqual(e.hp, 1e9, '반경이 닿기 전에는 피해 없음 ' + p.r);
-    adv(0.1); assert(e.hp < 1e9 && e.vulnT > 0, '반경이 커져 닿으면 피해 ' + p.r); near(p.r, Core.puddleR(p), 'puddleR');
+    adv(0.1); assert(e.hp < 1e9 && e.cor > 0, '반경이 커져 닿으면 피해 ' + p.r); near(p.r, Core.puddleR(p), 'puddleR');
     adv(tOut + 0.05 - age); const h = e.hp; adv(0.5); assert.strictEqual(e.hp, h, '마르며 줄어 닿지 않으면 피해 없음 ' + p.r); }
   // 점액 흔적 1: 웅덩이를 밟은 적이 3초 동안 22px 마다 자국 (반경 22, 2초). 자국 위의 적은 초당 D x 0.15c
   { const { S, st, D } = mk([[0, 0, 0], [0, 0, 0], [1, 0, 0]]); pool(S, st, 250, 300, { t: 0.05 }); const m = foe2(250, 300, { speed: 0.1, hp: 1e9, maxHp: 1e12 });
     run(0.1); assert(m.slT > 2.8, '자국 남기기 시작'); run(3.2); const sl = S.pools.filter((p) => p.kind === 'slime');
     assert(sl.length >= 3 && sl.every((p) => p.r === 22 && p.t <= 2), '22px 마다 자국 ' + sl.length); assert(!(m.slT > 0), '3초 뒤 멈춤');
     const by = foe2(sl[sl.length - 1].x, sl[sl.length - 1].y, { hp: 1e9, maxHp: 1e12 }); const h0 = by.hp; run(0.5); near(h0 - by.hp, D * 0.15 * cS * 0.5, '자국 피해', 1e-3); }
-  // 끈적한 자국 5: 4.5초. 부패: 이 무기의 취약이 걸린 채 죽은 적 자리에 작은 웅덩이 (범위 60%, 2초)
+  // 끈적한 자국 5: 4.5초. 부패: 이 무기의 부식이 걸린 채 죽은 적 자리에 작은 웅덩이 (범위 60%, 2초)
   { const { S, st } = mk([[0, 0, 0], [0, 0, 0], [5, 5, 1]]); pool(S, st, 250, 300, { t: 0.05 }); const m = foe2(250, 300, { speed: 0.1, hp: 1e9, maxHp: 1e12 });
     run(0.6); assert(S.pools.some((p) => p.kind === 'slime' && p.d === 4.5 && Math.abs(p.dps - st.dmg * 0.15 * 5 * cS * 3) < 1e-6), '끈적한 자국 4.5초, 피해 x3');
-    const v = foe2(250, 300, { hp: 1e9, maxHp: 1e12 }); pool(S, st, 250, 300, { t: 0.5 }); run(0.1); assert(v.vulnT > 0); v.hp = 1; run(0.1);
+    const v = foe2(250, 300, { hp: 1e9, maxHp: 1e12 }); pool(S, st, 250, 300, { t: 0.5 }); run(0.1); assert(v.cor > 0); v.hp = 1; run(0.1);
     assert(v.dead && S.pools.some((p) => p.acid && p.sm && Math.abs(p.r - 45) < 1e-9 && p.t <= 2), '부패: 작은 웅덩이'); }
   ok('산성 분사기 새 줄 3개: 용해(녹이기, 큰 폭발, 연쇄 용해), 산성비(비, 장마, 폭우), 점액 흔적(자국, 끈적한 자국, 부패)');
+}
+/* 7g. 부식 겹 (T10e): 웅덩이 안에서 처음 닿을 때 1겹, CORR_DT 초마다 1겹 (최대 CORR_MAX), 겹당 받는 모든 피해 +CORR_K (+ 부식액 / CORR_MAX).
+   나간 뒤 CORR_HOLD 초 유지, 그 뒤 CORR_DROP 초마다 1겹씩. 산성 무기가 둘이어도 하나로 센다 */
+{
+  const { CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP } = Core;
+  const steps = (sec) => Math.round(sec * 60);
+  const run = (n, each) => { for (let i = 0; i < n; i++) { Core.step(1 / 60); if (each) each(i); } };
+  const mk = () => { game(1); const S = Core.S; S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; const w = put('acid', 2, 100); w.cd = 99; const st = Core.stats(w); st.crit = 0; return { S, w, st }; };
+  const pool = (S, st, o) => { const p = Object.assign({ acid: 1, x: 250, y: 300, r: 75, dps: 0, t: 3, d: 3, st, c: st.color, cv: CORR_K + st.aVuln / CORR_MAX, slow: 0, sd: 0 }, o || {}); S.pools.push(p); return p; };
+  // 쌓이고 유지되고 빠지는 때
+  { const { S, st } = mk(); pool(S, st); const e = foe2(250, 300); const tl = [];
+    run(steps(10), () => tl.push(e.cor || 0));
+    const at = (sec) => tl[steps(sec) - 1];
+    assert.strictEqual(at(1 / 60), 1, '처음 닿을 때 1겹');
+    for (let k = 1; k < CORR_MAX; k++) { assert.strictEqual(at(k * CORR_DT), k, k + '겹 (' + k * CORR_DT + '초 직전)'); assert.strictEqual(at(k * CORR_DT + 2 / 60), k + 1, (k + 1) + '겹'); }
+    assert.strictEqual(Math.max(...tl), CORR_MAX, '최대 CORR_MAX 겹');
+    assert.strictEqual(at(3 + CORR_HOLD - 2 / 60), CORR_MAX, '웅덩이가 사라진 뒤 CORR_HOLD 초 유지');
+    assert.strictEqual(at(3 + CORR_HOLD + 2 / 60), CORR_MAX - 1, '그 뒤 한 겹 빠짐');
+    assert.strictEqual(at(3 + CORR_HOLD + CORR_DROP * (CORR_MAX - 1) + 2 / 60), 0, 'CORR_DROP 초마다 한 겹씩 빠져 0');
+    assert.strictEqual(e.corV, 0, '겹이 없으면 값도 0'); }
+  // 받는 모든 피해 x (1 + 겹 x 겹당 값): 다른 무기의 탄, 지속 피해 모두
+  { const { S, st } = mk(); const p = pool(S, st, { t: 99, d: 99 }); const e = foe2(250, 300, { hp: 1e6, maxHp: 1e6 }); run(steps(CORR_DT * (CORR_MAX - 1)) + 2);
+    assert.strictEqual(e.cor, CORR_MAX);
+    p.dps = 6; let h = e.hp; run(1); assert(Math.abs((h - e.hp) - 0.1 * (1 + CORR_MAX * CORR_K)) < 1e-9, '웅덩이 지속 피해 x (1 + 5 x CORR_K) ' + (h - e.hp));
+    S.pools.length = 0; S.slots[2] = null; const b = put('blaster', 2, 1), bs = Core.stats(b); bs.crit = 0; b.cd = 0; h = e.hp; let d = 0;
+    for (let i = 0; i < 120 && !d; i++) { Core.step(1 / 60); d = h - e.hp; }
+    assert(Math.abs(d - bs.dmg * (1 + CORR_MAX * CORR_K)) < 1e-9, '다른 무기의 탄 피해 x (1 + 5 x CORR_K) ' + d / bs.dmg); }
+  // 산성 무기 둘: 겹은 한 번만 쌓이고 값은 큰 쪽 (부식액 영웅)
+  { const { S, st } = mk(); const w2 = put('acid', 4, 100); w2.augs[0] = { id: 'c_corrode', g: 2 }; Core.dirty(w2); w2.cd = 99; const st2 = Core.stats(w2);
+    pool(S, st); pool(S, st2); const e = foe2(250, 300); run(steps(CORR_DT * 2) + 1);
+    assert.strictEqual(e.cor, 3, '두 자루여도 같은 빠르기로 쌓임 ' + e.cor);
+    assert(Math.abs(e.corV - (CORR_K + Core.AUGS.c_corrode.v[2] / 100 / CORR_MAX)) < 1e-12, '겹당 값은 큰 쪽 (부식액: 5겹 전체 +v%p 를 겹마다 나눔) ' + e.corV); }
+  // 산성비와 고이는 웅덩이도 겹을 쌓는다, 점액 자국은 쌓지 않는다
+  { const { S, st, w } = mk(); S.pools.push({ kind: 'rain', wk: w, lane: 2, x: 250, t: 2, d: 2, dps: 0, st, c: st.color, cv: CORR_K, sd: 0 }); const e = foe2(250, 300); run(2); assert(e.cor > 0, '산성비'); }
+  { const { S, st, w } = mk(); S.pools.push({ kind: 'slime', wk: w, x: 250, y: 300, r: 22, t: 2, d: 2, dps: 0, st, c: st.color, sd: 0 }); const e = foe2(250, 300); run(2); assert(!(e.cor > 0), '점액 자국은 부식 없음'); }
+  ok('부식 겹: 1겹 + 0.5초마다, 최대 5겹, 3초 유지 뒤 한 겹씩, 받는 모든 피해 증가, 두 자루는 하나로, 산성비 포함');
 }
 /* 6c. 증강 정리 (2026-11): 진화 스킬과 겹치는 증강을 빼고 집광을 넣었다 */
 {
@@ -816,12 +852,12 @@ function scene(type, lines, secs, opt) {
     Core.S.pools.push(Object.assign({ t: 2, dps: st.dmg, st, wk: ww, key: 0, c: '#fff', sd: 0 }, mk(st))); Core.step(1 / 60);
     assert.strictEqual(hitN(ff), want, what);
   };
-  pool('acid', () => ({ acid: 1, x: 250, y: 300, r: 75, vuln: 0.1, slow: 0 }), () => clump(250, 300, 20), 6, '산성 웅덩이 6명');
+  pool('acid', () => ({ acid: 1, x: 250, y: 300, r: 75, cv: 0.05, slow: 0 }), () => clump(250, 300, 20), 6, '산성 웅덩이 6명');
   pool('mortar', () => ({ x: 250, y: 300, r: 62 }), () => clump(250, 300, 20), 8, '화염 지대 8명');
   pool('laser', (st) => ({ kind: 'melt', x: 250, y: 520 - st.range * 520, r: 0 }), () => lane(250, 20, 100, 20), 6, '용융선 6명');
   pool('pulse', () => ({ kind: 'halo', x: 250, y: 520, r: 200, big: 1 }), () => clump(250, 430, 30), 8 * Core.BIG_CAP, '잔광 24명 (초신성의 큰 한 방, T10c)');
   pool('tesla', () => ({ kind: 'efield', x: 250, y: 300, r: 45 }), () => clump(250, 300, 20), 6, '전기장 6명');
-  pool('acid', () => ({ kind: 'rain', x: 250, vuln: 0.1 }), () => lane(250, 22, 40, 20), 6 * Core.BIG_CAP, '산성비 18명 (레인 전체, T10c)');
+  pool('acid', () => ({ kind: 'rain', x: 250, cv: 0.05 }), () => lane(250, 22, 40, 20), 6 * Core.BIG_CAP, '산성비 18명 (레인 전체, T10c)');
   pool('acid', () => ({ kind: 'slime', x: 250, y: 300, r: 22 }), () => clump(250, 300, 20), 6, '점액 자국 6명');
   pool('tesla', () => ({ kind: 'arc', x0: 250, y0: 100, x1: 250, y1: 500, hw: 7 }), () => lane(250, 20, 100, 20), 6, '전기 줄 6명');
   pool('tesla', () => ({ kind: 'ball', x: 250, y: 300, vx: 0, vy: 0, r: 69 }), () => clump(250, 300, 20), 6, '구전 6명');
