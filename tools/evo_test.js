@@ -649,22 +649,28 @@ function scene(type, lines, secs, opt) {
     w.cd = 0; Core.step(1 / 60); assert(w.aim === b, '한 발에 잡을 수 있는 적 중 체력이 가장 많은 적'); while (w.aimT > 0) Core.step(1 / 60); assert(b.dead && !big.dead && !c.dead, '그 적을 처치');
     const { w: w2 } = mk([[5, 5, 0], [0, 0, 0], [0, 0, 0]]); const big2 = foeH(250, 300, 1e11); foeH(150, 300, 0.6 * Core.stats(w2).dmg); w2.cd = 0; Core.step(1 / 60); assert(w2.aim === big2, '연속 사냥이 없으면 체력이 가장 많은 적');
     const { w: w3 } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const big3 = foeH(250, 300, 1e11); w3.cd = 0; Core.step(1 / 60); assert(w3.aim === big3, '잡을 수 있는 적이 없으면 체력이 가장 많은 적'); }
-  // 연속 사냥: 저격(넘어간 피해 포함)으로 처치하면 다음 대기 시간 -STREAK_K (저격 하나에 한 번). 처치가 이어지는 동안 연속 처치가 쌓이고, 처치하지 못하면 끊긴다
-  { const { w, S, D, st } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const cut = Core.STREAK_K;
+  // 연속 사냥: 저격(넘어간 피해 포함)으로 처치하면 다음 대기 시간 -STREAK_K x STREAK_F^(연속 처치 수) (저격 하나에 한 번). 처치가 이어지는 동안 연속 처치가 쌓이고, 처치하지 못하면 끊긴다
+  { const { w, S, D, st } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const cut = Core.STREAK_K, F = Core.STREAK_F;
+    assert(cut > 0 && F > 0 && F < 1, '연속 사냥 상수');
     assert(Math.abs(st.stk - cut) < 1e-12, '연속 사냥 수치');
     const A = foeH(250, 300, 0.5 * D), B = foeH(150, 300, 0.4 * D);
     w.cd = 0; Core.step(1 / 60); const cd0 = w.cd; let k = 0; S.snd.length = 0;
     while (w.aimT > 0) { Core.step(1 / 60); k++; }
     assert(A.dead && B.dead, '표적과 넘어간 피해로 처치'); assert(S.snd.includes('cycle'), '노리쇠 소리');
-    near(w.cd, Math.max(0, cd0 - k / 60 - cut * st.cd), '다음 대기 시간 -' + cut * 100 + '%');
+    const cdAfter = (c0, k) => { const v = c0 - k / 60 - cut * st.cd; return v > 0 ? v : 0.05; };   // 0 이 되면 같은 프레임에 다시 쏘려다 표적이 없어 0.05초 뒤에 다시 본다
+    near(w.cd, cdAfter(cd0, k), '다음 대기 시간 -' + cut * 100 + '%');
     assert.strictEqual(w.hs, 1, '연속 처치 1'); assert.strictEqual(S.fx.filter((f) => f.k === 'hkx').length, 2, '처치한 자리마다 ✕ 자국');
     const T = []; let n0 = w.n;
     for (let i = 0; i < 400 && T.length < 4; i++) { if (!S.enemies.some((e) => !e.dead)) foeH(250, 200, 0.3 * D); Core.step(1 / 60); if (w.n > n0) { n0 = w.n; T.push(S.t); } }
     while (w.aimT > 0) Core.step(1 / 60);
-    const gaps = T.slice(1).map((t, i) => t - T[i]);
-    assert(T.length === 4 && Math.max(...gaps) < (1 - cut) * st.cd + 0.05, '처치가 이어지면 잇달아 쏜다 ' + gaps.map((g) => g.toFixed(3)));
+    const gaps = T.slice(1).map((t, i) => t - T[i]);   // gaps[i]: 연속 처치 i+1 번째 뒤의 간격 = 조준(0.25초)과 (1 - cut x F^(i+1)) x 대기 중 긴 쪽
+    assert(T.length === 4, '처치가 이어지면 잇달아 쏜다 ' + gaps.map((g) => g.toFixed(3)));
+    gaps.forEach((g, i) => assert(Math.abs(g - Math.max(0.25, (1 - cut * Math.pow(F, i + 1)) * st.cd)) < 2.5 / 60, `연속 ${i + 2}번째 처치 뒤 간격 ${g.toFixed(3)} (줄어드는 폭이 F 배씩)`));
+    assert(gaps[0] < gaps[1] && gaps[1] < gaps[2] && gaps[2] < st.cd, '이어질수록 간격이 늘지만 보통 대기보다는 짧다 ' + gaps.map((g) => g.toFixed(3)));
     const hs = w.hs; assert(hs >= 4, '연속 처치가 쌓인다 ' + hs);
-    S.enemies.length = 0; const big = foeH(250, 300, 1e11); shoot(w); assert(!big.dead && w.hs === 0 && w.hsL === hs, '처치하지 못하면 연속이 끊긴다'); }
+    S.enemies.length = 0; const big = foeH(250, 300, 1e11); shoot(w); assert(!big.dead && w.hs === 0 && w.hsL === hs, '처치하지 못하면 연속이 끊긴다');
+    S.enemies.length = 0; foeH(250, 300, 0.5 * D); w.cd = 0; Core.step(1 / 60); const c1 = w.cd; k = 0; while (w.aimT > 0) { Core.step(1 / 60); k++; }
+    near(w.cd, cdAfter(c1, k), '끊긴 뒤 처음 처치는 다시 -' + cut * 100 + '%'); }
   { const { w, S, D } = mk([[5, 5, 0], [0, 0, 0], [0, 0, 0]]); foeH(250, 300, 0.5 * D); shoot(w); assert(w.cd > 98 && !S.fx.some((f) => f.k === 'hkx') && !w.hs, '연속 사냥 없으면 그대로'); }
   // 점사 3: 같은 표적에게 BURST_GAP 초 뒤 1발 더 (D x (0.1 + 0.06 r) c). 반동 제어 5: +0.07 r. 3점사: 뒤 발 2개, 발마다 저격선과 탕
   { const { w, S, D } = mk([[0, 0, 0], [0, 0, 0], [3, 0, 0]]); const A = foeH(250, 300, 1e11), B = foeH(150, 300, 5e10);

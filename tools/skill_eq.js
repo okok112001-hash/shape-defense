@@ -6,7 +6,11 @@
    --mix: 섞인 팀 [블래스터, W, 블래스터, W, 블래스터] (모두 진화 0강, 블래스터는 스킬 없음). 같은 무기 다섯 자루가 버티지 못하는 무기(박격포)용.
      운반 칸(1, 3)에만 스킬을 주고, 운반 칸 공격력 +100/+300/+700/+1500% 가짜 마디의 ln M* 꺾은선에서 같은 M* 가 되는 공격력 배수를 R 로 읽는다
      (같은 무기 팀의 R 과 같은 뜻: "그 무기의 공격력 몇 배어치"). 검증은 가짜 +50% 가 1.50 으로 나오는지.
-   사용: node tools/skill_eq.js [--only blaster.0,laser] [--runs 4] [--tag 이름] [--root|--full|--up] [--nofake] [--jit 0.2] [--from 1] [--mix] */
+   --team a,b,c,d: 다른 무기 넷 + W 하나 (칸 0, 1, 3, 4 에 a~d, 가운데 칸 2 에 W. 모두 진화 0강, 스킬은 W 만). 실제 게임처럼 다른 무기가 적을 깎아 줄 때의 세기.
+     R 은 --mix 와 같이 운반 칸(2) 공격력 가짜 마디로 읽는다 (T10b 에서 더함)
+   --raw (--mix, --team 과 함께): 마디로 환산하지 않고 R = M*(스킬)/M*(스킬 없음), 곧 팀이 버티는 적 체력 배수의 비. 저격포처럼 발 수가 한계라
+     운반 칸 공격력을 올려도 팀 M* 가 거의 안 움직이는 무기용 (T10b)
+   사용: node tools/skill_eq.js [--only blaster.0,laser] [--runs 4] [--tag 이름] [--root|--full|--up] [--nofake] [--jit 0.2] [--from 1] [--mix | --team a,b,c,d] [--raw] */
 const { isMainThread, parentPort } = require('worker_threads');
 const path = require('path');
 const fs = require('fs');
@@ -52,8 +56,12 @@ const JIT = val('--jit') != null ? +val('--jit') : 0.2;
 const TAG = val('--tag');
 const ONLY = val('--only') ? val('--only').split(',') : null;
 const VARS = args.includes('--up') ? ['up'] : args.includes('--root') ? ['root'] : args.includes('--full') ? ['full'] : ['full', 'root'];   // --up: 뿌리 5 + 상위 5 (궁극 몫을 따로 볼 때)
-const MIX = args.includes('--mix');
-const CARRY = [1, 3];                                          // --mix 의 운반 칸
+const TEAM = val('--team') ? val('--team').split(',') : null;   // --team: 다른 무기 넷 (칸 0, 1, 3, 4)
+if (TEAM && TEAM.length !== 4) { console.error('--team 은 무기 넷 (예: blaster,shotgun,laser,pulse)'); process.exit(1); }
+const MIX = args.includes('--mix') || !!TEAM;
+const CARRY = TEAM ? [2] : [1, 3];                             // --mix 의 운반 칸 (--team 은 가운데 칸 하나)
+const RAW = MIX && args.includes('--raw');                    // --raw: 팀 M* 의 비 그대로
+const other = (i) => (TEAM ? TEAM[i < 2 ? i : i - 1] : 'blaster');   // 운반 칸이 아닌 칸의 무기
 const FIRST = ['blaster', 'shotgun', 'laser', 'pulse'];       // 1차분 (새 트리). 2차분은 --only 로 이름을 줄 때만
 
 // 측정 대상 줄
@@ -66,8 +74,8 @@ for (const W of Core.WEAPON_IDS) Core.SKILLS[W].forEach((ln, l) => {
 if (!lines.length) { console.error('대상 줄이 없습니다 (--only 확인)'); process.exit(1); }
 const types = [...new Set(lines.map((x) => x.W))];
 const zero = () => [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-const team = (W, sk, part) => Array.from({ length: 5 }, (_, i) => (!MIX || CARRY.includes(i) ? { t: W, p: part ? [[part, 0]] : [], a: [], evo: 1, sk } : { t: 'blaster', p: [], a: [], evo: 1, sk: zero() }));
-const FAKE_IDS = MIX ? (args.includes('--nofake') ? [] : ['_eq_dmg50']).concat(Object.keys(KNOT)) : args.includes('--nofake') ? [] : ['_eq_dmg50', '_eq_null'];
+const team = (W, sk, part) => Array.from({ length: 5 }, (_, i) => (!MIX || CARRY.includes(i) ? { t: W, p: part ? [[part, 0]] : [], a: [], evo: 1, sk } : { t: other(i), p: [], a: [], evo: 1, sk: zero() }));
+const FAKE_IDS = MIX ? (args.includes('--nofake') ? [] : ['_eq_dmg50']).concat(RAW ? [] : Object.keys(KNOT)) : args.includes('--nofake') ? [] : ['_eq_dmg50', '_eq_null'];
 // 구성: 스킬 없음(기준), 가짜 줄 2개, 줄 x (완성, 뿌리만)
 const cfgs = [];
 for (const W of types) {
@@ -108,7 +116,7 @@ const { gm, pad, lpad, fnvStr } = L;
     if (!a || !z) return { s: 'ERR' };
     if (z.fail) return { s: 'n/a' };
     if (a.fail) return { s: a.fail === 'high' ? '포화' : '못버팀' };
-    if (MIX && !(c.fid && KNOT[c.fid])) return mixR(c, sk, a, z);
+    if (MIX && !RAW && !(c.fid && KNOT[c.fid])) return mixR(c, sk, a, z);
     return { R: Math.exp(a.lnM - z.lnM), se: Math.hypot(a.se || 0, z.se || 0), cl: a.clamped || z.clamped, mv: (a.moved || 0) + (z.moved || 0) };
   };
   // --mix: 가짜 마디의 꺾은선 (x = ln(1+d), y = ln M*)에서 a.lnM 에 맞는 x. 마디 밖은 끝 구간을 늘여 쓰고 "!" 표시
@@ -135,9 +143,11 @@ const { gm, pad, lpad, fnvStr } = L;
   out.push('도형 디펜스 진화 스킬 등가 화력 리포트 (tools/skill_eq.js)');
   out.push(`생성: ${new Date().toISOString()}  시드 ${S0}..${S0 + N - 1}, 체력 흔들기 ±${JIT} (ln), 목표 비율 ${T}, 소요 ${mins.toFixed(1)}분, 시뮬레이션 ${sims}판, 워커 ${os.cpus().length}개${ONLY ? ', 대상 ' + ONLY.join(',') : ''}${VARS.length < 2 ? ', ' + VARS[0] + '만' : ''}`);
   out.push('');
-  out.push(MIX ? '[방법] 섞인 팀(--mix) = [블래스터, W, 블래스터, W, 블래스터], 모두 진화 0강(파츠, 증강 없음), 운반 칸 1, 3 의 W 만 스킬. 시나리오는 bench.js 와 같다(워밍업 10초 + 측정 120초, 기지는 죽지 않음).'
+  out.push(TEAM ? `[방법] 섞인 팀(--team) = [${TEAM[0]}, ${TEAM[1]}, W, ${TEAM[2]}, ${TEAM[3]}], 모두 진화 0강(파츠, 증강 없음), 운반 칸 2 의 W 만 스킬. 시나리오는 bench.js 와 같다(워밍업 10초 + 측정 120초, 기지는 죽지 않음).`
+    : MIX ? '[방법] 섞인 팀(--mix) = [블래스터, W, 블래스터, W, 블래스터], 모두 진화 0강(파츠, 증강 없음), 운반 칸 1, 3 의 W 만 스킬. 시나리오는 bench.js 와 같다(워밍업 10초 + 측정 120초, 기지는 죽지 않음).'
     : '[방법] 팀 = 같은 무기 5자루, 모두 진화 0강(파츠, 증강 없음), 다섯 자루 모두 같은 스킬. 시나리오는 bench.js 와 같다(워밍업 10초 + 측정 120초, 기지는 죽지 않음).');
-  if (MIX) out.push('  R = 운반 칸 공격력 +100/+300/+700/+1500% 가짜 마디의 ln M* 꺾은선에서 같은 M* 가 되는 운반 칸 공격력 배수 (같은 무기 팀의 R 과 같은 뜻). "!" = 마디 밖이라 끝 구간을 늘여 읽음.',
+  if (RAW) out.push('  R = M*(스킬)/M*(스킬 없음) 그대로 (--raw): 팀이 버티는 적 체력 배수가 몇 배가 되는지. 운반 칸 공격력으로 환산하지 않는다(가짜 +50% 도 1.50 이 아니라 팀 몫만큼).');
+  else if (MIX) out.push('  R = 운반 칸 공격력 +100/+300/+700/+1500% 가짜 마디의 ln M* 꺾은선에서 같은 M* 가 되는 운반 칸 공격력 배수 (같은 무기 팀의 R 과 같은 뜻). "!" = 마디 밖이라 끝 구간을 늘여 읽음.',
     '  "평평" = 운반 칸 공격력을 16배로 올려도 팀 M* 가 1.5배도 안 움직여 환산할 수 없는 시나리오, ">16" = 가장 높은 마디(16배)보다 위.');
   out.push(`  M* = 팀이 "무기 없을 때 피해의 ${T * 100}%"만 받는 적 체력 배수. 구간 잡기 + 이분법(폭 ${PREC}) 뒤 ±${(K * D).toFixed(3)} 안 ${2 * K + 1}점에 직선을 맞춰 구한다(ln M).`);
   out.push(`  계단 현상 완화: 적마다 체력에 exp(±${JIT}) 범위의 고정 배수를 곱한다(등장 정보의 해시라 구성이 달라도 같은 적이면 같다).`);
@@ -156,7 +166,8 @@ const { gm, pad, lpad, fnvStr } = L;
   };
   const fakes = cfgs.filter((c) => c.kind === 'fake');
   if (fakes.length) {
-    out.push(MIX ? '[방법 검증: 가짜] 공격력 +50% 는 R = 1.50 이어야 한다 (허용 ±0.05). 마디 줄은 R = M*(마디)/M*(없음): 운반 칸 화력이 팀 M* 를 얼마나 움직이는지 (1 에 가까우면 환산이 불안정)'
+    out.push(RAW ? '[참고: 가짜] 운반 칸 공격력 +50% 일 때 팀 M* 의 비 (--raw 라 1.50 이 아니어도 된다. 운반 칸 화력이 팀에서 차지하는 몫)'
+      : MIX ? '[방법 검증: 가짜] 공격력 +50% 는 R = 1.50 이어야 한다 (허용 ±0.05). 마디 줄은 R = M*(마디)/M*(없음): 운반 칸 화력이 팀 M* 를 얼마나 움직이는지 (1 에 가까우면 환산이 불안정)'
       : '[방법 검증: 가짜 줄] 공격력 +50% 는 R = 1.50, 효과 없음은 R = 1.00 이어야 한다 (허용 ±0.05)');
     out.push(hdr);
     let worst = 0, cnt = 0, bad = 0;

@@ -44,7 +44,7 @@ function defaults() {
   const K0 = { few: 6, swarm: 1.5, mix: 3, boss: 3.5, early: 2.5 };
   for (const k of CTX) c[k] = { lf: 0.6, K: K0[k], cc: 0.5, phi: 1, bf: 1 };
   for (const t of WEAPON_IDS) w[t] = { kw: 1, dw: 1, kr: 1, kg: 0.6, ccw: 1, bw: 1, vt: 0.3 };
-  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 11.5, burst: 1.05, mk: 0.74, xf: 3.9, crk: 1.32, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
+  return { c, w, m: { orb: 1, fld: 1, crush: 1, flame: 1, mine: 1, sea: 1, carpet: 1, shock: 1, spray: 1.07, efield: 0.488, arc: 0.596, ball: 0.586, ovk: 0.5, ovkA: 0.55, stk: 1.8, stkT: 0.37, burst: 1.05, mk: 0.74, xf: 3.9, crk: 1.32, rain: 0.954, slime: 0.548, dsv: 0.312, rot: 0.050 }, x: { aF: 0.8, aS: 0.5, aG: 1.6, Treg: 250, gLuck: 6 } };
 }
 let P = defaults();
 if (fs.existsSync(CAL_FILE)) { const j = JSON.parse(fs.readFileSync(CAL_FILE, 'utf8')); for (const k of ['c', 'w', 'm', 'x']) if (j[k]) for (const a in j[k]) P[k][a] = typeof j[k][a] === 'object' ? Object.assign(P[k][a] || {}, j[k][a]) : j[k][a]; }
@@ -337,8 +337,9 @@ function model(st, ref, c, lay, PP) {
       if (st.carry && st.carryMin) cy = { n: st.carry, min: st.carryMin, amp: st.carryAmp * pm.ovkA, X0, bb, k: pm.ovk, base: hits };
       dir = rate * hits;
       burnN = rate * (1 + (st.twin ? 1 : 0) + st.bst);
-      // 연속 사냥 (T9d): 저격이 처치하면 다음 대기 시간 -stk. 점사가 끝나고 조준(0.25초)해야 하므로 간격은 0.25 + 점사 시간 아래로 줄지 않는다. 처치 확률은 killRate 에서 (적 체력에 따라)
-      if (st.stk) { stk = { e: 1 - Math.max(1 - st.stk, (0.25 + st.bst * Core.BURST_GAP) / st.cd), h: 1 + bu, kr: pw.kr, k: pm.stk }; }
+      // 연속 사냥 (T9d, T10b): 저격이 처치하면 다음 대기 시간 -stk x STREAK_F^(연속 처치 수). 점사가 끝나고 조준(0.25초)해야 하므로 간격은 0.25 + 점사 시간 아래로 줄지 않는다(emax).
+      //   처치 확률은 killRate 에서 (적 체력에 따라). 표적 고르기(한 발에 잡을 수 있는 적부터)는 tg 로 따로 (계산기에는 적 체력이 섞인 모습이 없어 상수)
+      if (st.stk) { stk = { emax: 1 - (0.25 + st.bst * Core.BURST_GAP) / st.cd, K: st.stk, F: Core.STREAK_F, h: 1 + bu, kr: pw.kr, k: pm.stk, tg: pm.stkT }; }
       ccHit(tau, st.knock);
       break;
     }
@@ -413,8 +414,11 @@ function killRate(mo, m) {
       dirPart *= 1 + kp * (1 - c.bb) * a * c.k / c.base;
     }
     if (mo.stk) {   // 연속 사냥: 저격 한 번(점사 포함, 주 탄 h 발어치)이 처치할 확률 pk 만큼 다음 저격이 빨라진다
+      // 연속 처치 수 j 의 분포 (1 - pk) pk^j 로 평균 대기 감소 c = pk x 합 (1 - pk) pk^j min(emax, K F^j) (T10b. 늘 처치하면 줄어드는 폭이 0 으로 간다)
       const k = mo.stk, pk = Math.min(1, k.h / killHits(x, mo.st, mo.bb));
-      dirPart *= 1 + (Math.pow(1 / (1 - pk * k.e), k.kr) - 1) * k.k;
+      let c = 0; for (let j = 0, pj = 1 - pk, kf = k.K; j < 80 && pj > 1e-9; j++, pj *= pk, kf *= k.F) c += pj * Math.min(k.emax, kf);
+      c *= pk;
+      dirPart *= (1 + k.tg) * (1 + (Math.pow(1 / (1 - c), k.kr) - 1) * k.k);
     }   // 문턱 효과(처형, 선제, 즉사)는 타수를 X 밑으로 줄여 eff > 1 이 될 수 있다 (T8 전에는 1 로 잘라 처형·선제가 낮게 나왔다)
   }
   return (dirPart + mo.Dd) / m * mo.ccf * mo.vf;
@@ -822,7 +826,9 @@ function reportText(T, PP, fitInfo) {
 //   m.stk 11.5 (연속 사냥. 세기 대부분이 '한 발에 잡을 수 있는 적부터' 표적 고르기에서 나오는데 계산기에는 적 체력이 섞인 모습이 없어 이 계수가 대신한다), m.burst 1.05 를 손으로 맞췄다
 // T9e: 저격포 조준 레이저 줄을 고정·표식 이전·균열로 바꾼 뒤 잰 완성·뿌리 (_t9e)와 상위까지 (_t9e_up, fit 에는 안 넣음)로 m.mk 0.74 (고정해 쌓이는 겹. 집중 사격 효과도 이 계수가 대신한다),
 //   m.xf 3.9 (이어받은 겹의 몫. 측정에서는 계산보다 훨씬 크다), m.crk 1.32 (균열) 를 손으로 맞췄다 (4시나리오 기하평균. 물량은 저격포가 못 버텨 n/a). m.exec, m.mkb 는 지움
-const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt', 'skill_eq_report_t9e.txt'];
+// T10b: 연속 사냥의 대기 감소를 연속 처치마다 STREAK_F 배로 줄이고 (-90%, -54%, -32%…) 잰 과잉 살상 완성·뿌리 (_t10b, _t9d 의 rail.0 을 덮어 씀).
+//   표적 고르기 몫 m.stkT 0.37 (대기 감소를 끈 측정 2.19 / 상위까지 1.76 에 맞춤)과 대기 감소 몫 m.stk 1.8 (완성 2.48) 을 따로 손으로 맞췄다 (전에는 m.stk 11.5 하나가 둘을 대신했다)
+const SK_T6 = ['skill_eq_report_t6b.txt', 'skill_eq_report_t6c.txt', 'skill_eq_report_t9c.txt', 'skill_eq_report_t9d.txt', 'skill_eq_report_t9e.txt', 'skill_eq_report_t10b.txt'];
 const skFiles = () => [path.join(__dirname, 'skill_eq_report.txt'), ...fs.readdirSync(__dirname).filter((f) => /^skill_eq_report_t3.*\.txt$/.test(f)).map((f) => path.join(__dirname, f)), ...SK_T6.map((f) => path.join(__dirname, f))];
 function skMeasOf(sk) {
   const m = {};

@@ -1234,9 +1234,11 @@ const MIRV = [1, 1, 2, 2, 3];     // 분리 탄두: 랭크별 탄두 수
 // 난사 (개틀링 궁극, T9c): 탄띠 SPRAY_ON 초어치를 공격 속도 x(SPRAY_K x 줄 배율)로 쏘고 SPRAY_RL 초 재장전. 탄띠는 실제로 쏜 시간만큼 준다
 // 재장전은 예열 초기화(1.5초)보다 짧아 예열이 유지된다
 const SPRAY_ON = 2.4, SPRAY_RL = 1.2, SPRAY_K = 2.5;
-// 연속 사냥 (저격포 과잉 살상 궁극, T9d): 한 발에 잡을 수 있는 적부터 노리고, 저격으로 처치하면 다음 대기 시간 -STREAK_K (줄 배율과 무관. 세기는 대부분 표적 고르기에서 나온다)
+// 연속 사냥 (저격포 과잉 살상 궁극, T9d): 한 발에 잡을 수 있는 적부터 노리고, 저격으로 처치하면 다음 대기 시간 -STREAK_K x STREAK_F^(연속 처치 수) (줄 배율과 무관)
+//   T10b: 이어서 처치할수록 줄어드는 폭이 STREAK_F 배씩 작아진다 (처치하지 못하면 처음부터). 다른 무기가 깎아 주는 팀이나 물량에서는 처치가 끝없이 이어져
+//   대기 -70% 가 계속 걸리면 다른 줄의 두 배 가까이 셌다 (섞인 팀 2.85 대 1.46)
 // 점사 (저격포 줄, T9d): BURST_GAP 초 간격으로 같은 표적에게 더 쏜다. 뒤 발 피해 (BURST_A + BURST_B x r) x 줄 배율, 반동 제어 +RECOIL_K x r
-const STREAK_K = 0.7, BURST_GAP = 0.18, BURST_A = 0.1, BURST_B = 0.06, RECOIL_K = 0.07;
+const STREAK_K = 0.9, STREAK_F = 0.6, BURST_GAP = 0.18, BURST_A = 0.1, BURST_B = 0.06, RECOIL_K = 0.07;
 // 조준 레이저 (저격포 줄, T9e): 표적을 고정해 죽을 때까지 노리고, 저격할 때마다 겹 +1 (최대 MARK_MAX). 표식 이전: 고정한 적이 죽으면 다음 표적으로 옮겨 가며 겹 일부를 이어받는다
 // 균열 (궁극): 겹이 다 찬 고정 표적은 저격이 맞을 때마다 최대 체력의 CRACK_P (보스는 1/4)를 더 깎는다. 한 발에 공격력의 CRACK_Y 배까지 (줄 배율과 무관)
 const MARK_MAX = 5, CRACK_P = 0.1, CRACK_Y = 3;
@@ -1314,7 +1316,7 @@ const NEWSK = {
   // 저격포 - 과잉 살상
   overkill: { name: '과잉 살상', d: (k, c) => `적을 처치하면 남은 피해가 다음으로 체력이 많은 적에게 넘어감 (최대 ${k}회, 적어도 공격력의 ${pc(0.4 * c)}%)`, ap: (s, k, c) => { s.carry = k; s.carryMin = 0.4 * c; } },
   relay:    { name: '증폭 전달', d: (k) => `넘어갈 때마다 넘어가는 피해 +${15 * k}%`, ap: (s, k) => { s.carryAmp = 0.15 * k; } },
-  streak:   { name: '연속 사냥', d: () => `한 발에 잡을 수 있는 적부터 노림. 저격으로 처치하면 (넘어간 피해 포함) 다음 저격 대기 시간 -${pc(STREAK_K)}%`, ap: (s) => { s.stk = STREAK_K; } },
+  streak:   { name: '연속 사냥', d: () => `한 발에 잡을 수 있는 적부터 노림. 저격으로 처치하면 다음 저격 대기 -${pc(STREAK_K)}%, 이어서 처치할수록 -${Math.round(STREAK_K * STREAK_F * 100)}%, -${Math.round(STREAK_K * STREAK_F * STREAK_F * 100)}%…로 줄어듦 (못 잡으면 처음부터)`, ap: (s) => { s.stk = STREAK_K; } },
   // 저격포 - 조준 레이저
   laserm:   { name: '조준 레이저', d: (k, c) => `붉은 레이저로 표적을 고정해 죽을 때까지 노림. 저격할 때마다 표식 1겹 (최대 ${MARK_MAX}겹), 저격 피해 +겹수 x ${pc(0.1 * k * c)}%`, ap: (s, k, c) => { s.mkD = 0.1 * k * c; } },
   markxfer: { name: '표식 이전', d: (k) => `고정한 적이 죽으면 레이저가 다음 표적 (체력이 가장 많은 적)으로 옮겨 가며 겹수의 ${20 * k}%를 이어받음`, ap: (s, k) => { s.mkXfer = 0.2 * k; } },
@@ -2686,11 +2688,11 @@ function railTarget(w, pool, st) {
 const markMul = (w, t, st) => (st.mkD && w.mk === t ? 1 + w.mkN * st.mkD : 1);   // 조준 레이저: 표식 대상이면 겹수만큼
 // 연속 사냥: 지금 저격하는 무기와 그 저격(넘어간 피해, 관통, 그로 인한 폭발 포함)으로 처치한 수. kill() 이 센다
 let snipeW = null, snipeN = 0;
-// 저격(또는 점사의 한 발)이 끝났을 때: 처치했으면 다음 대기 시간을 줄이고 (저격 하나에 한 번) 연속 처치 +1. last: 점사까지 다 쏨 -> 이번 저격에 처치가 없으면 연속이 끊긴다
+// 저격(또는 점사의 한 발)이 끝났을 때: 처치했으면 다음 대기 시간을 줄이고 (저격 하나에 한 번, 연속 처치 수만큼 STREAK_F 배씩 작게) 연속 처치 +1. last: 점사까지 다 쏨 -> 이번 저격에 처치가 없으면 연속이 끊긴다
 function snipeEnd(w, st, last) {
   const killed = snipeN > 0; snipeW = null; snipeN = 0;
   if (!st.stk) return;
-  if (killed && w.hk !== w.n) { w.hk = w.n; w.cd = Math.max(0, w.cd - st.stk * st.cd); w.hs = (w.hs || 0) + 1; w.hsT = S.t; snd('cycle'); }
+  if (killed && w.hk !== w.n) { w.hk = w.n; w.cd = Math.max(0, w.cd - st.stk * Math.pow(STREAK_F, w.hs || 0) * st.cd); w.hs = (w.hs || 0) + 1; w.hsT = S.t; snd('cycle'); }
   if (last && w.hk !== w.n && w.hs) { w.hsL = w.hs; w.hsE = S.t; w.hs = 0; }
 }
 function railShoot(w, slot, st) {
@@ -3519,7 +3521,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
