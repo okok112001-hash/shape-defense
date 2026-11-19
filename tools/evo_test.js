@@ -892,6 +892,96 @@ function scene(type, lines, secs, opt) {
   ok('최대 타격 수: 레이저 6, 펄스 8, 박격포 8, 산성 6 (점액 자국 포함), 전격기 스킬 6, 바닥 효과, 다중 타격기, 제한 해제기, 진화 스킬. 큰 한 방 x3 (초신성·잔광, 핵탄두, 공습, 쌍구전 터짐, 산성비)과 쓰러지는 연출');
 }
 
+/* 12. 웨이브와 보스 (T11) */
+{
+  const DT = 1 / 30, WT = CFG.waveT;
+  const run = (S, T, each, stop) => { while (stop ? !stop() : S.t < T) { Core.step(DT); S.hp = S.maxHp; if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (each) each(); } };
+  // (a) 20초마다 웨이브, 1웨이브는 평소, 같은 종류가 연달아 오지 않음, 3웨이브마다 보스 웨이브, 10번째 보스는 천칭, 첫 보스는 무작위
+  const firsts = new Set();
+  for (let sd = 1; sd <= 12; sd++) {
+    const S = game(sd); S.hp = S.maxHp = 1e9;
+    const log = [], bosses = []; let wn = 0;
+    run(S, 0, () => {   // 웨이브 31(웨이브 시계 600초)까지. 시계체가 웨이브 시계를 빠르게 하므로 실제 시간이 아니라 웨이브 번호로 끊는다
+      if (S.wn !== wn) { wn = S.wn; log.push({ n: wn, t: S.wt, v: S.wave.v, boss: S.wave.boss }); if (S.wave.boss) bosses.push(S.pendingBoss && S.pendingBoss.type); }
+    }, () => S.wn >= 31);
+    assert.strictEqual(log[0].v, 'mix');
+    for (const w of log) {
+      assert(Math.abs(w.t - (w.n - 1) * WT) < DT * 1.5, '웨이브 시각 ' + w.n + ' ' + w.t);
+      assert.strictEqual(w.boss, w.n > 1 && (w.n - 1) % CFG.bossWaves === 0, '보스 웨이브 ' + w.n);
+    }
+    const nb = log.filter((w) => !w.boss);
+    for (let i = 1; i < nb.length; i++) assert.notStrictEqual(nb[i].v, nb[i - 1].v, '같은 종류 연속');
+    assert.strictEqual(bosses.length, 10); assert.strictEqual(bosses[9], 'scale', '10번째는 천칭');
+    for (let i = 1; i < 9; i++) assert.notStrictEqual(bosses[i], bosses[i - 1], '같은 보스 연속');
+    for (const b of bosses) assert(b === 'scale' || Core.BOSS_IDS.includes(b));
+    firsts.add(bosses[0]);
+  }
+  assert(firsts.size >= 4, '첫 보스가 무작위: ' + [...firsts]);
+  // (b) 세기와 재화: 보스 없이 600초, 웨이브의 일반 적 재화 합 = 예전 연속 등장 (±10%), 체력 합은 세기 배수 x 종류 배수 평균쯤
+  const tally = (waves, sd) => {
+    CFG.waves = waves; const S = game(sd); S.hp = S.maxHp = 1e9; S.nextBoss = 1e9;
+    const seen = new Set(); let g = 0, hp = 0;
+    run(S, 600, () => { for (const e of S.enemies) if (!seen.has(e)) { seen.add(e); g += e.gold; hp += e.maxHp; } });
+    CFG.waves = true; return { g, hp };
+  };
+  let G = 0, Hr = 0;
+  for (let sd = 1; sd <= 6; sd++) { const a = tally(true, sd), b = tally(false, sd); G += a.g / b.g / 6; Hr += a.hp / b.hp / 6; }
+  assert(G > 0.9 && G < 1.1, '재화 비 ' + G.toFixed(3));
+  assert(Hr > 0.95 && Hr < 1.25, '체력 비 ' + Hr.toFixed(3));
+  console.log(`    웨이브/연속 600초: 재화 ${G.toFixed(3)}, 체력 ${Hr.toFixed(3)}`);
+  // (c) 도구의 관례: S.spawnAcc = -1e9 이면 웨이브가 와도 적이 나오지 않고 알리지도 않는다
+  { const S = game(3); S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; const w0 = S.slots[2]; S.slots[2] = null;
+    run(S, 70); assert.strictEqual(S.enemies.length, 0); assert(S.wn >= 4); assert(!S.fx.some((f) => f.k === 'wave')); assert(!S.snd.includes('tick')); S.slots[2] = w0; }
+  // (d) 종류: 정예는 체력 x3, 일렬은 다섯 레인에 같은 높이로, 몰림은 고른 레인에만
+  const only = (v, fn) => {
+    const keep = Core.WAVE_IDS.slice(); Core.WAVE_IDS.length = 0; Core.WAVE_IDS.push(v);
+    const S = game(5); S.hp = S.maxHp = 1e9; S.nextBoss = 1e9; S.slots[2] = null;
+    run(S, WT + 0.01); const t0 = S.t; run(S, WT + 6);
+    const es = S.enemies.filter((e) => e.born >= t0 - 1e-9);
+    assert(es.length > 0 && S.wave.v === v); fn(es, S);
+    Core.WAVE_IDS.length = 0; Core.WAVE_IDS.push(...keep);
+  };
+  only('elite', (es) => { for (const e of es) { assert(e.elite); assert(Math.abs(e.maxHp / (Core.ENEMIES[e.type].hp * BAL.hpMul(e.born)) - Core.ELITE_HP) < 1e-6, '정예 체력'); } });
+  only('line', (es) => {
+    const rows = {}; for (const e of es) (rows[e.born.toFixed(4)] = rows[e.born.toFixed(4)] || []).push(e);
+    for (const k in rows) { const r = rows[k]; assert.strictEqual(r.length, 5, '한 줄 다섯'); assert.deepStrictEqual(r.map((e) => e.lane).sort(), [0, 1, 2, 3, 4]); assert(r.every((e) => e.type === r[0].type && Math.abs(e.x - (e.lane + 0.5) * Core.LW) < 1e-9)); }
+  });
+  only('focus', (es, S) => { const L = S.wave.lanes; assert(L.length >= 1 && L.length <= 2 && (L.length < 2 || Math.abs(L[0] - L[1]) === 1)); for (const e of es) assert(L.includes(e.lane), '몰림 레인'); });
+  only('heavy', (es) => { assert(es.filter((e) => e.type === 'heavy').length > es.length * 0.5); });
+  // (e) 사냥철: 2웨이브마다
+  { const S = game(2); S.pacts = ['hunt']; S.hp = S.maxHp = 1e9; const bw = []; let wn = 0;
+    run(S, 7 * WT + 5, () => { if (S.wn !== wn) { wn = S.wn; if (S.wave.boss) bw.push(wn); } });
+    assert.deepStrictEqual(bw, [4, 6, 8], '사냥철 보스 웨이브 ' + bw); }
+  // (f) 시계체: 화면에 있는 동안 웨이브 시계가 1.5배, 쓰러지면 그대로
+  {
+    const S = game(4); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.bossOnly = 'clock'; S.nextBoss = WT;
+    run(S, WT + Core.WARN_T + 1);
+    const c = S.enemies.find((e) => e.type === 'clock'); assert(c && S.clockOn);
+    const a0 = S.wt, t0 = S.t; run(S, t0 + 2); assert(Math.abs((S.wt - a0) / (S.t - t0) - Core.CLOCK_MUL) < 0.02, '시계 1.5배');
+    c.dead = true; S.enemies = S.enemies.filter((e) => !e.dead); run(S, S.t + 0.1);
+    const a1 = S.wt, t1 = S.t; run(S, t1 + 2); assert(!S.clockOn && Math.abs((S.wt - a1) / (S.t - t1) - 1) < 0.02, '시계 보통');
+  }
+  // (g) 돌격체: 걷다가 멈춰 다른 레인을 예고하고, 그 레인으로 옮겨 가며 빠르게 내려온다
+  {
+    const S = game(6); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.bossOnly = 'charge'; S.nextBoss = WT; S.spawnAcc = -1e9;
+    run(S, WT + Core.WARN_T + 0.05);
+    const c = S.enemies.find((e) => e.type === 'charge'); assert(c);
+    const lane0 = c.lane; let ph1 = null, ph2 = null, y1 = 0, yw = 0;
+    run(S, S.t + 8, () => {
+      if (c.ch && c.ch.ph === 1 && !ph1) { ph1 = { t: S.t, y: c.y, to: c.ch.to }; }
+      if (ph1 && !ph2 && c.ch.ph === 1) yw = c.y;
+      if (c.ch && c.ch.ph === 2 && !ph2) { ph2 = { t: S.t, y: c.y }; }
+      if (ph2 && c.ch.ph === 2) y1 = c.y;
+    });
+    assert(ph1 && ph2, '예고와 돌진'); assert.notStrictEqual(ph1.to, lane0, '다른 레인');
+    assert(Math.abs(yw - ph1.y) < 1e-6, '예고 동안 멈춤');
+    assert(Math.abs(ph2.t - ph1.t - Core.CHG_WARN) < 0.05, '예고 시간');
+    assert.strictEqual(c.lane, ph1.to); assert(Math.abs(c.x - (ph1.to + 0.5) * Core.LW) < 1e-6, '목표 레인 가운데');
+    assert(y1 - ph2.y > Core.H * 0.1, '빠르게 돌진 ' + (y1 - ph2.y));
+  }
+  ok('웨이브와 보스 (20초 웨이브, 3웨이브마다 보스, 무작위 보스, 재화 고정, 종류, 사냥철, 시계체, 돌격체)');
+}
+
 /* 10. 스트레스: 무기 종류마다 다섯 자루를 모두 진화시키고 20분 */
 {
   const DT = 1 / 30, T = QUICK ? 120 : 1200;

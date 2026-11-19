@@ -27,6 +27,7 @@ let Core = null, DEFW = null, ORIG = null, makeBot = null;
 function init() {
   Core = require(process.env.BENCH_CORE || path.join(__dirname, '..', 'src', 'core.js'));   // BENCH_CORE: 다른 core.js 로 가정 실험(probe)할 때
   makeBot = require(path.join(__dirname, 'bot.js')).makeBot;
+  Core.CFG.waves = false;                     // 벤치와 이것을 쓰는 측정 도구(skill_eq, team_eq, item_eq, mortar_eff)는 예전 연속 등장으로 잰다 (T11 웨이브 전 측정과 이어지게)
   DEFW = Core.BAL.spawnWeights(600);          // 600초 시점의 기본 가중치를 고정해 둔다
   Core.BAL.leakMul = () => 1;                 // 벤치는 기지 체력 변화로 leak 을 센다. 시간에 따라 커지는 기지 피해 배수(BAL.leakMul)를 꺼서 leak 단위와 보정 캐시를 예전과 같게 둔다
   ORIG = { hpMul: Core.BAL.hpMul, spawnRate: Core.BAL.spawnRate, spawnWeights: Core.BAL.spawnWeights, bossHp: Core.BAL.bossHp, bossSpd: Core.BAL.bossSpd, bossEvery: Core.CFG.bossEvery };
@@ -64,7 +65,7 @@ function runSim(spec, sk, seed, M, jit) {
   Core.BAL.bossHp = 1; Core.BAL.bossSpd = 1;  // 보스 체력/속도 배수 1.0 (전력 보스 시나리오는 보스 보정 배수와 무관하게 같은 조건)
   Core.CFG.bossEvery = sc.boss || 60;
   S.nextBoss = sc.boss ? T0 + WARM + 5 : Infinity;   // 자연 보스 없음
-  S.bossN = 0;
+  S.bossN = 0; S.bossOnly = 'giant';         // 보스 시나리오는 늘 거대체 (T11 부터 보스가 처음부터 무작위)
   // 등장 순서 해시: S.enemies.push를 걸어 종류, 레인, 위치, 시각을 기록한다
   let h = 2166136261, ns = 0, step = 0;
   const hook = (arr) => {
@@ -88,7 +89,7 @@ function runSim(spec, sk, seed, M, jit) {
   let leak = 0, d0 = 0, k0 = 0, wd0 = [];
   for (step = 0; step < total; step++) {
     if (step === warm) { d0 = S.dealt; k0 = S.kills; wd0 = S.slots.map((w) => (w ? w.dealt || 0 : 0)); }
-    if (sc.boss) S.bossN = 0;                 // 항상 첫 보스(거대체)가 나오게 한다
+    if (sc.boss) S.bossN = 0;                 // 천칭(10번째 보스)이 나오지 않게 한다
     Core.step(DT);
     S.over = false;                           // 기지는 죽지 않는다: 받은 피해만 기록하고 체력을 되돌린다
     if (step >= warm) leak += Math.max(0, S.maxHp - S.hp);

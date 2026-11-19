@@ -10,7 +10,15 @@ const CFG = {
   maxLv: 100,
   baseHp: 100,
   startGold: 80,
-  bossEvery: 60,
+  bossEvery: 60,      // 연속 등장(waves: false)일 때의 보스 간격(초)
+  // 웨이브 (T11). 간격은 나중에 다시 정할 수 있다(사용자: 보스가 잦게 느껴짐). 바꿀 때는 이 다섯 값만 고치면 된다
+  waves: true,        // false: 예전처럼 끊임없이 나온다 (밸런스 도구 bench.js 계열이 끈다)
+  waveT: 20,          // 한 웨이브 길이(초). 시간이 되면 남은 적이 있어도 다음 웨이브
+  waveSpawnT: 12,     // 그중 적이 나오는 시간. 나머지는 쉬는 시간
+  bossWaves: 3,       // 몇 웨이브마다 보스 웨이브인가 (3 x 20초 = 예전과 같은 60초)
+  bossFill: 0.5,      // 보스 웨이브의 일반 적 양 (보통 웨이브 대비)
+  waveFill: 1.2,      // 웨이브 세기 배수 (1 = 예전 연속 등장으로 같은 시간 동안 나왔을 적 체력의 합). 몰려 나오는 대신 재화를 예전과 같게 고정한 상태에서
+                      // 봇 96판 생존 중앙값이 바꾸기 전(17.0분)과 비슷하도록 맞춘 값 (1.15: 18.0분, 1.2: 16.2분, 1.3: 14.1분. T11)
   augEvery: 5,
   extraShotMul: 0.32,
   meltPts: [20, 50, 120, 300],   // 용해로: 등급별로 파츠를 녹여 얻는 게이지
@@ -497,7 +505,32 @@ const ENEMIES = {
   thief:  { hp: 320, speed: 0.030, r: 48, leak: 15, gold: 55, boss: true, name: '약탈체', hint: '인벤토리의 물건을 훔쳐 갑니다. 예고된 칸의 물건을 옮기거나 써서 피하세요', tip: ['물건을 훔침', '예고 칸 비우기'] },
   corrode: { hp: 340, speed: 0.026, r: 52, leak: 22, gold: 60, boss: true, name: '부식체', hint: '예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다. 무기를 옮겨 피하세요', tip: ['강화 단계 -5', '예고 칸 무기 이동'] },
 };
-const BOSS_ORDER = ['giant', 'split', 'summon', 'jammer', 'shield', 'thief', 'corrode'];
+// T11 에 더한 보스. 열거되지 않는 속성으로 둔다 (벤치의 보정 캐시가 ENEMIES 전체를 해시하므로, 넣어도 예전 캐시가 그대로 맞게. 도움말은 BOSS_IDS 를 쓴다)
+Object.defineProperty(ENEMIES, 'charge', { enumerable: false, value: { hp: 280, speed: 0.022, r: 50, leak: 22, gold: 55, boss: true, name: '돌격체',
+  hint: '멈췄다가 예고한 레인으로 돌진합니다. 그 레인에 무기를 모으세요', tip: ['예고한 레인으로 돌진', '그 레인에 무기 모으기'] } });
+Object.defineProperty(ENEMIES, 'clock', { enumerable: false, value: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 55, boss: true, name: '시계체',
+  hint: '살아 있는 동안 웨이브가 빨리 흐릅니다. 빨리 쓰러뜨리세요', tip: ['웨이브가 빨라짐', '빨리 쓰러뜨리기'] } });
+// 보스는 처음부터 무작위 (같은 보스가 연달아 나오지 않음). 10번째마다는 천칭
+const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'thief', 'corrode', 'charge', 'clock'];
+const CHG_WAIT = 5, CHG_FIRST = 3, CHG_WARN = 1.6, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
+const CLOCK_MUL = 1.5;   // 시계체가 살아 있는 동안 웨이브 시간이 흐르는 빠르기
+
+/* ---------- 웨이브 (T11) ---------- */
+// 웨이브마다 세기(적 체력의 합)는 예전 연속 등장으로 같은 시간 동안 나왔을 양과 같다. 종류는 구성과 자리만 바꾼다.
+// w: 등장 가중치 [basic, runner, swarm, heavy] (없으면 그 시각의 기본 가중치), grp: 무리 하나의 크기, k: 세기 배수, p: 뽑힐 가중치
+const EV_T = ['basic', 'runner', 'swarm', 'heavy'];
+const WAVES = {
+  mix:   { name: '',     p: 2 },                                // 평소
+  heavy: { name: '대형', w: [1, 0, 0, 4], p: 1 },
+  fast:  { name: '질주', w: [1, 6, 0, 0], k: 0.8, p: 1 },      // 질주와 무리는 같은 체력이어도 봇에게 가장 어려워(종류 하나씩 섞어 잼) 세기를 낮춘다
+  swarm: { name: '무리', w: [0.6, 0, 5, 0], grp: 6, k: 0.8, p: 1 },
+  focus: { name: '몰림', k: 0.7, p: 1 },                       // 한두 레인에만 (막을 무기가 적으니 세기를 낮춘다)
+  line:  { name: '일렬', p: 1 },                               // 다섯 레인에 같은 적이 가로 한 줄로
+  elite: { name: '정예', k: 0.9, p: 1 },                       // 수는 적고 단단하다
+};
+const WAVE_IDS = Object.keys(WAVES);
+const ELITE_HP = 3, ELITE_R = 1.15, ELITE_LEAK = 2;            // 정예: 체력(과 재화) x3, 크기, 기지 피해 배수
+const SWARM_GRP = 4;                                           // 보통 무리 크기
 // 천칭: 10번째 보스마다 일반 선택 대신 나온다. 체력은 같은 시점 거대체의 2.2배, 속도는 거대체와 같다.
 // 열거되지 않는 속성으로 둔다 (벤치가 ENEMIES 전체를 해시해 보정 캐시를 만들기 때문, 그리고 도움말의 일반 보스 목록에서 빼기 위해)
 const SCALE_EVERY = 10, SCALE_HP = 2.2, SCALE_T = 4;
@@ -510,7 +543,7 @@ const PACTS = {
   overheat: { name: '과열',          up: '모든 무기 공격 속도 +25%',           dn: '모든 강화 성공률 -8%p' },
   greed:    { name: '탐욕',          up: '재화 획득 +40%',                   dn: '적 체력 +15%' },
   rush:     { name: '속전속결',       up: '적 체력 -20%',                    dn: '적 이동 속도 +18%' },
-  hunt:     { name: '사냥철',        up: '보스 처치 보상 2배',                dn: '보스가 45초마다 등장' },
+  hunt:     { name: '사냥철',        up: '보스 처치 보상 2배',                dn: '보스가 2웨이브마다 등장' },
   forge:    { name: '용광로의 축복',   up: '용해로 제작 비용 −40%',          dn: '생성에서 파츠가 나오지 않음' },
   focus:    { name: '집중',          up: '남은 무기 피해 +45%',               dn: '5번 무기 칸 영구 폐쇄' },
   gamble:   { name: '도박사',        up: '모든 강화 성공률 +15%p',            dn: '강화 실패 시 10% 확률로 1단계 하락' },
@@ -522,7 +555,7 @@ const PACTS = {
 const PACT_IDS = Object.keys(PACTS);
 const PACT = {   // 수치는 한곳에
   glassDmg: 1.15, glassHp: 0.7, heatRate: 1.25, heatSucc: -0.08, minSucc: 0.03, greedGold: 0.4, greedHp: 1.15, rushHp: 0.8, rushSpd: 1.18,
-  huntEvery: 45, forgeMul: 0.6, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
+  huntEvery: 45, huntWaves: 2, forgeMul: 0.6, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
   bloodEvery: 20, bloodHeal: 0.02, bloodDmg: 1.5, smuggleCost: 0.75, smuggleMiss: 0.08,
 };
 
@@ -541,7 +574,8 @@ function newGame(h) {
     slots: [null, null, null, null, null],
     inv: new Array(CFG.invSize).fill(null),
     enemies: [], bullets: [], shells: [], pools: [], beams: [], mines: [], fx: [], snd: [], abfx: [], drops: [], rewq: [], crafts: 0, melt: 0,
-    spawnAcc: 0, nextBoss: CFG.bossEvery, bossN: 0, pendingBoss: null,
+    spawnAcc: 0, nextBoss: CFG.waves ? CFG.bossWaves * CFG.waveT : CFG.bossEvery, bossN: 0, pendingBoss: null,
+    wt: 0, wn: 0, wEnd: 0, wave: null, wLast: null, wTick: 0, clockOn: false,   // 웨이브: 웨이브 시계(시계체가 빠르게 돌린다), 번호, 이번 웨이브가 끝나는 웨이브 시각, 이번 웨이브, 지난 종류, 남은 초읽기
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
     shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
     pacts: [], pendingPact: null, bloodN: 0,     // 천칭의 거래: 받은 것, 제안 중인 것, 피의 계약의 처치 수
@@ -561,6 +595,7 @@ function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null
   if (S.pendingAug && S.pendingAug.options.some(gone)) { S.pendingAug.options = S.pendingAug.options.filter(a => !gone(a)); if (!S.pendingAug.options.length) S.pendingAug = null; }
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
   if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
+  if (S.wt == null) { S.wt = 0; S.wn = 0; S.wEnd = 0; S.wave = null; S.wLast = null; S.wTick = 0; S.clockOn = false; }
   syncMaxHp(); }
 function setH(h) {
   if (!h || h === H) return;
@@ -579,7 +614,8 @@ function craftOdds() {
   const m = craftBase() / CFG.craftCost, F = craftCum(); let prev = 0;
   return F.map(f => { const c = Math.pow(f, m), p = c - prev; prev = c; return p * 100; });
 }
-function bossInterval() { return hasPact('hunt') ? PACT.huntEvery : CFG.bossEvery; }
+// 보스 간격: 웨이브 방식이면 웨이브 시계로 (보스 웨이브 수 x 웨이브 길이), 아니면 초
+function bossInterval() { return CFG.waves ? (hasPact('hunt') ? PACT.huntWaves : CFG.bossWaves) * CFG.waveT : hasPact('hunt') ? PACT.huntEvery : CFG.bossEvery; }
 
 /* ---------- 능력치 계산 ---------- */
 function blankStats(lanes, chain) {
@@ -1044,10 +1080,62 @@ function spawnWave() {
     for (let k = 0; k < 4; k++) spawn('swarm', lane, (lane + 0.5) * LW + (rndS() - 0.5) * 56, -10 - k * 24);
   } else spawn(type, lane);
 }
+// 등장 한 번(무리는 한 무리)의 평균 체력 (key 'gold' 면 재화): 가중치 ws, 무리 크기 grp
+function evHp(ws, grp, key) {
+  let a = 0, b = 0;
+  for (let i = 0; i < 4; i++) { a += ws[i] * ENEMIES[EV_T[i]][key || 'hp'] * (i === 2 ? grp : 1); b += ws[i]; }
+  return b > 0 ? a / b : ENEMIES.basic[key || 'hp'];
+}
+const noSwarm = (ws) => [ws[0], ws[1], 0, ws[3]];
+// 새 웨이브: 종류를 고르고, 세기(체력 합)가 예전 연속 등장과 같도록 등장 수를 정한다. 보스 웨이브면 보스를 예고한다
+function startWave() {
+  const t0 = S.wEnd; S.wn++; S.wEnd = t0 + CFG.waveT; S.wTick = 3;
+  const boss = S.wn > 1 && t0 >= S.nextBoss - 1e-6;
+  let v = 'mix';
+  if (boss) { S.nextBoss = t0 + bossInterval(); spawnBoss(); }
+  else if (S.wn > 1) { const ids = WAVE_IDS.length > 1 ? WAVE_IDS.filter(id => id !== S.wLast) : WAVE_IDS; v = ids[wpick(ids.map(id => WAVES[id].p), rndS)]; }
+  if (!boss) S.wLast = v;
+  const D = WAVES[v], tm = S.t + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;
+  const ws = v === 'line' ? noSwarm(base) : D.w || base;
+  const hp0 = BAL.spawnRate(tm) * CFG.waveT * evHp(base, SWARM_GRP);   // 예전 방식이면 이 웨이브 동안 나왔을 체력의 합
+  const per = v === 'line' ? LANES : v === 'elite' ? ELITE_HP : 1, hpv = per * evHp(ws, grp);
+  const n = hp0 * (D.k || 1) * CFG.waveFill * (boss ? CFG.bossFill : 1) / hpv;
+  // 재화는 종류와 세기에 상관없이 예전 연속 등장과 같게 맞춘다 (적 수를 줄여도 수입이 줄지 않아, 세기와 성장이 따로 논다)
+  const gk = BAL.spawnRate(tm) * CFG.waveT * evHp(base, SWARM_GRP, 'gold') / Math.max(1e-9, n * per * evHp(ws, grp, 'gold'));
+  let lanes = null;
+  if (v === 'focus') {                       // 한 레인(40%) 또는 붙은 두 레인
+    const a = Math.floor(rndS() * LANES);
+    lanes = [a];
+    if (rndS() < 0.6) lanes.push(a === 0 ? 1 : a === LANES - 1 ? a - 1 : a + (rndS() < 0.5 ? -1 : 1));
+  }
+  S.wave = { n: S.wn, v, t0, rate: n / CFG.waveSpawnT, boss, ws, grp, lanes, gk };
+  if (!boss && S.spawnAcc > -1e6) { fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 도구가 등장을 끈 장면에서는 알리지 않는다
+}
+function makeElite(e) { e.elite = 1; e.hp *= ELITE_HP; e.maxHp *= ELITE_HP; e.gold *= ELITE_HP; e.r *= ELITE_R; e.leak *= ELITE_LEAK; }
+// 웨이브 등장 한 번
+function waveSpawn(wv) {
+  const type = EV_T[wpick(wv.ws, rndS)];
+  const one = (lane, x, y) => { const e = spawn(type, lane, x, y); if (wv.v === 'elite') makeElite(e); e.gold *= wv.gk; };
+  if (wv.v === 'line') { for (let k = 0; k < LANES; k++) one(k, (k + 0.5) * LW); return; }
+  const lane = wv.lanes ? wv.lanes[Math.floor(rndS() * wv.lanes.length)] : Math.floor(rndS() * LANES);
+  if (type === 'swarm') for (let k = 0; k < wv.grp; k++) one(lane, (lane + 0.5) * LW + (rndS() - 0.5) * 56, -10 - k * 24);
+  else one(lane);
+}
+// 웨이브 진행: 웨이브 시계는 시계체가 살아 있으면 빨리 간다 (적 체력 곡선은 실제 시간 S.t 를 따른다).
+// S.spawnAcc 는 등장 몫이다. 도구가 -1e9 로 두면(예전부터의 관례) 웨이브가 와도 적이 나오지 않는다
+function waveStep(dt) {
+  const mul = S.clockOn ? CLOCK_MUL : 1;
+  S.wt += dt * mul;
+  if (S.wt >= S.wEnd) startWave();
+  const wv = S.wave;
+  if (wv && S.wt - wv.t0 < CFG.waveSpawnT) S.spawnAcc += wv.rate * dt * mul;
+  while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
+  if (S.wTick > 0 && S.wEnd - S.wt <= S.wTick) { S.wTick--; if (S.spawnAcc > -1e6) snd('tick'); }   // 다음 웨이브 3초 전부터 초읽기
+}
 function spawnBoss() {
-  // 처음 일곱 번은 정해진 순서, 그 뒤로는 무작위 (같은 보스가 연달아 나오지 않음)
+  // 처음부터 무작위 (같은 보스가 연달아 나오지 않음). S.bossOnly 가 있으면 그 보스만 (벤치의 보스 시나리오는 거대체)
   const isScale = (S.bossN + 1) % SCALE_EVERY === 0;   // 10번째, 20번째... 보스는 천칭
-  const type = isScale ? 'scale' : S.bossN < BOSS_ORDER.length ? BOSS_ORDER[S.bossN] : pick(BOSS_ORDER.filter(t => t !== S.lastBoss), rndS);
+  const type = isScale ? 'scale' : S.bossOnly || pick(BOSS_IDS.filter(t => t !== S.lastBoss), rndS);
   if (!isScale) S.lastBoss = type;
   const lane = 1 + Math.floor(rndS() * 3);
   // 예고(WARN_T초) 동안 등장 자리가 고정된다. 예고가 끝나면 그 자리에 나타난다 (위에서 걸어 들어오지 않는다)
@@ -2217,6 +2305,20 @@ function bossStep(dt) {
           snd('alert');
         }
         break;
+      case 'charge': {                       // 돌격체: 걷다가 멈춰 다른 레인을 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진
+        const c = e.ch || (e.ch = { ph: 0, t: CHG_FIRST, to: e.lane });
+        c.t -= dt;
+        if (c.ph === 0 && c.t <= 0) {
+          const ls = []; for (let k = 0; k < LANES; k++) if (k !== e.lane) ls.push(k);
+          c.to = pick(ls, rndS); c.ph = 1; c.t = CHG_WARN; e.spdMul = 0; snd('alert');
+        } else if (c.ph === 1 && c.t <= 0) { c.ph = 2; c.t = CHG_DASH; e.lane = c.to; e.spdMul = CHG_SPD; snd('dash'); }
+        else if (c.ph === 2) {
+          const tx = (c.to + 0.5) * LW, dx = tx - e.x, mv = CHG_SIDE * dt;
+          e.x = Math.abs(dx) <= mv ? tx : e.x + Math.sign(dx) * mv;
+          if (c.t <= 0) { c.ph = 0; c.t = CHG_WAIT; e.spdMul = 1; e.x = tx; }
+        }
+        break;
+      }
       case 'corrode':
         e.abT = (e.abT == null ? 12 : e.abT) - dt;
         if (e.abT <= 0) {
@@ -2230,6 +2332,7 @@ function bossStep(dt) {
         break;
     }
   }
+  S.clockOn = !!(alive.clock && alive.clock.y > 0);   // 시계체: 화면에 들어온 뒤부터 웨이브 시계를 빠르게
   // 봉쇄: 경고 3초, 잠금 5초. 봉쇄체가 없으면 모두 풀린다
   if (!alive.jammer) { if (Object.keys(S.locks).length) { S.locks = {}; S.slotDirty = true; } }
   else for (const k of Object.keys(S.locks)) {
@@ -2288,9 +2391,12 @@ function step(dt) {
   if (S.hitFlash > 0) S.hitFlash -= dt;
 
   // 적 등장
-  S.spawnAcc += BAL.spawnRate(S.t) * dt;
-  while (S.spawnAcc >= 1) { S.spawnAcc -= 1; spawnWave(); }
-  if (S.t >= S.nextBoss) { S.nextBoss += bossInterval(); spawnBoss(); }
+  if (CFG.waves) waveStep(dt);
+  else {                                     // 예전 연속 등장 (밸런스 도구)
+    S.spawnAcc += BAL.spawnRate(S.t) * dt * (S.clockOn ? CLOCK_MUL : 1);
+    while (S.spawnAcc >= 1) { S.spawnAcc -= 1; spawnWave(); }
+    if (S.t >= S.nextBoss) { S.nextBoss += bossInterval(); spawnBoss(); }
+  }
   if (S.pendingBoss && (S.pendingBoss.t -= dt) <= 0) appearBoss();
 
   bossStep(dt);
@@ -2498,7 +2604,7 @@ function step(dt) {
     if (e.slT > 0) { e.slT -= dt; slimeDrop(e); }   // 점액 흔적
     if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0) e.ice = false; continue; }
     let sp = e.speed;
-    if (e.spdMul) sp *= e.spdMul;
+    if (e.spdMul != null) sp *= e.spdMul;   // 천칭의 교대, 돌격체의 멈춤(0)과 돌진
     if (e.slowT > 0) { e.slowT -= dt; sp *= 1 - e.slowPct; if (e.slowT <= 0) e.slowPct = 0; }
     if (bs.nearSlow && e.y > H * 0.75) sp *= 1 - (e.boss ? bs.nearSlow * 0.5 : bs.nearSlow);
     e.y += sp * H * dt;
@@ -2615,13 +2721,19 @@ const test = {
   addTime(sec) {
     if (!testOn() || !(sec > 0)) return false;
     S.t += sec;
-    while (S.nextBoss <= S.t) S.nextBoss += bossInterval();
+    if (!CFG.waves) while (S.nextBoss <= S.t) S.nextBoss += bossInterval();   // 웨이브 방식은 웨이브 시계가 따로라 보스 순서가 그대로다
     return true;
   },
   // 보스 부르기: 다음 보스를 지금 예고한다 (다음 정기 보스는 지금부터 한 주기 뒤)
   boss() {
     if (!testIdle() || S.pendingBoss) return false;
-    spawnBoss(); S.nextBoss = S.t + bossInterval();
+    spawnBoss(); S.nextBoss = (CFG.waves ? S.wt : S.t) + bossInterval();
+    return true;
+  },
+  // 다음 웨이브: 쉬는 시간을 건너뛰고 지금 시작한다
+  nextWave() {
+    if (!testIdle() || !CFG.waves) return false;
+    S.wt = S.wEnd;
     return true;
   },
   // 적 지우기: 보상 없이 모두 없앤다
@@ -2642,6 +2754,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
+  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   test,
 };

@@ -7,6 +7,7 @@ const argv = process.argv.slice(2);
 const CORE = path.resolve(argv.find((a) => !a.startsWith('--') && !/^\d+$/.test(a)) || path.join(__dirname, '..', 'src', 'core.js'));
 const SECS = argv.includes('--secs') ? +argv[argv.indexOf('--secs') + 1] : 60;
 const Core = require(CORE);
+Core.CFG.waves = false;   // 예전 연속 등장으로 잰다 (T11)
 const TEAMS = { blaster: Array(5).fill('blaster'), shotgun: Array(5).fill('shotgun'), laser: Array(5).fill('laser'), pulse: Array(5).fill('pulse'), mixed: ['blaster', 'shotgun', 'laser', 'pulse', 'laser'] };
 function run(team, skills, hpMul) {
   Core.seed(11); Core.newGame(520);
