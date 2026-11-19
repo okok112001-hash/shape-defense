@@ -32,7 +32,7 @@ const BLUE_V = {
   g0: '#aab6cc', g1: '#5cb8ff', g2: '#c48bff', g3: '#ffa63d', backdrop: '#132c5a',
   shade: 'rgba(0, 0, 0, .18)', overlay: 'rgba(10, 24, 54, .78)', toast: 'rgba(22, 48, 98, .92)', shadow: '#000',
   hatch: 'rgba(255, 255, 255, .07)', sheen: 'rgba(255, 244, 214, .55)', melt: '#ffb37a', 'melt-fill': '#ff9f5a', ember: '#ff3d2e',
-  gold: '#ffd84a', 'on-gold': '#1c1503',   // 황금 웨이브와 티켓 (전설 등급의 주황과 헷갈리지 않는 노란 금색), 그 위 글자
+  gold: '#ffd84a', 'on-gold': '#1c1503',   // 황금체와 티켓 (전설 등급의 주황과 헷갈리지 않는 노란 금색), 그 위 글자
   crate: '#d9ad74',                          // 보급 상자 (나무색. 도움말 글자)
 };
 const BLUE_CV = {
@@ -218,8 +218,9 @@ const Snd = (function () {
     hitcorr: [200, () => { hiss(0.35, 0.16, 900, 1.2, 'bandpass'); tone('sawtooth', 160, 60, 0.35, 0.09); }],                                         // 녹아내리는 지글 소리
     wave: [500, () => { seq('triangle', [523, 784], 0.16, 0.07, 0.09); hiss(0.25, 0.025, 1800, 0.7, 'lowpass'); }],                                  // 웨이브 시작: 가볍게 올라가는 두 음 (보스 경보보다 작게)
     tick: [300, () => { tone('square', 1760, 1760, 0.016, 0.022); tone('triangle', 880, 880, 0.035, 0.035); }],                                     // 다음 웨이브 초읽기: 작은 똑딱
-    goldwave: [500, () => { seq('triangle', [784, 988, 1175, 1568], 0.18, 0.06, 0.07); seq('sine', [1568, 2093], 0.3, 0.025, 0.1); }],                // 황금 웨이브: 반짝이며 올라가는 음
-    goldwarn: [400, () => { tone('sine', 1320, 1580, 0.07, 0.03); }],                                                                                // 황금 적이 레인을 옮기려 함: 작은 휘익
+    goldboss: [500, () => { seq('triangle', [784, 988, 1175, 1568], 0.18, 0.07, 0.08); seq('sine', [1568, 2093, 2637], 0.35, 0.028, 0.12); tone('triangle', 392, 392, 0.5, 0.05); }],   // 황금체 예고: 경보 대신 반짝이며 올라가는 음
+    coinburst: [120, () => { for (let i = 0; i < 4; i++) tone('square', 1760 + i * 330, 1760 + i * 330, 0.03, 0.014, i * 0.022); }],                // 동전이 한꺼번에 터짐
+    goldwarn: [400, () => { tone('sine', 1320, 1580, 0.07, 0.03); }],                                                                                // 황금체가 레인을 옮기려 함: 작은 휘익
     coin: [70, () => { tone('square', 1975, 1975, 0.03, 0.018); tone('triangle', 2637, 2637, 0.06, 0.02, 0.025); }],                                 // 동전이 재화 숫자에 닿음: 짤랑
     ticket: [300, () => { seq('triangle', [659, 880, 1319], 0.14, 0.07, 0.06); }],                                                                   // 황금 티켓을 씀
     crate: [500, () => { for (let i = 0; i < 4; i++) hiss(0.05, 0.05, 1100 + 200 * i, 1.4, 'bandpass', i * 0.085); tone('sine', 620, 820, 0.14, 0.025, 0.05); }],   // 보급 상자가 날아옴: 날갯짓 푸드덕
@@ -723,7 +724,7 @@ function drainEvq(quiet) {
 function itemInfo(it) {
   if (it.kind === 'w') { const d = C.WEAPONS[it.type]; return `<b style="color:${d.color}">${d.name} ${lvTxt(it)}</b> ${d.desc}`; }
   if (it.kind === 'p') return (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it);
-  if (it.kind === 't') return '<b class="gtag">황금 티켓</b> 한 번 더 누르면 씁니다. 다음 웨이브가 황금 웨이브가 됩니다.';
+  if (it.kind === 't') return '<b class="gtag">황금 티켓</b> 쓰면 다음 보스가 황금체가 됩니다.';
   return '';
 }
 // 제조 확률을 정수 %로 (합이 정확히 100이 되도록 가장 큰 나머지부터 올린다)
@@ -1302,7 +1303,7 @@ function testHtml() {
       <button type="button" class="btn${off(!!S.pendingBoss)}" data-act="testBoss">보스 부르기</button>
       <button type="button" class="btn" data-act="testClear">적 지우기</button>
       <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testWave">다음 웨이브</button>
-      <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testGold">황금 웨이브</button>
+      <button type="button" class="btn${off(!!S.pendingBoss)}" data-act="testGold">황금체 부르기</button>
       <button type="button" class="btn${off(full)}" data-act="testTicket">티켓 받기</button>
       <button type="button" class="btn${off(!!S.crate)}" data-act="testCrate">보급 상자</button>
     </div>
@@ -1328,7 +1329,7 @@ function testRun(name, arg) {
     case 'testBoss': ok = T.boss(); m = '보스 예고'; break;
     case 'testClear': T.clear(); m = '적 지움'; break;
     case 'testWave': ok = T.nextWave(); m = '다음 웨이브'; break;
-    case 'testGold': ok = T.gold(); m = '황금 웨이브'; break;
+    case 'testGold': ok = T.gold(); m = '황금체 예고'; break;
     case 'testCrate': ok = T.crate(); m = '보급 상자'; break;
     case 'testTicket': { const i = T.ticket(); if (i < 0) return; m = '티켓 받음'; newCell = i; setTimeout(() => { if (newCell === i) newCell = -1; }, 500); break; }
     case 'testAug': {                        // 선택지 창은 기존 증강 흐름 그대로: 테스트 창을 닫고 띄운다
@@ -1400,6 +1401,7 @@ function bossSvg(t) {
     case 'corrode': { const pts = []; for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8, q = (i >> 1) % 2 ? r * 0.78 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.4}" ${b}/>`; break; }
     case 'charge': g = `<polygon points="${-r},${-r * 0.8} 0,${-r * 0.3} ${r},${-r * 0.8} 0,${r}" ${a}/><path d="M${-r * 0.36} ${-r * 0.12}L0 ${r * 0.16}L${r * 0.36} ${-r * 0.12}M${-r * 0.26} ${r * 0.24}L0 ${r * 0.46}L${r * 0.26} ${r * 0.24}" ${b}/>`; break;
     case 'clock': g = `<circle r="${r}" ${a}/>` + [0, 1, 2, 3].map(k => { const an = k * Math.PI / 2, c = Math.cos(an), s_ = Math.sin(an); return `<path d="M${(c * r * 0.72).toFixed(1)} ${(s_ * r * 0.72).toFixed(1)}L${(c * r * 0.9).toFixed(1)} ${(s_ * r * 0.9).toFixed(1)}" ${b}/>`; }).join('') + `<path d="M0 0L0 ${-r * 0.62}M0 0L${r * 0.4} ${r * 0.14}" ${b} stroke-linecap="round"/>`; break;
+    case 'gold': { const c = theme.v.gold; g = `<polygon points="${-r * 0.5},${-r * 0.62} ${r * 0.5},${-r * 0.62} ${r},${-r * 0.12} 0,${r} ${-r},${-r * 0.12}" fill="${c}" fill-opacity=".45" stroke="${c}" stroke-width="3" stroke-linejoin="round"/><path d="M${-r} ${-r * 0.12}H${r}M${-r * 0.5} ${-r * 0.62}L${-r * 0.24} ${-r * 0.12}L0 ${-r * 0.62}L${r * 0.24} ${-r * 0.12}L${r * 0.5} ${-r * 0.62}M${-r * 0.24} ${-r * 0.12}L0 ${r}L${r * 0.24} ${-r * 0.12}" fill="none" stroke="${c}" stroke-width="1.6" stroke-opacity=".7"/>`; break; }
     case 'scale': { const hw = r * 0.82, ink = theme.v.ink; g = `<g transform="rotate(-11)"><polygon points="0,${-r} ${-hw},0 0,${r}" fill="${SC_HV}" fill-opacity=".95" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><polygon points="0,${-r} ${hw},0 0,${r}" fill="${SC_LT}" fill-opacity=".22" stroke="${SC_LT}" stroke-opacity=".6" stroke-width="2" stroke-linejoin="round"/></g>`; break; }
   }
   return `<svg viewBox="-36 -36 72 72" width="40" height="40" aria-hidden="true">${g}</svg>`;
@@ -1414,11 +1416,12 @@ const BOSS_HELP = {
   corrode: ['예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
   charge: ['천천히 내려오다 멈춰서 다른 레인을 깜빡여 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진합니다.', '예고된 레인으로 무기를 옮겨 모으세요.'],
   clock: ['살아 있는 동안 웨이브 시간이 빨리 흘러 다음 웨이브와 보스가 일찍 옵니다.', '가장 먼저 쓰러뜨리세요.'],
+  gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 2초마다 레인을 옮깁니다(화살표로 미리 알림).', '옮겨 가는 레인을 보고 무기를 모으세요. 늘 맞히는 저격포가 잘 맞습니다.'],
   scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
 };
 function bossCard(t) {
   const d = C.ENEMIES[t], h = BOSS_HELP[t] || [d.hint, (d.tip || [])[1] || ''];
-  return `<div class="hbc">${bossSvg(t)}<span class="hbn" style="color:${t === 'scale' ? 'var(--ink)' : ECOL[t] || 'var(--ink)'}">${d.name}</span>
+  return `<div class="hbc">${bossSvg(t)}<span class="hbn" style="color:${t === 'scale' ? 'var(--ink)' : t === 'gold' ? 'var(--gold)' : ECOL[t] || 'var(--ink)'}">${d.name}</span>
     <span class="hbr"><i>특징</i><span>${h[0]}</span></span><span class="hbr"><i>공략</i><span>${h[1]}</span></span></div>`;
 }
 // 도움말: 시작 화면이나 일시정지 화면에서
@@ -1448,10 +1451,8 @@ function helpHtml() {
   const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>
     <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 100 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
-  const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div>`;
+  const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div><p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 보스가 황금체가 됩니다.</p>`;
   const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>
-    <p class="hnote"><b class="gtag">황금 웨이브</b> ${C.GOLD.from / 60}분 뒤부터 가끔 옵니다. 남은 적은 사라지고 황금 적 하나만 내려옵니다. 맞힐 때마다 재화, 체력을 절반 깎으면 파츠, 다 깎으면 전설 파츠. ${C.GOLD.move}초마다 레인을 옮깁니다(화살표로 미리 알림).</p>
-    <p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 웨이브가 황금 웨이브가 됩니다.</p>
     <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
     ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
@@ -1761,17 +1762,15 @@ function tapInv(i) {                      // 누르면 고르기만 한다. 다�
     if (meltSet.has(i)) meltSet.delete(i); else meltSet.add(i);
     Snd.play('tap'); renderBottom(); return;
   }
-  if (it && it.kind === 't' && sel && sel.from === 'inv' && sel.i === i) return useTicketAt(i);   // 황금 티켓: 한 번 더 누르면 쓴다
   sel = !it || (sel && sel.from === 'inv' && sel.i === i) ? null : { from: 'inv', i };
   if (sel) Snd.play('tap');
   renderWeapons(); renderBottom();
 }
-// 황금 티켓 사용: 다음 보스 아닌 웨이브가 황금 웨이브 (보스가 남아 있으면 쓰러진 뒤)
+// 황금 티켓 사용 (고른 뒤 사용 버튼): 다음 보스가 황금체 (천칭 차례면 그다음)
 function useTicketAt(i) {
   const S = C.S, r = C.useTicket(i); if (!r.ok) return;
   sel = null; Snd.play('ticket');
-  const bossOn = !!S.pendingBoss || S.enemies.some(e => e.boss && !e.dead && !e.gd && !e.cr), bossNext = S.wEnd >= S.nextBoss - 1e-6;
-  say(r.n > 1 ? `<b>황금 웨이브</b> ${r.n}번 예약` : bossOn ? '보스를 쓰러뜨린 뒤 <b>황금 웨이브</b>가 옵니다.' : bossNext ? '보스 웨이브 다음에 <b>황금 웨이브</b>가 옵니다.' : '다음 웨이브는 <b>황금 웨이브</b>입니다.');
+  say(r.n > 1 ? `<b>황금체</b> ${r.n}번 예약` : (S.bossN + 1) % C.SCALE_EVERY === 0 ? '천칭 다음 보스가 <b>황금체</b>입니다.' : '다음 보스는 <b>황금체</b>입니다.');
   renderWeapons(); renderBottom();
 }
 function tapSlot(k) {
@@ -2374,7 +2373,7 @@ function drawCharge(e, H, now) {
     }
   }
 }
-// 황금 적 (T11②): 금빛 보석. 은은한 빛 번짐, 비스듬히 지나가는 반짝임, 둘레에서 깜빡이는 작은 별, 떨어지는 금가루
+// 황금체 (T11②): 금빛 보석. 은은한 빛 번짐, 비스듬히 지나가는 반짝임, 둘레에서 깜빡이는 작은 별, 떨어지는 금가루
 function gemFacets(x, y, r) {
   ctx.beginPath();
   ctx.moveTo(x - r, y - r * 0.12); ctx.lineTo(x + r, y - r * 0.12);
@@ -2418,14 +2417,62 @@ function drawGold(e) {
     twinkle(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.85, sz, light ? TC.gold : '#fff6cc', 0.9 * Math.sin(u * Math.PI));
   }
   drawStatus(e, false);
-  if (e.hp < e.maxHp) {                      // 체력 막대: 절반에 눈금 (절반을 넘기면 파츠)
+  if (e.hp < e.maxHp) {                      // 체력 막대
     const w = r * 1.9, h = 6, bx = x - w / 2, by = y - r - 14;
     ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(bx, by, w, h);
     ctx.fillStyle = TC.goldB; ctx.fillRect(bx, by, w * Math.max(0, e.hp / e.maxHp), h);
-    ctx.fillStyle = e.gd.half ? TC.gold : (light ? '#1c2740' : '#ffffff'); ctx.fillRect(x - 1, by - 3, 2, h + 6);
   }
 }
-// 황금 적이 레인을 옮기기 전 (GOLD.warn 초): 옮겨 갈 자리에 옅은 보석 윤곽이 차오르고, 그쪽으로 흐르는 화살표. 옮기는 동안에는 지나온 자리에 옅은 잔상
+// 황금체 예고: 붉은 경보 대신 금빛 띠. 테두리는 깜빡이지 않고 은은하게 숨 쉬고, 글자 위로 빛이 지나가며, 띠 둘레에서 작은 별이 차례로 반짝인다
+function drawGoldWarnBand(f, p, H) {
+  const al = Math.min(1, (1 - p) * 6, p * 5), now = performance.now(), W = C.W, y0 = H * 0.3, bh = 132;
+  const br = 0.5 + 0.5 * Math.sin(now / 380);
+  ctx.lineWidth = 14; ctx.strokeStyle = rgba(TC.goldB, (0.25 + 0.2 * br) * al); ctx.strokeRect(7, 7, W - 14, H - 14);
+  ctx.lineWidth = 2; ctx.strokeStyle = rgba(TC.gold, 0.6 * al); ctx.strokeRect(16, 16, W - 32, H - 32);
+  const bg = ctx.createLinearGradient(0, y0, 0, y0 + bh);
+  bg.addColorStop(0, `rgba(58,40,0,${0.88 * al})`); bg.addColorStop(0.5, `rgba(92,64,4,${0.88 * al})`); bg.addColorStop(1, `rgba(58,40,0,${0.88 * al})`);
+  ctx.fillStyle = bg; ctx.fillRect(0, y0, W, bh);
+  ctx.fillStyle = rgba(TC.goldB, 0.9 * al); ctx.fillRect(0, y0, W, 3); ctx.fillRect(0, y0 + bh - 3, W, 3);
+  const sx = ((now / 1400) % 1) * (W + 300) - 150;   // 글자 위로 지나가는 빛
+  const tg = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0);
+  tg.addColorStop(0, rgba('#ffd84a', al)); tg.addColorStop(0.5, rgba('#fffbe6', al)); tg.addColorStop(1, rgba('#ffd84a', al));
+  ctx.textAlign = 'center'; ctx.font = '42px "Do Hyeon", sans-serif'; ctx.fillStyle = tg;
+  ctx.fillText('황금 보스', W / 2, y0 + 46);
+  ctx.fillStyle = `rgba(255,236,170,${al})`; ctx.font = '24px "Do Hyeon", sans-serif'; ctx.fillText(f.text, W / 2, y0 + 74);
+  ctx.fillStyle = `rgba(255,244,214,${al})`; ctx.font = '17px "Do Hyeon", sans-serif';
+  const lines = []; let cur = '';
+  for (const wd of (f.hint || '').split(' ')) { if (cur && ctx.measureText(cur + ' ' + wd).width > W - 50) { lines.push(cur); cur = wd; } else cur = cur ? cur + ' ' + wd : wd; }
+  lines.push(cur); lines.forEach((ln, i) => ctx.fillText(ln, W / 2, y0 + 98 + i * 20));
+  for (let i = 0; i < 7; i++) {             // 띠 둘레의 별: 자리와 크기가 매번 조금씩 다르다
+    const ph = now / 900 + i / 7, cyc = Math.floor(ph), u = ph - cyc, h1 = hash(cyc * 3.1 + i), h2 = hash(cyc * 1.7 + i * 5);
+    twinkle(14 + (W - 28) * h1, y0 - 10 + (bh + 20) * h2, (4 + 5 * hash(cyc + i * 2)) * Math.sin(u * Math.PI), '#fff3c4', 0.9 * al * Math.sin(u * Math.PI));
+  }
+}
+// 황금체가 있는 동안 전장 분위기: 위아래 가장자리가 옅은 금빛으로 물들고, 금가루가 천천히 떠오르며 반짝인다 (나타날 때 서서히, 사라진 뒤에도 서서히)
+let goldAmb = 0, goldAmbAt = 0;
+function drawGoldAmb(S, H, now) {
+  let on = !!(S.pendingBoss && S.pendingBoss.type === 'gold');
+  if (!on) for (let i = 0, n = S.enemies.length; i < n; i++) if (S.enemies[i].gd && !S.enemies[i].dead) { on = true; break; }
+  const dt = Math.min(0.1, Math.max(0, (now - goldAmbAt) / 1000)); goldAmbAt = now;
+  goldAmb = on ? Math.min(1, goldAmb + dt / 0.9) : Math.max(0, goldAmb - dt / 1.4);
+  if (goldAmb <= 0.004) return;
+  const a = goldAmb * goldAmb * (3 - 2 * goldAmb), W = C.W, light = theme.scheme === 'light', br = 0.85 + 0.15 * Math.sin(now / 900);
+  const top = ctx.createLinearGradient(0, 0, 0, H * 0.42);
+  top.addColorStop(0, rgba(TC.goldB, (light ? 0.2 : 0.17) * a * br)); top.addColorStop(1, rgba(TC.goldB, 0));
+  ctx.fillStyle = top; ctx.fillRect(0, 0, W, H * 0.42);
+  const bot = ctx.createLinearGradient(0, H, 0, H * 0.8);
+  bot.addColorStop(0, rgba(TC.goldB, (light ? 0.14 : 0.11) * a)); bot.addColorStop(1, rgba(TC.goldB, 0));
+  ctx.fillStyle = bot; ctx.fillRect(0, H * 0.8, W, H * 0.2);
+  const col = light ? TC.gold : TC.goldA, t = now / 1000;
+  for (let i = 0; i < 20; i++) {            // 금가루: 레인마다 고르게 퍼지지 않게 자리, 빠르기, 흔들림을 해시로
+    const h1 = hash(i * 7.31), h2 = hash(i * 3.17 + 1), h3 = hash(i * 1.91 + 2), sp = 14 + 22 * h2, span = H + 40;
+    const y = H + 20 - ((t * sp + h3 * span) % span), x = (h1 * W + Math.sin(t * (0.4 + h2) + i) * 18 + W) % W;
+    const tw = 0.5 + 0.5 * Math.sin(t * (1.5 + 2 * h3) + i * 2.3), al = a * (0.25 + 0.55 * tw) * Math.min(1, (H + 20 - y) / 60);
+    if (i % 4 === 0) twinkle(x, y, (2.5 + 2.5 * h1) * (0.6 + 0.4 * tw), col, al);
+    else { ctx.fillStyle = rgba(col, al); ctx.fillRect(x - 1, y - 1, 1.6 + h2, 1.6 + h2); }
+  }
+}
+// 황금체가 레인을 옮기기 전 (GOLD.warn 초): 옮겨 갈 자리에 옅은 보석 윤곽이 차오르고, 그쪽으로 흐르는 화살표. 옮기는 동안에는 지나온 자리에 옅은 잔상
 function drawGoldWarn(e, H, now) {
   const g = e.gd, G = C.GOLD, light = theme.scheme === 'light';
   if (g.to >= 0) {
@@ -2697,7 +2744,7 @@ function drawCorr(e) {
 // 보스 소환진: 예고 동안 등장 자리에서 이중 고리가 천천히 돌며 안쪽으로 좁혀든다
 // 소환진 밖의 전장은 살짝 어두워지고(적과 탄은 이 뒤에 그려져 그대로 보인다), 고리는 천천히 맥동한다
 function drawSummon(pb, H) {
-  const u = 1 - Math.max(0, pb.t) / C.WARN_T, col = ECOL[pb.type] || '#ff3d3d', r = C.ENEMIES[pb.type].r, x = pb.x, y = pb.y * H;
+  const u = 1 - Math.max(0, pb.t) / C.WARN_T, col = pb.type === 'gold' ? TC.gold : ECOL[pb.type] || '#ff3d3d', r = C.ENEMIES[pb.type].r, x = pb.x, y = pb.y * H;
   const al = Math.min(1, u * 5) * (u > 0.85 ? 0.75 + 0.25 * Math.sin(u * 90) : 1);
   const ro = r * 1.15 + 18 * (1 - u) + 4, ri = ro * 0.74, rot = RM.matches ? 0 : u * 2.2;
   const pu = RM.matches ? 0.5 : 0.5 - 0.5 * Math.cos(u * C.WARN_T * Math.PI * 2 / 1.2);   // 1.2초에 한 번 (게임 시간 기준: 멈추면 같이 멈춘다)
@@ -2720,6 +2767,13 @@ function drawSummon(pb, H) {
   ctx.beginPath(); for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3, rr = ri * 0.86; k ? ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
   ctx.closePath(); ctx.lineWidth = 1.9; ctx.strokeStyle = rgba(col, (0.6 + 0.2 * pu) * al); ctx.stroke(); ctx.restore();
   ctx.restore();
+  if (pb.type === 'gold') {                  // 황금체: 소환진 둘레에서 금빛 알갱이가 안쪽으로 모여든다
+    VX.glow(x, y, ro * 1.6, TC.goldB, 0.25 * u * al);
+    for (let i = 0; i < 10; i++) {
+      const h1 = hash(i * 5.3), v = (u * 1.6 + hash(i * 2.9)) % 1, a = h1 * 6.283 + u * 1.5, d = ro * (1.9 - 1.2 * v);
+      twinkle(x + Math.cos(a) * d, y + Math.sin(a) * d, (2 + 3 * hash(i)) * Math.sin(v * Math.PI), light ? TC.gold : TC.goldA, al * Math.sin(v * Math.PI));
+    }
+  }
 }
 // 큰 한 방에 쓰러진 적 (T10c, core.js 의 flingFx): 맞은 쪽에서 바깥으로 (탄이면 탄이 가는 쪽으로) 날려 가며 돌고, 작아지며 흐려진다.
 // 지나온 길에 옅게 끌린 자국이 남고, 끝 무렵 몸이 조각 셋으로 부서져 흩어진다. 거리, 방향, 도는 빠르기는 적마다 조금씩 다르다 (자리의 해시).
@@ -4981,27 +5035,15 @@ function drawFx(f, H) {
       ctx.font = '30px "Do Hyeon", sans-serif'; const w1 = ctx.measureText(t1).width;
       ctx.font = '26px "Do Hyeon", sans-serif'; const w2 = t2 ? ctx.measureText(t2).width : 0;
       const x0 = W / 2 - (w1 + w2) / 2, x1 = x0 + w1 + w2, ln = 70 * (1 - Math.pow(1 - Math.min(1, u * 2.5), 3)), gp = 12, ly = y - 10;
-      const gold = f.v === 'gold', lc = gold ? TC.gold : ink;   // 황금 웨이브: 금색 이름과 선, 둘레에 작은 별
-      ctx.lineWidth = gold ? 2.5 : 2; ctx.lineCap = 'round';
+      ctx.lineWidth = 2; ctx.lineCap = 'round';
       for (const [a, b] of [[x0 - gp, x0 - gp - ln], [x1 + gp, x1 + gp + ln]]) {
-        const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, rgba(lc, (gold ? 0.8 : 0.5) * al)); g.addColorStop(1, rgba(lc, 0));
+        const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, rgba(ink, 0.5 * al)); g.addColorStop(1, rgba(ink, 0));
         ctx.strokeStyle = g; ctx.beginPath(); ctx.moveTo(a, ly); ctx.lineTo(b, ly); ctx.stroke();
       }
       ctx.lineCap = 'butt'; ctx.textAlign = 'left'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = rgba(TC.bg, 0.8 * al);
       ctx.font = '30px "Do Hyeon", sans-serif'; ctx.strokeText(t1, x0, y); ctx.fillStyle = rgba(ink, al); ctx.fillText(t1, x0, y);
-      if (t2) { ctx.font = '26px "Do Hyeon", sans-serif'; ctx.strokeText(t2, x0 + w1, y); ctx.fillStyle = rgba(gold ? TC.gold : TC.bossTxt, al); ctx.fillText(t2, x0 + w1, y); }
+      if (t2) { ctx.font = '26px "Do Hyeon", sans-serif'; ctx.strokeText(t2, x0 + w1, y); ctx.fillStyle = rgba(TC.bossTxt, al); ctx.fillText(t2, x0 + w1, y); }
       ctx.textAlign = 'center';
-      if (gold) for (let i = 0; i < 5; i++) {   // 이름 둘레에서 차례로 깜빡이는 별 (자리는 웨이브마다 조금씩 다르다)
-        const v = Math.min(1, Math.max(0, (u * 2.4 - i * 0.16))), w = Math.sin(v * Math.PI), h1 = hash(f.n * 5.3 + i), h2 = hash(f.n * 2.1 + i * 7);
-        twinkle(x0 - 10 + (x1 - x0 + 20) * h1, y - 24 + 30 * h2, (4 + 4 * hash(i + f.n)) * w, theme.scheme === 'light' ? TC.gold : '#fff6cc', al * w);
-      }
-      break;
-    }
-    case 'vanish': {                        // 황금 웨이브가 시작될 때 남아 있던 적: 제 모양 그대로 옅어지며 조금 떠오르고, 작은 알갱이가 흩어진다
-      const u = 1 - p, col = ECOL[f.ty] || '#ff6b6b', u0 = VX.ui(f);
-      if (u0.n) for (let i = 0; i < 3; i++) VX.spark(f.x + (Math.random() - 0.5) * f.r, f.y + (Math.random() - 0.5) * f.r, (Math.random() - 0.5) * 40, -20 - Math.random() * 40, 0.4 + Math.random() * 0.3, 1.5 + Math.random() * 1.5, col, -10, 2);
-      enemyPath({ type: f.ty, x: f.x, y: f.y - 10 * VX.ease(u, 2), r: f.r * (1 + 0.12 * u) });
-      ctx.fillStyle = rgba(col, 0.16 * p); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(col, 0.5 * p * p); ctx.stroke();
       break;
     }
     case 'crland': {                        // 보급 상자가 땅에 닿음: 옆으로 퍼지며 옅어지는 흙먼지
@@ -5052,8 +5094,9 @@ function drawFx(f, H) {
       ctx.globalAlpha = 1;
       break;
     }
-    case 'coin': { const u0 = VX.ui(f); if (u0.n) coinAdd(f, u0.sd); break; }   // 황금 적의 동전: 위 겹에서 재화 숫자로 날아간다
+    case 'coin': { const u0 = VX.ui(f); if (u0.n) coinAdd(f, u0.sd); break; }   // 황금체의 동전: 위 겹에서 재화 숫자로 날아간다
     case 'warn': {                          // 보스 등장: 경고 띠, 붉은 테두리, 큰 글자
+      if (f.ty === 'gold') { drawGoldWarnBand(f, p, H); break; }
       const al = Math.min(1, (1 - p) * 8, p * 5), now = performance.now(), blink = 0.6 + 0.4 * Math.sin(now / 90);
       const W = C.W, y0 = H * 0.3, bh = f.hint ? 132 : 92;
       ctx.lineWidth = 18; ctx.strokeStyle = `rgba(255,50,50,${0.55 * al * blink})`; ctx.strokeRect(9, 9, W - 18, H - 18);
@@ -5148,15 +5191,22 @@ function drawAimOut(a, nowW, H) {
   }
   if (coinRun.length) { g.setTransform(dpr, 0, 0, dpr, 0, 0); drawCoins(g, nowW, ar); }
 }
-// 황금 적의 동전 (T11②): 맞은 자리에서 튀어 올랐다가 생성 버튼의 재화 숫자(◆)로 날아가 닿는다. 전장 밖까지 가므로 위 겹 캔버스에 화면 좌표로 그린다.
+// 황금체의 동전 (T11②): 맞은 자리에서 튀어 올랐다가 생성 버튼의 재화 숫자(◆)로 날아가 닿는다. 전장 밖까지 가므로 위 겹 캔버스에 화면 좌표로 그린다.
 // 재화는 맞는 순간 이미 들어와 있다 (보이는 연출만). 생성 버튼이 없으면 (물건을 골랐거나 용해로) 튀어 오른 자리에서 옅어진다
-const coinRun = [], COIN_POP = 260, COIN_FLY = 560;
+// 동전 수는 받은 재화에 비례한다 (core 의 goldHit: 동전 하나 = 황금체 전체 재화의 1/GOLD.coin). 한 번에 많이 받으면 그만큼 한꺼번에 사방으로 터지고 (너무 많으면 수 대신 크기로), 조금씩 받으면 하나씩
+const coinRun = [], COIN_POP = 260, COIN_FLY = 560, COIN_BURST = 28, COIN_MAX = 100;
 let coinBumpAt = 0;
 function coinAdd(f, sd) {
   if (RM.matches) { coinBump(); return; }
-  if (coinRun.length >= 40) coinRun.shift();
-  const ar = $('#app').getBoundingClientRect(), fr = cv.getBoundingClientRect();
-  coinRun.push({ x: fr.left - ar.left + f.x * sc, y: fr.top - ar.top + f.y * sc, r: f.r * sc, t0: performance.now(), sd });
+  const n = Math.max(1, f.n || 1), m = Math.min(n, COIN_BURST), big = n > COIN_BURST ? Math.min(1.8, 1 + 0.3 * Math.log2(n / COIN_BURST)) : 1;
+  const ar = $('#app').getBoundingClientRect(), fr = cv.getBoundingClientRect(), now = performance.now();
+  const x = fr.left - ar.left + f.x * sc, y = fr.top - ar.top + f.y * sc;
+  for (let k = 0; k < m; k++) {
+    if (coinRun.length >= COIN_MAX) coinRun.shift();
+    const q = sd * 17.3 + k * 1.618;
+    coinRun.push({ x, y, r: f.r * sc, t0: now + (m > 1 ? hash(q + 4) * 50 : 0), sd: q, m, s: big, fl: COIN_FLY * (0.85 + 0.35 * hash(q + 8)) });
+  }
+  if (m >= 8) Snd.play('coinburst');
 }
 function coinBump() {                        // 재화 숫자가 살짝 튄다 (자주 닿아도 0.12초에 한 번)
   const now = performance.now(); if (now - coinBumpAt < 120) return; coinBumpAt = now;
@@ -5164,10 +5214,12 @@ function coinBump() {                        // 재화 숫자가 살짝 튄다 (
   el.classList.remove('cbump'); void el.offsetWidth; el.classList.add('cbump');
 }
 function coinPos(c, T, tx, ty, out) {        // 시각 T(ms)의 자리. out = [x, y, 크기, 알파], 다 왔으면 false
-  const h1 = hash(c.sd * 13.1), h2 = hash(c.sd * 7.7 + 1), px = c.x + (h1 - 0.5) * (36 + 30 * h2), py = c.y - c.r * 0.35 - 20 - 18 * h2;
+  const h1 = hash(c.sd * 13.1), h2 = hash(c.sd * 7.7 + 1), sp = 16 + 8 * Math.sqrt(c.m), an = -Math.PI / 2 + (h1 - 0.5) * (c.m > 1 ? 4.2 : 1.6);   // 많이 터질수록 넓게, 위쪽으로 치우쳐
+  const px = c.x + Math.cos(an) * sp * (0.45 + 0.55 * h2), py = c.y - c.r * 0.3 + Math.sin(an) * sp * (0.45 + 0.55 * h2) - 8;
+  if (T < 0) { out[0] = c.x; out[1] = c.y; out[2] = 0.5; out[3] = 0; return true; }
   if (T < COIN_POP) { const u = VX.ease(Math.max(0, T) / COIN_POP, 2); out[0] = c.x + (px - c.x) * u; out[1] = c.y + (py - c.y) * u; out[2] = 0.55 + 0.45 * u; out[3] = 1; return true; }
   if (tx == null) { const u = (T - COIN_POP) / 380; if (u >= 1) return false; out[0] = px; out[1] = py - 18 * u; out[2] = 1; out[3] = 1 - u; return true; }
-  const u = (T - COIN_POP) / COIN_FLY; if (u >= 1) return false;
+  const u = (T - COIN_POP) / c.fl; if (u >= 1) return false;
   const e = u * u * (0.35 + 0.65 * u), mx = px + (h1 - 0.5) * 110, my = Math.min(py, ty) - 30 - 30 * h2, k = 1 - e;   // 옆으로 조금 휘어 가속하며 날아간다
   out[0] = k * k * px + 2 * k * e * mx + e * e * tx; out[1] = k * k * py + 2 * k * e * my + e * e * ty; out[2] = 1 - 0.25 * e; out[3] = 1; return true;
 }
@@ -5175,10 +5227,11 @@ const COIN_P = [0, 0, 0, 0];
 function drawCoins(g, now, ar) {
   const el = document.getElementById('genHave'), tr = el && el.getBoundingClientRect();
   const tx = tr && tr.width ? tr.left - ar.left + 9 : null, ty = tr ? tr.top - ar.top + tr.height / 2 : null;   // ◆ 기호 자리
-  const light = theme.scheme === 'light', R = 6.5;
+  const light = theme.scheme === 'light', R0 = 6.5;
   for (let i = coinRun.length - 1; i >= 0; i--) {
-    const c = coinRun[i], T = now - c.t0;
+    const c = coinRun[i], T = now - c.t0, R = R0 * c.s;
     if (!coinPos(c, T, tx, ty, COIN_P)) { coinRun.splice(i, 1); if (tx != null) { coinBump(); Snd.play('coin'); } continue; }
+    if (T < 0) continue;
     for (let j = 3; j >= 0; j--) {           // 지나온 자리에 옅은 잔상 셋 (j = 0 이 동전)
       if (j && !coinPos(c, T - j * 26, tx, ty, COIN_P)) continue;
       if (!j) coinPos(c, T, tx, ty, COIN_P);
@@ -5238,6 +5291,7 @@ function draw() {
     for (let x = 0; x <= W; x += 20) { const y = H * 0.86 + ((x / 20 + Math.floor(nowT / 90)) % 2 ? -5 : 5); if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
     ctx.stroke();
   }
+  drawGoldAmb(S, H, performance.now());      // 황금체가 있는 동안 전장의 금빛 (웅덩이와 적 아래에)
   for (const p of S.pools) {
     if (p.kind) { drawKindPool(p, nowT, H); continue; }
     if (p.acid) { if (p.rp) drawPuddles(p.rp, nowT); else drawAcidPool(p, nowT); continue; }   // 산성 웅덩이 (폭우의 고이는 웅덩이는 같은 비끼리 한 번에)
@@ -5265,7 +5319,7 @@ function draw() {
   }
   drawAimOut(aimOut, nowW, H);
   for (const e of S.enemies) if (e.type === 'charge' && !e.dead) drawCharge(e, H, nowW);   // 돌격체: 예고 레인과 돌진 잔상 (몸 아래에)
-  for (const e of S.enemies) if (e.gd && !e.dead) drawGoldWarn(e, H, nowW);              // 황금 적: 옮겨 갈 레인 예고와 잔상
+  for (const e of S.enemies) if (e.gd && !e.dead) drawGoldWarn(e, H, nowW);              // 황금체: 옮겨 갈 레인 예고와 잔상
   if (S.crate) crateShadow(S.crate.x, S.crate.y, crateAlt(S.crate, nowW, crSd(S.crate.id))[0], 1);   // 날거나 떨어지는 보급 상자의 그림자 (떨어질 자리)
   let dsvP = null;                           // 용해를 찍은 무기의 웅덩이 (녹기 시작하는 적)
   for (const p of S.pools) if (p.acid && p.st.dsv && p.r >= 1) (dsvP || (dsvP = [])).push(p);
@@ -5348,13 +5402,8 @@ function draw() {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(12, 8, bw, 11);
     ctx.fillStyle = gd ? TC.goldB : '#ff3d3d'; ctx.fillRect(12, 8, bw * Math.max(0, boss.hp / boss.maxHp), 11);
     ctx.lineWidth = 1.5; ctx.strokeStyle = TC.bossLine; ctx.strokeRect(12, 8, bw, 11);
-    if (gd) {                                // 황금 적: 절반 눈금 (넘기면 파츠). 위에 작은 세모, 넘기면 금색으로 찬다
-      const hx = 12 + bw / 2;
-      ctx.fillStyle = gd.half ? TC.gold : TC.bossLine; ctx.fillRect(hx - 1, 5, 2, 17);
-      ctx.beginPath(); ctx.moveTo(hx - 6, 26); ctx.lineTo(hx + 6, 26); ctx.lineTo(hx, 20); ctx.closePath(); ctx.fill();
-    }
     ctx.fillStyle = gd ? TC.gold : TC.bossTxt; ctx.font = '17px "Do Hyeon", sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText(gd ? '황금 적 · ◆ ' + fmtInt(Math.floor(gd.got)) : '보스 · ' + C.ENEMIES[boss.type].name, 12, 38);
+    ctx.fillText('보스 · ' + C.ENEMIES[boss.type].name + (gd ? ' · ◆ ' + fmtInt(Math.floor(gd.got)) : ''), 12, 38);   // 황금체: 지금까지 받은 재화
   }
   // 기지와 포구
   ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : TC.base;

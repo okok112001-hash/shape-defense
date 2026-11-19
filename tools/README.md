@@ -2,7 +2,7 @@
 
 같은 적 등장 순서(시드 고정)에서 구성만 바꿔 기지가 받는 피해(leak)를 비교하는 헤드리스 시뮬레이터입니다. 두 가지 모드가 있습니다.
 
-벤치(와 `runSim` 을 쓰는 `skill_eq`, `team_eq`, `item_eq`, `mortar_eff`, 그리고 `skill_perf`)는 웨이브를 끄고(`Core.CFG.waves = false`, T11 전의 끊임없는 등장) 보스 시나리오는 거대체만(`S.bossOnly = 'giant'`) 씁니다. 그래서 T11 전 측정과 결과가 같습니다(`bench.js weapons` 로 확인). 전체 게임 생존(`surv.js`)은 실제 게임 그대로 웨이브로 잽니다(황금 웨이브와 티켓 포함, T11②. 봇은 티켓을 바로 쓰고 황금 적을 쫓지 않는다. 빼고 보려면 `--eval "Core.GOLD.p=0"`, 재화만 빼려면 `Core.GOLD.waves=0`). 보급 상자도 들어 있다(T11③. 봇은 상자가 화면 55% 아래로 내려왔을 때, 아니면 날아가기 0.6초 전에 떨군다. 빼려면 `--eval "Core.CRATE.p=0"`).
+벤치(와 `runSim` 을 쓰는 `skill_eq`, `team_eq`, `item_eq`, `mortar_eff`, 그리고 `skill_perf`)는 웨이브를 끄고(`Core.CFG.waves = false`, T11 전의 끊임없는 등장) 보스 시나리오는 거대체만(`S.bossOnly = 'giant'`) 씁니다. 그래서 T11 전 측정과 결과가 같습니다(`bench.js weapons` 로 확인). 전체 게임 생존(`surv.js`)은 실제 게임 그대로 웨이브로 잽니다(황금체와 티켓 포함, T11②. 봇은 티켓을 바로 쓰고 황금체를 쫓지 않는다. 황금체를 빼고 보려면 `--eval "Core.BOSS_IDS.splice(Core.BOSS_IDS.indexOf('gold'),1);Core.GOLD.ticket=0"`, 재화만 빼려면 `Core.GOLD.waves=0`). 보급 상자도 들어 있다(T11③. 봇은 상자가 화면 55% 아래로 내려왔을 때, 아니면 날아가기 0.6초 전에 떨군다. 빼려면 `--eval "Core.CRATE.p=0"`).
 - 시나리오 모드(`all`, `weapons`, `augs`, `parts`): 정해진 팀으로 130초씩 싸워 보는 짧은 실험
 - 전체 게임 모드(`run`): 시작부터 15분까지 표준 봇이 실제로 플레이하는 긴 실험
 
