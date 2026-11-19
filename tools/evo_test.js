@@ -1076,6 +1076,85 @@ function scene(type, lines, secs, opt) {
   ok('황금 웨이브 (3분 뒤 약 10%, 황금 적 하나, 체력 거대체 x2, 2초마다 1~2레인과 예고, 15초, 재화·절반 파츠·전설 파츠, 티켓)');
 }
 
+/* 14. 보급 상자 (T11③) */
+{
+  const DT = 1 / 30, C = Core.CRATE, H = Core.H, W = Core.W;
+  const run = (S, T, each) => { while (S.t < T) { Core.step(DT); S.hp = S.maxHp; if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (each) each(); } };
+  const crate = (S) => S.enemies.find((e) => e.cr && !e.dead);
+  const call = (S) => { S.cheat = {}; assert(Core.test.crate()); delete S.cheat; return S.crate; };
+  const land = (S, x, y) => { const c = call(S); c.x = x; c.y = y; assert(Core.dropCrate().ok); assert(!Core.dropCrate().ok, '두 번 떨구지 않음'); run(S, S.t + C.fall + DT * 2); const e = crate(S); assert(e, '떨어짐'); return e; };
+  // (a) 1분 전에는 없고, 보스·황금 웨이브에는 없다. 등장 시간 안에 날아오고, 기대값 약 2분에 하나. 안 누르면 날아가 버린다 (보상 없음)
+  let nC = 0, nE = 0, T = 0;
+  for (let sd = 1; sd <= 8; sd++) {
+    const S = game(sd); S.hp = S.maxHp = 1e9; S.slots[2] = null; let wn = 0, prev = null, path = null;
+    run(S, 1200, () => {
+      if (S.wn !== wn) { wn = S.wn; if (!S.wave.boss && S.wave.v !== 'gold' && S.wave.t0 >= C.from) nE++; }
+      const c = S.crate;
+      if (c && !prev) {
+        nC++; path = [];
+        assert(S.t >= C.from, '1분 전 상자'); assert(!S.wave.boss && S.wave.v !== 'gold', '보스·황금 웨이브에 상자 ' + S.wave.v);
+        const a = S.wt - S.wave.t0; assert(a >= 0.5 - 1e-6 && a <= CFG.waveSpawnT - C.fly + DT, '등장 시간 안 ' + a);
+        assert(c.dir > 0 ? c.x < 0 : c.x > W, '옆 바깥에서 들어옴');
+      }
+      if (c) { path.push(c); assert(c.y >= H * 0.13 && c.y <= H * 0.79, '높이 ' + c.y / H); assert(!S.enemies.some((e) => e.cr), '나는 동안 맞지 않음'); }
+      if (!c && prev) { assert(prev.dir > 0 ? prev.x > W : prev.x < 0, '반대쪽 바깥으로 나감'); assert(Math.abs(prev.t - C.fly) < DT * 1.5, '5초 ' + prev.t); assert(S.fx.some((f) => f.k === 'craway')); }
+      prev = c;
+    });
+    T += S.t;
+  }
+  const per = nC / nE;
+  assert(per > 0.18 && per < 0.38, '웨이브당 ' + nC + '/' + nE);
+  assert(Math.abs(T / nC / 120 - 1) < 0.35, '평균 간격 ' + (T / nC));
+  console.log(`    보급 상자 ${nC}개 / 받을 수 있는 웨이브 ${nE}개, 평균 간격 ${(T / nC).toFixed(0)}초`);
+  // (b) 떨구면 0.35초 뒤 그 자리에 놓인다. 체력은 거대체 x 0.5. 움직이지 않고 (밀치기·기절·끌기 없음), 10초 뒤 보상 없이 사라진다
+  {
+    const S = game(21); S.slots[2] = null; S.t = 200; S.hp = S.maxHp = 1e9; S.spawnAcc = -1e9; Core.step(DT);
+    const c = call(S); run(S, S.t + 2); c.y = H * 0.7; const x = c.x, y = c.y; assert(x > 0 && x < W); assert(Core.dropCrate().ok);
+    run(S, S.t + C.fall - DT * 1.5); assert(!crate(S) && S.crate, '떨어지는 중');
+    run(S, S.t + DT * 3); const e = crate(S); assert(e && !S.crate && Math.abs(e.x - x) < 1e-9 && Math.abs(e.y - y) < 1e-9, '그 자리');
+    assert(Math.abs(e.maxHp / (Core.ENEMIES.giant.hp * BAL.hpMul(e.born) * BAL.bossHp) - C.hp) < 1e-9, '체력 거대체 x0.5');
+    const t0 = S.t, g0 = S.gold, s0 = S.shards;
+    const w = put('shotgun', e.lane, 0); w.augs[0] = { id: 's_knock', g: 2 }; Core.dirty(w); assert(Core.stats(w).knock > 0);
+    let hits = 0; const hp0 = e.hp;
+    let gone = null; run(S, t0 + C.stay + 0.5, () => { if (!gone && !crate(S)) gone = S.t; if (crate(S)) { assert(e.x === x && e.y === y, '움직이지 않음'); if (e.hp < hp0) hits++; e.hp = e.maxHp; } });
+    assert(hits > 5, '밀치는 무기에 맞음 ' + hits);
+    assert(gone && Math.abs(gone - t0 - C.stay) < 0.1, '10초 뒤 사라짐 ' + (gone - t0));
+    assert(S.gold === g0 && S.shards === s0 && !S.inv.some(Boolean) && !S.drops.length, '못 깨면 보상 없음');
+    assert(S.fx.some((f) => f.k === 'crfade'));
+  }
+  // (c) 깨면 셋 중 하나: 재화(보통 웨이브 3개치), 조각(생성 3번치), 파츠(최소 희귀). 처치로 치지 않는다
+  {
+    const got = [0, 0, 0];
+    for (let sd = 30; sd < 60; sd++) {
+      const S = game(sd); S.slots[2] = null; S.t = 300 + sd; S.hp = S.maxHp = 1e9; S.spawnAcc = -1e9; S.shards = 0; Core.step(DT);
+      const e = land(S, 250, H * 0.4); const g0 = S.gold, k0 = S.kills;
+      const gc = Core.genCost();
+      for (let k = 0; k < 5; k++) put('rail', k, 100);
+      let f = null, wg = 0; run(S, S.t + 3, () => { if (!f && (f = S.fx.find((o) => o.k === 'cropen'))) wg = Core.waveGold(S.t); }); assert(e.dead && !crate(S), '깨짐');
+      assert(f, '깨짐 표시');
+      assert.strictEqual(S.kills, k0, '처치 아님'); assert.strictEqual(S.bossKills, 0); assert.strictEqual(S.crN, 1);
+      got[f.c]++;
+      if (f.c === 0) { assert(Math.abs((S.gold - g0) / (wg * C.waves * (1 + Core.bstats().goldAll)) - 1) < 1e-6, '재화 ' + (S.gold - g0)); assert(!S.inv.some(Boolean)); }
+      if (f.c === 1) { const one = 4.5 * Math.pow(gc / 10, BAL.bundleExp); assert(S.shards === f.v && S.shards >= C.gens * Math.max(3, Math.floor(one * 0.75)) && S.shards <= C.gens * Math.ceil(one * 1.25), '조각 ' + S.shards); assert.strictEqual(S.gold, g0); }
+      if (f.c === 2) { const ps = S.inv.filter(Boolean); assert(ps.length === 1 && ps[0].kind === 'p' && ps[0].g >= 1, '파츠'); assert.strictEqual(S.gold, g0); assert(S.rewq.some((q) => q.crate)); }
+    }
+    assert(got.every((v) => v >= 5), '셋 다 나옴 ' + got);
+  }
+  // (d) 상자가 있어도 황금 웨이브는 미뤄지지 않고, 황금 웨이브가 시작돼도 떨어진 상자는 남는다
+  {
+    const S = game(61); S.slots[2] = null; S.t = 300; S.hp = S.maxHp = 1e9; S.nextBoss = 1e9; Core.step(DT);
+    run(S, S.t + 30, null); while (S.wEnd - S.wt > 2) Core.step(DT);
+    const e = land(S, 120, H * 0.5), wn = S.wn; S.gC = 1;
+    while (S.wn === wn) Core.step(DT);
+    assert(S.wave.v === 'gold', '상자가 있어도 황금 웨이브 ' + S.wave.v);
+    assert(!e.dead && S.enemies.includes(e) && S.enemies.some((o) => o.gd), '황금 웨이브에도 상자는 남음');
+  }
+  // (e) 도구의 관례: 등장을 끈 장면(spawnAcc -1e9)과 연속 등장(waves false)에서는 상자가 오지 않는다
+  { const S = game(64); S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; S.slots[2] = null; let seen = 0; run(S, 600, () => { if (S.crate) seen++; }); assert(!seen); }
+  { CFG.waves = false; const S = game(65); S.hp = S.maxHp = 1e9; let seen = 0; run(S, 400, () => { if (S.crate) seen++; }); CFG.waves = true; assert(!seen); }
+  ok('보급 상자 (1분 뒤, 보스·황금 웨이브 없음, 약 2분에 하나, 5초 비행, 떨구면 그 자리 10초, 체력 거대체 x0.5, 재화·조각·파츠, 처치 아님)');
+}
+
 /* 10. 스트레스: 무기 종류마다 다섯 자루를 모두 진화시키고 20분 */
 {
   const DT = 1 / 30, T = QUICK ? 120 : 1200;
@@ -1091,6 +1170,7 @@ function scene(type, lines, secs, opt) {
     let steps = 0, devos = 0;
     while (S.t < T) {
       S.hp = S.maxHp; Core.step(DT); steps++;
+      if (S.crate && S.crate.t > 1) Core.dropCrate();   // 보급 상자도 스킬에 맞게 떨군다
       if (S.pendingAug) Core.chooseAug(0, 0) || Core.skipAug(true);
       if (S.pendingPact) Core.skipPact();
       if (steps % 150 === 0) {   // 5초마다: 점검, 가끔 강화/손실/재진화

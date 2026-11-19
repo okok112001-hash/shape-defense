@@ -35,6 +35,8 @@ function makeBot(Core, seed, o) {
   function tick() {
     const S = s();
     if (S.pendingPact) Core.skipPact();   // 천칭의 거래 제안이 떠 있으면 건너뛴다 (멈추지 않게)
+    const cr = S.crate;                   // 보급 상자: 기지 쪽(화면 55% 아래)으로 내려왔을 때, 아니면 날아가기 직전에 떨군다
+    if (cr && cr.ph === 'fly' && cr.x > 0 && cr.x < Core.W && (cr.y > Core.H * 0.55 || cr.t > Core.CRATE.fly - 0.6)) Core.dropCrate();
     for (let g = 0; g < G; g++) {
       const c = Core.genCost();
       if (S.gold >= c && Core.freeSlot() >= 0) {

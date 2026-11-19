@@ -541,6 +541,13 @@ const GOLD = { from: 180, p: 0.1, T: 15, move: 2, warn: 0.7, hp: 2, waves: 5, ha
 // 체력 배수 GOLD.hp 와 속도는 나올 때 정한다 (startGold)
 Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES.giant.hp, speed: 0, r: 44, leak: ENEMIES.giant.leak, gold: 0, boss: true, name: '황금 적',
   hint: '맞힐 때마다 재화가 나옵니다', tip: ['맞힐 때마다 재화', '절반에 파츠, 다 깎으면 전설 파츠'] } });
+// 보급 상자 (T11③): 1분 뒤부터 보스·황금 아닌 웨이브의 등장 시간 안에 p 확률로 날아온다 (2분에 그런 웨이브가 약 3.6개라 기대값 2분에 하나).
+// fly 초 동안 전장을 가로질러 날다가 누르면 그 자리에 fall 초 동안 떨어져 stay 초 머문다. 날 때는 맞지 않고, 떨어진 뒤에는 적처럼 맞는다 (움직이지 않음).
+// 체력은 그 시점 거대체의 hp 배. 깨면 셋 중 하나: 재화(보통 웨이브 waves 개치) / 강화 조각(생성 gens 번치 묶음) / 파츠(partN 번 뽑아 가장 좋은 것, 최소 희귀)
+// 높이: 가운데 yc0~yc1 (화면 높이 비율)에서 위아래 ay 만큼 물결친다 (주기 per0~per1 초). r: 몸 반지름
+const CRATE = { from: 60, p: 0.28, fly: 5, fall: 0.35, stay: 10, hp: 0.5, r: 24, waves: 3, gens: 3, partN: 2,
+  yc0: 0.3, yc1: 0.62, ay: 0.16, per0: 2.6, per1: 3.6 };
+Object.defineProperty(ENEMIES, 'crate', { enumerable: false, value: { hp: ENEMIES.giant.hp, speed: 0, r: CRATE.r, leak: 0, gold: 0, boss: true, name: '보급 상자' } });
 const SCALE_EVERY = 10, SCALE_HP = 2.2, SCALE_T = 4;
 Object.defineProperty(ENEMIES, 'scale', { enumerable: false, value: { hp: ENEMIES.giant.hp * SCALE_HP, speed: ENEMIES.giant.speed, r: 56, leak: 25, gold: 60, boss: true, name: '천칭',
   hint: '천칭 등장 · 처치하면 거래를 제안합니다', tip: ['4초마다 단단함/연약함 교대', '연약할 때 집중 공격'] } });
@@ -585,6 +592,7 @@ function newGame(h) {
     spawnAcc: 0, nextBoss: CFG.waves ? CFG.bossWaves * CFG.waveT : CFG.bossEvery, bossN: 0, pendingBoss: null,
     wt: 0, wn: 0, wEnd: 0, wave: null, wLast: null, wTick: 0, clockOn: false,   // 웨이브: 웨이브 시계(시계체가 빠르게 돌린다), 번호, 이번 웨이브가 끝나는 웨이브 시각, 이번 웨이브, 지난 종류, 남은 초읽기
     gT: 0, gC: 0, gForce: 0,                      // 황금 웨이브: 쓴 티켓 수(차례로), 확률로 뽑혔지만 보스가 남아 미뤄진 것, 테스트 모드의 즉시 부르기
+    crate: null, crQ: 0, crN: 0,                  // 보급 상자: 날거나 떨어지는 중인 상자 (떨어진 뒤에는 적 목록의 e.cr), 날아오기까지 남은 초, 깬 수
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
     shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
     pacts: [], pendingPact: null, bloodN: 0,     // 천칭의 거래: 받은 것, 제안 중인 것, 피의 계약의 처치 수
@@ -1118,6 +1126,7 @@ function startWave() {
   else if (S.wn > 1 && S.spawnAcc > -1e6 && goldNow(force)) { startGold(t0); return; }   // 도구가 등장을 끈 장면에서는 굴리지도 않는다
   else if (S.wn > 1) { const ids = WAVE_IDS.length > 1 ? WAVE_IDS.filter(id => id !== S.wLast) : WAVE_IDS; v = ids[wpick(ids.map(id => WAVES[id].p), rndS)]; }
   if (!boss) S.wLast = v;
+  S.crQ = !boss && S.t >= CRATE.from && S.spawnAcc > -1e6 && rndS() < CRATE.p ? 0.5 + rndS() * (CFG.waveSpawnT - CRATE.fly - 0.5) : 0;   // 보급 상자: 등장 시간 안에 날아와 사라진다
   const D = WAVES[v], tm = S.t + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;
   const ws = v === 'line' ? noSwarm(base) : D.w || base;
   const hp0 = BAL.spawnRate(tm) * CFG.waveT * evHp(base, SWARM_GRP);   // 예전 방식이면 이 웨이브 동안 나왔을 체력의 합
@@ -1139,7 +1148,7 @@ function goldNow(force) {
   if (S.t >= GOLD.from && rndS() < GOLD.p) S.gC = 1;
   if (force) return true;
   if (!(S.gT > 0 || S.gC) || S.pendingBoss) return false;
-  for (let i = 0, n = S.enemies.length; i < n; i++) if (S.enemies[i].boss && !S.enemies[i].dead) return false;
+  for (let i = 0, n = S.enemies.length; i < n; i++) { const e = S.enemies[i]; if (e.boss && !e.dead && !e.cr) return false; }
   if (S.gT > 0) S.gT--; else S.gC = 0;
   return true;
 }
@@ -1148,10 +1157,10 @@ function waveGold(t) { const tm = t + CFG.waveT / 2; return BAL.spawnRate(tm) * 
 // 황금 웨이브 시작: 남아 있던 적은 보상과 피해 없이 사라지고, 황금 적 하나가 위에서 나온다
 function startGold(t0) {
   S.wave = { n: S.wn, v: 'gold', t0, rate: 0, boss: false, ws: null, grp: 0, lanes: null, gk: 1 };
-  S.wLast = 'gold';
+  S.wLast = 'gold'; S.crQ = 0;
   S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2.4, n: S.wn, text: '황금', v: 'gold' }); snd('goldwave');
-  for (let i = 0, n = S.enemies.length; i < n; i++) { const e = S.enemies[i]; if (e.dead) continue; e.dead = true; fx({ k: 'vanish', d: 0.45, x: e.x, y: e.y, r: e.r, ty: e.type }); }
-  S.enemies = [];
+  for (let i = 0, n = S.enemies.length; i < n; i++) { const e = S.enemies[i]; if (e.dead || e.cr) continue; e.dead = true; fx({ k: 'vanish', d: 0.45, x: e.x, y: e.y, r: e.r, ty: e.type }); }
+  S.enemies = S.enemies.filter(e => !e.dead);   // 떨어진 보급 상자는 남는다
   const e = spawn('gold', Math.floor(rndS() * LANES));
   e.hp *= GOLD.hp; e.maxHp *= GOLD.hp;
   e.speed = (1 + 0.7 * e.r / H) / GOLD.T;   // 몸이 위에서 들어와 기지에 닿기까지 GOLD.T 초 (거래와 상관없이)
@@ -1184,6 +1193,56 @@ function goldDrop(e, full) {
   const q = S.rewq[S.rewq.length - 1], prev = full && q && q.gold === e && q.t === S.t ? q : null;   // 한 번에 절반과 처치가 함께: 나란히 보인다
   if (prev) { prev.k = 0; prev.n = 2; }
   S.rewq.push({ item: it, x: e.x, y: e.y, k: prev ? 1 : 0, n: prev ? 2 : 1, gold: e, t: S.t });
+}
+// 보급 상자가 날아온다: 한쪽 옆에서 들어와 fly 초 동안 반대쪽으로 가로지르며 위아래로 물결친다 (자리는 crateFly 가 정한다)
+function spawnCrate() {
+  if (S.crate || S.enemies.some(e => e.cr && !e.dead)) return null;   // 한 번에 하나
+  const dir = rndS() < 0.5 ? 1 : -1;
+  const c = { ph: 'fly', t: 0, dir, yc: CRATE.yc0 + rndS() * (CRATE.yc1 - CRATE.yc0), w: 2 * Math.PI / (CRATE.per0 + rndS() * (CRATE.per1 - CRATE.per0)), q: rndS() * 2 * Math.PI, x: 0, y: 0, vx: 0, vy: 0, ft: 0 };
+  crateFly(c, 0);
+  S.crate = c; snd('crate');
+  return c;
+}
+// 나는 자리 (t 초 뒤). 옆 끝 바깥(몸 하나 반)에서 시작해 반대쪽 끝 바깥에서 끝난다
+function crateFly(c, dt) {
+  c.t += dt;
+  const m = CRATE.r * 1.5, u = Math.min(1, c.t / CRATE.fly), x0 = c.dir > 0 ? -m : W + m;
+  const x = x0 + c.dir * (W + 2 * m) * u, y = H * (c.yc + CRATE.ay * Math.sin(c.w * c.t + c.q));
+  if (dt > 0) { c.vx = (x - c.x) / dt; c.vy = (y - c.y) / dt; }
+  c.x = x; c.y = y;
+}
+// 누르면 그 자리에 떨어진다 (화면 안에 있을 때만)
+function dropCrate() {
+  const c = S && S.crate;
+  if (!c || c.ph !== 'fly' || S.over || c.x < 0 || c.x > W) return { ok: false };
+  c.ph = 'fall'; c.ft = CRATE.fall; c.x = Math.max(CRATE.r, Math.min(W - CRATE.r, c.x));
+  snd('cratedrop');
+  return { ok: true };
+}
+function crateStep(dt) {
+  if (S.crQ > 0 && (S.crQ -= dt * (S.clockOn ? CLOCK_MUL : 1)) <= 0) { S.crQ = 0; spawnCrate(); }   // 웨이브 시계로 센다 (시계체가 있어도 등장 시간 안)
+  const c = S.crate;
+  if (c && c.ph === 'fly') {
+    crateFly(c, dt);
+    if (c.t >= CRATE.fly) { S.crate = null; fx({ k: 'craway', d: 0.6, x: c.x, y: c.y, vx: c.vx, vy: c.vy, dir: c.dir }); }   // 안 누르면 날아가 버린다
+  } else if (c && c.ph === 'fall' && (c.ft -= dt) <= 0) {   // 땅에 닿았다: 이제부터 적처럼 맞는다
+    S.crate = null;
+    const e = spawn('crate', Math.max(0, Math.min(LANES - 1, Math.floor(c.x / LW))), c.x, c.y);
+    e.hp *= CRATE.hp; e.maxHp *= CRATE.hp; e.cr = { t: CRATE.stay };
+    fx({ k: 'crland', d: 0.5, x: e.x, y: e.y, r: e.r }); snd('crateland');
+  }
+}
+// 깨진 보급 상자: 셋 중 하나 (rndG 한 번). 처치로 치지 않는다 (처치 수, 처치 보상과 효과 없음)
+function crateOpen(e) {
+  e.dead = true; S.crN = (S.crN || 0) + 1;
+  const rg = subG(), k = Math.floor(rg() * 3);
+  let v = 0, it = null;
+  if (k === 0) { v = waveGold(S.t) * CRATE.waves * (1 + bstats().goldAll); S.gold += v; }
+  else if (k === 1) { for (let i = 0; i < CRATE.gens; i++) v += BAL.bundle(genCost(), rg); addShards(v); }
+  else { it = newPart(CRATE.partN, rg); S.drops.push(it); S.rewq.push({ item: it, x: e.x, y: e.y, k: 0, n: 1, crate: 1 }); }
+  const o = { k: 'cropen', d: 1.3, t: 1.3, x: e.x, y: e.y, r: e.r, c: k, v, g: it ? it.g : -1 }; S.fx.push(o);   // 보상 표시는 효과 수 제한과 상관없이
+  snd('crateopen');
+  return o;
 }
 function makeElite(e) { e.elite = 1; e.hp *= ELITE_HP; e.maxHp *= ELITE_HP; e.gold *= ELITE_HP; e.r *= ELITE_R; e.leak *= ELITE_LEAK; }
 // 웨이브 등장 한 번
@@ -1247,6 +1306,7 @@ function flingFx(e) {
 }
 function kill(e, st) {
   if (e.dead) return;
+  if (e.cr) { crateOpen(e); return; }        // 보급 상자: 처치가 아니다
   e.dead = true; S.kills++;
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
@@ -2262,7 +2322,7 @@ function skillStep(w, i, st, dt) {
         for (let j = 0, n = S.enemies.length; j < n; j++) {
           const e = S.enemies[j];
           if (e.dead || e.y + e.r <= 0 || !within(e.x - wx, e.y - H, R + e.r * 0.5)) continue;
-          const dx = wx - e.x, mv = Math.min(Math.abs(dx), e.boss ? pull * 0.5 : pull);
+          const dx = wx - e.x, mv = e.cr ? 0 : Math.min(Math.abs(dx), e.boss ? pull * 0.5 : pull);   // 보급 상자는 끌려가지 않는다
           if (mv > 0) { e.x += dx > 0 ? mv : -mv; e.pullT = S.t; e.pullD = dx > 0 ? 1 : -1; }   // pullT, pullD: 화면용 (끌려가는 방향)
           if (st.fldVuln) { e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, st.fldVuln); e.vulnT = Math.max(e.vulnT, 0.3); }
           list.push(e);
@@ -2342,7 +2402,7 @@ function bossStep(dt) {
   const alive = {};
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
-    if (!e.boss || e.dead) continue;
+    if (!e.boss || e.dead || e.cr) continue;
     alive[e.type] = e;
     if (e.gd) { goldMove(e, dt); continue; }  // 황금 적: 나오자마자 레인 옮기기 시계가 돈다
     if (e.y <= 0) continue;                  // 화면에 들어온 뒤에만 능력을 쓴다
@@ -2476,6 +2536,7 @@ function step(dt) {
     if (S.t >= S.nextBoss) { S.nextBoss += bossInterval(); spawnBoss(); }
   }
   if (S.pendingBoss && (S.pendingBoss.t -= dt) <= 0) appearBoss();
+  crateStep(dt);
 
   bossStep(dt);
 
@@ -2680,6 +2741,7 @@ function step(dt) {
     if (e.burnT > 0) { e.burnT -= dt; dot(e, e.burnDps * dt, e.burnSt); if (e.dead) continue; if (e.burnT <= 0) e.burnDps = 0; }
     if (e.fT > 0) { e.fT -= dt; if (e.fSt) dot(e, e.fDps * dt, e.fSt); if (e.dead) continue; if (e.fT <= 0) e.fDps = 0; }   // 화염 산탄의 화상
     if (e.slT > 0) { e.slT -= dt; slimeDrop(e); }   // 점액 흔적
+    if (e.cr) { if ((e.cr.t -= dt) <= 0) { e.dead = true; fx({ k: 'crfade', d: 0.6, x: e.x, y: e.y, r: e.r }); } continue; }   // 보급 상자: 움직이지 않고, 시간이 다 되면 사라진다 (보상 없음)
     if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0) e.ice = false; continue; }
     let sp = e.speed;
     if (e.spdMul != null) sp *= e.spdMul;   // 천칭의 교대, 돌격체의 멈춤(0)과 돌진
@@ -2703,7 +2765,7 @@ function step(dt) {
         for (let j = 0; j < n; j++) {
           const o = S.enemies[j];
           if (o.dead || Math.hypot(o.x - e.x, o.y - H) > R + o.r * 0.5) continue;
-          o.y = Math.max(-o.r, o.y - (o.boss ? bs.shock * 0.4 : bs.shock));
+          if (!o.cr) o.y = Math.max(-o.r, o.y - (o.boss ? bs.shock * 0.4 : bs.shock));
           hit(o, bd, bs.st, true);
         }
       }
@@ -2820,6 +2882,11 @@ const test = {
     S.gForce = 1; S.wt = S.wEnd;
     return true;
   },
+  // 보급 상자 부르기: 지금 바로 날아온다 (이미 있으면 false)
+  crate() {
+    if (!testIdle()) return false;
+    return !!spawnCrate();
+  },
   // 황금 티켓 받기: 인벤토리에 넣는다 (가득 차면 -1)
   ticket() {
     if (!testOn()) return -1;
@@ -2845,7 +2912,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
-  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold,
+  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   test,
 };
