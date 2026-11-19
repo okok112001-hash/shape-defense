@@ -10,6 +10,7 @@
      DRAW_TEAM=tesla python tools/draw_bench.py paper index.html none none none    # 전격기 다섯 자루 (같은 조합, T5b). rail, acid 도 같다 (T5c, T5d)
      DRAW_FLING=1 python tools/draw_bench.py paper index.html none none none     # 큰 한 방에 쓰러지는 적(fling) 40개를 늘 띄워 둔다 (T10c. 기준 html 은 fling 을 그리지 않아 그 비용이 빠진다)
      DRAW_TEAM=acid DRAW_RAIN=1 python tools/draw_bench.py paper index.html none none none   # 폭우가 그치면 0.5초 뒤 다시 내린다 (T10d. 고이는 웅덩이가 늘 있고, 마르는 묶음과 겹친다)
+     DRAW_T11=1 python tools/draw_bench.py paper index.html none none none      # 정예(적 절반)와 돌격체·시계체 (T11. 기준 html 은 같은 자리에 거대체 둘)
    읽는 법: 첫 측정은 준비(JIT, 스프라이트 생성) 때문에 늘 느리니 버리고, 나머지 평균을 기준과 비교한다. 잡음이 +-10% 쯤이다.
    알게 된 것: 이 환경에서는 넓이보다 drawImage 호출 수가 비용을 정한다(빛 번짐 한 장에 약 0.3ms). 큰 빛 번짐을 여러 장 겹치지 말 것."""
 import asyncio, os, pathlib, sys
@@ -58,6 +59,13 @@ window.__game = {'''
             await pg.evaluate('''() => { const o = Core.step, K = ['nova', 'nuke', 'dragon', 'ball', 'rain', 'giant', 'slug', 'air'], T = ['basic', 'runner', 'swarm', 'heavy']; let j = 0;
               Core.step = (dt) => { o(dt); const S = Core.S; let n = 0; for (const f of S.fx) if (f.k === 'fling') n++;
                 for (; n < 40; n++, j++) S.fx.push({ k: 'fling', d: 0.8, t: 0.8 * ((j * 0.37) % 1), x: 40 + (j * 83) % 420, y: 120 + (j * 151) % 480, r: 19, ty: T[j % 4], ax: Math.cos(j), ay: -Math.abs(Math.sin(j)), b: K[j % 8] }); }; }''')
+        if os.environ.get('DRAW_T11'):          # T11: 적 절반이 정예, 돌격체(예고와 돌진을 되풀이)와 시계체(웨이브를 빠르게). 예전 html 은 같은 자리에 거대체 둘 (새 보스를 모른다)
+            await pg.evaluate('''() => { const S = Core.S, nw = !!Core.BOSS_IDS, H = Core.H;
+              S.enemies.forEach((e, i) => { if (i % 2) e.elite = 1; });
+              const add = (type, x, y) => { const d = Core.ENEMIES[type]; const e = { type, lane: Math.floor(x / 100), x, y, r: d.r, hp: 1e15, maxHp: 1e15, speed: 0, leak: d.leak, gold: 0, boss: true, born: S.t - 1,
+                slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0, fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9 };
+                if (type === 'charge') e.ch = { ph: 0, t: 0.3, to: e.lane }; S.enemies.push(e); };
+              add(nw ? 'charge' : 'giant', 150, H * 0.22); add(nw ? 'clock' : 'giant', 350, H * 0.3); }''')
         if os.environ.get('DRAW_RAIN'):
             await pg.evaluate('''() => { const o = Core.step;
               Core.step = (dt) => { o(dt); const S = Core.S;

@@ -18,7 +18,8 @@ let markN = 0, markLow = null;
 const GR = C.GRADES;
 const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];   // 등급 색 (테마를 바꾸면 값만 바뀐다)
 const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d',
-  summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', thief: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5' };
+  summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', thief: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5',
+  charge: '#ff4d2e', clock: '#ff5c7a' };
 const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
 const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
@@ -205,6 +206,9 @@ const Snd = (function () {
     hitlock: [200, () => { tone('square', 140, 90, 0.12, 0.13); hiss(0.1, 0.16, 2500, 2, 'bandpass'); tone('triangle', 1200, 700, 0.1, 0.06, 0.05); }],   // 잠기는 철컹 소리
     hitsteal: [200, () => { tone('sawtooth', 900, 180, 0.28, 0.08); hiss(0.2, 0.12, 1200, 1, 'highpass'); }],                                         // 낚아채는 휙 소리
     hitcorr: [200, () => { hiss(0.35, 0.16, 900, 1.2, 'bandpass'); tone('sawtooth', 160, 60, 0.35, 0.09); }],                                         // 녹아내리는 지글 소리
+    wave: [500, () => { seq('triangle', [523, 784], 0.16, 0.07, 0.09); hiss(0.25, 0.025, 1800, 0.7, 'lowpass'); }],                                  // 웨이브 시작: 가볍게 올라가는 두 음 (보스 경보보다 작게)
+    tick: [300, () => { tone('square', 1760, 1760, 0.016, 0.022); tone('triangle', 880, 880, 0.035, 0.035); }],                                     // 다음 웨이브 초읽기: 작은 똑딱
+    dash: [300, () => { hiss(0.34, 0.2, 700, 0.8); tone('sawtooth', 240, 70, 0.3, 0.07); tone('sine', 90, 45, 0.3, 0.12, 0.05); }],                   // 돌격체 돌진: 휙 하고 밀고 내려오는 소리
     gen: [40, () => seq('triangle', [988, 1319], 0.1, 0.1, 0.07)],
     ok: [30, () => seq('triangle', [523, 659, 784], 0.1, 0.12, 0.06)],
     fail: [30, () => tone('sawtooth', 220, 110, 0.22, 0.07)],
@@ -1267,12 +1271,13 @@ function testHtml() {
       <button type="button" class="btn${off(!evo)}" data-act="testSkReset">스킬 초기화</button>
       <button type="button" class="btn${off(!any)}" data-act="testAug">증강 뽑기 ${wn}</button>
     </div>
-    <div class="wm-sec">전장 <b class="tnow">${fmtTime(S.t)}</b></div>
+    <div class="wm-sec">전장 <b class="tnow">${fmtTime(S.t)}${C.CFG.waves ? ' · 웨이브 ' + S.wn : ''}</b></div>
     <div class="tgrid">
       <button type="button" class="btn" data-act="testT1">시간 +1분</button>
       <button type="button" class="btn" data-act="testT5">시간 +5분</button>
       <button type="button" class="btn${off(!!S.pendingBoss)}" data-act="testBoss">보스 부르기</button>
       <button type="button" class="btn" data-act="testClear">적 지우기</button>
+      <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testWave">다음 웨이브</button>
     </div>
     <div class="d-acts one"><button type="button" class="btn primary" data-act="testClose">닫기</button></div></div>`;
 }
@@ -1295,6 +1300,7 @@ function testRun(name, arg) {
     case 'testT1': case 'testT5': ok = T.addTime(name === 'testT1' ? 60 : 300); m = '시간 ' + fmtTime(S.t); break;
     case 'testBoss': ok = T.boss(); m = '보스 예고'; break;
     case 'testClear': T.clear(); m = '적 지움'; break;
+    case 'testWave': ok = T.nextWave(); m = '다음 웨이브'; break;
     case 'testAug': {                        // 선택지 창은 기존 증강 흐름 그대로: 테스트 창을 닫고 띄운다
       const k = testSlot();
       if (k < 0 || !T.aug(k)) return;
@@ -1362,6 +1368,8 @@ function bossSvg(t) {
     }
     case 'thief': { const pts = []; for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.5 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.2}" ${b}/>`; break; }
     case 'corrode': { const pts = []; for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8, q = (i >> 1) % 2 ? r * 0.78 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.4}" ${b}/>`; break; }
+    case 'charge': g = `<polygon points="${-r},${-r * 0.8} 0,${-r * 0.3} ${r},${-r * 0.8} 0,${r}" ${a}/><path d="M${-r * 0.36} ${-r * 0.12}L0 ${r * 0.16}L${r * 0.36} ${-r * 0.12}M${-r * 0.26} ${r * 0.24}L0 ${r * 0.46}L${r * 0.26} ${r * 0.24}" ${b}/>`; break;
+    case 'clock': g = `<circle r="${r}" ${a}/>` + [0, 1, 2, 3].map(k => { const an = k * Math.PI / 2, c = Math.cos(an), s_ = Math.sin(an); return `<path d="M${(c * r * 0.72).toFixed(1)} ${(s_ * r * 0.72).toFixed(1)}L${(c * r * 0.9).toFixed(1)} ${(s_ * r * 0.9).toFixed(1)}" ${b}/>`; }).join('') + `<path d="M0 0L0 ${-r * 0.62}M0 0L${r * 0.4} ${r * 0.14}" ${b} stroke-linecap="round"/>`; break;
     case 'scale': { const hw = r * 0.82, ink = theme.v.ink; g = `<g transform="rotate(-11)"><polygon points="0,${-r} ${-hw},0 0,${r}" fill="${SC_HV}" fill-opacity=".95" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><polygon points="0,${-r} ${hw},0 0,${r}" fill="${SC_LT}" fill-opacity=".22" stroke="${SC_LT}" stroke-opacity=".6" stroke-width="2" stroke-linejoin="round"/></g>`; break; }
   }
   return `<svg viewBox="-36 -36 72 72" width="40" height="40" aria-hidden="true">${g}</svg>`;
@@ -1374,6 +1382,8 @@ const BOSS_HELP = {
   shield: ['방패로 정면에서 오는 공격을 막습니다.', '옆 레인에 있는 무기로 공격하세요.'],
   thief: ['인벤토리의 물건 하나를 훔쳐 갑니다. 훔칠 칸을 미리 알려 줍니다.', '예고된 칸의 물건을 옮기거나 사용해서 비워 두세요.'],
   corrode: ['예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
+  charge: ['천천히 내려오다 멈춰서 다른 레인을 깜빡여 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진합니다.', '예고된 레인으로 무기를 옮겨 모으세요.'],
+  clock: ['살아 있는 동안 웨이브 시간이 빨리 흘러 다음 웨이브와 보스가 일찍 옵니다.', '가장 먼저 쓰러뜨리세요.'],
   scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
 };
 function bossCard(t) {
@@ -1408,9 +1418,10 @@ function helpHtml() {
   const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>
     <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 100 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
-  const bosses = `<div class="hbl">${Object.keys(C.ENEMIES).filter(t => C.ENEMIES[t].boss).map(bossCard).join('')}</div>`;
+  const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div>`;
+  const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
-    ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
+    ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
 }
 function renderOverlay() {
@@ -1888,7 +1899,7 @@ function act(name) {
       testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
     case 'testClose': if (testView) { testClose(); Snd.play('tap'); renderAll(); } return;
     case 'testExit': if (testView) goHome(); return;
-    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': testRun(name); return;
+    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': case 'testWave': testRun(name); return;
     case 'help': helpFrom = mode; renderOverlay(); return;
     case 'helpBack': helpFrom = ''; renderOverlay(); return;
     case 'pauseBack': pauseView = ''; renderOverlay(); return;
@@ -2175,6 +2186,9 @@ function enemyPath(e) {
     case 'scale':                                                              // 큰 마름모 (두 쪽)
       ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.82, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.82, y); ctx.closePath();
       break;
+    case 'charge':                                                             // 아래를 향한 화살촉 (위가 파임)
+      ctx.moveTo(x - r, y - r * 0.8); ctx.lineTo(x, y - r * 0.3); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x, y + r); ctx.closePath();
+      break;
     case 'corrode':                                                            // 톱니
       for (let i = 0; i < 16; i++) {
         const a = i * Math.PI / 8, q = (i >> 1) % 2 ? r * 0.78 : r;
@@ -2249,7 +2263,70 @@ function drawScale(e) {
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(heavy ? SC_HV : '#d9c47a', 0.9); ctx.stroke();
   }
 }
+// 돌격체가 돌진을 예고하는 동안에는 몸이 떨린다 (예고가 끝나 갈수록 세게)
 function drawEnemy(e) {
+  if (e.type === 'charge' && e.ch && e.ch.ph === 1) {
+    const k = 1 - Math.max(0, e.ch.t) / C.CHG_WARN;
+    ctx.save(); ctx.translate(Math.sin(performance.now() / 23) * (0.8 + 2.6 * k), 0); drawEnemy0(e); ctx.restore(); return;
+  }
+  drawEnemy0(e);
+}
+// 정예: 같은 모양의 바깥 윤곽을 한 겹 더
+function drawElite(e, col) { const r0 = e.r; e.r = r0 * 1.3; enemyPath(e); e.r = r0; ctx.lineWidth = 1.6; ctx.strokeStyle = rgba(col, 0.6); ctx.stroke(); }
+// 돌격체의 무늬: 안쪽에 아래를 향한 갈매기표 둘
+function drawChargeMark(e, col) {
+  const x = e.x, y = e.y, r = e.r;
+  ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.lineJoin = 'round'; ctx.beginPath();
+  ctx.moveTo(x - r * 0.36, y - r * 0.12); ctx.lineTo(x, y + r * 0.16); ctx.lineTo(x + r * 0.36, y - r * 0.12);
+  ctx.moveTo(x - r * 0.26, y + r * 0.24); ctx.lineTo(x, y + r * 0.46); ctx.lineTo(x + r * 0.26, y + r * 0.24); ctx.stroke();
+}
+// 시계체: 눈금과 두 바늘. 웨이브를 빠르게 하는 동안에는 바늘이 빨리 돌고, 둘레로 시간이 일그러지듯 호가 번져 나간다
+function drawClockFace(e, col) {
+  const x = e.x, y = e.y, r = e.r, now = performance.now(), on = C.S.clockOn;
+  ctx.lineWidth = 2; ctx.strokeStyle = rgba(col, 0.85); ctx.beginPath();
+  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, q = i % 3 ? 0.8 : 0.68; ctx.moveTo(x + Math.cos(a) * r * q, y + Math.sin(a) * r * q); ctx.lineTo(x + Math.cos(a) * r * 0.9, y + Math.sin(a) * r * 0.9); }
+  ctx.stroke();
+  const am = now * (on ? 0.011 : 0.0011) + e.born * 3, ah = am / 12 + 1.3;
+  ctx.lineCap = 'round'; ctx.strokeStyle = col; ctx.beginPath();
+  ctx.lineWidth = 4; ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(ah) * r * 0.44, y - Math.cos(ah) * r * 0.44); ctx.stroke();
+  ctx.beginPath(); ctx.lineWidth = 2.6; ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(am) * r * 0.7, y - Math.cos(am) * r * 0.7); ctx.stroke();
+  ctx.lineCap = 'butt'; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+  if (on) for (let i = 0; i < 3; i++) {
+    const u = (now / 1400 + i / 3) % 1, a0 = hash(e.born + i * 7 + Math.floor(now / 1400 + i / 3)) * 6.28 + u * 1.2;
+    ctx.beginPath(); ctx.arc(x, y, r * (1.18 + 0.95 * u), a0, a0 + 1.1 + 1.6 * (1 - u));
+    ctx.lineWidth = 0.6 + 2.2 * (1 - u); ctx.strokeStyle = rgba(col, 0.42 * (1 - u) * Math.min(1, u * 6)); ctx.stroke();
+  }
+}
+// 돌격체: 예고하는 레인을 아래로 흐르는 갈매기표와 옅은 띠로 물들이고, 돌진할 때는 지나온 자리에 옅어지는 잔상을 남긴다 (화면용 기록은 적 객체에)
+function drawCharge(e, H, now) {
+  const c = e.ch, col = ECOL.charge;
+  if (c && c.ph === 1) {
+    const k = 1 - Math.max(0, c.t) / C.CHG_WARN, L = C.LW, x0 = c.to * L, y0 = Math.max(0, e.y - e.r * 0.4);
+    const g = ctx.createLinearGradient(0, y0, 0, H);
+    const a = (0.07 + 0.16 * k) * (0.75 + 0.25 * Math.sin(now / 70));
+    g.addColorStop(0, rgba(col, 0)); g.addColorStop(0.18, rgba(col, a)); g.addColorStop(1, rgba(col, a * 0.55));
+    ctx.fillStyle = g; ctx.fillRect(x0 + 3, y0, L - 6, H - y0);
+    ctx.lineWidth = 3; ctx.lineJoin = 'round'; const cx = x0 + L / 2, span = H - y0;
+    for (let i = 0; i < 5; i++) {
+      const u = ((now / 900) + i / 5) % 1, yy = y0 + 30 + u * (span - 40), al = (0.2 + 0.55 * k) * Math.min(1, u * 5, (1 - u) * 4);
+      ctx.strokeStyle = rgba(col, al); ctx.beginPath(); ctx.moveTo(cx - 13, yy - 7); ctx.lineTo(cx, yy + 5); ctx.lineTo(cx + 13, yy - 7); ctx.stroke();
+    }
+    ctx.setLineDash([6, 6]); ctx.lineDashOffset = -now / 30; ctx.lineWidth = 2; ctx.strokeStyle = rgba(col, 0.35 + 0.4 * k);
+    ctx.beginPath(); ctx.moveTo(e.x, e.y + e.r * 0.6); ctx.quadraticCurveTo((e.x + cx) / 2, e.y + e.r * 1.6, cx, e.y + e.r * 2.2); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  }
+  const tr = e._tr || (e._tr = []);
+  if (c && c.ph === 2) tr.push({ x: e.x, y: e.y, t: now });
+  while (tr.length && now - tr[0].t > 380) tr.shift();
+  if (tr.length > 1) {
+    for (let i = 0; i < tr.length - 1; i++) {
+      const q = tr[i], u = 1 - (now - q.t) / 380, r = e.r * (0.82 + 0.18 * u);
+      ctx.beginPath(); ctx.moveTo(q.x - r, q.y - r * 0.8); ctx.lineTo(q.x, q.y - r * 0.3); ctx.lineTo(q.x + r, q.y - r * 0.8); ctx.lineTo(q.x, q.y + r); ctx.closePath();
+      ctx.fillStyle = rgba(col, 0.16 * u * u); ctx.fill();
+    }
+  }
+}
+function drawEnemy0(e) {
   if (e.type === 'scale') {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 18 + Math.sin(performance.now() / 160) * 4, 0, Math.PI * 2);
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(ECOL.scale, 0.5); ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
@@ -2286,6 +2363,9 @@ function drawEnemy(e) {
   }
   if (e.type === 'thief') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.2, 0, Math.PI * 2); ctx.stroke(); }
   if (e.type === 'corrode') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.4, 0, Math.PI * 2); ctx.stroke(); }
+  if (e.type === 'charge') drawChargeMark(e, col);
+  if (e.type === 'clock') drawClockFace(e, col);
+  if (e.elite) drawElite(e, col);
   drawStatus(e, iced);
   if (e.hp < e.maxHp) {
     const w = e.r * 1.8, h = e.boss ? 6 : 4, x = e.x - w / 2, y = e.y - e.r - (e.boss ? 14 : 9);
@@ -4626,6 +4706,23 @@ function drawFx(f, H) {
       ctx.fillStyle = `rgba(255,93,93,${p})`; ctx.font = '26px "Do Hyeon", sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('-' + f.n, f.x, H - 12 - (1 - p) * 26);
       break;
+    case 'wave': {                          // 웨이브 시작: 보스 예고보다 가볍게. 위에서 살짝 내려오며 나타나고, 양옆 가는 선이 퍼졌다 사라진다
+      const u = 1 - p, al = Math.min(1, u * 9, p * 3.2), y = H * 0.22 - 10 * Math.pow(Math.max(0, 1 - u * 5), 2);
+      const W = C.W, ink = theme.v.ink, t1 = '웨이브 ' + f.n, t2 = f.text ? ' · ' + f.text : '';
+      ctx.font = '30px "Do Hyeon", sans-serif'; const w1 = ctx.measureText(t1).width;
+      ctx.font = '26px "Do Hyeon", sans-serif'; const w2 = t2 ? ctx.measureText(t2).width : 0;
+      const x0 = W / 2 - (w1 + w2) / 2, x1 = x0 + w1 + w2, ln = 70 * (1 - Math.pow(1 - Math.min(1, u * 2.5), 3)), gp = 12, ly = y - 10;
+      ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (const [a, b] of [[x0 - gp, x0 - gp - ln], [x1 + gp, x1 + gp + ln]]) {
+        const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, rgba(ink, 0.5 * al)); g.addColorStop(1, rgba(ink, 0));
+        ctx.strokeStyle = g; ctx.beginPath(); ctx.moveTo(a, ly); ctx.lineTo(b, ly); ctx.stroke();
+      }
+      ctx.lineCap = 'butt'; ctx.textAlign = 'left'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = rgba(TC.bg, 0.8 * al);
+      ctx.font = '30px "Do Hyeon", sans-serif'; ctx.strokeText(t1, x0, y); ctx.fillStyle = rgba(ink, al); ctx.fillText(t1, x0, y);
+      if (t2) { ctx.font = '26px "Do Hyeon", sans-serif'; ctx.strokeText(t2, x0 + w1, y); ctx.fillStyle = rgba(TC.bossTxt, al); ctx.fillText(t2, x0 + w1, y); }
+      ctx.textAlign = 'center';
+      break;
+    }
     case 'warn': {                          // 보스 등장: 경고 띠, 붉은 테두리, 큰 글자
       const al = Math.min(1, (1 - p) * 8, p * 5), now = performance.now(), blink = 0.6 + 0.4 * Math.sin(now / 90);
       const W = C.W, y0 = H * 0.3, bh = f.hint ? 132 : 92;
@@ -4787,6 +4884,7 @@ function draw() {
     if (out) aimOut = [e.x, e.y, tx, ty, c, rem];
   }
   drawAimOut(aimOut, nowW, H);
+  for (const e of S.enemies) if (e.type === 'charge' && !e.dead) drawCharge(e, H, nowW);   // 돌격체: 예고 레인과 돌진 잔상 (몸 아래에)
   let dsvP = null;                           // 용해를 찍은 무기의 웅덩이 (녹기 시작하는 적)
   for (const p of S.pools) if (p.acid && p.st.dsv && p.r >= 1) (dsvP || (dsvP = [])).push(p);
   for (const e of S.enemies) {

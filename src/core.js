@@ -1109,7 +1109,7 @@ function startWave() {
     if (rndS() < 0.6) lanes.push(a === 0 ? 1 : a === LANES - 1 ? a - 1 : a + (rndS() < 0.5 ? -1 : 1));
   }
   S.wave = { n: S.wn, v, t0, rate: n / CFG.waveSpawnT, boss, ws, grp, lanes, gk };
-  if (!boss && S.spawnAcc > -1e6) { fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 도구가 등장을 끈 장면에서는 알리지 않는다
+  if (!boss && S.spawnAcc > -1e6) { S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 앞 웨이브 이름이 남아 있으면 지운다 (테스트로 건너뛸 때)   // 도구가 등장을 끈 장면에서는 알리지 않는다
 }
 function makeElite(e) { e.elite = 1; e.hp *= ELITE_HP; e.maxHp *= ELITE_HP; e.gold *= ELITE_HP; e.r *= ELITE_R; e.leak *= ELITE_LEAK; }
 // 웨이브 등장 한 번
