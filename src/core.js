@@ -1198,7 +1198,7 @@ function goldDrop(e, full) {
 function spawnCrate() {
   if (S.crate || S.enemies.some(e => e.cr && !e.dead)) return null;   // 한 번에 하나
   const dir = rndS() < 0.5 ? 1 : -1;
-  const c = { ph: 'fly', t: 0, dir, yc: CRATE.yc0 + rndS() * (CRATE.yc1 - CRATE.yc0), w: 2 * Math.PI / (CRATE.per0 + rndS() * (CRATE.per1 - CRATE.per0)), q: rndS() * 2 * Math.PI, x: 0, y: 0, vx: 0, vy: 0, ft: 0 };
+  const c = { id: S.crK = (S.crK || 0) + 1, ph: 'fly', t: 0, dir, yc: CRATE.yc0 + rndS() * (CRATE.yc1 - CRATE.yc0), w: 2 * Math.PI / (CRATE.per0 + rndS() * (CRATE.per1 - CRATE.per0)), q: rndS() * 2 * Math.PI, x: 0, y: 0, vx: 0, vy: 0, ft: 0 };
   crateFly(c, 0);
   S.crate = c; snd('crate');
   return c;
@@ -1224,11 +1224,11 @@ function crateStep(dt) {
   const c = S.crate;
   if (c && c.ph === 'fly') {
     crateFly(c, dt);
-    if (c.t >= CRATE.fly) { S.crate = null; fx({ k: 'craway', d: 0.6, x: c.x, y: c.y, vx: c.vx, vy: c.vy, dir: c.dir }); }   // 안 누르면 날아가 버린다
+    if (c.t >= CRATE.fly) { S.crate = null; fx({ k: 'craway', d: 0.6, x: c.x, y: c.y, vx: c.vx, vy: c.vy, dir: c.dir, id: c.id }); }   // 안 누르면 날아가 버린다
   } else if (c && c.ph === 'fall' && (c.ft -= dt) <= 0) {   // 땅에 닿았다: 이제부터 적처럼 맞는다
     S.crate = null;
     const e = spawn('crate', Math.max(0, Math.min(LANES - 1, Math.floor(c.x / LW))), c.x, c.y);
-    e.hp *= CRATE.hp; e.maxHp *= CRATE.hp; e.cr = { t: CRATE.stay };
+    e.hp *= CRATE.hp; e.maxHp *= CRATE.hp; e.cr = { t: CRATE.stay, id: c.id };
     fx({ k: 'crland', d: 0.5, x: e.x, y: e.y, r: e.r }); snd('crateland');
   }
 }
@@ -2741,7 +2741,7 @@ function step(dt) {
     if (e.burnT > 0) { e.burnT -= dt; dot(e, e.burnDps * dt, e.burnSt); if (e.dead) continue; if (e.burnT <= 0) e.burnDps = 0; }
     if (e.fT > 0) { e.fT -= dt; if (e.fSt) dot(e, e.fDps * dt, e.fSt); if (e.dead) continue; if (e.fT <= 0) e.fDps = 0; }   // 화염 산탄의 화상
     if (e.slT > 0) { e.slT -= dt; slimeDrop(e); }   // 점액 흔적
-    if (e.cr) { if ((e.cr.t -= dt) <= 0) { e.dead = true; fx({ k: 'crfade', d: 0.6, x: e.x, y: e.y, r: e.r }); } continue; }   // 보급 상자: 움직이지 않고, 시간이 다 되면 사라진다 (보상 없음)
+    if (e.cr) { if ((e.cr.t -= dt) <= 0) { e.dead = true; fx({ k: 'crfade', d: 0.6, x: e.x, y: e.y, r: e.r, id: e.cr.id }); } continue; }   // 보급 상자: 움직이지 않고, 시간이 다 되면 사라진다 (보상 없음)
     if (e.stunT > 0) { e.stunT -= dt; if (e.stunT <= 0) e.ice = false; continue; }
     let sp = e.speed;
     if (e.spdMul != null) sp *= e.spdMul;   // 천칭의 교대, 돌격체의 멈춤(0)과 돌진

@@ -12,6 +12,7 @@
      DRAW_TEAM=acid DRAW_RAIN=1 python tools/draw_bench.py paper index.html none none none   # 폭우가 그치면 0.5초 뒤 다시 내린다 (T10d. 고이는 웅덩이가 늘 있고, 마르는 묶음과 겹친다)
      DRAW_T11=1 python tools/draw_bench.py paper index.html none none none      # 정예(적 절반)와 돌격체·시계체 (T11. 기준 html 은 같은 자리에 거대체 둘)
      DRAW_GOLD=1 python tools/draw_bench.py paper index.html none none none     # 황금 적(2초마다 레인 옮김과 예고)과 초당 동전 10개 (T11②. 기준 html 은 같은 자리에 거대체 하나)
+     DRAW_CRATE=1 python tools/draw_bench.py paper index.html none none none    # 보급 상자: 늘 하나가 날고, 떨어진 상자 하나가 맞고, 1.5초마다 깨짐 효과(재화 동전) (T11③. 기준 html 은 같은 자리에 거대체 하나)
    읽는 법: 첫 측정은 준비(JIT, 스프라이트 생성) 때문에 늘 느리니 버리고, 나머지 평균을 기준과 비교한다. 잡음이 +-10% 쯤이다.
    알게 된 것: 이 환경에서는 넓이보다 drawImage 호출 수가 비용을 정한다(빛 번짐 한 장에 약 0.3ms). 큰 빛 번짐을 여러 장 겹치지 말 것."""
 import asyncio, os, pathlib, sys
@@ -74,6 +75,14 @@ window.__game = {'''
               if (nw) e.gd = { G: 0, mv: 2, to: -1, half: true, got: 12345, acc: 0, cT: -9 };
               S.enemies.push(e);
               if (nw) { const o = Core.step; let acc = 0; Core.step = (dt) => { o(dt); acc += dt; while (acc >= 0.1) { acc -= 0.1; S.fx.push({ k: 'coin', d: 1.1, t: 1.1, x: e.x, y: e.y, r: e.r, v: 1 }); } }; } }''')
+        if os.environ.get('DRAW_CRATE'):        # T11③: 보급 상자. 예전 html 은 보급 상자를 모르므로 같은 자리에 거대체 하나
+            await pg.evaluate('''() => { const S = Core.S, nw = !!Core.CRATE, H = Core.H, d = Core.ENEMIES[nw ? 'crate' : 'giant'];
+              const e = { type: nw ? 'crate' : 'giant', lane: 2, x: 250, y: H * 0.45, r: d.r, hp: 1e15, maxHp: 2e15, speed: 0, leak: d.leak, gold: 0, boss: true, born: S.t - 1,
+                slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0, fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9 };
+              if (nw) e.cr = { t: 1e9, id: 7 };
+              S.enemies.push(e);
+              if (nw) { const o = Core.step; let acc = 0, id = 100; Core.step = (dt) => { o(dt); acc += dt; if (!S.crate) Core.test.crate();
+                if (acc >= 1.5) { acc -= 1.5; S.fx.push({ k: 'cropen', d: 1.3, t: 1.3, x: 150, y: H * 0.35, r: d.r, c: 0, v: 1234, g: -1, id: id++ }); } }; } }''')
         if os.environ.get('DRAW_RAIN'):
             await pg.evaluate('''() => { const o = Core.step;
               Core.step = (dt) => { o(dt); const S = Core.S;

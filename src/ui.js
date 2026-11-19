@@ -33,12 +33,14 @@ const BLUE_V = {
   shade: 'rgba(0, 0, 0, .18)', overlay: 'rgba(10, 24, 54, .78)', toast: 'rgba(22, 48, 98, .92)', shadow: '#000',
   hatch: 'rgba(255, 255, 255, .07)', sheen: 'rgba(255, 244, 214, .55)', melt: '#ffb37a', 'melt-fill': '#ff9f5a', ember: '#ff3d2e',
   gold: '#ffd84a', 'on-gold': '#1c1503',   // 황금 웨이브와 티켓 (전설 등급의 주황과 헷갈리지 않는 노란 금색), 그 위 글자
+  crate: '#d9ad74',                          // 보급 상자 (나무색. 도움말 글자)
 };
 const BLUE_CV = {
   grid: 'rgba(150,190,255,.10)', lane: 'rgba(150,190,255,.32)', base: 'rgba(122,240,193,.8)', turret: '#7af0c1',
   dmgStroke: '6,13,30', dmgBig: '255,209,102', dmg2: '255,160,90', dmg3: '255,224,130', dmgN: '233,240,255',
   bossTxt: '#ffd0d0', bossLine: 'rgba(255,255,255,.7)', hit: 'rgba(255,255,255,.8)', fence: 'rgba(255,230,120,.85)',
   gold: '#ffd84a', goldA: '#fff3b0', goldB: '#ffc928',   // 황금: 선과 글자, 몸의 밝은 쪽, 어두운 쪽
+  crate: '#c39561', crateD: '#6e4a26', crateL: '#ecd2a6', wing: '#f7f3ea',   // 보급 상자: 나무, 짙은 나뭇결과 테두리, 밝은 면, 날개
 };
 // 밝은 테마는 무기 색을 더 어둡게 (바탕과 겹쳐 보이지 않도록)
 const LIGHT_WC = { blaster: '#0a9fc4', shotgun: '#d99400', laser: '#d8409f', pulse: '#12a579', mortar: '#e56a1f', tesla: '#7257e0', rail: '#4a5568', acid: '#5f9e12' };
@@ -49,33 +51,36 @@ const THEMES = [
       accent: '#e09a00', 'accent-ink': '#8a5600', 'on-accent': '#1c1503', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#6b7688', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#d9dee6',
       shade: 'rgba(30, 50, 90, .07)', overlay: 'rgba(28, 39, 64, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff' }),
+      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b' }),
     cv: { grid: 'rgba(30,50,90,.09)', lane: 'rgba(30,50,90,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '28,39,64',
       bossTxt: '#a01c1c', bossLine: 'rgba(28,39,64,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
-      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400' },
+      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff' },
     wc: LIGHT_WC },
   { id: 'sand', name: '모래', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#f3ecdd', panel: '#fffaf0', 'panel-2': '#e9dfc9', line: 'rgba(80,55,20,.24)', ink: '#3a2f1f', dim: '#76664d',
       accent: '#0e7a73', 'accent-ink': '#0a5f59', 'on-accent': '#fffaf0', ok: '#2a8a4a', danger: '#c93a2e',
       g0: '#77705f', g1: '#1f7fe0', g2: '#8a4be0', g3: '#d9740a', backdrop: '#e4d9c1',
       shade: 'rgba(80, 55, 20, .07)', overlay: 'rgba(58, 47, 31, .55)', toast: 'rgba(255, 250, 240, .97)', shadow: '#fffaf0',
-      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff' }),
+      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b' }),
     cv: { grid: 'rgba(80,55,20,.09)', lane: 'rgba(80,55,20,.26)', base: 'rgba(42,138,74,.9)', turret: '#2a8a4a',
       dmgStroke: '255,250,240', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '58,47,31',
       bossTxt: '#a01c1c', bossLine: 'rgba(58,47,31,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
-      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400' },
+      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff' },
     wc: LIGHT_WC },
   { id: 'sky', name: '하늘', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#e3effb', panel: '#ffffff', 'panel-2': '#d3e4f6', line: 'rgba(22,48,79,.22)', ink: '#16304f', dim: '#52708f',
       accent: '#c2255c', 'accent-ink': '#a01b49', 'on-accent': '#ffffff', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#66768c', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#cfe1f3',
       shade: 'rgba(22, 48, 79, .07)', overlay: 'rgba(22, 48, 79, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff' }),
+      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b' }),
     cv: { grid: 'rgba(22,48,79,.09)', lane: 'rgba(22,48,79,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '22,48,79',
       bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
-      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400' },
+      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff' },
     wc: LIGHT_WC },
   { id: 'navy', name: '짙은 남색',
     v: Object.assign({}, BLUE_V, { bg: '#0e1c3a', panel: '#13264d', 'panel-2': '#1a3263', line: 'rgba(150,190,255,.18)', dim: '#93a8cf',
@@ -217,6 +222,10 @@ const Snd = (function () {
     goldwarn: [400, () => { tone('sine', 1320, 1580, 0.07, 0.03); }],                                                                                // 황금 적이 레인을 옮기려 함: 작은 휘익
     coin: [70, () => { tone('square', 1975, 1975, 0.03, 0.018); tone('triangle', 2637, 2637, 0.06, 0.02, 0.025); }],                                 // 동전이 재화 숫자에 닿음: 짤랑
     ticket: [300, () => { seq('triangle', [659, 880, 1319], 0.14, 0.07, 0.06); }],                                                                   // 황금 티켓을 씀
+    crate: [500, () => { for (let i = 0; i < 4; i++) hiss(0.05, 0.05, 1100 + 200 * i, 1.4, 'bandpass', i * 0.085); tone('sine', 620, 820, 0.14, 0.025, 0.05); }],   // 보급 상자가 날아옴: 날갯짓 푸드덕
+    cratedrop: [200, () => { tone('sine', 1100, 420, 0.3, 0.03); hiss(0.25, 0.03, 1800, 0.8, 'bandpass'); }],                                        // 떨구기: 짧게 떨어지는 휘익
+    crateland: [200, () => { tone('sine', 150, 55, 0.2, 0.2); hiss(0.14, 0.13, 650, 0.8, 'lowpass'); tone('triangle', 330, 190, 0.07, 0.06, 0.01); }],   // 땅에 닿음: 나무 상자 쿵
+    crateopen: [250, () => { hiss(0.05, 0.17, 2800, 2, 'bandpass'); tone('square', 950, 280, 0.06, 0.04); hiss(0.22, 0.13, 620, 0.7, 'lowpass', 0.02); [784, 1047, 1319].forEach((f, i) => tone('triangle', f, f, 0.12, 0.07, 0.08 + i * 0.06)); }],   // 깨짐: 나무가 쩍 갈라지고 반짝
     dash: [300, () => { hiss(0.34, 0.2, 700, 0.8); tone('sawtooth', 240, 70, 0.3, 0.07); tone('sine', 90, 45, 0.3, 0.12, 0.05); }],                   // 돌격체 돌진: 휙 하고 밀고 내려오는 소리
     gen: [40, () => seq('triangle', [988, 1319], 0.1, 0.1, 0.07)],
     ok: [30, () => seq('triangle', [523, 659, 784], 0.1, 0.12, 0.06)],
@@ -311,7 +320,7 @@ function banner(name) {
 function updateMark() {
   const S = C.S, n = S && S.pacts ? S.pacts.length : 0;
   if (n !== markN) { markN = n; markEl.hidden = !n; markEl.querySelector('b').textContent = n; }
-  const low = !!S && S.enemies.some(e => e.boss && !e.dead);   // 보스 체력 막대 아래로 내려 앉는다
+  const low = !!S && S.enemies.some(e => e.boss && !e.dead && !e.cr);   // 보스 체력 막대 아래로 내려 앉는다
   if (low !== markLow) { markLow = low; markEl.classList.toggle('low', low); }
 }
 
@@ -673,7 +682,7 @@ function bossRewards(list) {
     const x = Math.max(34, Math.min(a.width - 34, wr.left - a.left + r.x * sc + off)), y = Math.max(46, Math.min(wr.top - a.top + wr.height - 40, wr.top - a.top + r.y * sc));
     const d = document.createElement('div');
     d.className = 'rw'; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', col);
-    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : it.kind === 't' ? TICKET(34) : partIcon(it.id, 34)}</span><span class="rw-l">${r.gold ? '황금 보상' : '보스 보상'}</span>`;
+    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : it.kind === 't' ? TICKET(34) : partIcon(it.id, 34)}</span><span class="rw-l">${r.gold ? '황금 보상' : r.crate ? '보급 상자' : '보스 보상'}</span>`;
     if (r.gold) d.classList.add('gold');
     d._item = it; d.dataset.until = performance.now() + 2600;
     while (rewLayer.children.length > 6) { const f = rewLayer.firstChild; incoming.delete(f._item); f.remove(); }
@@ -1295,6 +1304,7 @@ function testHtml() {
       <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testWave">다음 웨이브</button>
       <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testGold">황금 웨이브</button>
       <button type="button" class="btn${off(full)}" data-act="testTicket">티켓 받기</button>
+      <button type="button" class="btn${off(!!S.crate)}" data-act="testCrate">보급 상자</button>
     </div>
     <div class="d-acts one"><button type="button" class="btn primary" data-act="testClose">닫기</button></div></div>`;
 }
@@ -1319,6 +1329,7 @@ function testRun(name, arg) {
     case 'testClear': T.clear(); m = '적 지움'; break;
     case 'testWave': ok = T.nextWave(); m = '다음 웨이브'; break;
     case 'testGold': ok = T.gold(); m = '황금 웨이브'; break;
+    case 'testCrate': ok = T.crate(); m = '보급 상자'; break;
     case 'testTicket': { const i = T.ticket(); if (i < 0) return; m = '티켓 받음'; newCell = i; setTimeout(() => { if (newCell === i) newCell = -1; }, 500); break; }
     case 'testAug': {                        // 선택지 창은 기존 증강 흐름 그대로: 테스트 창을 닫고 띄운다
       const k = testSlot();
@@ -1440,7 +1451,8 @@ function helpHtml() {
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div>`;
   const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>
     <p class="hnote"><b class="gtag">황금 웨이브</b> ${C.GOLD.from / 60}분 뒤부터 가끔 옵니다. 남은 적은 사라지고 황금 적 하나만 내려옵니다. 맞힐 때마다 재화, 체력을 절반 깎으면 파츠, 다 깎으면 전설 파츠. ${C.GOLD.move}초마다 레인을 옮깁니다(화살표로 미리 알림).</p>
-    <p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 웨이브가 황금 웨이브가 됩니다.</p>`;
+    <p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 웨이브가 황금 웨이브가 됩니다.</p>
+    <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
     ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
@@ -1758,7 +1770,7 @@ function tapInv(i) {                      // 누르면 고르기만 한다. 다�
 function useTicketAt(i) {
   const S = C.S, r = C.useTicket(i); if (!r.ok) return;
   sel = null; Snd.play('ticket');
-  const bossOn = !!S.pendingBoss || S.enemies.some(e => e.boss && !e.dead && !e.gd), bossNext = S.wEnd >= S.nextBoss - 1e-6;
+  const bossOn = !!S.pendingBoss || S.enemies.some(e => e.boss && !e.dead && !e.gd && !e.cr), bossNext = S.wEnd >= S.nextBoss - 1e-6;
   say(r.n > 1 ? `<b>황금 웨이브</b> ${r.n}번 예약` : bossOn ? '보스를 쓰러뜨린 뒤 <b>황금 웨이브</b>가 옵니다.' : bossNext ? '보스 웨이브 다음에 <b>황금 웨이브</b>가 옵니다.' : '다음 웨이브는 <b>황금 웨이브</b>입니다.');
   renderWeapons(); renderBottom();
 }
@@ -1868,6 +1880,7 @@ $('#app').addEventListener('pointerdown', (ev) => {
   downOnBtn = !!(ev.target.closest && ev.target.closest('button'));
   if (drag) endDrag(false);                // 이전 끌기가 비정상적으로 끝났다면 정리
   if (mode !== 'play' || !C.S || C.S.pendingAug || C.S.pendingPact || wmodal >= 0 || bmodal || partSwap || skK >= 0 || evoK >= 0) return;
+  if (C.S.crate && !downOnBtn && crateTap(ev)) return;   // 날고 있는 보급 상자: 그 자리에 떨군다
   if ((sel || meltMode || upMode) && !ev.target.closest('button')) {   // 다른 곳(전장, 빈 공간)을 누르면 선택과 용해로 모드 취소
     sel = null; confirmDrop = false; msg = ''; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false;
     renderWeapons(); renderBottom(); return;
@@ -1929,7 +1942,7 @@ function act(name) {
       testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
     case 'testClose': if (testView) { testClose(); Snd.play('tap'); renderAll(); } return;
     case 'testExit': if (testView) goHome(); return;
-    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': case 'testWave': case 'testGold': case 'testTicket': testRun(name); return;
+    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': case 'testWave': case 'testGold': case 'testTicket': case 'testCrate': testRun(name); return;
     case 'help': helpFrom = mode; renderOverlay(); return;
     case 'helpBack': helpFrom = ''; renderOverlay(); return;
     case 'pauseBack': pauseView = ''; renderOverlay(); return;
@@ -2227,6 +2240,7 @@ function enemyPath(e) {
       }
       ctx.closePath();
       break;
+    case 'crate': rrectPath(x, y, r * 0.86, r * 0.15); break;                   // 보급 상자: 모서리가 조금 둥근 네모
     case 'gold':                                                               // 보석 (위가 평평한 면, 아래가 뾰족)
       ctx.moveTo(x - r * 0.5, y - r * 0.62); ctx.lineTo(x + r * 0.5, y - r * 0.62); ctx.lineTo(x + r, y - r * 0.12); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y - r * 0.12); ctx.closePath();
       break;
@@ -2443,8 +2457,145 @@ function drawGoldWarn(e, H, now) {
     enemyPath({ type: 'gold', x: q.x, y: q.y, r: e.r * (0.8 + 0.2 * u) }); ctx.fillStyle = rgba(TC.goldB, 0.2 * u * u); ctx.fill();
   }
 }
+/* ---------- 보급 상자 (T11③) ---------- */
+// 날 때는 몸을 그림자(떨어질 자리)보다 CR_ALT 만큼 위에 그린다. 누르는 판정은 몸과 그림자 둘레 모두
+const CR_ALT = 22;
+function rrectPath(x, y, h, rr) {            // 가운데 (x, y), 반변 h, 모서리 반지름 rr 인 네모를 지금 경로에 더한다
+  ctx.moveTo(x - h + rr, y - h); ctx.arcTo(x + h, y - h, x + h, y + h, rr); ctx.arcTo(x + h, y + h, x - h, y + h, rr);
+  ctx.arcTo(x - h, y + h, x - h, y - h, rr); ctx.arcTo(x - h, y - h, x + h, y - h, rr); ctx.closePath();
+}
+// 나무 상자: 판자 이음매와 옅은 나뭇결 (자리는 상자마다 조금씩 다르다), 대각 버팀목과 못, 금(cr 개), 맞은 순간의 밝아짐(fl 0~1), 눌림(sq)
+function crateBox(x, y, s, rot, sd, cr, fl, sq) {
+  const r = C.CRATE.r * s, h = r * 0.86, light = theme.scheme === 'light';
+  ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); if (sq) ctx.scale(1 + sq, 1 - sq);
+  ctx.beginPath(); rrectPath(0, 0, h, r * 0.15);
+  const g = ctx.createLinearGradient(-h, -h, h, h);
+  g.addColorStop(0, TC.crateL); g.addColorStop(0.45, TC.crate); g.addColorStop(1, VX.mix(TC.crate, -0.2));
+  ctx.fillStyle = g; ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.lineWidth = 0.8; ctx.strokeStyle = rgba(TC.crateD, 0.22); ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const yy = -h + (i + 0.5) * h / 2 + (hash(sd * 1.7 + i) - 0.5) * 6, x0 = -h + hash(sd + i * 7) * h * 0.9;
+    ctx.moveTo(x0, yy); ctx.quadraticCurveTo(x0 + h * 0.5, yy + (hash(sd + i) - 0.5) * 5, x0 + h * (0.6 + 0.5 * hash(sd + i * 2.3)), yy + 1);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1.3; ctx.strokeStyle = rgba(TC.crateD, light ? 0.5 : 0.62); ctx.beginPath();
+  for (let i = 0; i < 2; i++) {
+    const yy = (i ? 1 : -1) * h / 3 + (hash(sd + i) - 0.5) * h * 0.12, tl = (hash(sd + i * 3.1) - 0.5) * h * 0.08;
+    ctx.moveTo(-h, yy - tl); ctx.lineTo(h, yy + tl);
+  }
+  ctx.stroke();
+  const f = h * 0.74, bw = h * 0.24;            // 대각 버팀목
+  ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(-f, f); ctx.lineTo(f, -f);
+  ctx.lineWidth = bw + 2.4; ctx.strokeStyle = rgba(TC.crateD, light ? 0.55 : 0.7); ctx.stroke();
+  ctx.lineWidth = bw; ctx.strokeStyle = VX.mix(TC.crate, 0.16); ctx.stroke();
+  if (cr > 0) {                                 // 깎일수록 금이 늘어난다
+    ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(TC.crateD, 0.85); ctx.lineJoin = 'round'; ctx.beginPath();
+    for (let i = 0; i < cr; i++) {
+      const a = hash(sd * 3 + i * 5.1) * 6.283, ex = Math.cos(a) * h, ey = Math.sin(a) * h, n = 3;
+      ctx.moveTo(ex, ey);
+      for (let j = 1; j <= n; j++) { const u = j / n * (0.55 + 0.25 * hash(sd + i * 2 + j)); ctx.lineTo(ex * (1 - u) + (hash(sd * 7 + i * 3 + j) - 0.5) * h * 0.35, ey * (1 - u) + (hash(sd * 5 + i + j * 4) - 0.5) * h * 0.35); }
+    }
+    ctx.stroke(); ctx.lineJoin = 'miter';
+  }
+  if (fl > 0) { ctx.fillStyle = `rgba(255,255,255,${(light ? 0.35 : 0.45) * fl})`; ctx.fillRect(-h, -h, h * 2, h * 2); }
+  ctx.restore();
+  ctx.fillStyle = rgba(TC.crateD, 0.8);         // 못: 버팀목 두 끝과 모서리
+  ctx.beginPath();
+  for (const [px, py] of [[-f * 0.82, f * 0.82], [f * 0.82, -f * 0.82], [-h * 0.72, -h * 0.72], [h * 0.72, h * 0.72]]) { ctx.moveTo(px + 1.5 * s, py); ctx.arc(px, py, 1.5 * s, 0, TAU); }
+  ctx.fill();
+  ctx.beginPath(); rrectPath(0, 0, h, r * 0.15); ctx.lineWidth = 2; ctx.strokeStyle = TC.crateD; ctx.stroke();
+  ctx.restore();
+}
+// 날개 한 쌍 (상자 안쪽 좌표에서). ph: 날갯짓 위상 (펼침과 들림이 함께 바뀐다), k: 펼친 정도 (떨어질 때 접힌다)
+function crateWings(h, s, ph, k, light) {
+  const span = (25 + 7 * Math.cos(ph)) * s * k, lift = 7 * Math.sin(ph) * s * k;
+  if (span < 2) return;
+  const edge = rgba(light ? TC.crateD : '#8f9bb5', light ? 0.45 : 0.55), vein = rgba(light ? TC.crateD : '#8f9bb5', 0.3);
+  const FE = [[0.86, 5, 0.9], [0.6, 8, 0.6], [0.32, 8, 0.3]];   // 뒤쪽 깃털 끝: [펼친 길이 비율, 아래로, 들림 비율]
+  for (let side = -1; side <= 1; side += 2) {
+    ctx.save(); ctx.scale(side, 1);
+    const bx = h * 0.8, by = -h * 0.18, L = span, ty = by - 9 * s - lift * 1.3;
+    ctx.beginPath(); ctx.moveTo(bx, by - 5 * s);
+    ctx.quadraticCurveTo(bx + L * 0.5, by - 13 * s - lift, bx + L, ty);
+    let px = bx + L, py = ty;
+    for (const [u, dy, lk] of FE) { const qx = bx + L * u, qy = by + dy * s - lift * lk; ctx.quadraticCurveTo((px + qx) / 2 + 3 * s, (py + qy) / 2 + 6 * s, qx, qy); px = qx; py = qy; }
+    ctx.quadraticCurveTo(bx + 2, by + 9 * s, bx, by + 5 * s); ctx.closePath();
+    ctx.fillStyle = rgba(TC.wing, 0.96); ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = edge; ctx.stroke();
+    ctx.beginPath(); ctx.lineWidth = 0.9; ctx.strokeStyle = vein;
+    for (const [u, dy, lk] of FE) { ctx.moveTo(bx + 2, by); ctx.lineTo(bx + L * u * 0.9, by + dy * s * 0.55 - lift * lk); }
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+// 땅의 그림자 (부드러운 타원): 높을수록 크고 옅다
+function crateShadow(x, y, alt, a) {
+  const k = alt / CR_ALT, light = theme.scheme === 'light';
+  VX.glow(x + 3 + 4 * k, y + 9, 30 + 9 * k, '#000000', (light ? 0.22 : 0.34) * (1 - 0.3 * k) * a, 12 + 4 * k);
+}
+function crateAlt(c, now, sd) {               // 지금 높이, 펼친 날개, 크기
+  if (c.ph === 'fall') { const q = 1 - Math.max(0, c.ft) / C.CRATE.fall; return [CR_ALT * (1 - q * q), Math.max(0, 1 - q * 1.7), 1 + 0.12 * (1 - q * q)]; }
+  return [CR_ALT + 2.5 * Math.sin(now / 260 + sd), 1, 1.12];
+}
+// 날거나 떨어지는 보급 상자 (그림자는 적보다 아래에서 따로 그린다)
+const crSd = (id) => hash(id * 3.7) * 100;   // 상자마다 다른 나뭇결 (날 때부터 사라질 때까지 같다)
+function drawCrateAir(c, now) {
+  const u0 = VX.ui(c), sd = crSd(c.id), light = theme.scheme === 'light', [alt, k, s] = crateAlt(c, now, sd);
+  const x = c.x, y = c.y - alt, fly = c.ph === 'fly';
+  const rot = (fly ? Math.max(-0.14, Math.min(0.14, c.vx / 1000)) : 0) + 0.04 * Math.sin(now / 380 + sd);   // 가는 쪽으로 살짝 기운다
+  const tr = u0.tr || (u0.tr = []);           // 지나온 자리: 옅은 바람 자국
+  if (fly) tr.push(x, y, now);
+  while (tr.length && now - tr[2] > 260) tr.splice(0, 3);
+  VX.add();
+  for (let i = 0; i < tr.length - 3; i += 9) { const a = 1 - (now - tr[i + 2]) / 260; VX.glow(tr[i], tr[i + 1], 10 + 18 * a, TC.crateL, (light ? 0.14 : 0.12) * a); }
+  if (fly) VX.glow(x, y, 54, TC.crateL, (light ? 0.2 : 0.18) + 0.08 * Math.sin(now / 240 + sd));   // 누를 수 있다는 은은한 빛
+  VX.norm();
+  if (fly && !RM.matches) for (let n = VX.rate(3); n > 0; n--) {   // 깃털: 가끔 날개 끝에서 떨어져 천천히 흩날린다
+    const sd2 = Math.random() < 0.5 ? -1 : 1;
+    VX.spark(x + sd2 * (30 + 8 * Math.random()), y - 6, sd2 * 12 + (Math.random() - 0.5) * 24, 8 + Math.random() * 16, 0.7 + Math.random() * 0.5, 1.5 + Math.random(), TC.wing, 14, 1.4);
+  }
+  if (!fly) {                                  // 떨어지는 동안: 위로 짧은 바람 줄
+    const q = 1 - Math.max(0, c.ft) / C.CRATE.fall;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {              // 길이, 굵기, 자리, 시작이 줄마다 다르고 위쪽 끝이 옅어진다
+      const h1 = hash(sd + i * 2.7), h2 = hash(sd * 1.3 + i), ox = (i - 1) * 11 + (h1 - 0.5) * 9, y1 = y - 24 - 6 * h2, L = (6 + 16 * h1) * (0.5 + q), a = 0.4 * Math.sin(Math.min(1, q * (1.1 + h2)) * Math.PI);
+      if (!(a > 0.02)) continue;
+      const g = ctx.createLinearGradient(0, y1 - L, 0, y1); g.addColorStop(0, rgba(light ? TC.crateD : TC.wing, 0)); g.addColorStop(1, rgba(light ? TC.crateD : TC.wing, a));
+      ctx.strokeStyle = g; ctx.lineWidth = 1 + 1.2 * h2; ctx.beginPath(); ctx.moveTo(x + ox, y1 - L); ctx.lineTo(x + ox, y1); ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+  }
+  const ph = now / 1000 * TAU * (fly && C.CRATE.fly - c.t < 1 ? 6.5 : 4.6) + sd;   // 날아가기 1초 전부터 날갯짓이 빨라진다
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); crateWings(C.CRATE.r * 0.86 * s, s, ph, k, light); ctx.restore();
+  crateBox(x, y, s, rot, sd, 0, 0, 0);
+}
+// 떨어진 보급 상자: 닿는 순간 눌렸다 펴지고, 깎일수록 금이 가고, 남은 3초는 점점 빨리 깜빡인다. 체력 막대 아래에 남은 시간
+function drawCrate(e) {
+  const S = C.S, age = S.t - e.born, T = Math.max(0, e.cr.t), sd = crSd(e.cr.id), light = theme.scheme === 'light';
+  let al = 1;
+  if (T < 3) { const f = 1.4 + (3 - T) * 1.1; al = 0.6 + 0.4 * (0.5 + 0.5 * Math.cos((3 - T) * f * TAU)); }
+  crateShadow(e.x, e.y, 0, al);
+  const u = age / 0.22, sq = u < 1 ? 0.16 * (1 - u) * Math.cos(u * Math.PI * 1.5) : 0;
+  const cr = Math.min(3, Math.floor((1 - e.hp / e.maxHp) * 4));
+  ctx.globalAlpha = al;
+  crateBox(e.x, e.y, e.flash > 0 ? 1.05 : 1, 0, sd, cr, e.flash > 0 ? e.flash / 0.12 : 0, sq);
+  if (drawCorr(e)) { ctx.beginPath(); rrectPath(e.x, e.y, e.r * 0.86, e.r * 0.15); ctx.lineWidth = 2; ctx.strokeStyle = TC.crateD; ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  drawStatus(e, false);
+  const w = e.r * 1.9, bx = e.x - w / 2, by = e.y - e.r - 14;
+  if (e.hp < e.maxHp) { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(bx, by, w, 5); ctx.fillStyle = TC.crate; ctx.fillRect(bx, by, w * Math.max(0, e.hp / e.maxHp), 5); }
+  ctx.fillStyle = rgba(light ? TC.crateD : TC.crateL, 0.7); ctx.fillRect(bx, by + 7, w * T / C.CRATE.stay, 2);
+}
+// 누른 자리가 날고 있는 상자(몸이나 그림자) 가까이면 떨군다
+function crateTap(ev) {
+  const c = C.S.crate; if (!c || c.ph !== 'fly') return false;
+  const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / sc, y = (ev.clientY - r.top) / sc, R = 54;
+  if (Math.hypot(x - c.x, y - (c.y - CR_ALT)) > R && Math.hypot(x - c.x, y - c.y) > R * 0.8) return false;
+  return C.dropCrate().ok;
+}
 function drawEnemy0(e) {
   if (e.gd) { drawGold(e); return; }
+  if (e.cr) { drawCrate(e); return; }
   if (e.type === 'scale') {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 18 + Math.sin(performance.now() / 160) * 4, 0, Math.PI * 2);
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(ECOL.scale, 0.5); ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
@@ -4853,6 +5004,54 @@ function drawFx(f, H) {
       ctx.fillStyle = rgba(col, 0.16 * p); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(col, 0.5 * p * p); ctx.stroke();
       break;
     }
+    case 'crland': {                        // 보급 상자가 땅에 닿음: 옆으로 퍼지며 옅어지는 흙먼지
+      const u0 = VX.ui(f), q = 1 - p, sd = u0.sd * 50, light = theme.scheme === 'light', dc = light ? TC.crate : TC.crateL;
+      if (u0.n && !RM.matches) for (let i = 0; i < 9; i++) { const side = i % 2 ? 1 : -1; VX.spark(f.x + side * f.r * (0.3 + 0.5 * Math.random()), f.y + f.r * 0.7, side * (40 + 70 * Math.random()), -10 - 25 * Math.random(), 0.45 + 0.3 * Math.random(), 1.8 + 1.6 * Math.random(), dc, 40, 3.5); }
+      for (let i = 0; i < 6; i++) { const side = i % 2 ? 1 : -1, h1 = hash(sd + i); VX.glow(f.x + side * f.r * (0.45 + (0.5 + h1) * VX.ease(q, 2)), f.y + f.r * (0.6 - 0.15 * q) + (h1 - 0.5) * 5, 9 + 15 * q * (0.6 + 0.5 * h1), dc, (light ? 0.34 : 0.24) * p * p, 6 + 9 * q); }
+      break;
+    }
+    case 'cropen': {                        // 보급 상자가 깨짐: 판자 조각이 돌며 튀어 떨어지고, 나온 것의 빛과 글자 (재화는 동전이 재화 숫자로 날아간다)
+      const u0 = VX.ui(f), T = f.d - f.t, sd = f.x * 0.37 + f.y * 0.11, light = theme.scheme === 'light';
+      const col = f.c === 0 ? TC.goldB : f.c === 1 ? (light ? '#b07a00' : '#ffc83d') : GHEX[f.g] || TC.crateL;
+      if (u0.n) {
+        if (!RM.matches) for (let i = 0; i < 10; i++) { const a = Math.random() * TAU, v = 50 + 110 * Math.random(); VX.spark(f.x, f.y, Math.cos(a) * v, Math.sin(a) * v - 40, 0.35 + 0.35 * Math.random(), 1.4 + 1.4 * Math.random(), light ? TC.crate : TC.crateL, 260, 1.5, 1); }
+        if (f.c === 0) for (let i = 0; i < 6; i++) coinAdd({ x: f.x + (i - 2.5) * 5, y: f.y, r: f.r }, Math.random());
+      }
+      const al0 = T < 0.45 ? 1 : Math.max(0, 1 - (T - 0.45) / 0.45);
+      if (al0 > 0) for (let i = 0; i < 7; i++) {
+        const h1 = hash(sd + i), h2 = hash(sd + i * 3.7), a = -Math.PI / 2 + (h1 - 0.5) * 3.2, v = 110 + 120 * h2, tt = Math.min(T, 0.9);
+        const L = 8 + 10 * h1, wd = 3.5 + 2 * h2;
+        ctx.save(); ctx.translate(f.x + Math.cos(a) * v * tt, f.y + Math.sin(a) * v * tt + 330 * tt * tt); ctx.rotate((h2 - 0.5) * 14 * tt + h1 * 3); ctx.globalAlpha = al0;
+        ctx.fillStyle = i % 3 ? TC.crate : TC.crateL; ctx.fillRect(-L / 2, -wd / 2, L, wd); ctx.lineWidth = 1; ctx.strokeStyle = TC.crateD; ctx.strokeRect(-L / 2, -wd / 2, L, wd);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      VX.add(); VX.glow(f.x, f.y, f.r * (1.6 + 1.4 * VX.ease(T / 0.5, 2)), col, (light ? 0.5 : 0.6) * Math.max(0, 1 - T / 0.55)); VX.norm();
+      if (f.c < 2) {                          // 받은 재화·조각: 위로 떠오르며 사라지는 글자
+        const al = Math.min(1, T * 6, p * 2.5), tx = Math.max(60, Math.min(C.W - 60, f.x)), ty = f.y - f.r - (f.c === 0 ? 40 : 10) - 26 * VX.ease(T / f.d, 2);   // 재화는 튀어 오르는 동전 위에
+        const txt = (f.c === 0 ? '◆ +' : '조각 +') + fmtInt(Math.round(f.v));
+        ctx.font = '22px "Do Hyeon", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+        ctx.strokeStyle = `rgba(${TC.dmgStroke},${0.9 * al})`; ctx.strokeText(txt, tx, ty);
+        ctx.fillStyle = f.c === 0 ? rgba(TC.gold, al) : `rgba(${TC.dmg3},${al})`; ctx.fillText(txt, tx, ty);
+        ctx.lineJoin = 'miter';
+      }
+      break;
+    }
+    case 'crfade': {                        // 못 깬 보급 상자: 땅으로 가라앉듯 옅어지며 작아지고 먼지가 조금 인다
+      const q = 1 - p, u0 = VX.ui(f);
+      if (u0.n && !RM.matches) for (let i = 0; i < 5; i++) VX.spark(f.x + (Math.random() - 0.5) * f.r * 1.4, f.y + f.r * 0.5, (Math.random() - 0.5) * 50, -8 - Math.random() * 20, 0.5 + Math.random() * 0.3, 1.6 + Math.random() * 1.2, theme.scheme === 'light' ? TC.crate : TC.crateL, 20, 2.5);
+      ctx.globalAlpha = p * p; crateBox(f.x, f.y + 3 * q, 1 - 0.18 * q, 0, crSd(f.id), 0, 0, 0); ctx.globalAlpha = 1;
+      break;
+    }
+    case 'craway': {                        // 누르지 않은 보급 상자: 날갯짓이 빨라지며 떠올라 사라진다
+      const T = f.d - f.t, q = 1 - p, now = performance.now(), light = theme.scheme === 'light';
+      const x = f.x + f.vx * T * 0.8, y = f.y - CR_ALT - 50 * T - 160 * T * T, s = 1.12 + 0.3 * q, rot = Math.max(-0.14, Math.min(0.14, f.vx / 1000));
+      ctx.globalAlpha = p * Math.sqrt(p);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); crateWings(C.CRATE.r * 0.86 * s, s, now / 1000 * TAU * 7, 1, light); ctx.restore();
+      crateBox(x, y, s, rot, crSd(f.id), 0, 0, 0);
+      ctx.globalAlpha = 1;
+      break;
+    }
     case 'coin': { const u0 = VX.ui(f); if (u0.n) coinAdd(f, u0.sd); break; }   // 황금 적의 동전: 위 겹에서 재화 숫자로 날아간다
     case 'warn': {                          // 보스 등장: 경고 띠, 붉은 테두리, 큰 글자
       const al = Math.min(1, (1 - p) * 8, p * 5), now = performance.now(), blink = 0.6 + 0.4 * Math.sin(now / 90);
@@ -5067,10 +5266,11 @@ function draw() {
   drawAimOut(aimOut, nowW, H);
   for (const e of S.enemies) if (e.type === 'charge' && !e.dead) drawCharge(e, H, nowW);   // 돌격체: 예고 레인과 돌진 잔상 (몸 아래에)
   for (const e of S.enemies) if (e.gd && !e.dead) drawGoldWarn(e, H, nowW);              // 황금 적: 옮겨 갈 레인 예고와 잔상
+  if (S.crate) crateShadow(S.crate.x, S.crate.y, crateAlt(S.crate, nowW, crSd(S.crate.id))[0], 1);   // 날거나 떨어지는 보급 상자의 그림자 (떨어질 자리)
   let dsvP = null;                           // 용해를 찍은 무기의 웅덩이 (녹기 시작하는 적)
   for (const p of S.pools) if (p.acid && p.st.dsv && p.r >= 1) (dsvP || (dsvP = [])).push(p);
   for (const e of S.enemies) {
-    const age = e.boss && e.born != null ? S.t - e.born : 9, mt = dsvP && !e.boss && !e.dead ? meltOf(e, dsvP) : 0;
+    const age = e.boss && !e.cr && e.born != null ? S.t - e.born : 9, mt = dsvP && !e.boss && !e.dead ? meltOf(e, dsvP) : 0;
     if (age < 0.3) {                         // 보스 등장: 작게 시작해 살짝 넘쳤다가 제 크기로 (보이는 효과만)
       const u = age / 0.3, k = Math.max(0.05, 1 + 2.2 * Math.pow(u - 1, 3) + 1.2 * Math.pow(u - 1, 2));
       ctx.save(); ctx.translate(e.x, e.y); ctx.scale(k, k); ctx.translate(-e.x, -e.y); drawEnemy(e); ctx.restore();
@@ -5139,9 +5339,10 @@ function draw() {
   VX.draw();                                 // 잔상과 입자 (피해 숫자보다 아래)
   if (evoRun.length) drawEvoPillars(H);     // 진화의 빛기둥
   for (const f of S.fx) drawFx(f, H);
+  if (S.crate) drawCrateAir(S.crate, nowW);   // 날거나 떨어지는 보급 상자 (모든 것 위에)
   // 보스가 살아 있는 동안 위쪽에 체력 막대
   let boss = null;
-  for (const e of S.enemies) if (e.boss && (!boss || e.y > boss.y)) boss = e;
+  for (const e of S.enemies) if (e.boss && !e.cr && (!boss || e.y > boss.y)) boss = e;
   if (boss) {
     const bw = W - 24, gd = boss.gd;
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(12, 8, bw, 11);
