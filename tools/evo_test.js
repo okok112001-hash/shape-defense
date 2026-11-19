@@ -910,7 +910,7 @@ function scene(type, lines, secs, opt) {
       assert.strictEqual(w.boss, w.n > 1 && (w.n - 1) % CFG.bossWaves === 0, '보스 웨이브 ' + w.n);
     }
     const nb = log.filter((w) => !w.boss);
-    for (let i = 1; i < nb.length; i++) assert.notStrictEqual(nb[i].v, nb[i - 1].v, '같은 종류 연속');
+    for (let i = 1; i < nb.length; i++) if (nb[i].v !== 'gold') assert.notStrictEqual(nb[i].v, nb[i - 1].v, '같은 종류 연속');   // 황금 웨이브는 티켓이나 미룬 것이 이어지면 연달아 올 수 있다
     assert.strictEqual(bosses.length, 10); assert.strictEqual(bosses[9], 'scale', '10번째는 천칭');
     for (let i = 1; i < 9; i++) assert.notStrictEqual(bosses[i], bosses[i - 1], '같은 보스 연속');
     for (const b of bosses) assert(b === 'scale' || Core.BOSS_IDS.includes(b));
@@ -919,10 +919,10 @@ function scene(type, lines, secs, opt) {
   assert(firsts.size >= 4, '첫 보스가 무작위: ' + [...firsts]);
   // (b) 세기와 재화: 보스 없이 600초, 웨이브의 일반 적 재화 합 = 예전 연속 등장 (±10%), 체력 합은 세기 배수 x 종류 배수 평균쯤
   const tally = (waves, sd) => {
-    CFG.waves = waves; const S = game(sd); S.hp = S.maxHp = 1e9; S.nextBoss = 1e9;
+    CFG.waves = waves; const S = game(sd); S.hp = S.maxHp = 1e9; S.nextBoss = 1e9; const p0 = Core.GOLD.p; Core.GOLD.p = 0;   // 황금 웨이브는 따로 본다 (h)
     const seen = new Set(); let g = 0, hp = 0;
     run(S, 600, () => { for (const e of S.enemies) if (!seen.has(e)) { seen.add(e); g += e.gold; hp += e.maxHp; } });
-    CFG.waves = true; return { g, hp };
+    CFG.waves = true; Core.GOLD.p = p0; return { g, hp };
   };
   let G = 0, Hr = 0;
   for (let sd = 1; sd <= 6; sd++) { const a = tally(true, sd), b = tally(false, sd); G += a.g / b.g / 6; Hr += a.hp / b.hp / 6; }
@@ -980,6 +980,100 @@ function scene(type, lines, secs, opt) {
     assert(y1 - ph2.y > Core.H * 0.1, '빠르게 돌진 ' + (y1 - ph2.y));
   }
   ok('웨이브와 보스 (20초 웨이브, 3웨이브마다 보스, 무작위 보스, 재화 고정, 종류, 사냥철, 시계체, 돌격체)');
+}
+
+/* 13. 황금 웨이브와 티켓 (T11②) */
+{
+  const DT = 1 / 30, WT = CFG.waveT, G = Core.GOLD;
+  const run = (S, T, each) => { while (S.t < T) { Core.step(DT); S.hp = S.maxHp; if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (each) each(); } };
+  const gold = (S) => S.enemies.find((e) => e.gd);
+  // (a) 3분 전에는 없고, 그 뒤 보스 아닌 웨이브의 약 10%. 그 웨이브에는 황금 적 하나만
+  let nG = 0, nW = 0;
+  for (let sd = 1; sd <= 8; sd++) {
+    const S = game(sd); S.hp = S.maxHp = 1e9; S.nextBoss = 1e9; let wn = 0, cur = null;
+    run(S, 900, () => {
+      if (S.wn !== wn) {
+        wn = S.wn;
+        if (S.wave.v === 'gold') { assert(S.wave.t0 >= G.from - 1e-6, '3분 전 황금'); assert.strictEqual(S.enemies.length, 1, '황금 적 하나만'); cur = S.enemies[0]; nG++; }
+        else cur = null;
+        if (S.wave.t0 >= G.from) nW++;
+      }
+      if (cur) assert(S.enemies.every((e) => e === cur), '황금 웨이브에 다른 적');
+    });
+  }
+  assert(nG / nW > 0.05 && nG / nW < 0.17, '황금 비율 ' + nG + '/' + nW);
+  console.log(`    황금 웨이브 ${nG}/${nW} (3분 뒤 보스 아닌 웨이브)`);
+  // (b) 부르면: 남은 적은 보상 없이 사라지고, 체력은 거대체 x 2, 이름 '황금'. 2초마다 1~2레인, 0.7초 전 예고. 15초 만에 기지에 닿고 보스만큼 피해, 보상 없음
+  {
+    const S = game(11); S.slots[2] = null; S.t = 300; S.hp = S.maxHp = 1e9;
+    run(S, 330); assert(S.enemies.length > 3);
+    const g0 = S.gold, k0 = S.kills; S.cheat = {}; assert(Core.test.gold()); Core.step(DT); delete S.cheat;
+    const e = gold(S); assert(e && S.enemies.length === 1 && S.wave.v === 'gold', '황금 웨이브 시작');
+    assert(S.gold === g0 && S.kills === k0, '사라진 적은 보상 없음');
+    assert(S.fx.some((f) => f.k === 'wave' && f.text === '황금') && S.fx.some((f) => f.k === 'vanish'));
+    assert(Math.abs(e.maxHp / (Core.ENEMIES.giant.hp * BAL.hpMul(e.born) * BAL.bossHp) - G.hp) < 1e-9, '체력 거대체 x2');
+    assert(Math.abs(e.gd.G / Core.waveGold(e.born) - G.waves) < 1e-9);
+    const t0 = e.born, moves = []; let lane = e.lane, warnAt = null, hp0 = null, tHit = null;
+    run(S, t0 + 17, () => {
+      if (!e.dead && e.gd.to >= 0 && warnAt == null) warnAt = S.t;
+      if (!e.dead && e.lane !== lane) { moves.push({ t: S.t, d: Math.abs(e.lane - lane), w: warnAt }); lane = e.lane; warnAt = null; }
+      if (e.dead && tHit == null) tHit = S.t;
+    });
+    assert(moves.length >= 6 && moves.length <= 7, '옮긴 횟수 ' + moves.length);
+    moves.forEach((m, i) => {
+      assert(m.d >= 1 && m.d <= 2, '1~2레인');
+      assert(Math.abs(m.t - t0 - G.move * (i + 1)) < DT * 1.5, '2초마다 ' + (m.t - t0));
+      assert(m.w != null && Math.abs(m.t - m.w - G.warn) < DT * 1.5, '0.7초 전 예고');
+    });
+    assert(tHit != null && Math.abs(tHit - t0 - G.T) < 0.15, '15초에 기지 ' + (tHit - t0));
+    assert(S.gold === g0 && !S.inv.some(Boolean), '닿으면 보상 없음');
+  }
+  { // 기지 피해는 거대체와 같은 식 (leak x 기지 피해 배수), 기지는 보상을 받지 않는다
+    const S = game(12); S.slots[2] = null; S.t = 400; S.hp = S.maxHp = 1e6; Core.step(DT); S.cheat = {}; assert(Core.test.gold()); Core.step(DT); delete S.cheat;
+    const e = gold(S); let lost = 0, at = 0;
+    while (!e.dead) { const h = S.hp; Core.step(DT); if (S.hp < h) { lost += h - S.hp; at = S.t; } }
+    assert(Math.abs(lost - Math.round(Core.ENEMIES.giant.leak * BAL.leakMul(at) * 10) / 10) < 1e-6, '기지 피해 ' + lost);
+  }
+  // (c) 보상: 깎은 체력만큼 재화 (다 깎으면 보통 웨이브 5개치), 절반에 파츠 하나 (최소 희귀), 다 깎으면 전설 파츠
+  {
+    const S = game(13); S.slots[2] = null; S.t = 300; S.hp = S.maxHp = 1e9; Core.step(DT); S.cheat = {}; assert(Core.test.gold()); Core.step(DT); delete S.cheat;
+    const e = gold(S); e.maxHp = e.hp = 1800; const g0 = S.gold;
+    for (let k = 0; k < 5; k++) put('rail', k, 0);
+    const cs = new Set(); run(S, e.born + 6, () => { if (e.hp < 850) for (let k = 0; k < 5; k++) S.slots[k] = null; for (const f of S.fx) if (f.k === 'coin') cs.add(f); });
+    const coins = cs.size;
+    assert(!e.dead && e.hp < 850 && e.gd.half, '절반 ' + e.hp);
+    const got = S.gold - g0, exp = (1800 - e.hp) / 1800 * e.gd.G * (1 + Core.bstats().goldAll);
+    assert(Math.abs(got / exp - 1) < 1e-6, '깎은 만큼 재화 ' + got + ' ' + exp);
+    assert(coins >= 2, '동전 ' + coins);
+    const ps = S.inv.filter(Boolean); assert(ps.length === 1 && ps[0].kind === 'p' && ps[0].g >= 1, '절반 파츠');
+  }
+  {
+    const S = game(14); S.t = 300; S.hp = S.maxHp = 1e9; Core.step(DT); S.cheat = {}; assert(Core.test.gold()); Core.step(DT); delete S.cheat;
+    const e = gold(S), g0 = S.gold; for (let k = 0; k < 5; k++) put('rail', k, 100);
+    run(S, e.born + 6);
+    assert(e.dead && e.y < Core.H, '처치');
+    const got = S.gold - g0; assert(Math.abs(got / (e.gd.G * (1 + Core.bstats().goldAll)) - 1) < 1e-6, '다 깎으면 웨이브 5개치 ' + got);
+    const ps = S.inv.filter(Boolean); assert(ps.length === 2 && ps.every((p) => p.kind === 'p'), '파츠 둘');
+    assert(ps.some((p) => p.g === 3) && ps.every((p) => p.g >= 1), '전설 하나와 희귀 이상 하나');
+    assert.strictEqual(S.bossKills, 0, '보스 처치가 아님');
+  }
+  // (d) 티켓: 쓰면 다음 보스 아닌 웨이브가 황금 (3분 전이어도). 다음이 보스 웨이브면 그다음. 보스가 살아 있으면 미룬다. 여러 장이면 차례로
+  {
+    const S = game(15); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.cheat = {}; const log = {}; let wn = 0;
+    const each = () => { if (S.wn !== wn) { wn = S.wn; log[wn] = S.wave.v; } };
+    run(S, 21, each); assert(Core.useTicket(Core.test.ticket()).ok); assert(!S.inv.some(Boolean));
+    run(S, 41, each); assert.strictEqual(log[3], 'gold', '다음 웨이브');
+    Core.useTicket(Core.test.ticket()); Core.useTicket(Core.test.ticket()); assert.strictEqual(S.gT, 2);
+    run(S, 81, each); assert(log[4] !== 'gold' && S.wave.boss === false && log[5] !== 'gold', '보스가 살아 있으면 미룸 ' + log[4] + log[5]);
+    for (const e of S.enemies) if (e.boss) e.dead = true;
+    run(S, 121, each); assert(log[6] === 'gold' && log[7] !== 'gold', '보스 웨이브는 그대로 ' + log[6] + log[7]);
+    for (const e of S.enemies) if (e.boss) e.dead = true; S.pendingBoss = null;
+    run(S, 141, each); assert.strictEqual(log[8], 'gold', '두 번째 티켓'); assert.strictEqual(S.gT, 0);
+  }
+  // (e) 도구의 관례: 등장을 끈 장면(spawnAcc -1e9)과 연속 등장(waves false)에서는 황금 웨이브가 없다
+  { const S = game(16); S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; S.t = 170; S.slots[2] = null; S.gT = 3;
+    run(S, 400); assert(!S.enemies.length && S.wave.v !== 'gold' && S.gT === 3); }
+  ok('황금 웨이브 (3분 뒤 약 10%, 황금 적 하나, 체력 거대체 x2, 2초마다 1~2레인과 예고, 15초, 재화·절반 파츠·전설 파츠, 티켓)');
 }
 
 /* 10. 스트레스: 무기 종류마다 다섯 자루를 모두 진화시키고 20분 */

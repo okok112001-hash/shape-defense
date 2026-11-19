@@ -533,6 +533,13 @@ const ELITE_HP = 3, ELITE_R = 1.15, ELITE_LEAK = 2;            // 정예: 체력
 const SWARM_GRP = 4;                                           // 보통 무리 크기
 // 천칭: 10번째 보스마다 일반 선택 대신 나온다. 체력은 같은 시점 거대체의 2.2배, 속도는 거대체와 같다.
 // 열거되지 않는 속성으로 둔다 (벤치가 ENEMIES 전체를 해시해 보정 캐시를 만들기 때문, 그리고 도움말의 일반 보스 목록에서 빼기 위해)
+// 황금 웨이브 (T11②): 3분 뒤부터 보스 아닌 웨이브마다 p 확률(rndS), 또는 티켓. 남아 있던 적은 사라지고 황금 적 하나만 나온다.
+// T초 동안 꾸준히 내려와 기지에 닿는다 (보상 없음, 기지 피해는 거대체만큼). move초마다 1~2레인 옮기고, warn초 전에 예고한다.
+// 체력은 그 시점 거대체의 hp배. 맞힐 때마다 깎은 체력만큼 재화 (다 깎으면 보통 웨이브 waves개치), 절반에 파츠 (halfN번 뽑아 가장 좋은 것, 최소 희귀), 다 깎으면 전설 파츠.
+// ticket: 보스 보상이 파츠 대신 황금 티켓이 될 확률. side: 레인을 옮기는 빠르기(px/초)
+const GOLD = { from: 180, p: 0.1, T: 15, move: 2, warn: 0.7, hp: 2, waves: 5, halfN: 5, ticket: 0.04, side: 480 };
+Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES.giant.hp * GOLD.hp, speed: 0, r: 44, leak: ENEMIES.giant.leak, gold: 0, boss: true, name: '황금 적',
+  hint: '맞힐 때마다 재화가 나옵니다', tip: ['맞힐 때마다 재화', '절반에 파츠, 다 깎으면 전설 파츠'] } });
 const SCALE_EVERY = 10, SCALE_HP = 2.2, SCALE_T = 4;
 Object.defineProperty(ENEMIES, 'scale', { enumerable: false, value: { hp: ENEMIES.giant.hp * SCALE_HP, speed: ENEMIES.giant.speed, r: 56, leak: 25, gold: 60, boss: true, name: '천칭',
   hint: '천칭 등장 · 처치하면 거래를 제안합니다', tip: ['4초마다 단단함/연약함 교대', '연약할 때 집중 공격'] } });
@@ -576,6 +583,7 @@ function newGame(h) {
     enemies: [], bullets: [], shells: [], pools: [], beams: [], mines: [], fx: [], snd: [], abfx: [], drops: [], rewq: [], crafts: 0, melt: 0,
     spawnAcc: 0, nextBoss: CFG.waves ? CFG.bossWaves * CFG.waveT : CFG.bossEvery, bossN: 0, pendingBoss: null,
     wt: 0, wn: 0, wEnd: 0, wave: null, wLast: null, wTick: 0, clockOn: false,   // 웨이브: 웨이브 시계(시계체가 빠르게 돌린다), 번호, 이번 웨이브가 끝나는 웨이브 시각, 이번 웨이브, 지난 종류, 남은 초읽기
+    gT: 0, gC: 0, gForce: 0,                      // 황금 웨이브: 쓴 티켓 수(차례로), 확률로 뽑혔지만 보스가 남아 미뤄진 것, 테스트 모드의 즉시 부르기
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
     shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
     pacts: [], pendingPact: null, bloodN: 0,     // 천칭의 거래: 받은 것, 제안 중인 것, 피의 계약의 처치 수
@@ -596,6 +604,7 @@ function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
   if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
   if (S.wt == null) { S.wt = 0; S.wn = 0; S.wEnd = 0; S.wave = null; S.wLast = null; S.wTick = 0; S.clockOn = false; }
+  if (S.gT == null) { S.gT = 0; S.gC = 0; S.gForce = 0; }
   syncMaxHp(); }
 function setH(h) {
   if (!h || h === H) return;
@@ -743,12 +752,15 @@ const PART_W = [66, 25, 7.5, 1.5];   // 파츠 등급 가중치 (일반, 희귀,
 function rollPartGrade(boost, r) {
   const ws = PART_W;   // 시간과 무관한 고정 확률
   let g = wpick(ws, r);
-  if (boost) g = Math.max(1, g, wpick(ws, r), wpick(ws, r));   // 보스 보상: 세 번 굴려 가장 좋은 것, 최소 희귀
+  if (boost) {                               // 보스 보상: 세 번 굴려 가장 좋은 것, 최소 희귀 (숫자면 그만큼 굴린다: 황금 적 절반은 다섯 번)
+    for (let k = 1, n = boost === true ? 3 : boost; k < n; k++) g = Math.max(g, wpick(ws, r));
+    g = Math.max(1, g);
+  }
   return g;
 }
-function newPart(boost, r) {
+function newPart(boost, r, g0) {   // g0: 등급을 정해 둔다 (황금 적을 다 깎은 전설 파츠)
   r = r || subG();
-  const g = rollPartGrade(boost, r);
+  const g = g0 != null ? g0 : rollPartGrade(boost, r);
   const ids = (r() < CFG.basePartShare ? BASE_PART_IDS : WEAPON_PART_IDS).filter(id => gradeOk(PARTS[id], g));
   return { kind: 'p', id: pick(ids, r), g };
 }
@@ -779,7 +791,15 @@ function bossDrop() {
   const nW = weaponCount();
   const rg = subG();
   if (rg() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true, rg);
+  if (CFG.waves && rg() < GOLD.ticket) return { kind: 't' };   // 파츠 대신 황금 티켓 (웨이브가 없는 측정 도구에서는 나오지 않는다)
   return newPart(true, rg);
+}
+// 황금 티켓 사용: 다음 보스 아닌 웨이브가 황금 웨이브가 된다 (여러 장이면 차례로)
+function useTicket(i) {
+  const it = S.inv[i];
+  if (!it || it.kind !== 't' || S.over) return { ok: false };
+  S.inv[i] = null; S.gT = (S.gT || 0) + 1; S.invDirty = true;
+  return { ok: true, n: S.gT };
 }
 
 /* ---------- 장착과 해제 ---------- */
@@ -1090,9 +1110,11 @@ const noSwarm = (ws) => [ws[0], ws[1], 0, ws[3]];
 // 새 웨이브: 종류를 고르고, 세기(체력 합)가 예전 연속 등장과 같도록 등장 수를 정한다. 보스 웨이브면 보스를 예고한다
 function startWave() {
   const t0 = S.wEnd; S.wn++; S.wEnd = t0 + CFG.waveT; S.wTick = 3;
-  const boss = S.wn > 1 && t0 >= S.nextBoss - 1e-6;
+  const force = S.gForce; S.gForce = 0;     // 테스트 모드의 황금 웨이브 부르기: 보스 웨이브 차례여도 먼저 (보스 웨이브는 다음으로 밀린다)
+  const boss = !force && S.wn > 1 && t0 >= S.nextBoss - 1e-6;
   let v = 'mix';
   if (boss) { S.nextBoss = t0 + bossInterval(); spawnBoss(); }
+  else if (S.wn > 1 && S.spawnAcc > -1e6 && goldNow(force)) { startGold(t0); return; }   // 도구가 등장을 끈 장면에서는 굴리지도 않는다
   else if (S.wn > 1) { const ids = WAVE_IDS.length > 1 ? WAVE_IDS.filter(id => id !== S.wLast) : WAVE_IDS; v = ids[wpick(ids.map(id => WAVES[id].p), rndS)]; }
   if (!boss) S.wLast = v;
   const D = WAVES[v], tm = S.t + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;
@@ -1110,6 +1132,56 @@ function startWave() {
   }
   S.wave = { n: S.wn, v, t0, rate: n / CFG.waveSpawnT, boss, ws, grp, lanes, gk };
   if (!boss && S.spawnAcc > -1e6) { S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 앞 웨이브 이름이 남아 있으면 지운다 (테스트로 건너뛸 때)   // 도구가 등장을 끈 장면에서는 알리지 않는다
+}
+// 이번 보스 아닌 웨이브가 황금 웨이브인가. 3분 뒤부터 웨이브마다 굴리고, 보스가 살아 있거나 예고 중이면 (티켓도) 다음 웨이브로 미룬다
+function goldNow(force) {
+  if (S.t >= GOLD.from && rndS() < GOLD.p) S.gC = 1;
+  if (force) return true;
+  if (!(S.gT > 0 || S.gC) || S.pendingBoss) return false;
+  for (let i = 0, n = S.enemies.length; i < n; i++) if (S.enemies[i].boss && !S.enemies[i].dead) return false;
+  if (S.gT > 0) S.gT--; else S.gC = 0;
+  return true;
+}
+// 보통 웨이브 하나가 주는 재화 (startWave 의 gk 로 맞춘 양과 같다. 처치 보너스는 빼고)
+function waveGold(t) { const tm = t + CFG.waveT / 2; return BAL.spawnRate(tm) * CFG.waveT * evHp(BAL.spawnWeights(tm), SWARM_GRP, 'gold') * BAL.goldMul(t + CFG.waveSpawnT / 2); }
+// 황금 웨이브 시작: 남아 있던 적은 보상과 피해 없이 사라지고, 황금 적 하나가 위에서 나온다
+function startGold(t0) {
+  S.wave = { n: S.wn, v: 'gold', t0, rate: 0, boss: false, ws: null, grp: 0, lanes: null, gk: 1 };
+  S.wLast = 'gold';
+  S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2.4, n: S.wn, text: '황금', v: 'gold' }); snd('goldwave');
+  for (let i = 0, n = S.enemies.length; i < n; i++) { const e = S.enemies[i]; if (e.dead) continue; e.dead = true; fx({ k: 'vanish', d: 0.45, x: e.x, y: e.y, r: e.r, ty: e.type }); }
+  S.enemies = [];
+  const e = spawn('gold', Math.floor(rndS() * LANES));
+  e.speed = (1 + 0.7 * e.r / H) / GOLD.T;   // 몸이 위에서 들어와 기지에 닿기까지 GOLD.T 초 (거래와 상관없이)
+  e.gd = { G: waveGold(S.t) * GOLD.waves, mv: GOLD.move, to: -1, half: false, got: 0, acc: 0, cT: -9 };
+  return e;
+}
+// 황금 적의 움직임: GOLD.move 초마다 1~2레인 옮긴다. GOLD.warn 초 전에 옮길 레인을 정해 예고한다 (화면은 gd.to 와 gd.mv 로 화살표를 그린다)
+function goldMove(e, dt) {
+  const g = e.gd;
+  g.mv -= dt;
+  if (g.to < 0 && g.mv <= GOLD.warn) {
+    const ls = []; for (let k = 0; k < LANES; k++) { const d = Math.abs(k - e.lane); if (d >= 1 && d <= 2) ls.push(k); }
+    g.to = pick(ls, rndS); snd('goldwarn');
+  }
+  if (g.to >= 0 && g.mv <= 0) { e.lane = g.to; g.to = -1; g.mv += GOLD.move; }
+  const tx = (e.lane + 0.5) * LW, dx = tx - e.x, mv = GOLD.side * dt;
+  if (dx) e.x = Math.abs(dx) <= mv ? tx : e.x + Math.sign(dx) * mv;
+}
+// 황금 적이 받은 피해만큼 재화 (다 깎으면 gd.G, 무기의 재화 보너스와 기지의 재화 획득을 곱한다). 화면에는 0.1초마다 모아 동전 하나로
+function goldHit(e, real, st) {
+  const g = e.gd, v = real / e.maxHp * g.G * (1 + ((st && st.goldPct) || 0) + bstats().goldAll), left = e.hp - real;
+  S.gold += v; g.got += v; g.acc += v;
+  if (S.t - g.cT >= 0.1 || left <= 0) { fx({ k: 'coin', d: 1.1, x: e.x, y: e.y, r: e.r, v: g.acc }); g.acc = 0; g.cT = S.t; }
+  if (!g.half && left <= e.maxHp / 2) { g.half = true; goldDrop(e, false); }
+}
+// 황금 적 보상: 절반이면 다섯 번 뽑아 가장 좋은 파츠 (최소 희귀), 다 깎으면 전설 파츠. 보스 보상처럼 빈 칸이 생기면 들어온다
+function goldDrop(e, full) {
+  const it = full ? newPart(false, subG(), 3) : newPart(GOLD.halfN, subG());
+  S.drops.push(it);
+  const q = S.rewq[S.rewq.length - 1], prev = full && q && q.gold === e && q.t === S.t ? q : null;   // 한 번에 절반과 처치가 함께: 나란히 보인다
+  if (prev) { prev.k = 0; prev.n = 2; }
+  S.rewq.push({ item: it, x: e.x, y: e.y, k: prev ? 1 : 0, n: prev ? 2 : 1, gold: e, t: S.t });
 }
 function makeElite(e) { e.elite = 1; e.hp *= ELITE_HP; e.maxHp *= ELITE_HP; e.gold *= ELITE_HP; e.r *= ELITE_R; e.leak *= ELITE_LEAK; }
 // 웨이브 등장 한 번
@@ -1207,7 +1279,8 @@ function kill(e, st) {
     }
     boomDepth--;
   }
-  if (e.boss) {
+  if (e.gd) goldDrop(e, true);               // 황금 적: 전설 파츠 (보스 보상은 없다)
+  else if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
     const rn = hasPact('hunt') ? 2 : 1;      // 사냥철: 보스 보상 2배
@@ -1222,6 +1295,7 @@ function credit(st, amt, e) {
   const real = Math.max(0, Math.min(amt, e.hp));
   S.dealt = (S.dealt || 0) + real;
   if (st && st.w) st.w.dealt = (st.w.dealt || 0) + real;
+  if (e.gd && real > 0) goldHit(e, real, st);   // 황금 적: 맞힐 때마다 재화
 }
 function dot(e, amt, st, vap) {
   if (e.dead) return;
@@ -2259,6 +2333,7 @@ function note(text) { if (S.notes.length < 6) S.notes.push(text); }
 function itemName(it) {
   if (it.kind === 'w') return WEAPONS[it.type].name + (it.evo ? ' ★+' : ' +') + it.lv;
   if (it.kind === 'p') return PARTS[it.id].name;
+  if (it.kind === 't') return '황금 티켓';
   return '강화 조각 ' + it.n + '개';
 }
 function bossStep(dt) {
@@ -2267,6 +2342,7 @@ function bossStep(dt) {
     const e = S.enemies[i];
     if (!e.boss || e.dead) continue;
     alive[e.type] = e;
+    if (e.gd) { goldMove(e, dt); continue; }  // 황금 적: 나오자마자 레인 옮기기 시계가 돈다
     if (e.y <= 0) continue;                  // 화면에 들어온 뒤에만 능력을 쓴다
     switch (e.type) {
       case 'summon':
@@ -2736,6 +2812,19 @@ const test = {
     S.wt = S.wEnd;
     return true;
   },
+  // 황금 웨이브 부르기: 지금 바로 황금 웨이브를 시작한다 (보스가 있어도)
+  gold() {
+    if (!testIdle() || !CFG.waves) return false;
+    S.gForce = 1; S.wt = S.wEnd;
+    return true;
+  },
+  // 황금 티켓 받기: 인벤토리에 넣는다 (가득 차면 -1)
+  ticket() {
+    if (!testOn()) return -1;
+    const i = addItem({ kind: 't' });
+    if (i >= 0) S.invDirty = true;
+    return i;
+  },
   // 적 지우기: 보상 없이 모두 없앤다
   clear() {
     if (!testOn()) return 0;
@@ -2754,7 +2843,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
-  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP,
+  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   test,
 };

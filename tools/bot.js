@@ -45,6 +45,7 @@ function makeBot(Core, seed, o) {
     }
     for (let i = 0; i < S.inv.length; i++) {
       const it = S.inv[i]; if (!it) continue;
+      if (it.kind === 't') { Core.useTicket(i); continue; }   // 황금 티켓: 바로 쓴다 (황금 적을 쫓아 무기를 옮기지는 않는다)
       if (it.kind === 'w') { const e = order.find((k) => !S.slots[k]); if (e != null) Core.equipWeapon(i, e); else Core.discard(i); }
       else if (it.kind === 'p') {
         if (Core.PARTS[it.id].base) {
