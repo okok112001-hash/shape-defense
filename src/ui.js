@@ -19,7 +19,7 @@ const GR = C.GRADES;
 const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];   // 등급 색 (테마를 바꾸면 값만 바뀐다)
 const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d',
   summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', thief: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5',
-  charge: '#ff4d2e', clock: '#ff5c7a' };
+  charge: '#ff4d2e', clock: '#ff5c7a', gold: '#ffd84a' };
 const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
 const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
@@ -32,11 +32,13 @@ const BLUE_V = {
   g0: '#aab6cc', g1: '#5cb8ff', g2: '#c48bff', g3: '#ffa63d', backdrop: '#132c5a',
   shade: 'rgba(0, 0, 0, .18)', overlay: 'rgba(10, 24, 54, .78)', toast: 'rgba(22, 48, 98, .92)', shadow: '#000',
   hatch: 'rgba(255, 255, 255, .07)', sheen: 'rgba(255, 244, 214, .55)', melt: '#ffb37a', 'melt-fill': '#ff9f5a', ember: '#ff3d2e',
+  gold: '#ffd84a', 'on-gold': '#1c1503',   // 황금 웨이브와 티켓 (전설 등급의 주황과 헷갈리지 않는 노란 금색), 그 위 글자
 };
 const BLUE_CV = {
   grid: 'rgba(150,190,255,.10)', lane: 'rgba(150,190,255,.32)', base: 'rgba(122,240,193,.8)', turret: '#7af0c1',
   dmgStroke: '6,13,30', dmgBig: '255,209,102', dmg2: '255,160,90', dmg3: '255,224,130', dmgN: '233,240,255',
   bossTxt: '#ffd0d0', bossLine: 'rgba(255,255,255,.7)', hit: 'rgba(255,255,255,.8)', fence: 'rgba(255,230,120,.85)',
+  gold: '#ffd84a', goldA: '#fff3b0', goldB: '#ffc928',   // 황금: 선과 글자, 몸의 밝은 쪽, 어두운 쪽
 };
 // 밝은 테마는 무기 색을 더 어둡게 (바탕과 겹쳐 보이지 않도록)
 const LIGHT_WC = { blaster: '#0a9fc4', shotgun: '#d99400', laser: '#d8409f', pulse: '#12a579', mortar: '#e56a1f', tesla: '#7257e0', rail: '#4a5568', acid: '#5f9e12' };
@@ -47,30 +49,33 @@ const THEMES = [
       accent: '#e09a00', 'accent-ink': '#8a5600', 'on-accent': '#1c1503', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#6b7688', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#d9dee6',
       shade: 'rgba(30, 50, 90, .07)', overlay: 'rgba(28, 39, 64, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f' }),
+      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff' }),
     cv: { grid: 'rgba(30,50,90,.09)', lane: 'rgba(30,50,90,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '28,39,64',
-      bossTxt: '#a01c1c', bossLine: 'rgba(28,39,64,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)' },
+      bossTxt: '#a01c1c', bossLine: 'rgba(28,39,64,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
+      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400' },
     wc: LIGHT_WC },
   { id: 'sand', name: '모래', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#f3ecdd', panel: '#fffaf0', 'panel-2': '#e9dfc9', line: 'rgba(80,55,20,.24)', ink: '#3a2f1f', dim: '#76664d',
       accent: '#0e7a73', 'accent-ink': '#0a5f59', 'on-accent': '#fffaf0', ok: '#2a8a4a', danger: '#c93a2e',
       g0: '#77705f', g1: '#1f7fe0', g2: '#8a4be0', g3: '#d9740a', backdrop: '#e4d9c1',
       shade: 'rgba(80, 55, 20, .07)', overlay: 'rgba(58, 47, 31, .55)', toast: 'rgba(255, 250, 240, .97)', shadow: '#fffaf0',
-      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f' }),
+      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff' }),
     cv: { grid: 'rgba(80,55,20,.09)', lane: 'rgba(80,55,20,.26)', base: 'rgba(42,138,74,.9)', turret: '#2a8a4a',
       dmgStroke: '255,250,240', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '58,47,31',
-      bossTxt: '#a01c1c', bossLine: 'rgba(58,47,31,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)' },
+      bossTxt: '#a01c1c', bossLine: 'rgba(58,47,31,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
+      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400' },
     wc: LIGHT_WC },
   { id: 'sky', name: '하늘', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#e3effb', panel: '#ffffff', 'panel-2': '#d3e4f6', line: 'rgba(22,48,79,.22)', ink: '#16304f', dim: '#52708f',
       accent: '#c2255c', 'accent-ink': '#a01b49', 'on-accent': '#ffffff', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#66768c', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#cfe1f3',
       shade: 'rgba(22, 48, 79, .07)', overlay: 'rgba(22, 48, 79, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f' }),
+      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff' }),
     cv: { grid: 'rgba(22,48,79,.09)', lane: 'rgba(22,48,79,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '22,48,79',
-      bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)' },
+      bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
+      gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400' },
     wc: LIGHT_WC },
   { id: 'navy', name: '짙은 남색',
     v: Object.assign({}, BLUE_V, { bg: '#0e1c3a', panel: '#13264d', 'panel-2': '#1a3263', line: 'rgba(150,190,255,.18)', dim: '#93a8cf',
@@ -208,6 +213,10 @@ const Snd = (function () {
     hitcorr: [200, () => { hiss(0.35, 0.16, 900, 1.2, 'bandpass'); tone('sawtooth', 160, 60, 0.35, 0.09); }],                                         // 녹아내리는 지글 소리
     wave: [500, () => { seq('triangle', [523, 784], 0.16, 0.07, 0.09); hiss(0.25, 0.025, 1800, 0.7, 'lowpass'); }],                                  // 웨이브 시작: 가볍게 올라가는 두 음 (보스 경보보다 작게)
     tick: [300, () => { tone('square', 1760, 1760, 0.016, 0.022); tone('triangle', 880, 880, 0.035, 0.035); }],                                     // 다음 웨이브 초읽기: 작은 똑딱
+    goldwave: [500, () => { seq('triangle', [784, 988, 1175, 1568], 0.18, 0.06, 0.07); seq('sine', [1568, 2093], 0.3, 0.025, 0.1); }],                // 황금 웨이브: 반짝이며 올라가는 음
+    goldwarn: [400, () => { tone('sine', 1320, 1580, 0.07, 0.03); }],                                                                                // 황금 적이 레인을 옮기려 함: 작은 휘익
+    coin: [70, () => { tone('square', 1975, 1975, 0.03, 0.018); tone('triangle', 2637, 2637, 0.06, 0.02, 0.025); }],                                 // 동전이 재화 숫자에 닿음: 짤랑
+    ticket: [300, () => { seq('triangle', [659, 880, 1319], 0.14, 0.07, 0.06); }],                                                                   // 황금 티켓을 씀
     dash: [300, () => { hiss(0.34, 0.2, 700, 0.8); tone('sawtooth', 240, 70, 0.3, 0.07); tone('sine', 90, 45, 0.3, 0.12, 0.05); }],                   // 돌격체 돌진: 휙 하고 밀고 내려오는 소리
     gen: [40, () => seq('triangle', [988, 1319], 0.1, 0.1, 0.07)],
     ok: [30, () => seq('triangle', [523, 659, 784], 0.1, 0.12, 0.06)],
@@ -379,6 +388,8 @@ function partIcon(id, size) {
 }
 const SHARD = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="#ffc83d" fill-opacity=".85" stroke="#b07a00" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 2v20M3 7l18 10M21 7L3 17" stroke="#b07a00" stroke-opacity=".45" stroke-width="1"/></svg>`;
 const FLAME = `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_ATTR}><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-4 3-6 1 2 2 2 3-6z"/></svg>`;
+// 황금 티켓: 양옆이 파인 표 가운데 별
+const TICKET = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h18v3.5a2 2 0 0 0 0 4v3.5H3V14a2 2 0 0 0 0-4z"/><path d="M12 8.6l1.05 2.15 2.35.33-1.7 1.65.4 2.35L12 13.97l-2.1 1.1.4-2.35-1.7-1.65 2.35-.33z" fill="currentColor" stroke="none"/></svg>`;
 const BASEICON = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${SVG_ATTR}><path d="M3 21V10l4-3v4l5-4 5 4V7l4 3v11z"/><path d="M10 21v-5h4v5"/></svg>`;
 const isBasePart = (it) => !!it && it.kind === 'p' && !!C.PARTS[it.id].base;
 function partLine(p) { return `<b class="g${p.g}">[${GR[p.g]}] ${C.PARTS[p.id].name}</b> ${C.partDesc(p)}`; }
@@ -657,12 +668,13 @@ function bossRewards(list) {
   for (const r of list) {
     const it = r.item, inInv = S.inv.indexOf(it) >= 0;
     if (inInv) { incoming.add(it); if (it.kind === 'p' && it.g === 3) legSeen.add(it); }   // 전설 금빛은 도착할 때 낸다
-    const col = it.kind === 'w' ? C.WEAPONS[it.type].color : GHEX[it.g];
+    const col = it.kind === 'w' ? C.WEAPONS[it.type].color : it.kind === 't' ? theme.v.gold : GHEX[it.g];
     const off = (r.k - (r.n - 1) / 2) * 56;
     const x = Math.max(34, Math.min(a.width - 34, wr.left - a.left + r.x * sc + off)), y = Math.max(46, Math.min(wr.top - a.top + wr.height - 40, wr.top - a.top + r.y * sc));
     const d = document.createElement('div');
     d.className = 'rw'; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', col);
-    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : partIcon(it.id, 34)}</span><span class="rw-l">보스 보상</span>`;
+    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : it.kind === 't' ? TICKET(34) : partIcon(it.id, 34)}</span><span class="rw-l">${r.gold ? '황금 보상' : '보스 보상'}</span>`;
+    if (r.gold) d.classList.add('gold');
     d._item = it; d.dataset.until = performance.now() + 2600;
     while (rewLayer.children.length > 6) { const f = rewLayer.firstChild; incoming.delete(f._item); f.remove(); }
     rewLayer.appendChild(d);
@@ -702,6 +714,7 @@ function drainEvq(quiet) {
 function itemInfo(it) {
   if (it.kind === 'w') { const d = C.WEAPONS[it.type]; return `<b style="color:${d.color}">${d.name} ${lvTxt(it)}</b> ${d.desc}`; }
   if (it.kind === 'p') return (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it);
+  if (it.kind === 't') return '<b class="gtag">황금 티켓</b> 한 번 더 누르면 씁니다. 다음 웨이브가 황금 웨이브가 됩니다.';
   return '';
 }
 // 제조 확률을 정수 %로 (합이 정확히 100이 되도록 가장 큰 나머지부터 올린다)
@@ -738,6 +751,7 @@ function cellHtml(it, i) {
   if (!it) cls += ' empty';
   else if (it.kind === 'w') { inner = icon(it.type, 20, it.evo) + `<b>${lvTxt(it)}</b>`; cls += ' kw' + (it.evo ? ' evo' : ''); }
   else if (it.kind === 'p') { inner = partIcon(it.id, 26); cls += ' kp g' + it.g + (isBasePart(it) ? ' kb' : ''); }
+  else if (it.kind === 't') { inner = TICKET(26); cls += ' kt'; }
   const meltable = meltMode && !!it && (it.kind === 'p' || it.kind === 'w');
   if (meltMode) cls += meltable ? ' meltable' : ' dim';
   if (meltable && meltSet.has(i)) { cls += ' msel'; inner += `<span class="mchk"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.500 4.500L19 7.500"/></svg></span>`; }
@@ -777,6 +791,7 @@ function invHtml() {
     const drop = `<button type="button" class="btn${armed ? ' armed' : ''}" data-act="drop">${armed ? '한 번 더 누르면 버림' : '버리기'}</button>`;
     const melt = it && (it.kind === 'p' || it.kind === 'w') ? `<button type="button" class="btn ember${marm ? ' armed' : ''}" data-act="meltOne">${marm ? '한 번 더 누르면 분해' : `분해 <small>+${C.meltValue(it)}</small>`}</button>` : '';
     if (it && isBasePart(it)) { cols = ' three2'; acts = '<button type="button" class="btn primary" data-act="bequip">기지에 장착</button>' + melt + drop; }
+    else if (it && it.kind === 't') { cols = ' two2'; acts = '<button type="button" class="btn primary gold" data-act="useTicket">사용</button>' + drop; }
     else { cols = melt ? ' two2' : ''; acts = melt + drop; }
   } else {
     acts = '<button type="button" class="btn" data-act="wopen">무기 창 열기</button>';
@@ -1278,6 +1293,8 @@ function testHtml() {
       <button type="button" class="btn${off(!!S.pendingBoss)}" data-act="testBoss">보스 부르기</button>
       <button type="button" class="btn" data-act="testClear">적 지우기</button>
       <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testWave">다음 웨이브</button>
+      <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testGold">황금 웨이브</button>
+      <button type="button" class="btn${off(full)}" data-act="testTicket">티켓 받기</button>
     </div>
     <div class="d-acts one"><button type="button" class="btn primary" data-act="testClose">닫기</button></div></div>`;
 }
@@ -1301,6 +1318,8 @@ function testRun(name, arg) {
     case 'testBoss': ok = T.boss(); m = '보스 예고'; break;
     case 'testClear': T.clear(); m = '적 지움'; break;
     case 'testWave': ok = T.nextWave(); m = '다음 웨이브'; break;
+    case 'testGold': ok = T.gold(); m = '황금 웨이브'; break;
+    case 'testTicket': { const i = T.ticket(); if (i < 0) return; m = '티켓 받음'; newCell = i; setTimeout(() => { if (newCell === i) newCell = -1; }, 500); break; }
     case 'testAug': {                        // 선택지 창은 기존 증강 흐름 그대로: 테스트 창을 닫고 띄운다
       const k = testSlot();
       if (k < 0 || !T.aug(k)) return;
@@ -1419,7 +1438,9 @@ function helpHtml() {
     <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 100 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div>`;
-  const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>`;
+  const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>
+    <p class="hnote"><b class="gtag">황금 웨이브</b> ${C.GOLD.from / 60}분 뒤부터 가끔 옵니다. 남은 적은 사라지고 황금 적 하나만 내려옵니다. 맞힐 때마다 재화, 체력을 절반 깎으면 파츠, 다 깎으면 전설 파츠. ${C.GOLD.move}초마다 레인을 옮깁니다(화살표로 미리 알림).</p>
+    <p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 웨이브가 황금 웨이브가 됩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
     ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
@@ -1728,8 +1749,17 @@ function tapInv(i) {                      // 누르면 고르기만 한다. 다�
     if (meltSet.has(i)) meltSet.delete(i); else meltSet.add(i);
     Snd.play('tap'); renderBottom(); return;
   }
+  if (it && it.kind === 't' && sel && sel.from === 'inv' && sel.i === i) return useTicketAt(i);   // 황금 티켓: 한 번 더 누르면 쓴다
   sel = !it || (sel && sel.from === 'inv' && sel.i === i) ? null : { from: 'inv', i };
   if (sel) Snd.play('tap');
+  renderWeapons(); renderBottom();
+}
+// 황금 티켓 사용: 다음 보스 아닌 웨이브가 황금 웨이브 (보스가 남아 있으면 쓰러진 뒤)
+function useTicketAt(i) {
+  const S = C.S, r = C.useTicket(i); if (!r.ok) return;
+  sel = null; Snd.play('ticket');
+  const bossOn = !!S.pendingBoss || S.enemies.some(e => e.boss && !e.dead && !e.gd), bossNext = S.wEnd >= S.nextBoss - 1e-6;
+  say(r.n > 1 ? `<b>황금 웨이브</b> ${r.n}번 예약` : bossOn ? '보스를 쓰러뜨린 뒤 <b>황금 웨이브</b>가 옵니다.' : bossNext ? '보스 웨이브 다음에 <b>황금 웨이브</b>가 옵니다.' : '다음 웨이브는 <b>황금 웨이브</b>입니다.');
   renderWeapons(); renderBottom();
 }
 function tapSlot(k) {
@@ -1899,7 +1929,7 @@ function act(name) {
       testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
     case 'testClose': if (testView) { testClose(); Snd.play('tap'); renderAll(); } return;
     case 'testExit': if (testView) goHome(); return;
-    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': case 'testWave': testRun(name); return;
+    case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': case 'testWave': case 'testGold': case 'testTicket': testRun(name); return;
     case 'help': helpFrom = mode; renderOverlay(); return;
     case 'helpBack': helpFrom = ''; renderOverlay(); return;
     case 'pauseBack': pauseView = ''; renderOverlay(); return;
@@ -2032,6 +2062,7 @@ function act(name) {
       renderWeapons(); renderBottom(); if (rc) meltFx(null, rc); gaugeFlash();
       return say(`<b>분해했습니다.</b> 게이지 +${pts} (현재 ${meltNow()})`);
     }
+    case 'useTicket': if (sel && sel.from === 'inv') useTicketAt(sel.i); return;
     case 'bequip': if (sel && sel.from === 'inv') equipBasePart(sel.i); return;
     case 'bopen': openB(); return;
     case 'evoOpen': if (wmodal >= 0) { evoK = wmodal; Snd.play('tap'); renderOverlay(); } return;
@@ -2196,6 +2227,9 @@ function enemyPath(e) {
       }
       ctx.closePath();
       break;
+    case 'gold':                                                               // 보석 (위가 평평한 면, 아래가 뾰족)
+      ctx.moveTo(x - r * 0.5, y - r * 0.62); ctx.lineTo(x + r * 0.5, y - r * 0.62); ctx.lineTo(x + r, y - r * 0.12); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y - r * 0.12); ctx.closePath();
+      break;
     default: ctx.arc(x, y, r, 0, Math.PI * 2);
   }
 }
@@ -2326,7 +2360,91 @@ function drawCharge(e, H, now) {
     }
   }
 }
+// 황금 적 (T11②): 금빛 보석. 은은한 빛 번짐, 비스듬히 지나가는 반짝임, 둘레에서 깜빡이는 작은 별, 떨어지는 금가루
+function gemFacets(x, y, r) {
+  ctx.beginPath();
+  ctx.moveTo(x - r, y - r * 0.12); ctx.lineTo(x + r, y - r * 0.12);
+  ctx.moveTo(x - r * 0.5, y - r * 0.62); ctx.lineTo(x - r * 0.24, y - r * 0.12); ctx.lineTo(x, y - r * 0.62); ctx.lineTo(x + r * 0.24, y - r * 0.12); ctx.lineTo(x + r * 0.5, y - r * 0.62);
+  ctx.moveTo(x - r * 0.24, y - r * 0.12); ctx.lineTo(x, y + r); ctx.lineTo(x + r * 0.24, y - r * 0.12);
+}
+function twinkle(x, y, s, col, a) {           // 네 갈래 작은 별
+  if (!(s > 0.3) || !(a > 0.02)) return;
+  ctx.fillStyle = rgba(col, a); ctx.beginPath();
+  ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.22, y - s * 0.22); ctx.lineTo(x + s, y); ctx.lineTo(x + s * 0.22, y + s * 0.22);
+  ctx.lineTo(x, y + s); ctx.lineTo(x - s * 0.22, y + s * 0.22); ctx.lineTo(x - s, y); ctx.lineTo(x - s * 0.22, y - s * 0.22); ctx.closePath(); ctx.fill();
+}
+function drawGold(e) {
+  const x = e.x, y = e.y, now = performance.now(), sd = e.born * 7.31, light = theme.scheme === 'light';
+  const r = e.r * (e.flash > 0 ? 1.06 : 1), pulse = 0.5 + 0.5 * Math.sin(now / 420 + sd);
+  VX.glow(x, y + r * 0.05, r * 2.3, TC.goldB, (light ? 0.22 : 0.3) + 0.1 * pulse);
+  if (!RM.matches) {                         // 금가루: 몸에서 떨어져 흩날린다 (흔적)
+    for (let n = VX.rate(16); n > 0; n--) { const a = Math.random() * 6.283, q = Math.random() * r * 0.8; VX.spark(x + Math.cos(a) * q, y + Math.sin(a) * q * 0.7, (Math.random() - 0.5) * 30, -15 - Math.random() * 25, 0.5 + Math.random() * 0.5, 1.4 + Math.random() * 1.6, TC.goldB, 60, 1.5, 2); }
+  }
+  const o = { type: 'gold', x, y, r };
+  enemyPath(o);
+  const g = ctx.createLinearGradient(x, y - r, x, y + r); g.addColorStop(0, TC.goldA); g.addColorStop(0.55, TC.goldB); g.addColorStop(1, light ? '#c99700' : '#e0a812');
+  ctx.fillStyle = e.flash > 0 ? TC.goldA : g; ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = light ? 'rgba(120,80,0,.16)' : 'rgba(110,60,0,.22)';   // 왼쪽 아래 면은 조금 어둡게, 오른쪽 위 면은 밝게
+  ctx.beginPath(); ctx.moveTo(x - r, y - r * 0.12); ctx.lineTo(x - r * 0.24, y - r * 0.12); ctx.lineTo(x, y + r); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.moveTo(x + r * 0.24, y - r * 0.12); ctx.lineTo(x + r * 0.5, y - r * 0.62); ctx.lineTo(x + r, y - r * 0.12); ctx.closePath(); ctx.fill();
+  const sw = ((now / 1900 + hash(sd)) % 1) * 1.6 - 0.3;   // 반짝임: 1.9초마다 비스듬히 한 번 지나간다
+  if (sw > -0.2 && sw < 1.2) {
+    const bx = x - r * 1.2 + sw * r * 2.4, al = Math.sin(Math.max(0, Math.min(1, (sw + 0.2) / 1.4)) * Math.PI);
+    ctx.fillStyle = `rgba(255,255,255,${0.55 * al})`; ctx.beginPath();
+    ctx.moveTo(bx - r * 0.1, y - r); ctx.lineTo(bx + r * 0.16, y - r); ctx.lineTo(bx - r * 0.34, y + r); ctx.lineTo(bx - r * 0.6, y + r); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  if (drawCorr(e)) { }
+  gemFacets(x, y, r); ctx.lineWidth = 1.4; ctx.strokeStyle = rgba(TC.gold, light ? 0.55 : 0.6); ctx.stroke();
+  enemyPath(o); ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.strokeStyle = e.slowT > 0 ? '#8fe3ff' : TC.gold; ctx.stroke(); ctx.lineJoin = 'miter';
+  for (let i = 0; i < 3; i++) {              // 둘레의 작은 별: 자리와 크기가 매번 조금씩 다르다
+    const ph = now / 1250 + i / 3 + hash(sd + i), cyc = Math.floor(ph), u = ph - cyc, hs = hash(cyc * 3.7 + i * 11 + sd);
+    const a = hs * 6.283, d = r * (0.95 + 0.45 * hash(cyc * 1.3 + i)), sz = (3 + 4 * hash(cyc + i * 5)) * Math.sin(u * Math.PI);
+    twinkle(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.85, sz, light ? TC.gold : '#fff6cc', 0.9 * Math.sin(u * Math.PI));
+  }
+  drawStatus(e, false);
+  if (e.hp < e.maxHp) {                      // 체력 막대: 절반에 눈금 (절반을 넘기면 파츠)
+    const w = r * 1.9, h = 6, bx = x - w / 2, by = y - r - 14;
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(bx, by, w, h);
+    ctx.fillStyle = TC.goldB; ctx.fillRect(bx, by, w * Math.max(0, e.hp / e.maxHp), h);
+    ctx.fillStyle = e.gd.half ? TC.gold : (light ? '#1c2740' : '#ffffff'); ctx.fillRect(x - 1, by - 3, 2, h + 6);
+  }
+}
+// 황금 적이 레인을 옮기기 전 (GOLD.warn 초): 옮겨 갈 자리에 옅은 보석 윤곽이 차오르고, 그쪽으로 흐르는 화살표. 옮기는 동안에는 지나온 자리에 옅은 잔상
+function drawGoldWarn(e, H, now) {
+  const g = e.gd, G = C.GOLD, light = theme.scheme === 'light';
+  if (g.to >= 0) {
+    const k = Math.min(1, Math.max(0, 1 - g.mv / G.warn)), tx = (g.to + 0.5) * C.LW, dir = Math.sign(tx - e.x) || 1;
+    const ty = e.y + e.speed * H * Math.max(0, g.mv), L = C.LW, x0 = g.to * L;
+    const band = ctx.createLinearGradient(0, ty - e.r * 2.2, 0, ty + e.r * 2.6), ba = (light ? 0.12 : 0.1) * k;
+    band.addColorStop(0, rgba(TC.goldB, 0)); band.addColorStop(0.45, rgba(TC.goldB, ba)); band.addColorStop(1, rgba(TC.goldB, 0));
+    ctx.fillStyle = band; ctx.fillRect(x0 + 4, ty - e.r * 2.2, L - 8, e.r * 4.8);
+    const o = { type: 'gold', x: tx, y: ty, r: e.r * (0.86 + 0.14 * k) };
+    enemyPath(o); ctx.fillStyle = rgba(TC.goldB, 0.1 + 0.14 * k); ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(TC.gold, 0.2 + 0.5 * k); ctx.stroke();
+    let a = e.x + dir * (e.r + 8), b = tx - dir * (e.r * 0.9 + 6), span = (b - a) * dir, dy = 0;
+    if (span < 40) { a = e.x + dir * (e.r * 0.32 + 6); b = tx - dir * (e.r * 0.3 + 4); span = (b - a) * dir; dy = e.r * 0.74; }   // 바로 옆 레인: 두 보석 아래쪽 사이로
+    if (span > 10) {
+      ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (let i = 0; i < 3; i++) {
+        const u = ((now / 520) + i / 3) % 1, px = a + dir * span * u, py = e.y + dy + (ty - e.y) * u, al = (0.25 + 0.7 * k) * Math.min(1, u * 4, (1 - u) * 5);
+        ctx.strokeStyle = rgba(TC.gold, al); ctx.beginPath();
+        ctx.moveTo(px - dir * 7, py - 8); ctx.lineTo(px + dir * 3, py); ctx.lineTo(px - dir * 7, py + 8); ctx.stroke();
+      }
+      ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+    }
+  }
+  const tr = e._tr || (e._tr = []), cx = (e.lane + 0.5) * C.LW;
+  if (Math.abs(e.x - cx) > 0.5) tr.push({ x: e.x, y: e.y, t: now });
+  while (tr.length && now - tr[0].t > 320) tr.shift();
+  for (let i = 0; i < tr.length; i += 2) {
+    const q = tr[i], u = 1 - (now - q.t) / 320;
+    enemyPath({ type: 'gold', x: q.x, y: q.y, r: e.r * (0.8 + 0.2 * u) }); ctx.fillStyle = rgba(TC.goldB, 0.2 * u * u); ctx.fill();
+  }
+}
 function drawEnemy0(e) {
+  if (e.gd) { drawGold(e); return; }
   if (e.type === 'scale') {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 18 + Math.sin(performance.now() / 160) * 4, 0, Math.PI * 2);
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(ECOL.scale, 0.5); ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
@@ -2505,7 +2623,7 @@ function drawRainMelt(f, q, col, h1, h2) {
 }
 // 보스 처치 연출: 보스 모양이 하얗게 번쩍, 고리 둘, 조각들 (흔들림은 draw 에서)
 function drawBossKill(f) {
-  const T = f.d - Math.max(0, f.t), q = T / f.d, col = ECOL[f.type] || '#ff3d3d', x = f.x, y = f.y, r = f.r;
+  const T = f.d - Math.max(0, f.t), q = T / f.d, col = f.type === 'gold' ? TC.goldB : ECOL[f.type] || '#ff3d3d', x = f.x, y = f.y, r = f.r;
   if (T < 0.28) {
     const a = 1 - T / 0.28;
     ctx.save(); ctx.translate(x, y); ctx.scale(1 + 0.25 * (1 - a), 1 + 0.25 * (1 - a)); ctx.translate(-x, -y);
@@ -4712,17 +4830,30 @@ function drawFx(f, H) {
       ctx.font = '30px "Do Hyeon", sans-serif'; const w1 = ctx.measureText(t1).width;
       ctx.font = '26px "Do Hyeon", sans-serif'; const w2 = t2 ? ctx.measureText(t2).width : 0;
       const x0 = W / 2 - (w1 + w2) / 2, x1 = x0 + w1 + w2, ln = 70 * (1 - Math.pow(1 - Math.min(1, u * 2.5), 3)), gp = 12, ly = y - 10;
-      ctx.lineWidth = 2; ctx.lineCap = 'round';
+      const gold = f.v === 'gold', lc = gold ? TC.gold : ink;   // 황금 웨이브: 금색 이름과 선, 둘레에 작은 별
+      ctx.lineWidth = gold ? 2.5 : 2; ctx.lineCap = 'round';
       for (const [a, b] of [[x0 - gp, x0 - gp - ln], [x1 + gp, x1 + gp + ln]]) {
-        const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, rgba(ink, 0.5 * al)); g.addColorStop(1, rgba(ink, 0));
+        const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, rgba(lc, (gold ? 0.8 : 0.5) * al)); g.addColorStop(1, rgba(lc, 0));
         ctx.strokeStyle = g; ctx.beginPath(); ctx.moveTo(a, ly); ctx.lineTo(b, ly); ctx.stroke();
       }
       ctx.lineCap = 'butt'; ctx.textAlign = 'left'; ctx.lineJoin = 'round'; ctx.lineWidth = 5; ctx.strokeStyle = rgba(TC.bg, 0.8 * al);
       ctx.font = '30px "Do Hyeon", sans-serif'; ctx.strokeText(t1, x0, y); ctx.fillStyle = rgba(ink, al); ctx.fillText(t1, x0, y);
-      if (t2) { ctx.font = '26px "Do Hyeon", sans-serif'; ctx.strokeText(t2, x0 + w1, y); ctx.fillStyle = rgba(TC.bossTxt, al); ctx.fillText(t2, x0 + w1, y); }
+      if (t2) { ctx.font = '26px "Do Hyeon", sans-serif'; ctx.strokeText(t2, x0 + w1, y); ctx.fillStyle = rgba(gold ? TC.gold : TC.bossTxt, al); ctx.fillText(t2, x0 + w1, y); }
       ctx.textAlign = 'center';
+      if (gold) for (let i = 0; i < 5; i++) {   // 이름 둘레에서 차례로 깜빡이는 별 (자리는 웨이브마다 조금씩 다르다)
+        const v = Math.min(1, Math.max(0, (u * 2.4 - i * 0.16))), w = Math.sin(v * Math.PI), h1 = hash(f.n * 5.3 + i), h2 = hash(f.n * 2.1 + i * 7);
+        twinkle(x0 - 10 + (x1 - x0 + 20) * h1, y - 24 + 30 * h2, (4 + 4 * hash(i + f.n)) * w, theme.scheme === 'light' ? TC.gold : '#fff6cc', al * w);
+      }
       break;
     }
+    case 'vanish': {                        // 황금 웨이브가 시작될 때 남아 있던 적: 제 모양 그대로 옅어지며 조금 떠오르고, 작은 알갱이가 흩어진다
+      const u = 1 - p, col = ECOL[f.ty] || '#ff6b6b', u0 = VX.ui(f);
+      if (u0.n) for (let i = 0; i < 3; i++) VX.spark(f.x + (Math.random() - 0.5) * f.r, f.y + (Math.random() - 0.5) * f.r, (Math.random() - 0.5) * 40, -20 - Math.random() * 40, 0.4 + Math.random() * 0.3, 1.5 + Math.random() * 1.5, col, -10, 2);
+      enemyPath({ type: f.ty, x: f.x, y: f.y - 10 * VX.ease(u, 2), r: f.r * (1 + 0.12 * u) });
+      ctx.fillStyle = rgba(col, 0.16 * p); ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(col, 0.5 * p * p); ctx.stroke();
+      break;
+    }
+    case 'coin': { const u0 = VX.ui(f); if (u0.n) coinAdd(f, u0.sd); break; }   // 황금 적의 동전: 위 겹에서 재화 숫자로 날아간다
     case 'warn': {                          // 보스 등장: 경고 띠, 붉은 테두리, 큰 글자
       const al = Math.min(1, (1 - p) * 8, p * 5), now = performance.now(), blink = 0.6 + 0.4 * Math.sin(now / 90);
       const W = C.W, y0 = H * 0.3, bh = f.hint ? 132 : 92;
@@ -4803,17 +4934,67 @@ function stealAim(i) {
 }
 // 전장 canvas 밖으로 나간 예고선의 나머지를 화면 전체를 덮는 겹 canvas에 그린다 (같은 좌표계, 전장 아래만)
 function drawAimOut(a, nowW, H) {
-  if (!a) { if (!aimCv.hidden) aimCv.hidden = true; return; }
+  if (!a && !coinRun.length) { if (!aimCv.hidden) aimCv.hidden = true; return; }
   const ar = $('#app').getBoundingClientRect(), f = cv.getBoundingClientRect();
   const w = Math.round(ar.width * dpr), h = Math.round(ar.height * dpr);
   if (aimCv.width !== w || aimCv.height !== h) { aimCv.width = w; aimCv.height = h; }
   if (aimCv.hidden) aimCv.hidden = false;
   const g = aimCtx;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, w, h);
-  g.setTransform(dpr * sc, 0, 0, dpr * sc, (f.left - ar.left) * dpr, (f.top - ar.top) * dpr);
-  g.save(); g.beginPath(); g.rect(-C.W, H, C.W * 3, H * 3); g.clip();
-  aimBeam(g, a[0], a[1], a[2], a[3], a[4], a[5], nowW, true, H);
-  g.restore();
+  if (a) {
+    g.setTransform(dpr * sc, 0, 0, dpr * sc, (f.left - ar.left) * dpr, (f.top - ar.top) * dpr);
+    g.save(); g.beginPath(); g.rect(-C.W, H, C.W * 3, H * 3); g.clip();
+    aimBeam(g, a[0], a[1], a[2], a[3], a[4], a[5], nowW, true, H);
+    g.restore();
+  }
+  if (coinRun.length) { g.setTransform(dpr, 0, 0, dpr, 0, 0); drawCoins(g, nowW, ar); }
+}
+// 황금 적의 동전 (T11②): 맞은 자리에서 튀어 올랐다가 생성 버튼의 재화 숫자(◆)로 날아가 닿는다. 전장 밖까지 가므로 위 겹 캔버스에 화면 좌표로 그린다.
+// 재화는 맞는 순간 이미 들어와 있다 (보이는 연출만). 생성 버튼이 없으면 (물건을 골랐거나 용해로) 튀어 오른 자리에서 옅어진다
+const coinRun = [], COIN_POP = 260, COIN_FLY = 560;
+let coinBumpAt = 0;
+function coinAdd(f, sd) {
+  if (RM.matches) { coinBump(); return; }
+  if (coinRun.length >= 40) coinRun.shift();
+  const ar = $('#app').getBoundingClientRect(), fr = cv.getBoundingClientRect();
+  coinRun.push({ x: fr.left - ar.left + f.x * sc, y: fr.top - ar.top + f.y * sc, r: f.r * sc, t0: performance.now(), sd });
+}
+function coinBump() {                        // 재화 숫자가 살짝 튄다 (자주 닿아도 0.12초에 한 번)
+  const now = performance.now(); if (now - coinBumpAt < 120) return; coinBumpAt = now;
+  const el = document.getElementById('genHave'); if (!el) return;
+  el.classList.remove('cbump'); void el.offsetWidth; el.classList.add('cbump');
+}
+function coinPos(c, T, tx, ty, out) {        // 시각 T(ms)의 자리. out = [x, y, 크기, 알파], 다 왔으면 false
+  const h1 = hash(c.sd * 13.1), h2 = hash(c.sd * 7.7 + 1), px = c.x + (h1 - 0.5) * (36 + 30 * h2), py = c.y - c.r * 0.35 - 20 - 18 * h2;
+  if (T < COIN_POP) { const u = VX.ease(Math.max(0, T) / COIN_POP, 2); out[0] = c.x + (px - c.x) * u; out[1] = c.y + (py - c.y) * u; out[2] = 0.55 + 0.45 * u; out[3] = 1; return true; }
+  if (tx == null) { const u = (T - COIN_POP) / 380; if (u >= 1) return false; out[0] = px; out[1] = py - 18 * u; out[2] = 1; out[3] = 1 - u; return true; }
+  const u = (T - COIN_POP) / COIN_FLY; if (u >= 1) return false;
+  const e = u * u * (0.35 + 0.65 * u), mx = px + (h1 - 0.5) * 110, my = Math.min(py, ty) - 30 - 30 * h2, k = 1 - e;   // 옆으로 조금 휘어 가속하며 날아간다
+  out[0] = k * k * px + 2 * k * e * mx + e * e * tx; out[1] = k * k * py + 2 * k * e * my + e * e * ty; out[2] = 1 - 0.25 * e; out[3] = 1; return true;
+}
+const COIN_P = [0, 0, 0, 0];
+function drawCoins(g, now, ar) {
+  const el = document.getElementById('genHave'), tr = el && el.getBoundingClientRect();
+  const tx = tr && tr.width ? tr.left - ar.left + 9 : null, ty = tr ? tr.top - ar.top + tr.height / 2 : null;   // ◆ 기호 자리
+  const light = theme.scheme === 'light', R = 6.5;
+  for (let i = coinRun.length - 1; i >= 0; i--) {
+    const c = coinRun[i], T = now - c.t0;
+    if (!coinPos(c, T, tx, ty, COIN_P)) { coinRun.splice(i, 1); if (tx != null) { coinBump(); Snd.play('coin'); } continue; }
+    for (let j = 3; j >= 0; j--) {           // 지나온 자리에 옅은 잔상 셋 (j = 0 이 동전)
+      if (j && !coinPos(c, T - j * 26, tx, ty, COIN_P)) continue;
+      if (!j) coinPos(c, T, tx, ty, COIN_P);
+      const [x, y, k, al] = COIN_P, rr = R * k * (j ? 1 - j * 0.18 : 1), a = al * (j ? 0.32 - j * 0.08 : 1);
+      if (!(a > 0.02)) continue;
+      const sw = Math.max(0.22, Math.abs(Math.cos((T - j * 26) / 85 + c.sd * 6)));   // 돌며 날아간다
+      g.globalAlpha = a; g.beginPath(); g.ellipse(x, y, rr * sw, rr, 0, 0, Math.PI * 2);
+      g.fillStyle = TC.goldB; g.fill();
+      if (!j) {
+        g.lineWidth = 1.4; g.strokeStyle = TC.gold; g.stroke();
+        g.beginPath(); g.ellipse(x - rr * sw * 0.25, y - rr * 0.3, rr * sw * 0.35, rr * 0.28, 0, 0, Math.PI * 2); g.fillStyle = light ? TC.goldA : '#fff7d6'; g.fill();
+      }
+    }
+    g.globalAlpha = 1;
+  }
 }
 function draw() {
   const S = C.S, H = C.H, W = C.W;
@@ -4885,6 +5066,7 @@ function draw() {
   }
   drawAimOut(aimOut, nowW, H);
   for (const e of S.enemies) if (e.type === 'charge' && !e.dead) drawCharge(e, H, nowW);   // 돌격체: 예고 레인과 돌진 잔상 (몸 아래에)
+  for (const e of S.enemies) if (e.gd && !e.dead) drawGoldWarn(e, H, nowW);              // 황금 적: 옮겨 갈 레인 예고와 잔상
   let dsvP = null;                           // 용해를 찍은 무기의 웅덩이 (녹기 시작하는 적)
   for (const p of S.pools) if (p.acid && p.st.dsv && p.r >= 1) (dsvP || (dsvP = [])).push(p);
   for (const e of S.enemies) {
@@ -4961,12 +5143,17 @@ function draw() {
   let boss = null;
   for (const e of S.enemies) if (e.boss && (!boss || e.y > boss.y)) boss = e;
   if (boss) {
-    const bw = W - 24;
+    const bw = W - 24, gd = boss.gd;
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(12, 8, bw, 11);
-    ctx.fillStyle = '#ff3d3d'; ctx.fillRect(12, 8, bw * Math.max(0, boss.hp / boss.maxHp), 11);
+    ctx.fillStyle = gd ? TC.goldB : '#ff3d3d'; ctx.fillRect(12, 8, bw * Math.max(0, boss.hp / boss.maxHp), 11);
     ctx.lineWidth = 1.5; ctx.strokeStyle = TC.bossLine; ctx.strokeRect(12, 8, bw, 11);
-    ctx.fillStyle = TC.bossTxt; ctx.font = '17px "Do Hyeon", sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('보스 · ' + C.ENEMIES[boss.type].name, 12, 38);
+    if (gd) {                                // 황금 적: 절반 눈금 (넘기면 파츠). 위에 작은 세모, 넘기면 금색으로 찬다
+      const hx = 12 + bw / 2;
+      ctx.fillStyle = gd.half ? TC.gold : TC.bossLine; ctx.fillRect(hx - 1, 5, 2, 17);
+      ctx.beginPath(); ctx.moveTo(hx - 6, 26); ctx.lineTo(hx + 6, 26); ctx.lineTo(hx, 20); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = gd ? TC.gold : TC.bossTxt; ctx.font = '17px "Do Hyeon", sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(gd ? '황금 적 · ◆ ' + fmtInt(Math.floor(gd.got)) : '보스 · ' + C.ENEMIES[boss.type].name, 12, 38);
   }
   // 기지와 포구
   ctx.fillStyle = S.hitFlash > 0 ? '#ff5d5d' : TC.base;

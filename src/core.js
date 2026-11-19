@@ -538,7 +538,8 @@ const SWARM_GRP = 4;                                           // 보통 무리 
 // 체력은 그 시점 거대체의 hp배. 맞힐 때마다 깎은 체력만큼 재화 (다 깎으면 보통 웨이브 waves개치), 절반에 파츠 (halfN번 뽑아 가장 좋은 것, 최소 희귀), 다 깎으면 전설 파츠.
 // ticket: 보스 보상이 파츠 대신 황금 티켓이 될 확률. side: 레인을 옮기는 빠르기(px/초)
 const GOLD = { from: 180, p: 0.1, T: 15, move: 2, warn: 0.7, hp: 2, waves: 5, halfN: 5, ticket: 0.04, side: 480 };
-Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES.giant.hp * GOLD.hp, speed: 0, r: 44, leak: ENEMIES.giant.leak, gold: 0, boss: true, name: '황금 적',
+// 체력 배수 GOLD.hp 와 속도는 나올 때 정한다 (startGold)
+Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES.giant.hp, speed: 0, r: 44, leak: ENEMIES.giant.leak, gold: 0, boss: true, name: '황금 적',
   hint: '맞힐 때마다 재화가 나옵니다', tip: ['맞힐 때마다 재화', '절반에 파츠, 다 깎으면 전설 파츠'] } });
 const SCALE_EVERY = 10, SCALE_HP = 2.2, SCALE_T = 4;
 Object.defineProperty(ENEMIES, 'scale', { enumerable: false, value: { hp: ENEMIES.giant.hp * SCALE_HP, speed: ENEMIES.giant.speed, r: 56, leak: 25, gold: 60, boss: true, name: '천칭',
@@ -1152,6 +1153,7 @@ function startGold(t0) {
   for (let i = 0, n = S.enemies.length; i < n; i++) { const e = S.enemies[i]; if (e.dead) continue; e.dead = true; fx({ k: 'vanish', d: 0.45, x: e.x, y: e.y, r: e.r, ty: e.type }); }
   S.enemies = [];
   const e = spawn('gold', Math.floor(rndS() * LANES));
+  e.hp *= GOLD.hp; e.maxHp *= GOLD.hp;
   e.speed = (1 + 0.7 * e.r / H) / GOLD.T;   // 몸이 위에서 들어와 기지에 닿기까지 GOLD.T 초 (거래와 상관없이)
   e.gd = { G: waveGold(S.t) * GOLD.waves, mv: GOLD.move, to: -1, half: false, got: 0, acc: 0, cT: -9 };
   return e;

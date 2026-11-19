@@ -932,3 +932,14 @@ b { font-weight: 600; }
 .twb.off { opacity: .42; }
 .modal p.testnote { color: var(--accent-ink); font-weight: 600; }
 @media (max-height: 660px) { .tgrid .btn, .tchk { height: 36px; } .twb { height: 44px; } .modal.testm { gap: 7px; } }
+
+/* 황금 웨이브와 티켓 (T11②). --gold 는 전설 등급(--g3)의 주황과 헷갈리지 않는 노란 금색 */
+.gtag, .info b.gtag, #toast b.gtag { color: var(--gold); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; font-size: 10.5px; }
+.cell.kt { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, var(--panel)); }
+.cell.kt svg { display: block; }
+.btn.primary.gold { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
+.rw.gold .rw-l { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+#genHave { display: inline-block; }
+#genHave.cbump { animation: cbump .24s ease-out; }
+@keyframes cbump { 0% { transform: scale(1); } 35% { transform: scale(1.2); filter: brightness(1.25); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { #genHave.cbump { animation: none; } }
