@@ -1246,14 +1246,15 @@ function augDesc(a) { const D = AUGS[a.id], x = val(D, a.g); return D.d(x[0], x[
 /* ---------- 진화와 스킬 ---------- */
 // 진화한 무기는 5강마다 스킬 포인트 1개를 받는다(모두 20개). 무기 종류마다 줄 3개, 줄마다 노드 3개(뿌리 5, 윗단 5, 마지막 1 = 11포인트).
 // 노드마다 고유한 효과(NEWSK)를 쓴다. 증강 효과를 나눠 담던 예전 방식(SR/SU/SC, skVals)은 T5d 에서 지웠다.
-const SK_MAX = { root: 5, up: 5, cap: 3 };
-// 궁극(최상위) 노드는 포인트 3개를 쓴다 (사용자 결정 2026-11-21). 랭크마다 핵심 수치에 곱하는 배율. 랭크 1 은 예전 궁극과 같다
-const CAP_M = [1, 1.5, 2];
-const cm = (k) => CAP_M[Math.min(k, CAP_M.length) - 1];
+const SK_MAX = { root: 5, up: 5, cap: 1 };
+const SK_COST = { root: 1, up: 1, cap: 3 };   // 노드 한 랭크를 찍는 데 드는 스킬 포인트. 궁극은 한 번에 3점 (사용자 결정 2026-11-21)
+// 궁극(최상위) 노드는 포인트 3개를 쓰는 대신 핵심 수치에 CAP_M 배를 곱한다 (예전 궁극은 1점에 x1)
+const CAP_M = 2;
+const cm = () => CAP_M;
 const streakF = (k) => 1 - (1 - STREAK_F) / cm(k);   // 연속 사냥: 랭크가 높을수록 줄어드는 폭이 천천히 감소
 const poolR = (k, m) => { const x = m == null ? cm(k) : m; return 1 + (x - 1) / 2; };            // 작은 웅덩이 범위 배율 (지속은 cm)
 const r1 = (n) => +(Math.round(n * 100) / 100);
-const mkNode = (id, t, o) => Object.assign({ id, t, max: SK_MAX[t] }, o);
+const mkNode = (id, t, o) => Object.assign({ id, t, max: SK_MAX[t], cost: SK_COST[t] }, o);
 // 새 노드: 이름, 설명 d(랭크, 배율), 효과 ap(s, 랭크, 배율). 배율(sc)은 줄마다 하나, 피해 같은 세기 수치에만 곱한다(메커니즘은 그대로)
 const pc = (x) => r1(x * 100);   // 0.12 -> 12
 const BAY = [1, 1, 1, 2, 2];      // 폭탄창: 랭크별 더하는 발수
@@ -1307,7 +1308,7 @@ const NEWSK = {
   // 산탄포 - 슬러그
   slugb:    { name: '슬러그탄', d: (k, c) => `${SLUG_N}번째 발사마다 정면에 대형 탄: 피해 공격력의 ${pc((0.4 + 0.2 * k) * SLUG_K * c)}%, 모든 적 관통, 밀어냄 ${SLUG_KN}`, ap: (s, k, c) => { s.slug = (0.4 + 0.2 * k) * SLUG_K * c; s.slugKn += SLUG_KN; s.slugEvery = SLUG_N; } },
   heavyb:   { name: '묵직한 탄', d: (k) => `슬러그에 맞은 적이 ${r1(SLUG_STN * k)}초 기절 (보스 제외)`, ap: (s, k) => { s.slugStun = SLUG_STN * k; } },
-  twinslug: { name: '쌍열', d: (k) => `슬러그를 정면과 양옆 3레인 모두에 발사${k > 1 ? ` (슬러그 피해 x${r1(cm(k))})` : ''}`, ap: (s, k) => { s.slugTwin = 1; s.slug *= cm(k); } },
+  twinslug: { name: '쌍열', d: (k) => `슬러그를 정면과 양옆 3레인 모두에 발사${` (슬러그 피해 x${r1(cm(k))})`}`, ap: (s, k) => { s.slugTwin = 1; s.slug *= cm(k); } },
   // 산탄포 - 용의 숨결
   flameb:   { name: '화염 산탄', d: (k, c) => `산탄이 부채꼴 불꽃으로 바뀜. 맞은 적은 3초간 초당 공격력의 ${pc(0.3 * k * c)}% 화상`, ap: (s, k, c) => { s.flame = 0.3 * k * c; } },
   sea:      { name: '불바다', d: (k, c) => `탄이 지나간 자리에 2초간 불길이 남음. 불길 위의 적은 초당 공격력의 ${pc(0.06 * k * c)}% 피해`, ap: (s, k, c) => { s.sea = 0.06 * k * c; } },
@@ -1323,7 +1324,7 @@ const NEWSK = {
   // 레이저 - 프리즘
   prismb:   { name: '프리즘', d: (k, c) => `빔이 첫 적에게 닿으면 양옆으로 갈라져 옆 레인의 윗쪽 적을 타격 (공격력의 ${pc(0.12 * k * c)}%)`, ap: (s, k, c) => { s.prism = 0.12 * k * c; } },
   spectrum: { name: '분광', d: (k, c) => `갈라진 빔 피해 +${pc(0.08 * k * c)}%p`, ap: (s, k, c) => { s.prismUp = 0.08 * k * c; } },
-  rainbow:  { name: '무지개', d: (k) => `갈라진 빔이 한 번 더 갈라져 모든 레인을 덮음 (바깥 레인은 60%). 빔이 무지개색${k > 1 ? `. 갈라진 빔 피해 x${r1(cm(k))}` : ''}`, ap: (s, k) => { s.rainbow = 1; s.prism *= cm(k); s.prismUp *= cm(k); } },
+  rainbow:  { name: '무지개', d: (k) => `갈라진 빔이 한 번 더 갈라져 모든 레인을 덮음 (바깥 레인은 60%). 빔이 무지개색${`. 갈라진 빔 피해 x${r1(cm(k))}`}`, ap: (s, k) => { s.rainbow = 1; s.prism *= cm(k); s.prismUp *= cm(k); } },
   // 레이저 - 용융
   meltb:    { name: '용융선', d: (k, c) => `빔이 지나간 레인 바닥에 2초간 달궈진 선이 남음. 선 위의 적은 초당 공격력의 ${pc(0.08 * k * c)}% 피해`, ap: (s, k, c) => { s.melt = 0.08 * k * c; s.meltT += 2; } },
   afterh:   { name: '긴 열기', d: (k, c) => `용융선 유지 +${r1(0.4 * k)}초, 피해 +${pc(0.2 * k * c)}%, 선 위의 적 ${5 * k}% 둔화`, ap: (s, k, c) => { s.meltT += 0.4 * k; s.meltSlow = 0.05 * k; s.melt *= 1 + 0.2 * k * c; } },
@@ -1339,11 +1340,11 @@ const NEWSK = {
   // 펄스 - 역장
   fieldb:   { name: '역장', d: (k, c) => `무기 주변에 항상 켜진 넓은 역장 (파동 범위의 150%). 안의 적을 무기 앞으로 천천히 끌어 모으며 (초당 레인 폭의 ${3 * k}%, 보스는 절반) 초당 공격력의 ${pc(0.2 * k * c)}% 압착 피해`, ap: (s, k, c) => { s.fld = 3 * k; s.fldDps = 0.2 * k * c; } },
   weaken:   { name: '약화', d: (k, c) => `역장 안의 적이 받는 모든 피해 +${pc(0.03 * k * c)}%`, ap: (s, k, c) => { s.fldVuln = 0.03 * k * c; } },
-  counter:  { name: '반격', d: (k) => `적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번${k > 1 ? `, 피해 x${r1(cm(k))}` : ''})`, ap: (s, k) => { s.counter = cm(k); } },
+  counter:  { name: '반격', d: (k) => `적이 기지에 닿을 때마다 즉시 파동 1회 (0.5초에 한 번${`, 피해 x${r1(cm(k))}`})`, ap: (s, k) => { s.counter = cm(k); } },
   // 박격포 - 핵탄두
   nukeb:    { name: '핵탄두', d: (k, c) => `${NUKE_N}번째 포탄마다 핵탄두: 폭발 범위 x${r1(NUKE_R0 + 0.1 * k)}, 피해 x${r1(1 + NUKE_K * k * c)}, 최대 ${BIG_CAP}배 많은 적을 때림`, ap: (s, k, c) => { s.nuke = 1 + NUKE_K * k * c; s.nukeR = NUKE_R0 + 0.1 * k; s.nukeEvery = NUKE_N; } },
   shockw:   { name: '충격파', d: (k, c) => `핵탄두가 터지면 폭발 범위의 2배까지 충격파: 바깥의 적을 밀어내고 (세기 ${10 + 4 * k}, 보스 제외) 공격력의 ${pc(0.1 * k * c)}% 피해`, ap: (s, k, c) => { s.nShock = 0.1 * k * c; s.nShockKn = 10 + 4 * k; } },
-  chainuke: { name: '연쇄 핵', d: (k) => `${NUKE_N2}번째 포탄마다 핵탄두. 터질 때 화면이 흔들림${k > 1 ? `. 핵탄두 피해 x${r1(cm(k))}` : ''}`, ap: (s, k) => { s.nukeEvery = NUKE_N2; s.nukeQuake = 1; s.nuke *= cm(k); } },
+  chainuke: { name: '연쇄 핵', d: (k) => `${NUKE_N2}번째 포탄마다 핵탄두. 터질 때 화면이 흔들림${`. 핵탄두 피해 x${r1(cm(k))}`}`, ap: (s, k) => { s.nukeEvery = NUKE_N2; s.nukeQuake = 1; s.nuke *= cm(k); } },
   // 박격포 - 융단 폭격
   carpet:   { name: '융단 폭격', d: (k, c) => `포탄이 표적 레인을 따라 세로 한 줄로 떨어지는 3발로 나뉨. 한 발 피해 공격력의 ${pc((0.3 + 0.03 * k) * c)}%, 폭발 범위 80% (핵탄두는 나뉘지 않음)`, ap: (s, k, c) => { s.carpet = 3; s.carpetD = (0.3 + 0.03 * k) * c; } },
   bombbay:  { name: '폭탄창', d: (k, c) => `발수 +${BAY[k - 1]} (${3 + BAY[k - 1]}발), 한 발 피해 +${pc(0.01 * k * c)}%p`, ap: (s, k, c) => { s.carpet += BAY[k - 1]; s.carpetD += 0.01 * k * c; } },
@@ -1375,7 +1376,7 @@ const NEWSK = {
   // 저격포 - 점사
   burst:    { name: '점사', d: (k, c) => `저격이 같은 적에게 ${BURST_GAP}초 뒤 1발 더 (피해 ${pc((BURST_A + BURST_B * k) * c)}%). 표적이 죽었으면 체력이 가장 많은 적에게`, ap: (s, k, c) => { s.bst = 1; s.bstD = (BURST_A + BURST_B * k) * c; } },
   recoil:   { name: '반동 제어', d: (k, c) => `점사 탄 피해 +${pc(RECOIL_K * k * c)}%p`, ap: (s, k, c) => { s.bstD += RECOIL_K * k * c; } },
-  burst3:   { name: '3점사', d: (k) => `점사가 3발 (뒤의 두 발 피해는 같음${k > 1 ? `, 점사 탄 피해 x${r1(cm(k))}` : ''})`, ap: (s, k) => { s.bst = 2; s.bstD *= cm(k); } },
+  burst3:   { name: '3점사', d: (k) => `점사가 3발 (뒤의 두 발 피해는 같음${`, 점사 탄 피해 x${r1(cm(k))}`})`, ap: (s, k) => { s.bst = 2; s.bstD *= cm(k); } },
   // 산성 분사기 - 용해
   dsvb:     { name: '용해', d: (k, c) => `웅덩이 안에서 체력이 ${pc(DSV_T * k)}% 이하가 된 일반 적을 바로 녹임. 녹은 적은 산성 폭발 (반경 70, 공격력의 ${pc(1 * k * c)}%)`, ap: (s, k, c) => { s.dsv = DSV_T * k; s.dsvD = 1 * k * c; s.dsvR = 1; } },
   bigdsv:   { name: '큰 폭발', d: (k, c) => `용해 폭발 범위 +${12 * k}%, 피해 +${pc(2 * k * c)}%p`, ap: (s, k, c) => { s.dsvR = 1 + 0.12 * k; s.dsvD += 2 * k * c; } },
@@ -1383,7 +1384,7 @@ const NEWSK = {
   // 산성 분사기 - 산성비
   rainb:    { name: '산성비', d: (k, c) => `${RAIN_CD}초마다 적이 가장 많은 레인 전체에 3초간 산성비. 비 맞는 적은 초당 공격력의 ${pc(RAIN_K * k * c)}% 피해를 받고 부식이 쌓임 (최대 ${BIG_CAP}배 많은 적)`, ap: (s, k, c) => { s.rain = RAIN_K * k * c; s.rainT = 3; } },
   monsoon:  { name: '장마', d: (k) => `산성비 지속 +${r1(RAIN_UP * k)}초`, ap: (s, k) => { s.rainT = 3 + RAIN_UP * k; } },
-  downpour: { name: '폭우', d: (k) => `산성비가 2레인에 동시에 내리고, 비가 오는 동안 웅덩이가 고여 커짐 (그친 뒤 ${PUD_DRY}초 동안 말라 줄어듦)${k > 1 ? `. 비 피해 x${r1(cm(k))}` : ''}`, ap: (s, k) => { s.rain2 = 1; s.rain *= cm(k); } },
+  downpour: { name: '폭우', d: (k) => `산성비가 2레인에 동시에 내리고, 비가 오는 동안 웅덩이가 고여 커짐 (그친 뒤 ${PUD_DRY}초 동안 말라 줄어듦)${`. 비 피해 x${r1(cm(k))}`}`, ap: (s, k) => { s.rain2 = 1; s.rain *= cm(k); } },
   // 산성 분사기 - 점액 흔적
   slimeb:   { name: '점액 흔적', d: (k, c) => `웅덩이를 밟은 적이 3초 동안 지나간 자리에 산성 자국 (반경 22, 2초)을 남김. 자국 위의 적은 초당 공격력의 ${pc(0.15 * k * c)}% 피해`, ap: (s, k, c) => { s.slime = 0.15 * k * c; s.slimeT = 2; } },
   sticky:   { name: '끈적한 자국', d: (k) => `자국 유지 +${r1(0.5 * k)}초, 자국 피해 +${40 * k}%`, ap: (s, k) => { s.slimeT = 2 + 0.5 * k; s.slime *= 1 + 0.4 * k; } },
@@ -1430,7 +1431,7 @@ function applySkills(w, s) {
 }
 function effLv(w) { return w.evo ? CFG.maxLv + w.lv : w.lv; }   // 진화한 무기는 100 + 단계로 센다
 function skillPoints(w) {
-  let spent = 0; if (w.sk) for (const l of w.sk) for (const r of l) spent += r;
+  let spent = 0; if (w.sk) for (let li = 0; li < w.sk.length; li++) for (let t = 0; t < 3; t++) spent += (w.sk[li][t] || 0) * SK_COST[SKILLS[w.type][li].nodes[t].t];
   const total = w.evo ? (w.skp || 0) : 0;
   return { total, spent, left: total - spent };
 }
@@ -1438,10 +1439,10 @@ function skillRank(w, line, tier) { return w.evo && w.sk ? w.sk[line][tier] || 0
 // 노드 상태: {node, rank, max, locked, can, reason}
 function skillInfo(w, line, tier) {
   const n = SKILLS[w.type][line].nodes[tier], rank = skillRank(w, line, tier);
-  const o = { node: n, name: skName(n), rank, max: n.max, locked: false, can: false, reason: '' };
+  const o = { node: n, name: skName(n), rank, max: n.max, cost: n.cost, locked: false, can: false, reason: '' };
   if (tier > 0 && skillRank(w, line, tier - 1) < SKILLS[w.type][line].nodes[tier - 1].max) { o.locked = true; o.reason = 'lock'; }
   else if (rank >= n.max) o.reason = 'max';
-  else if (skillPoints(w).left <= 0) o.reason = 'points';
+  else if (skillPoints(w).left < n.cost) o.reason = 'points';
   else o.can = true;
   return o;
 }
@@ -3885,7 +3886,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
@@ -4987,7 +4988,7 @@ function skillHtml() {
       <span class="skpts${P.left > 0 ? ' has' : ''}">남은 포인트 <b>${P.left}</b></span></div>
     <div class="skgrid">${cols}</div>
     <div class="skdet"><div class="skhd"><span class="skpic${i.locked ? ' lock' : i.rank > 0 ? ' on' : ''}">${skIcon(i.node)}</span><b>${i.name}</b><span class="skk">${SK_KIND[i.node.t]}</span><span class="skrk">${i.rank}/${i.max}</span></div>${body}</div>
-    <div class="d-acts two"><button type="button" class="btn primary${i.can ? '' : ' off'}" data-act="skUp"${i.can ? '' : ' disabled'}>${noPt ? '포인트 없음' : '찍기'}</button><button type="button" class="btn" data-act="skClose">닫기</button></div></div>`;
+    <div class="d-acts two"><button type="button" class="btn primary${i.can ? '' : ' off'}" data-act="skUp"${i.can ? '' : ' disabled'}>${noPt ? (P.left > 0 ? `포인트 ${i.cost}점 필요` : '포인트 없음') : (i.cost > 1 ? `찍기 · ${i.cost}점` : '찍기')}</button><button type="button" class="btn" data-act="skClose">닫기</button></div></div>`;
 }
 // 비교 창: 왼쪽은 지금 장착한 것(바뀌는 것), 오른쪽은 새로 넣을 것. 글이 길면 줄바꿈한다
 const partItem = (p) => ({ g: p.g, pic: picHtml(p), nm: C.PARTS[p.id].name, ds: C.partDesc(p) });

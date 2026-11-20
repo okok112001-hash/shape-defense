@@ -8,6 +8,7 @@ const CORE = path.resolve(argv.find((a) => !a.startsWith('--')) || path.join(__d
 const QUICK = argv.includes('--quick');
 const Core = require(CORE);
 const { CFG, BAL, WEAPONS, WEAPON_IDS, SKILLS } = Core;
+const CM = Core.CAP_M;   // 궁극(포인트 3개)의 핵심 수치 배율
 let n = 0;
 const ok = (name) => { n++; console.log('ok  ' + name); };
 function mulberry32(a) { return function () { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -103,8 +104,9 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
   assert(Core.skillUp(0, 0, 0).ok); assert.strictEqual(Core.skillUp(0, 0, 0).reason, 'max');
   for (let i = 0; i < 4; i++) assert(Core.skillUp(0, 0, 1).ok);
   assert.strictEqual(Core.skillUp(0, 0, 2).ok, false, '윗단 4/5에서는 마지막 노드 잠김');
-  assert(Core.skillUp(0, 0, 1).ok); for (let i = 0; i < 3; i++) assert(Core.skillUp(0, 0, 2).ok, '궁극은 포인트 3개'); assert.strictEqual(Core.skillUp(0, 0, 2).ok, false);
-  assert.strictEqual(Core.skillPoints(w).spent, 13); assert.strictEqual(Core.skillPoints(w).left, 7);
+  assert(Core.skillUp(0, 0, 1).ok); assert(Core.skillUp(0, 0, 2).ok); assert.strictEqual(Core.skillUp(0, 0, 2).ok, false);
+  assert.strictEqual(Core.skillPoints(w).spent, 13, '궁극은 한 번에 3점'); assert.strictEqual(Core.skillPoints(w).left, 7);
+  { const w2 = put('laser', 1, 100, true); w2.skp = 12; w2.sk[0] = [5, 5, 0]; Core.dirty(w2); assert.strictEqual(Core.skillPoints(w2).left, 2); assert.strictEqual(Core.skillUp(1, 0, 2).reason, 'points', '궁극은 2점으로는 못 찍는다'); assert.strictEqual(Core.skillInfo(w2, 0, 2).cost, 3); w2.skp = 13; assert(Core.skillUp(1, 0, 2).ok); assert.strictEqual(Core.skillPoints(w2).left, 0); }
   for (let l = 1; l < 3; l++) for (let t = 0; t < 3; t++) { while (Core.skillUp(0, l, t).ok); }
   assert.strictEqual(Core.skillPoints(w).left, 0); assert.strictEqual(Core.skillUp(0, 1, 1).reason, 'points');
   const nw = put('blaster', 1, 100); assert.strictEqual(Core.skillUp(1, 0, 0).ok, false, '일반 무기는 스킬을 못 찍는다');
@@ -117,7 +119,7 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
   for (const t of WEAPON_IDS) {
     assert.strictEqual(SKILLS[t].length, 3, t);
     SKILLS[t].forEach((line, l) => {
-      assert.strictEqual(line.nodes.length, 3); assert.deepStrictEqual(line.nodes.map((x) => x.max), [5, 5, 3]);
+      assert.strictEqual(line.nodes.length, 3); assert.deepStrictEqual(line.nodes.map((x) => x.max), [5, 5, 1]);
       line.nodes.forEach((node, tier) => {
         for (let r = 1; r <= node.max; r++) {
           game(); const w = put(t, 0, 100, true);
@@ -303,7 +305,7 @@ function scene(type, lines, secs, opt) {
     for (let i = 0; i < 100; i++) { Core.S.enemies.length = 0; Core.step(1 / 60); }   // 1.5초 이상 쉬면
     assert.strictEqual(Core.heatLevel(w), 0, '예열 초기화'); }
   { game(1); const w = put('blaster', 2, 100, true); w.sk[0] = [5, 5, 1]; Core.dirty(w); foe2(250, 200); const S = Core.S; S.spawnAcc = -1e9; w.cd = 0; const st = Core.stats(w);
-    assert(Math.abs(st.spray - Core.SPRAY_K * SKILLS.blaster[0].nodes[2].sc) < 1e-12, '난사 배수: SPRAY_K x 줄 배율');
+    assert(Math.abs(st.spray - (1 + (Core.SPRAY_K * SKILLS.blaster[0].nodes[2].sc - 1) * Core.CAP_M)) < 1e-12, '난사 배수: 1 + (SPRAY_K x 줄 배율 - 1) x CAP_M');
     const T = [], cds = [], angs = []; let racks = 0, hot = 1;
     for (let i = 0; i < 60 * 9; i++) { const n0 = w.n; S.snd.length = 0; Core.step(1 / 60); if (S.snd.includes('rack')) racks++; if (w.n > n0) { T.push(S.t); cds.push(w.cd); const b = S.bullets[S.bullets.length - 1]; angs.push(Math.atan2(b.vx, -b.vy)); } if (w.rl && Core.heatLevel(w) < 0.9) hot = 0; }
     const gaps = []; for (let i = 1; i < T.length; i++) gaps.push(T[i] - T[i - 1]);
@@ -318,7 +320,7 @@ function scene(type, lines, secs, opt) {
     S.enemies.length = 0; const bl = w.bl; for (let i = 0; i < 300; i++) Core.step(1 / 60);
     assert(w.bl === bl && !w.rl, '적이 없어 쉬는 동안 탄띠가 줄지 않는다'); }
   { game(1); const w = put('blaster', 2, 100, true); w.sk[1] = [5, 5, 1]; Core.dirty(w); foe2(250, 200); Core.S.spawnAcc = -1e9; const st = Core.stats(w); let giants = 0, shots = 0;
-    for (let i = 0; i < 600; i++) { const n0 = w.n; w.cd = Math.min(w.cd, 0); Core.step(1 / 60); if (w.n > n0) { shots++; const gb = Core.S.bullets.filter((b) => b.big && !b.sn); gb.forEach((b) => { b.sn = 1; }); if (gb.length) { giants++; assert(shots % Core.GIANT_N === 0 && gb[0].r >= 40 && gb[0].pierce >= 99 && gb[0].bk === 'giant' && Math.abs(gb[0].dmg - st.dmg * Core.GIANT_M * SKILLS.blaster[1].nodes[2].sc) < 1e-6 * st.dmg, '거대탄: GIANT_N 번째, 레인 폭, GIANT_M 배, 모두 관통'); } } if (shots >= 3 * Core.GIANT_N) break; }
+    for (let i = 0; i < 600; i++) { const n0 = w.n; w.cd = Math.min(w.cd, 0); Core.step(1 / 60); if (w.n > n0) { shots++; const gb = Core.S.bullets.filter((b) => b.big && !b.sn); gb.forEach((b) => { b.sn = 1; }); if (gb.length) { giants++; assert(shots % Core.GIANT_N === 0 && gb[0].r >= 40 && gb[0].pierce >= 99 && gb[0].bk === 'giant' && Math.abs(gb[0].dmg - st.dmg * Core.GIANT_M * SKILLS.blaster[1].nodes[2].sc * CM) < 1e-6 * st.dmg, '거대탄: GIANT_N 번째, 레인 폭, GIANT_M 배, 모두 관통'); } } if (shots >= 3 * Core.GIANT_N) break; }
     assert(giants >= 3, '거대탄이 GIANT_N 번째마다'); assert(Math.abs(st.pk - 0.55) < 1e-12, '가속 관통 5단계: 관통당 -45%'); }
   { game(1); const w = put('blaster', 2, 100, true); w.sk[1] = [3, 0, 0]; Core.dirty(w); assert.strictEqual(Core.stats(w).pierce, 3, '광탄 3명 추가 관통'); assert(Math.abs(Core.stats(w).pk - 0.35) < 1e-12, '광탄: 관통당 -65%'); w.sk[1][1] = 0; }
   { game(1); const w = put('blaster', 2, 100, true); w.sk[2] = [3, 0, 0]; Core.dirty(w); foe2(150, 250); Core.S.spawnAcc = -1e9; const S = Core.S;
@@ -373,7 +375,7 @@ function scene(type, lines, secs, opt) {
     const tops = [foe2(250, 40), foe2(250, 25), foe2(262, 60)], side = foe2(150, 40), aim = foe2(250, 400);
     const shotsWith = []; let shots = 0;
     for (let i = 0; i < 1200 && shots < 2 * Core.DRAGON_N; i++) { const n0 = w.n; w.cd = Math.min(w.cd, 0); Core.step(1 / 60); if (w.n > n0) { shots++; if (S.bullets.some((b) => b.drg && !b.sn)) { shotsWith.push(shots); assert(S.fx.some((f) => f.k === 'roar'), '아가리 불꽃 연출'); for (const b of S.bullets) if (b.drg) { b.sn = 1; assert(Math.abs(b.dmg - st.dmg * st.dragon) < 1e-9 * st.dmg && b.x === 250, '용 머리: 정면, D x 배율'); } } } }
-    assert.deepStrictEqual(shotsWith, [Core.DRAGON_N, 2 * Core.DRAGON_N], 'DRAGON_N 번째 발사마다 ' + shotsWith); assert(Math.abs(st.dragon - Core.DRAGON_M * SKILLS.shotgun[1].nodes[2].sc) < 1e-12);
+    assert.deepStrictEqual(shotsWith, [Core.DRAGON_N, 2 * Core.DRAGON_N], 'DRAGON_N 번째 발사마다 ' + shotsWith); assert(Math.abs(st.dragon - Core.DRAGON_M * SKILLS.shotgun[1].nodes[2].sc * CM) < 1e-12);
     for (let i = 0; i < 130; i++) { w.cd = 99; Core.step(1 / 60); }   // T9a: 용 머리가 느려져 (초속 400) 레인 끝까지 약 1.6초
     assert(!S.bullets.some((b) => b.drg), '레인 끝을 지나면 사라진다');
     for (const e of tops) { const d = 1e12 - e.hp; assert(d > 0 && e.fT === 0, '레인 끝(사거리 밖)의 적도 맞는다. 용 머리는 화상을 붙이지 않는다 (T6)'); }
@@ -387,7 +389,7 @@ function scene(type, lines, secs, opt) {
     w.sk[2] = [5, 5, 1]; Core.dirty(w); const st = Core.stats(w); assert(st.mineMax === 5 && Math.abs(st.mineCd - 2) < 1e-9, '빠른 매설 5단계: 2초, 최대 5개');
     S.mines.length = 0; S.enemies.length = 0; w.mt = 0; for (let i = 0; i < 3; i++) Core.step(1 / 60);
     S.enemies.length = 0; const mine = S.mines[0], e = foe2(mine.x, mine.y), e2 = foe2(mine.x + 20, mine.y - 30, { hp: 1e12, maxHp: 1e12 }); const y0 = e2.y;
-    Core.step(1 / 60); assert(!S.mines.includes(mine), '밟으면 터진다'); assert(e2.y < y0 - 10, '연쇄 지뢰: 밀어낸다 (세기 20)'); assert(S.mines.filter((m) => m.mini).length === 2 && S.mines.filter((m) => m.mini).every((m) => Math.abs(m.dmg - mine.dmg * 0.4) < 1e-9), '작은 지뢰 2개 (피해 40%)'); }
+    Core.step(1 / 60); assert(!S.mines.includes(mine), '밟으면 터진다'); assert(e2.y < y0 - 10, '연쇄 지뢰: 밀어낸다 (세기 20)'); assert(S.mines.filter((m) => m.mini).length === 2 && S.mines.filter((m) => m.mini).every((m) => Math.abs(m.dmg - mine.dmg * 0.4 * CM) < 1e-9), '작은 지뢰 2개 (피해 40% x CAP_M)'); }
   // 레이저
   { game(1); const w = put('laser', 2, 100, true); w.sk[0] = [1, 0, 0]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; foe2(250, 300); w.cd = 0; Core.step(1 / 60);
     assert(S.beams.length === 1 && Math.abs(S.beams[0].t - 0.3 + 1 / 60) < 1e-6, '지속 빔: 0.3초'); w.sk[0] = [5, 5, 0]; Core.dirty(w); const st = Core.stats(w); assert(Math.abs(st.holdT - 0.7) < 1e-9 && Math.abs(st.holdD - 0.2 * SKILLS.laser[0].nodes[0].sc) < 1e-9);
@@ -395,7 +397,7 @@ function scene(type, lines, secs, opt) {
     assert(dm.length === 7 && dm[6] > dm[0] * 1.3 && dm[1] > dm[0], '초점: 틱마다 피해가 쌓인다 ' + dm); }
   { game(1); const w = put('laser', 2, 100, true); w.sk[0] = [5, 5, 1]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; const st = Core.stats(w); st.crit = 0; const e = foe2(250, 300); w.cd = 99;
     const seen = []; for (let i = 0; i < 70; i++) { const h = e.hp; Core.step(1 / 60); if (h - e.hp > 0) seen.push(h - e.hp); }
-    assert(seen.length >= 6 && S.beams.length === 0, '상시 빔: 따로 켜진 빔이 계속 때린다'); assert(seen[0] > 0 && Math.abs(st.alwaysM - 3 * SKILLS.laser[0].nodes[0].sc) < 1e-9);
+    assert(seen.length >= 6 && S.beams.length === 0, '상시 빔: 따로 켜진 빔이 계속 때린다'); assert(seen[0] > 0 && Math.abs(st.alwaysM - 3 * SKILLS.laser[0].nodes[0].sc * CM) < 1e-9);
     const base = st.dmg * st.alwaysM * 0.1 / st.cd; assert(Math.abs(seen[0] - base) < 1e-6 * base, '첫 틱 = D x 3.0 x 배율 x 0.1 / 간격 ' + seen[0] + ' ' + base);
     w.parts[0] = { id: 'ember', g: 3 }; Core.dirty(w); const st3 = Core.stats(w); st3.crit = 0; const e3 = foe2(250, 280); let burns = 0; for (let i = 0; i < 60; i++) { Core.step(1 / 60); if (e3.burnT > 0 && !burns) burns = i; }
     assert(burns > 0 && burns <= 40, '적중 효과(파츠 화상)는 0.5초에 한 번 적용된다'); }
@@ -405,18 +407,18 @@ function scene(type, lines, secs, opt) {
     assert(S.fx.filter((f) => f.k === 'dbeam').length === 2 && S.fx.some((f) => f.k === 'dbeam' && f.x0 === 250 && f.y0 === 400), '대각선 빔 2개');
     w.sk[1] = [5, 5, 1]; Core.dirty(w); const st2 = Core.stats(w); st2.crit = 0; for (const e of S.enemies) e.hp = 1e12; const o2 = foe2(450, 200); const oo = foe2(50, 250); w.cd = 0; S.fx.length = 0; Core.step(1 / 60);
     assert(S.fx.filter((f) => f.k === 'dbeam').length === 4 && S.fx.some((f) => f.rb), '무지개: 한 번 더 갈라져 바깥 레인까지, 무지개색');
-    const d1 = 1e12 - l1.hp, d2 = 1e12 - oo.hp; assert(d2 > 0 && Math.abs(d2 / d1 - 0.6) < 0.01, '바깥 레인은 옆 레인의 60% ' + d2 / d1); assert(Math.abs(d1 - st2.dmg * 1.0 * SKILLS.laser[1].nodes[0].sc) < 1e-3 * st2.dmg, '분광: (12x5 + 8x5)% x 배율'); }
+    const d1 = 1e12 - l1.hp, d2 = 1e12 - oo.hp; assert(d2 > 0 && Math.abs(d2 / d1 - 0.6) < 0.01, '바깥 레인은 옆 레인의 60% ' + d2 / d1); assert(Math.abs(d1 - st2.dmg * 1.0 * SKILLS.laser[1].nodes[0].sc * CM) < 1e-3 * st2.dmg, '분광: (12x5 + 8x5)% x 배율 x CAP_M (무지개)'); }
   { game(1); const w = put('laser', 2, 100, true); w.sk[2] = [3, 0, 0]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; foe2(250, 300); w.cd = 0; Core.step(1 / 60);
     const ml = S.pools.filter((p) => p.kind === 'melt'); assert(ml.length === 1 && Math.abs(ml[0].t - 2) < 0.05 && ml[0].x === 250, '용융선 2초');
     for (let i = 0; i < 5; i++) { w.cd = 0; Core.step(1 / 60); } assert(S.pools.filter((p) => p.kind === 'melt').length === 1, '용융선은 갱신될 뿐 늘지 않는다');
-    w.sk[2] = [5, 5, 1]; Core.dirty(w); const st = Core.stats(w); assert(Math.abs(st.meltT - 4) < 1e-9 && Math.abs(st.meltSlow - 0.25) < 1e-9 && st.vap === 0.15);
+    w.sk[2] = [5, 5, 1]; Core.dirty(w); const st = Core.stats(w); assert(Math.abs(st.meltT - 4) < 1e-9 && Math.abs(st.meltSlow - 0.25) < 1e-9 && Math.abs(st.vap - 0.15 * CM) < 1e-12);
     S.enemies.length = 0; S.pools.length = 0; const v = foe2(250, 200, { hp: 100, maxHp: 100 }); const bs = foe2(250, 220, { boss: true, type: 'giant', hp: 100, maxHp: 100 }); v.hp = 100; const sx = st; sx.crit = 0;
     const saveDmg = sx.dmg; sx.dmg = 100 * 0.9 / 1; w.cd = 0; Core.step(1 / 60); assert(v.dead && !bs.dead, '소멸: 체력 15% 이하가 되면 증발 (보스 제외)'); assert(S.fx.some((f) => f.k === 'vap'), '하얀 섬광'); sx.dmg = saveDmg; }
   // 펄스
   { game(1); const w = put('pulse', 2, 100, true); w.sk[0] = [1, 0, 0]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; const e = foe2(250, 470); const st = Core.stats(w); let n5 = 0, rings = 0;
     for (let i = 0; i < 900 && w.n < Core.NOVA_N; i++) { w.cd = Math.min(w.cd, 0); const n0 = w.n; Core.step(1 / 60); if (w.n > n0) { const k = S.fx.filter((f) => f.k === 'ring' && f.fat).length; if (w.n === Core.NOVA_N) n5 = k; else assert(k === 0, 'NOVA_N 번째 전에는 거대 파동 없음'); } }
     assert(n5 === 1, 'NOVA_N 번째 파동: 거대 파동'); const R2 = st.radius * 1.56; assert(Math.abs(st.novaR - 1.56) < 1e-9 && Math.abs(st.nova - (1 + Core.NOVA_K)) < 1e-9, '범위 x(1.4+0.16r), 피해 x(1+NOVA_K r)');
-    w.sk[0] = [5, 5, 1]; Core.dirty(w); const st2 = Core.stats(w); assert(st2.novaEvery === Core.TWIN_N && st2.twinStar === 1 && Math.abs(st2.halo - 0.5) < 1e-9);
+    w.sk[0] = [5, 5, 1]; Core.dirty(w); const st2 = Core.stats(w); assert(st2.novaEvery === Core.TWIN_N && st2.twinStar === CM && Math.abs(st2.halo - 0.5) < 1e-9);
     w.n = Core.TWIN_N - 1; w.cd = 0; S.fx.length = 0; const h0 = e.hp; Core.step(1 / 60); const d1 = h0 - e.hp; assert(S.pools.some((p) => p.kind === 'halo' && p.big === 1 && Math.abs(p.t - Core.HALO_T) < 0.05), '잔광 고리 HALO_T 초 (큰 한 방 최대 타격 수)'); assert(w.nv > 0, '쌍성: 한 번 더 예약');
     const h1 = e.hp; for (let i = 0; i < 20; i++) Core.step(1 / 60); assert(S.fx.filter((f) => f.k === 'ring' && f.fat).length === 2, '쌍성: 한 번 더 터진다'); assert(h1 - e.hp > d1 * 0.5, '두 번째 폭발 피해 70% (+고리)'); }
   { game(1); const w = put('pulse', 2, 100, true); w.sk[1] = [1, 0, 0]; Core.dirty(w); const S = Core.S; S.spawnAcc = -1e9; w.cd = 99; const st = Core.stats(w); assert.strictEqual(st.orbs, 1);
@@ -491,11 +493,11 @@ function scene(type, lines, secs, opt) {
     const f = S.fx.find((x) => x.k === 'airwarn'); assert(f && f.pt.length === 3 && f.g.length >= 2, '예고: 표적 표시와 폭격기 길');
     const on = (e) => sh.filter((s) => Math.hypot(s.tx - e.x, s.ty - e.y) <= 8).length;
     assert(on(t) === 1 && on(back) === 1 && on(far) === 1 && on(close) === 0, '표적: 레인마다 가장 앞 + 범위 밖의 다른 적');
-    for (const s of sh) { near(s.dmg, st.dmg * cC, '한 발 D x 1c'); near(s.R, R, '범위 x AIR_R'); assert(s.wt >= Core.AIR_WARN - 1 / 60 - 1e-9, '예고가 먼저'); assert(s.y0 < s.ty - 30, '위에서 떨어짐'); near(s.y0, Core.airTrack(f.g, s.tx) - Core.AIR_ALT, '폭격기 길 아래'); }
+    for (const s of sh) { near(s.dmg, st.dmg * cC * CM, '한 발 D x 1c x CAP_M'); near(s.R, R, '범위 x AIR_R'); assert(s.wt >= Core.AIR_WARN - 1 / 60 - 1e-9, '예고가 먼저'); assert(s.y0 < s.ty - 30, '위에서 떨어짐'); near(s.y0, Core.airTrack(f.g, s.tx) - Core.AIR_ALT, '폭격기 길 아래'); }
     const byX = sh.slice().sort((a, b) => a.tx - b.tx); for (let j = 1; j < byX.length; j++) assert(byX[j].wt >= byX[j - 1].wt - 0.021, '왼쪽부터');
     for (let i = 1; i < f.g.length; i++) assert(Math.abs(f.g[i][1] - f.g[i - 1][1]) <= Core.AIR_SLOPE * (f.g[i][0] - f.g[i - 1][0]) + 1e-9, '길이 완만');
     fly(Math.max(...sh.map((s) => s.wt + s.dur)) + 0.1);
-    for (const e of [t, back, far]) near(took(e), st.dmg * cC, '표적 폭탄'); near(took(close), st.dmg * cC, '범위 안의 적도 맞음');
+    for (const e of [t, back, far]) near(took(e), st.dmg * cC * CM, '표적 폭탄'); near(took(close), st.dmg * cC * CM, '범위 안의 적도 맞음');
     assert(S.fx.filter((x) => x.k === 'airboom').length === 3 && S.fx.filter((x) => x.k === 'crater' && x.air).length === 3, '공습 폭발과 그을음 3개'); assert(!S.shells.length);
     let warns = 1; const seen = new WeakSet(S.fx); for (let i = 0; i < 60 * (2 * Core.AIR_CD + 0.5); i++) { Core.step(1 / 60); for (const x of S.fx) if (x.k === 'airwarn' && !seen.has(x)) { seen.add(x); warns++; } }
     assert.strictEqual(warns, 3, 'AIR_CD 초마다 ' + warns);
@@ -513,7 +515,7 @@ function scene(type, lines, secs, opt) {
   // 쌍발: 두 발, 둘째는 기지에 두 번째로 가까운 적 (30%). 핵탄두 차례에는 핵 미사일 1발
   { const { w, S, st } = mk([[0, 0, 0], [0, 0, 0], [5, 5, 1]]); const t = foe2(250, 400), t2 = foe2(60, 300);
     w.n = 0; fireOnce(w); const ms = S.shells.filter((s) => s.ms); assert.strictEqual(ms.length, 2, '두 발');
-    assert(ms[0].tg === t && ms[1].tg === t2, '둘째는 다른 적'); near(ms[1].dmg, st.dmg * 0.3 * cM, '둘째 피해 30%');
+    assert(ms[0].tg === t && ms[1].tg === t2, '둘째는 다른 적'); near(ms[1].dmg, st.dmg * 0.3 * cM * CM, '둘째 피해 30% x CAP_M');
     game(1); const w2 = put('mortar', 2, 100, true); w2.sk = [[1, 0, 0], [0, 0, 0], [5, 5, 1]]; Core.dirty(w2); Core.S.spawnAcc = -1e9; w2.cd = 99; foe2(250, 400); foe2(60, 300); w2.n = Core.NUKE_N - 1; fireOnce(w2);
     const nm = Core.S.shells.filter((s) => s.ms); assert(nm.length === 1 && nm[0].nuke === 1, '핵 미사일 1발'); near(nm[0].R, Core.stats(w2).blast * (Core.NUKE_R0 + 0.1), '핵 미사일 범위'); }
   // 미사일 + 융단 폭격: 미사일이 첫 발 (폭탄 한 발 피해, 범위 80%), 맞은 자리 위로 나머지 폭탄이 차례로 떨어진다
@@ -557,7 +559,7 @@ function scene(type, lines, secs, opt) {
   { const { w, S, st } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const fs = far(), seen = new WeakSet(); w.cl = 0.001; Core.step(1 / 60);
     const th = newFx(S, seen, 'thunder'); assert.strictEqual(th.length, 1); const c = Core.cloudPos(2, Core.S.t);
     assert(th[0].cl === 1 && Math.abs(th[0].x0 - c[0]) < 1e-9 && Math.abs(th[0].y0 - c[1]) < 1e-9, '먹구름에서');
-    const hit1 = fs.find((e) => e.x === th[0].x && e.y === th[0].y); near(took(hit1), st.dmg * 1 * cT + st.dmg * 0.05 * 5 * cT / 60, '먹구름 낙뢰 D x 1c (+ 전기장 한 틱)');
+    const hit1 = fs.find((e) => e.x === th[0].x && e.y === th[0].y); near(took(hit1), st.dmg * 1 * cT * CM + st.dmg * 0.05 * 5 * cT / 60, '먹구름 낙뢰 D x 1c (+ 전기장 한 틱)');
     assert(S.pools.some((p) => p.kind === 'efield'), '전기장도 남김');
     let n = 1; run(10.2, () => { n += newFx(S, seen, 'thunder').length; }); assert.strictEqual(n, 11, '1초마다 ' + n); }
   // 전류 사슬 1: 연쇄된 적 사이에 1초 남는 줄 (적을 따라 움직임), 줄에 닿는 적은 초당 D x 0.12c. 같은 두 적이면 시간만 새로. 줄끼리 겹쳐도 한 번만
@@ -576,7 +578,7 @@ function scene(type, lines, secs, opt) {
     const by = foe2(270, 430);               // 폭 14 + 9.5 안
     const h0 = took(by); run(0.5); near(took(by) - h0, p.dps * 0.5, '넓어진 줄에 닿음'); }
   { const { w, S, st } = mk([[0, 0, 0], [5, 5, 1], [0, 0, 0]]); foe2(250, 470); foe2(250, 390); fireOnce(w); const p = S.pools.find((q) => q.kind === 'arc');
-    near(p.dps, st.dmg * 0.6 * cA * 1.5 * 2, '고압 방전: 줄 피해 2배'); const by = foe2(262, 430); let tot = 0, h = took(by), zap = 0;
+    near(p.dps, st.dmg * 0.6 * cA * 1.5 * (1 + CM), '고압 방전: 줄 피해 1 + CAP_M 배'); const by = foe2(262, 430); let tot = 0, h = took(by), zap = 0;
     run(2.6, () => { tot = took(by) - h; if (S.fx.some((f) => f.k === 'arcz')) zap = 1; });
     near(tot, p.dps * (2.5 - 1 / 60) + p.dps, '닿은 동안 + 방전 1초어치 (마지막 틱은 부동소수 오차로 하나 더 들 수 있다)', 0.006); assert(zap, '방전 연출'); }
   // 구전 1: 4번째 공격마다 표적 쪽으로 떠가는 구체 (반경 46, 초속 70, 4초). 닿는 적은 초당 D x 0.3c
@@ -598,7 +600,7 @@ function scene(type, lines, secs, opt) {
     bs[0].x = 150; bs[0].y = 300; bs[1].x = 420; bs[1].y = 80; S.enemies.length = 0;
     const BR = Core.BALL_BOOM_R, inn = foe2(250, 300), out = foe2(150 + BR * 0.8, 300 + BR * 0.8), boss = foe2(150 - BR * 0.9, 300, { boss: true, type: 'giant' });
     run(0.6);
-    near(took(inn), st.dmg * Core.BALL_BOOM * cB, '터짐 D x BALL_BOOM c'); near(took(boss), st.dmg * Core.BALL_BOOM * cB, '보스도 피해');
+    near(took(inn), st.dmg * Core.BALL_BOOM * cB * CM, '터짐 D x BALL_BOOM c x CAP_M'); near(took(boss), st.dmg * Core.BALL_BOOM * cB * CM, '보스도 피해');
     assert(inn.stunT > Core.BALL_STUN - 0.4 && !(boss.stunT > 0), 'BALL_STUN 초 기절, 보스 제외'); assert.strictEqual(took(out), 0, '반경 밖은 그대로');
     assert(S.fx.some((f) => f.k === 'ballboom' && f.r === Core.BALL_BOOM_R)); }
   // 세 줄을 함께: 낙뢰와 전기장, 줄, 구체가 함께 생긴다
@@ -641,7 +643,7 @@ function scene(type, lines, secs, opt) {
     const h = C.hp; shoot(w); near((h - C.hp) / D, 1 + 4 * 0.5 * cM, '이어받은 겹 + 1'); assert.strictEqual(B.hp, 2e11);
     w.sk[1] = [5, 5, 0]; Core.dirty(w); Core.stats(w).crit = 0; C.hp = 1; shoot(w); assert(w.mk === B && Math.abs(w.mkN - 5) < 1e-9, '표식 이전 5: 겹 전부'); }
   // 균열: 겹이 다 찬 고정 표적은 저격이 맞을 때마다 최대 체력의 CRACK_P (보스 1/4) 를 더 깎는다. 한 발에 D x CRACK_Y 까지. 조각 연출
-  { const { w, S, D } = mk([[0, 0, 0], [5, 0, 1], [0, 0, 0]]); const P = Core.CRACK_P, Y = Core.CRACK_Y, m5 = 1 + 5 * 0.5 * cM;
+  { const { w, S, D } = mk([[0, 0, 0], [5, 0, 1], [0, 0, 0]]); const P = Core.CRACK_P * CM, Y = Core.CRACK_Y * CM, m5 = 1 + 5 * 0.5 * cM;
     const A = foe2(250, 300, { hp: 1e9 * D, maxHp: 10 * D }); let h = A.hp;
     for (let k = 0; k < 4; k++) shoot(w);
     assert(!S.fx.some((f) => f.k === 'chip'), '4겹까지는 균열 없음'); h = A.hp; shoot(w);
@@ -660,7 +662,7 @@ function scene(type, lines, secs, opt) {
     const { w: w2 } = mk([[5, 5, 0], [0, 0, 0], [0, 0, 0]]); const big2 = foeH(250, 300, 1e11); foeH(150, 300, 0.6 * Core.stats(w2).dmg); w2.cd = 0; Core.step(1 / 60); assert(w2.aim === big2, '연속 사냥이 없으면 체력이 가장 많은 적');
     const { w: w3 } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const big3 = foeH(250, 300, 1e11); w3.cd = 0; Core.step(1 / 60); assert(w3.aim === big3, '잡을 수 있는 적이 없으면 체력이 가장 많은 적'); }
   // 연속 사냥: 저격(넘어간 피해 포함)으로 처치하면 다음 대기 시간 -STREAK_K x STREAK_F^(연속 처치 수) (저격 하나에 한 번). 처치가 이어지는 동안 연속 처치가 쌓이고, 처치하지 못하면 끊긴다
-  { const { w, S, D, st } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const cut = Core.STREAK_K, F = Core.STREAK_F;
+  { const { w, S, D, st } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); const cut = Core.STREAK_K, F = 1 - (1 - Core.STREAK_F) / CM;   // 궁극 배율만큼 감소 비율이 덜 줄어든다
     assert(cut > 0 && F > 0 && F < 1, '연속 사냥 상수');
     assert(Math.abs(st.stk - cut) < 1e-12, '연속 사냥 수치');
     const A = foeH(250, 300, 0.5 * D), B = foeH(150, 300, 0.4 * D);
@@ -693,11 +695,11 @@ function scene(type, lines, secs, opt) {
     w.sk[2] = [5, 5, 1]; Core.dirty(w); Core.stats(w).crit = 0; h = A.hp; let shots = 0, hp0 = A.hp;
     w.cd = 0; Core.step(1 / 60); w.cd = 99;
     for (let i = 0; i < 50; i++) { S.snd.length = 0; Core.step(1 / 60); if (A.hp !== hp0) { shots++; hp0 = A.hp; assert(S.snd.includes('railfire'), '발마다 탕'); } }
-    assert.strictEqual(shots, 3, '3점사: 3발'); near((h - A.hp) / D, 1 + 2 * bD(5, 5), '3점사 피해'); }
+    assert.strictEqual(shots, 3, '3점사: 3발'); near((h - A.hp) / D, 1 + 2 * bD(5, 5) * CM, '3점사 피해 (뒤 발 x CAP_M)'); }
   // 점사: 표적이 죽으면 다음 발은 체력이 가장 많은 적에게. 점사가 끝나기 전에는 다음 조준을 시작하지 않는다
   { const { w, D } = mk([[0, 0, 0], [0, 0, 0], [5, 5, 1]]); const A = foeH(250, 300, 0.5 * D), B = foeH(150, 300, 0.4 * D), C = foeH(350, 300, 0.3 * D);
     shoot(w); for (let i = 0; i < 30; i++) Core.step(1 / 60);
-    assert(A.dead, '첫 발에 처치'); near(0.4 * D - B.hp, bD(5, 5) * D, '둘째 발은 다음으로 체력이 많은 적'); near(0.3 * D - C.hp, bD(5, 5) * D, '셋째 발도'); }
+    assert(A.dead, '첫 발에 처치'); near(0.4 * D - B.hp, bD(5, 5) * CM * D, '둘째 발은 다음으로 체력이 많은 적'); near(0.3 * D - C.hp, bD(5, 5) * CM * D, '셋째 발도'); }
   { const { w } = mk([[0, 0, 0], [0, 0, 0], [5, 5, 1]]); foeH(250, 300, 1e11); w.cd = 0; Core.step(1 / 60); const n1 = w.n;
     while (w.aimT > 0) Core.step(1 / 60);
     assert(w.bq === 2, '점사 대기'); w.cd = -1; let g = 0;
@@ -725,8 +727,8 @@ function scene(type, lines, secs, opt) {
   { const { S, st, D } = mk([[5, 5, 1], [0, 0, 0], [0, 0, 0]]); pool(S, st, 250, 300);
     const a = foe2(250, 300, { hp: Core.DSV_T * 5 * 1e4 - 100, maxHp: 1e4 }), b = foe2(250, 400, { hp: 1e9, maxHp: 1e9 }); Core.step(1 / 60);
     assert(a.dead, '5 x DSV_T 이하 녹임'); near(1e9 - b.hp, D * 15 * cD, '큰 폭발 15c D (반경 112)', 1e-6);
-    const np = S.pools.filter((p) => p.acid && p.sm); assert(np.length === 1 && np[0].t <= 2 && np[0].t > 1.9 && np[0].x === 250 && Math.abs(np[0].r - 75 * Core.DSV_POOL) < 1e-9, '연쇄 용해: 2초 작은 웅덩이 ' + np.map((p) => p.t + ' ' + p.r));
-    assert(np[0].fl === 1 && np[0].d === 2, '연쇄 용해 웅덩이는 폭발에서 번지는 그림 (fl)'); const bf = S.fx.find((f) => f.k === 'dsvb'); assert(bf && bf.lv === 5, '용해 폭발 그림: 큰 폭발 단계 5 ' + (bf && bf.lv)); }
+    const np = S.pools.filter((p) => p.acid && p.sm); assert(np.length === 1 && np[0].t <= 2 * CM && np[0].t > 2 * CM - 0.1 && np[0].x === 250 && Math.abs(np[0].r - 75 * Core.DSV_POOL * (1 + (CM - 1) / 2)) < 1e-9, '연쇄 용해: 2초 작은 웅덩이 ' + np.map((p) => p.t + ' ' + p.r));
+    assert(np[0].fl === 1 && np[0].d === 2 * CM, '연쇄 용해 웅덩이는 폭발에서 번지는 그림 (fl)'); const bf = S.fx.find((f) => f.k === 'dsvb'); assert(bf && bf.lv === 5, '용해 폭발 그림: 큰 폭발 단계 5 ' + (bf && bf.lv)); }
   // 산성비 1: RAIN_CD 초마다 적이 가장 많은 레인에 3초. 초당 D x RAIN_K c 와 부식 겹. 다른 레인은 그대로
   { const { w, S, st, D } = mk([[0, 0, 0], [1, 0, 0], [0, 0, 0]]); const L1 = [foe2(150, 200, { hp: 1e9, maxHp: 1e12 }), foe2(150, 400, { hp: 1e9, maxHp: 1e12 })], o = foe2(350, 300, { hp: 1e9, maxHp: 1e12 });
     w.rn = 0.001; Core.step(1 / 60); const r = S.pools.find((p) => p.kind === 'rain'); assert(r && r.lane === 1 && Math.abs(r.t - (3 - 1 / 60)) < 1e-9, '적이 가장 많은 레인, 3초');
@@ -758,7 +760,7 @@ function scene(type, lines, secs, opt) {
   { const { S, st } = mk([[0, 0, 0], [0, 0, 0], [5, 5, 1]]); pool(S, st, 250, 300, { t: 0.05 }); const m = foe2(250, 300, { speed: 0.1, hp: 1e9, maxHp: 1e12 });
     run(0.6); assert(S.pools.some((p) => p.kind === 'slime' && p.d === 4.5 && Math.abs(p.dps - st.dmg * 0.15 * 5 * cS * 3) < 1e-6), '끈적한 자국 4.5초, 피해 x3');
     const v = foe2(250, 300, { hp: 1e9, maxHp: 1e12 }); pool(S, st, 250, 300, { t: 0.5 }); run(0.1); assert(v.cor > 0); v.hp = 1; run(0.1);
-    assert(v.dead && S.pools.some((p) => p.acid && p.sm && Math.abs(p.r - 45) < 1e-9 && p.t <= 2), '부패: 작은 웅덩이'); }
+    assert(v.dead && S.pools.some((p) => p.acid && p.sm && Math.abs(p.r - 45 * (1 + (CM - 1) / 2)) < 1e-9 && p.t <= 2 * CM), '부패: 작은 웅덩이 (범위 x(1+(CAP_M-1)/2), 지속 x CAP_M)'); }
   ok('산성 분사기 새 줄 3개: 용해(녹이기, 큰 폭발, 연쇄 용해), 산성비(비, 장마, 폭우), 점액 흔적(자국, 끈적한 자국, 부패)');
 }
 /* 7g. 부식 겹 (T10e): 웅덩이 안에서 처음 닿을 때 1겹, CORR_DT 초마다 1겹 (최대 CORR_MAX), 겹당 받는 모든 피해 +CORR_K (+ 부식액 / CORR_MAX).
@@ -1158,7 +1160,7 @@ function scene(type, lines, secs, opt) {
     const rr = mulberry32(WEAPON_IDS.indexOf(type) + 100);
     const S = game(WEAPON_IDS.indexOf(type) + 1);
     const NEW4 = ['blaster', 'shotgun', 'laser', 'pulse'].includes(type);   // 새 트리의 네 무기: 줄 셋을 섞어 20점을 모두 쓴다 (선행 조건 지킴)
-    const VAR = [[[5, 5, 1], [5, 3, 0], [1, 0, 0]], [[5, 0, 0], [5, 5, 1], [4, 0, 0]], [[4, 0, 0], [5, 0, 0], [5, 5, 1]], [[5, 5, 1], [5, 4, 0], [0, 0, 0]], [[5, 5, 1], [1, 0, 0], [5, 3, 0]]];
+    const VAR = [[[5, 5, 1], [5, 1, 0], [1, 0, 0]], [[5, 0, 0], [5, 5, 1], [2, 0, 0]], [[2, 0, 0], [5, 0, 0], [5, 5, 1]], [[5, 5, 1], [5, 2, 0], [0, 0, 0]], [[5, 5, 1], [1, 0, 0], [5, 1, 0]]];   // 각각 20점 (궁극은 3점)
     let vi = WEAPON_IDS.indexOf(type);
     const mixedSkills = (w, k) => { w.skp = 20; w.sk = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; Core.dirty(w); const v = VAR[vi++ % VAR.length]; for (let l = 0; l < 3; l++) for (let t = 0; t < 3; t++) for (let i = 0; i < v[l][t]; i++) assert(Core.skillUp(k, l, t).ok, '섞은 줄 ' + type + ' ' + l + t); assert.strictEqual(Core.skillPoints(w).left, 0); };
     const randomSkills = (w, k) => { if (NEW4) return mixedSkills(w, k); w.skp = 20; w.sk = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]; Core.dirty(w); for (let g = 0; g < 400 && Core.skillPoints(w).left > 0; g++) Core.skillUp(k, Math.floor(rr() * 3), Math.floor(rr() * 3)); };

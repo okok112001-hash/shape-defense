@@ -1086,7 +1086,7 @@ function skillHtml() {
       <span class="skpts${P.left > 0 ? ' has' : ''}">남은 포인트 <b>${P.left}</b></span></div>
     <div class="skgrid">${cols}</div>
     <div class="skdet"><div class="skhd"><span class="skpic${i.locked ? ' lock' : i.rank > 0 ? ' on' : ''}">${skIcon(i.node)}</span><b>${i.name}</b><span class="skk">${SK_KIND[i.node.t]}</span><span class="skrk">${i.rank}/${i.max}</span></div>${body}</div>
-    <div class="d-acts two"><button type="button" class="btn primary${i.can ? '' : ' off'}" data-act="skUp"${i.can ? '' : ' disabled'}>${noPt ? '포인트 없음' : '찍기'}</button><button type="button" class="btn" data-act="skClose">닫기</button></div></div>`;
+    <div class="d-acts two"><button type="button" class="btn primary${i.can ? '' : ' off'}" data-act="skUp"${i.can ? '' : ' disabled'}>${noPt ? (P.left > 0 ? `포인트 ${i.cost}점 필요` : '포인트 없음') : (i.cost > 1 ? `찍기 · ${i.cost}점` : '찍기')}</button><button type="button" class="btn" data-act="skClose">닫기</button></div></div>`;
 }
 // 비교 창: 왼쪽은 지금 장착한 것(바뀌는 것), 오른쪽은 새로 넣을 것. 글이 길면 줄바꿈한다
 const partItem = (p) => ({ g: p.g, pic: picHtml(p), nm: C.PARTS[p.id].name, ds: C.partDesc(p) });

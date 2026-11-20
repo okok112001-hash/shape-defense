@@ -51,7 +51,7 @@ function runSim(spec, sk, seed, M, jit) {
     (o.a || []).forEach((q, i) => { w.augs[i] = { id: q[0], g: q[1] }; });
     if (o.evo) {                              // 진화한 무기 (0강). sk = [[뿌리, 상위, 궁극] x 3] 스킬 랭크
       w.evo = true; w.lv = 0; w.hi = 0; w.skp = 0; w.sk = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-      if (o.sk) { w.sk = o.sk.map((r) => r.slice()); w.skp = w.sk.reduce((a, r) => a + r[0] + r[1] + r[2], 0); }
+      if (o.sk) { w.sk = o.sk.map((r) => r.slice()); w.skp = w.sk.reduce((a, r) => a + r[0] + r[1] + 3 * r[2], 0);   // 궁극은 3점 }
     }
     Core.dirty(w);
     return w;
