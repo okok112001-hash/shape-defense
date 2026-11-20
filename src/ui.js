@@ -107,9 +107,9 @@ let meltMode = false, meltAllArm = false;   // 용해로 모드, 모두 분해 �
 const meltSet = new Set();   // 용해로 모드에서 고른 인벤토리 칸 (여러 개)
 let augSel = -1, augRep = -1, augSkip = false, augIntro = false;   // 증강 비교 창: 고른 선택지, 교체할 칸, 건너뛰기 확인, 처음 뜨는 연출
 let lastUp = null;             // 무기 창 안의 강화 결과 표시
-let confirmDrop = false, dropArmI = -1, dropArmAt = 0, armWhat = 'drop';   // armWhat: 무장한 버튼 (drop | melt)
+let confirmDrop = false, dropArmI = -1, dropArmAt = 0, armWhat = 'melt';   // armWhat: 무장한 버튼 (melt)
 let downOnBtn = true;                       // 마지막 누름이 버튼 위에서 시작했는가 (아니면 그 뒤에 생긴 버튼이 받는 click은 무시한다)
-const incoming = new WeakSet();             // 보스 보상이 날아오는 중인 물건: 도착할 때까지 칸 안을 숨긴다   // 버리기: 첫 번째 누름으로 무장하고 두 번째에 버린다. 3초가 지나면 풀린다
+const incoming = new WeakSet();             // 보스 보상이 날아오는 중인 물건: 도착할 때까지 칸 안을 숨긴다   // 분해: 첫 번째 누름으로 무장하고 두 번째에 실행한다. 3초가 지나면 풀린다
 let upMode = false;            // 강화 모드: 무기 칸을 누를 때마다 한 번씩 강화
 let eqFx = null;               // 장착 직후 보여 줄 효과 {k: 칸 번호 또는 'base', g: 등급}
 let msg = '', msgWarn = false, msgUntil = 0, newCell = -1;
@@ -797,12 +797,11 @@ function invHtml() {
       <button type="button" class="btn melt${C.meltCount() >= C.craftCost() ? ' ready' : ''}" data-act="meltOn"><span class="mlb">${FLAME}<span>용해로</span><b data-n="${String(fmtInt(C.meltCount())).length}">${fmtInt(C.meltCount())}</b></span></button>`;
   } else if (sel.from === 'inv') {
     const it = S.inv[sel.i];
-    const armed = confirmDrop && dropArmI === sel.i && armWhat === 'drop', marm = confirmDrop && dropArmI === sel.i && armWhat === 'melt';
-    const drop = `<button type="button" class="btn${armed ? ' armed' : ''}" data-act="drop">${armed ? '한 번 더 누르면 버림' : '버리기'}</button>`;
+    const marm = confirmDrop && dropArmI === sel.i && armWhat === 'melt';
     const melt = it && (it.kind === 'p' || it.kind === 'w') ? `<button type="button" class="btn ember${marm ? ' armed' : ''}" data-act="meltOne">${marm ? '한 번 더 누르면 분해' : `분해 <small>+${C.meltValue(it)}</small>`}</button>` : '';
-    if (it && isBasePart(it)) { cols = ' three2'; acts = '<button type="button" class="btn primary" data-act="bequip">기지에 장착</button>' + melt + drop; }
-    else if (it && it.kind === 't') { cols = ' two2'; acts = '<button type="button" class="btn primary gold" data-act="useTicket">사용</button>' + drop; }
-    else { cols = melt ? ' two2' : ''; acts = melt + drop; }
+    if (it && isBasePart(it)) { cols = ' two2'; acts = '<button type="button" class="btn primary" data-act="bequip">기지에 장착</button>' + melt; }
+    else if (it && it.kind === 't') { cols = ''; acts = '<button type="button" class="btn primary gold" data-act="useTicket">사용</button>'; }
+    else { cols = ''; acts = melt; }
   } else {
     acts = '<button type="button" class="btn" data-act="wopen">무기 창 열기</button>';
   }
@@ -839,9 +838,8 @@ function lightUpdate() {
   }
   if (bannerEl.classList.contains('show') && performance.now() > bannerUntil) bannerEl.classList.remove('show');
   for (const d of rewLayer.children) if (performance.now() > +d.dataset.until) { incoming.delete(d._item); d.remove(); }
-  if (confirmDrop && performance.now() - dropArmAt > 3000) {      // 3초가 지나면 버리기 무장 해제 (버튼을 새로 만들지 않고 그 자리에서 되돌린다)
+  if (confirmDrop && performance.now() - dropArmAt > 3000) {      // 3초가 지나면 분해 무장 해제 (버튼을 새로 만들지 않고 그 자리에서 되돌린다)
     confirmDrop = false;
-    const b = elB.querySelector('[data-act="drop"].armed'); if (b) { b.classList.remove('armed'); b.textContent = '버리기'; }
     const m = elB.querySelector('[data-act="meltOne"].armed'); const it = sel && sel.from === 'inv' ? C.S.inv[sel.i] : null;
     if (m && it) { m.classList.remove('armed'); m.innerHTML = `분해 <small>+${C.meltValue(it)}</small>`; }
   }
@@ -963,7 +961,7 @@ function evoHtml() {
     <div class="evo-w" style="--wc:${d.color}"><span class="evo-ic">${icon(w.type, 40)}</span><span class="evo-arr">${ARROW}</span><span class="evo-ic on">${icon(w.type, 40, true)}</span>
       <div class="evo-nm"><b style="color:${d.color}">${d.name}</b><span>+100 → ★+0</span></div></div>
     <div class="evo-cost${c.reason === 'shards' ? ' short' : ''}">${SHARD}<b>조각 ${fmtInt(c.cost)}</b><span>보유 <b>${fmtInt(c.have)}</b></span></div>
-    <ul class="evo-list"><li>0강으로 돌아가지만 능력은 유지</li><li>강화 비용 100 + 일반의 5배, 5강마다 스킬 포인트</li><li>0강 아래로 떨어지면 진화가 풀림</li></ul>
+    <ul class="evo-list"><li>0강으로 돌아가지만 능력은 유지</li><li>강화 비용 300 + 일반의 5배, 5강마다 스킬 포인트</li><li>0강 아래로 떨어지면 진화가 풀림</li></ul>
     ${c.reason === 'shards' ? `<p class="warn">조각이 ${fmtInt(c.cost - c.have)}개 모자랍니다.</p>` : ''}
     <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="evoOk"${ok ? '' : ' disabled'}>진화한다</button><button type="button" class="btn" data-act="evoClose">닫기</button></div></div>`;
 }
@@ -1435,7 +1433,7 @@ function helpHtml() {
   const ctl = `<div class="hgrid3">
     ${hnode(hbox(partIcon(wp, 22), 'g1') + HARR + slot('blaster'), '장착 · 강화')}
     ${hnode(slot('blaster') + HSWAP + slot('mortar'), '자리 바꾸기')}
-    ${hnode(tap + HARR + win, '상세 보기')}</div><p class="hnote">무기 창(무기를 두 번 누르면 열리는 상세 화면)에서는 강화 단계, 파츠, 증강을 확인합니다. 버리기는 한 번 더 눌러야 실행됩니다.</p>`;
+    ${hnode(tap + HARR + win, '상세 보기')}</div><p class="hnote">무기 창(무기를 두 번 누르면 열리는 상세 화면)에서는 강화 단계, 파츠, 증강을 확인합니다. 분해는 한 번 더 눌러야 실행됩니다.</p>`;
   const ctlIntro = `<p class="hnote">누르기와 끌기로 파츠를 장착하고, 무기 자리를 바꾸고, 무기와 기지의 상태를 살펴보는 방법입니다.</p>`;
   const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>
     <p class="hnote">범위 공격은 한 번에 때리는 적 수에 한도가 있고, 기지에 가까운 적부터 맞습니다. 한도는 무기 창에 나옵니다.</p>`;
@@ -1449,7 +1447,7 @@ function helpHtml() {
   const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 게임이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 기지 창(기지를 누르면 열리는 화면)에서 볼 수 있습니다.</p>`;
   const evoNode = (w, cap) => hnode(hbox(icon('blaster', 22, w) + `<em class="bdg">${cap}</em>`, 'slot'), w ? '진화' : '100강');
   const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>
-    <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 100 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
+    <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 300 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div><p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 보스가 황금체가 됩니다.</p>`;
   const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>
@@ -1999,7 +1997,7 @@ function act(name) {
   }
   if (mode !== 'play' || S.pendingAug || S.pendingPact) return;
   if (name !== 'meltBulk') meltAllArm = false;
-  if (name !== 'drop' && name !== 'meltOne') confirmDrop = false;
+  if (name !== 'meltOne') confirmDrop = false;
   switch (name) {
     case 'gen': {
       const pre = S.inv.slice();
@@ -2056,16 +2054,7 @@ function act(name) {
       say('제조: ' + (isBasePart(r.item) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(r.item));
       return;
     }
-    case 'drop': {                           // 버리기: 첫 번째 누름은 무장만, 두 번째 누름에 버린다 (모든 종류의 물건)
-      if (!sel || sel.from !== 'inv') return;
-      const it = S.inv[sel.i]; if (!it) return;
-      if (!(confirmDrop && dropArmI === sel.i && armWhat === 'drop')) { confirmDrop = true; armWhat = 'drop'; dropArmI = sel.i; dropArmAt = performance.now(); Snd.play('tap'); renderBottom(); return; }
-      C.discard(sel.i); sel = null; confirmDrop = false; msg = ''; Snd.play('drop');
-      renderWeapons(); renderBottom();
-      say('버렸습니다.');
-      return;
-    }
-    case 'meltOne': {                        // 분해: 고른 물건 하나를 녹인다 (등급과 강화 단계와 상관없이, 직접 골랐으므로). 버리기와 같은 두 번 누르기
+    case 'meltOne': {                        // 분해: 고른 물건 하나를 녹인다 (등급과 강화 단계와 상관없이, 직접 골랐으므로). 두 번 눌러야 실행
       if (!sel || sel.from !== 'inv') return;
       const it = S.inv[sel.i]; if (!it || (it.kind !== 'p' && it.kind !== 'w')) return;
       if (!(confirmDrop && dropArmI === sel.i && armWhat === 'melt')) { confirmDrop = true; armWhat = 'melt'; dropArmI = sel.i; dropArmAt = performance.now(); Snd.play('tap'); renderBottom(); return; }

@@ -51,14 +51,14 @@ for (const t of WEAPON_IDS) {
 }
 ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
 
-/* 3. 비용 100 + 5배, 성공률, 피해 배수, 5강마다 포인트, 증강 없음 */
+/* 3. 비용 300 + 5배, 성공률, 피해 배수, 5강마다 포인트, 증강 없음 */
 {
   const S = game(7), w = put('rail', 0, 100, true), base = WEAPONS.rail.dmg * BAL.lvMul(100);
   const rate = (L) => Math.max(CFG.maxLv ? 0.03 : 0, Math.min(1, BAL.success(L) + Core.bstats().luck));
   let tries = 0, gotAt = [];
   while (w.lv < 100 && tries < 20000) {
     const info = Core.upgradeInfo(w); tries++;
-    assert.strictEqual(info.cost, 100 + 5 * (w.lv + 1), '비용 100 + 5 x 일반 비용'); assert.strictEqual(CFG.evoCostAdd, 100); assert.strictEqual(info.rate, rate(w.lv + 1), '성공률은 진화 단계 기준');
+    assert.strictEqual(info.cost, 300 + 5 * (w.lv + 1), '비용 300 + 5 x 일반 비용'); assert.strictEqual(CFG.evoCostAdd, 300); assert.strictEqual(info.rate, rate(w.lv + 1), '성공률은 진화 단계 기준');
     const before = S.shards, lv0 = w.lv, p0 = Core.skillPoints(w).total;
     const r = Core.upgrade(0); assert(r.ok);
     assert(!S.pendingAug, '진화한 무기는 증강 제안이 없다');
@@ -70,14 +70,14 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
       const st = Core.stats(w);
       assert(Math.abs(st.dmg - base * Math.pow(1.03, w.lv)) < 1e-9 * st.dmg, '피해 = lvMul(100) x 1.03^lv');
     }
-    if (!r.saved) assert.strictEqual(before - S.shards, 100 + 5 * (lv0 + 1));
+    if (!r.saved) assert.strictEqual(before - S.shards, 300 + 5 * (lv0 + 1));
   }
   assert.strictEqual(w.lv, 100); assert.deepStrictEqual(gotAt, Array.from({ length: 20 }, (_, i) => (i + 1) * 5));
   assert.strictEqual(Core.skillPoints(w).total, 20); assert.strictEqual(Core.upgradeInfo(w).max, true);
   assert.strictEqual(Core.upgrade(0).ok, false);
   // 일반 무기는 그대로
   const w2 = put('rail', 1, 4); assert.strictEqual(Core.upgradeInfo(w2).cost, 5);
-  ok('비용 100 + 5배, 성공률 곡선 그대로, 피해 배수, 5강마다 포인트(모두 20), 증강 제안 없음');
+  ok('비용 300 + 5배, 성공률 곡선 그대로, 피해 배수, 5강마다 포인트(모두 20), 증강 제안 없음');
 }
 
 /* 4. 포인트 하락 뒤 다시 올라도 중복 지급 없음 */
@@ -103,12 +103,12 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
   assert(Core.skillUp(0, 0, 0).ok); assert.strictEqual(Core.skillUp(0, 0, 0).reason, 'max');
   for (let i = 0; i < 4; i++) assert(Core.skillUp(0, 0, 1).ok);
   assert.strictEqual(Core.skillUp(0, 0, 2).ok, false, '윗단 4/5에서는 마지막 노드 잠김');
-  assert(Core.skillUp(0, 0, 1).ok); assert(Core.skillUp(0, 0, 2).ok); assert.strictEqual(Core.skillUp(0, 0, 2).ok, false);
-  assert.strictEqual(Core.skillPoints(w).spent, 11); assert.strictEqual(Core.skillPoints(w).left, 9);
+  assert(Core.skillUp(0, 0, 1).ok); for (let i = 0; i < 3; i++) assert(Core.skillUp(0, 0, 2).ok, '궁극은 포인트 3개'); assert.strictEqual(Core.skillUp(0, 0, 2).ok, false);
+  assert.strictEqual(Core.skillPoints(w).spent, 13); assert.strictEqual(Core.skillPoints(w).left, 7);
   for (let l = 1; l < 3; l++) for (let t = 0; t < 3; t++) { while (Core.skillUp(0, l, t).ok); }
   assert.strictEqual(Core.skillPoints(w).left, 0); assert.strictEqual(Core.skillUp(0, 1, 1).reason, 'points');
   const nw = put('blaster', 1, 100); assert.strictEqual(Core.skillUp(1, 0, 0).ok, false, '일반 무기는 스킬을 못 찍는다');
-  ok('스킬 선행 조건(뿌리5/윗단5), 최대 랭크, 포인트 소모, 환불 없음');
+  ok('스킬 선행 조건(뿌리5/윗단5/궁극3), 최대 랭크, 포인트 소모, 환불 없음');
 }
 
 /* 6. 모든 노드, 모든 랭크가 능력치를 바꾼다 */
@@ -117,10 +117,11 @@ ok('진화 직후 능력치 = 100강 능력치 (모든 무기)');
   for (const t of WEAPON_IDS) {
     assert.strictEqual(SKILLS[t].length, 3, t);
     SKILLS[t].forEach((line, l) => {
-      assert.strictEqual(line.nodes.length, 3); assert.deepStrictEqual(line.nodes.map((x) => x.max), [5, 5, 1]);
+      assert.strictEqual(line.nodes.length, 3); assert.deepStrictEqual(line.nodes.map((x) => x.max), [5, 5, 3]);
       line.nodes.forEach((node, tier) => {
         for (let r = 1; r <= node.max; r++) {
           game(); const w = put(t, 0, 100, true);
+          for (let q = 0; q < tier; q++) w.sk[l][q] = line.nodes[q].max;   // 선행 노드를 다 찍은 상태에서 (배율로 곱하는 궁극이 있다)
           w.sk[l][tier] = r - 1; Core.dirty(w); const a = num(Core.stats(w)); finite(a, `${t} ${l}${tier} r${r - 1}`);
           w.sk[l][tier] = r; Core.dirty(w); const b = num(Core.stats(w)); finite(b, `${t} ${l}${tier} r${r}`);
           const diff = Object.keys(b).filter((k) => b[k] !== a[k]);
@@ -273,7 +274,12 @@ function scene(type, lines, secs, opt) {
           const secs = t === 'blaster' ? 10 : t === 'mortar' || t === 'rail' || t === 'acid' ? 12 : 8;   // 박격포: 공습(3초)이 들어가게. 저격포: 연속 사냥이 이어지게
           const su = (w) => { w.n = 179; };   // 첫 발이 180번째: n번째마다 오는 간격 스킬(초신성, 핵탄두, 용 머리, 거대탄, 슬러그, 쌍구전 등)이 바로 들어간다 (T10c 에서 간격이 길어짐)
           const A = JSON.stringify(scene(t, mk(r - 1), secs, { speed: spd[t], line: l, setup: su }).o), B = JSON.stringify(scene(t, mk(r), secs, { speed: spd[t], line: l, setup: su }).o);
-          assert(A !== B, `${t} ${line.name} ${node.id} 랭크 ${r}: 장면에서 눈에 보이는 변화 없음`);
+          let seen = A !== B;
+          if (!seen && tier === 2 && r > 1) {   // 궁극 랭크 2~3 은 세기만 키운다 (예: 포탑 폭발 피해). 장면의 결과 숫자가 가려질 수 있어 능력치로도 본다
+            game(7); const w = put(t, 2, 100, true); w.sk = mk(r - 1); Core.dirty(w); const a = num(Core.stats(w)); w.sk = mk(r); Core.dirty(w); const bb = num(Core.stats(w));
+            seen = Object.keys(bb).some((k) => bb[k] !== a[k]);
+          }
+          assert(seen, `${t} ${line.name} ${node.id} 랭크 ${r}: 장면에서 눈에 보이는 변화 없음`);
           cnt++;
         }
       });
@@ -320,7 +326,7 @@ function scene(type, lines, secs, opt) {
     assert(tb && Math.abs(tb.dmg - st.dmg * 0.36 * SKILLS.blaster[2].nodes[0].sc) < 1e-9 && !tb.tb, '보조 포탑 탄: 피해 12% x 랭크, 쌍포탑 전에는 폭발 없음');
     assert(Core.turretPos(2, 0)[0] < 250 && Core.turretPos(0, 0)[0] > 50, '왼쪽 옆 레인(없으면 오른쪽)');
     w.sk[2] = [5, 5, 1]; Core.dirty(w); const st2 = Core.stats(w); foe2(350, 300); const S2 = Core.S; let hasR = false, hasL = false; S2.bullets.length = 0;
-    for (let i = 0; i < 200; i++) { Core.step(1 / 60); for (const b of S2.bullets) if (b.sm) { assert(b.tb === 1); if (b.x > 255 && b.vx > 0) hasR = true; if (b.x < 245 && b.vx < 0) hasL = true; } }
+    for (let i = 0; i < 200; i++) { Core.step(1 / 60); for (const b of S2.bullets) if (b.sm) { assert(b.tb === 3 / 2 || b.tb === 2 || b.tb === 1); if (b.x > 255 && b.vx > 0) hasR = true; if (b.x < 245 && b.vx < 0) hasL = true; } }
     assert(hasL && hasR, '쌍포탑: 양쪽에서 포탑 탄'); assert(Math.abs(st2.turD - 0.6 * SKILLS.blaster[2].nodes[0].sc) < 1e-9 && Math.abs(st2.turRate - 0.5) < 1e-9); }
   // 산탄포
   { game(1); const w = put('shotgun', 2, 100, true); w.sk[0] = [1, 0, 0]; Core.dirty(w); foe2(250, 400); Core.S.spawnAcc = -1e9; const st = Core.stats(w);
