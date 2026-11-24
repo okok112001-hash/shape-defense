@@ -1479,6 +1479,7 @@ function renderOverlay() {
     h = `<div class="modal pausem"><h2>일시정지</h2>${S ? recHtml({ t: S.t, kills: S.kills }) : ''}
       ${iconRow()}
       <button type="button" class="btn primary" data-act="resume">계속하기</button>
+      <button type="button" class="btn" data-act="quit">그만하기</button>
       <button type="button" class="btn" data-act="restart">처음부터 다시</button></div>`;
   } else if (mode === 'over' && shareShow) {
     h = `<div class="modal sharev"><h2>기록 이미지</h2><img class="shimg" src="${shareUrl}" alt="기록 이미지"><p>길게 눌러 저장하세요</p>
@@ -1931,6 +1932,7 @@ function act(name) {
     case 'restart':
       if (mode === 'pause') { pauseView = 'confirm'; renderOverlay(); return; }   // 일시정지 중에는 한 번 더 묻는다
       startGame(isTest()); Snd.play('pick'); return;   // 테스트 게임에서 다시 하면 테스트 게임
+    case 'quit': if (mode === 'pause' && S && !S.over && !testView) { S.over = true; gameOver(); } return;   // 그만하기: 기지가 무너졌을 때와 같이 결과 화면으로
     case 'restartOk': startGame(isTest()); Snd.play('pick'); return;
     case 'start': startGame(); Snd.play('pick'); return;
     case 'testStart': if (mode === 'start') { startGame(true); Snd.play('pick'); } return;
@@ -5431,7 +5433,7 @@ function setText(key, v) { if (hudPrev[key] !== v) { hudPrev[key] = v; hudEl[key
 function hud() {
   const S = C.S; if (!S) return;
   setText('hp', String(Math.ceil(S.hp)));
-  setText('t', fmtTime(S.t)); setText('k', String(S.kills));
+  setText('t', String(Math.max(1, S.wn || 0))); setText('k', String(S.kills));
   const w = Math.max(0, S.hp / S.maxHp * 100).toFixed(0) + '%';
   if (hudPrev.w !== w) { hudPrev.w = w; hudEl.fill.style.width = w; hudEl.fill.classList.toggle('low', S.hp / S.maxHp < 0.3); }
 }

@@ -78,8 +78,8 @@ const BAL = {
   // 적 체력 배수: 끊김 없는 식 하나. 초반에는 거의 오르지 않고, 이후 꾸준히 오르며 끝없이 계속된다
   // 지수 안의 (t/2400)^2 항은 후반 긴장감용: 10분 +6%, 20분 +28%, 30분 +75%, 40분 x2.7
   hpK: 321,         // hpMul 의 시간 상수(초). 전체 난이도는 이 값 하나로 맞춘다 (tools/surv.js 의 K 인자가 이 값을 바꾼다)
-  hpMul(t) { return Math.pow(1 + Math.pow(t / BAL.hpK, 3.1), 0.9) * Math.exp(0.0012 * t + Math.pow(t / 3400, 2)); },
-  bossHp: 1.43,     // 모든 보스의 체력 배수 (일반 적과 같은 hpMul 곡선에 곱한다)
+  hpMul(t) { return 1.2 * Math.pow(1 + Math.pow(t / BAL.hpK, 3.1), 0.9) * Math.exp(0.0013 * t + Math.pow(t / 3000, 2)); },   // 2026-11-24 사용자 요청: 기본 x1.2, 뒤로 갈수록 늘어나는 속도 살짝 더 (0.0012->0.0013, 3400->3000)
+  bossHp: 2.86,     // 모든 보스의 체력 배수 (일반 적과 같은 hpMul 곡선에 곱한다)
   bossSpd: 0.85,    // 모든 보스의 이동 속도 배수
   // 기지가 받는 피해 배수: 적이 기지에 닿는 순간의 시간으로 곱한다 (5분 x1.27, 10분 x1.76, 20분 x3.15, 30분 x4.95)
   leakMul(t) { return 1 + Math.pow(t / 720, 1.5); },
@@ -93,7 +93,7 @@ const BAL = {
   runnerTau: 300,   // 달리는 적(runner) 비중이 늘어나는 시간 상수(초)
   // 초반에는 넉넉하고(시작 +35%) 시간이 갈수록 완만하게 줄어든다
   // 2026-11-21 사용자 결정: 황금체·보급 상자로 쉬워져 재화 전체 x0.9 (goldK)
-  goldK: 0.9,
+  goldK: 0.81,
   goldMul(t) { return BAL.goldK * (1 + t / 80) * (0.63 + 0.72 * Math.exp(-t / 200)); },
   // 제조 비용: 이번 판에서 제조한 횟수 k(0부터)가 늘수록 오른다. 비용/100 = m 은 등급 굴림의 '뽑는 횟수'(craftOdds)
   craftCost(k) { return Math.round(CFG.craftCost * Math.pow(1 + 0.1 * k, 1.25)); },
@@ -553,7 +553,7 @@ Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES
 // fly 초 동안 전장을 가로질러 날다가 누르면 그 자리에 fall 초 동안 떨어져 stay 초 머문다. 날 때는 맞지 않고, 떨어진 뒤에는 적처럼 맞는다 (움직이지 않음).
 // 체력은 그 시점 거대체의 hp 배. 깨면 셋 중 하나: 재화(보통 웨이브 waves 개치) / 강화 조각(생성 gens 번치 묶음) / 파츠(partN 번 뽑아 가장 좋은 것, 최소 희귀)
 // 높이: 가운데 yc0~yc1 (화면 높이 비율)에서 위아래 ay 만큼 물결친다 (주기 per0~per1 초). r: 몸 반지름
-const CRATE = { from: 60, p: 0.25, fly: 5, fall: 0.35, stay: 10, hp: 0.5, r: 24, waves: 3, gens: 3, partN: 2,
+const CRATE = { from: 60, p: 0.25, fly: 5, fall: 0.35, stay: 10, hp: 1, r: 24, waves: 3, gens: 3, partN: 2,
   yc0: 0.3, yc1: 0.62, ay: 0.16, per0: 2.6, per1: 3.6 };
 Object.defineProperty(ENEMIES, 'crate', { enumerable: false, value: { hp: ENEMIES.giant.hp, speed: 0, r: CRATE.r, leak: 0, gold: 0, boss: true, name: '보급 상자' } });
 const SCALE_EVERY = 10, SCALE_HP = 2.2, SCALE_T = 4;
