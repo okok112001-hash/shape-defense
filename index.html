@@ -122,6 +122,9 @@ b { font-weight: 600; }
 
 /* 하단: 인벤토리 또는 무기 상세 */
 #bottom { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+/* 맞추기 시험판: 판의 열이 무기 칸과 딱 맞도록 좌우 여백 없이 */
+#bottom.m3on { padding: 2px 0 8px; }
+#m3cv { display: block; width: 100%; height: calc(5 * var(--cell-h) + 30px); touch-action: none; -webkit-user-select: none; user-select: none; }
 .info { height: 34px; font-size: 12px; line-height: 17px; color: var(--dim); overflow: hidden; }
 .info b { color: var(--ink); }
 .info .g0 { color: var(--g0); } .info .g1 { color: var(--g1); } .info .g2 { color: var(--g2); } .info .g3 { color: var(--g3); }
@@ -2208,8 +2211,9 @@ function crateStep(dt) {
 // 깨진 보급 상자: 셋 중 하나 (rndG 한 번). 처치로 치지 않는다 (처치 수, 처치 보상과 효과 없음)
 function crateOpen(e) {
   e.dead = true; S.crN = (S.crN || 0) + 1;
-  const rg = subG(), k = Math.floor(rg() * 3);
-  let v = 0, it = null;
+  const rg = subG();
+  let k = Math.floor(rg() * 3), v = 0, it = null;
+  if (S.m3 && k === 2) k = 1;                // 맞추기 시험판: 인벤토리가 없으니 파츠 대신 조각
   if (k === 0) { v = waveGold(S.t) * CRATE.waves * (1 + bstats().goldAll); S.gold += v; }
   else if (k === 1) { for (let i = 0; i < CRATE.gens; i++) v += BAL.bundle(genCost(), rg); addShards(v); }
   else { it = newPart(CRATE.partN, rg); S.drops.push(it); S.rewq.push({ item: it, x: e.x, y: e.y, k: 0, n: 1, crate: 1 }); }
@@ -2284,6 +2288,7 @@ function kill(e, st) {
   if (e.dead) return;
   if (e.cr) { crateOpen(e); return; }        // 보급 상자: 처치가 아니다
   e.dead = true; S.kills++;
+  if (S.m3 && !e.boss) m3Drop(Math.max(0, Math.min(LANES - 1, Math.floor(e.x / LW))));   // 맞추기 시험판: 죽은 자리의 열에 블록이 떨어진다
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
@@ -2320,7 +2325,7 @@ function kill(e, st) {
   if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
-    const rn = hasPact('hunt') ? 2 : 1;      // 사냥철: 보스 보상 2배
+    const rn = S.m3 ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (맞추기 시험판은 인벤토리가 없어 보상 없음)
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
       const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
     }
@@ -3504,6 +3509,7 @@ function step(dt) {
   if (!S || S.over || S.pendingAug || S.pendingPact) return;
   S.t += dt;
   if (S.hitFlash > 0) S.hitFlash -= dt;
+  if (S.m3) m3Tick(dt);
 
   // 적 등장
   if (CFG.waves) waveStep(dt);
@@ -3774,6 +3780,80 @@ function step(dt) {
   }
 }
 
+/* ---------- 맞추기 판 (시험판. 테스트 모드에서만 S.m3 가 생긴다) ---------- */
+// 적을 잡으면 죽은 자리 레인의 열에 도형 블록이 떨어진다(열이 꽉 차면 사라진다). 이웃한 두 블록을 맞바꿔
+// 같은 도형 3개 이상을 한 줄로 세우면 터지고, 터진 블록 하나마다 그 열의 무기가 '연쇄 번호'만큼 강화된다(1번째 +1, 2번째 연쇄 +2 ...).
+// g[r * C + c]: 위(r=0)에서 아래로. 블록은 늘 아래로 붙어 있다. 도형은 성장 갈래 난수(rndG)로 고른다(시험판이라 적 종류와 무관: 초반 적이 한 종류뿐이다).
+const M3 = { R: 5, C: LANES, kinds: 5, pre: 2, wait: 0.32, land: 0.4, swapT: 0.16 };
+function m3Runs(g) {   // 3개 이상 이어진 같은 도형 칸의 번호
+  const R = M3.R, N = M3.C, out = new Set();
+  const scan = (len, n, at) => {
+    for (let a = 0; a < len; a++) for (let b = 0; b < n;) {
+      const x = g[at(a, b)]; let e = b + 1;
+      if (x) while (e < n && g[at(a, e)] && g[at(a, e)].s === x.s) e++;
+      if (x && e - b >= 3) for (let k = b; k < e; k++) out.add(at(a, k));
+      b = e;
+    }
+  };
+  scan(R, N, (r, c) => r * N + c);   // 가로
+  scan(N, R, (c, r) => r * N + c);   // 세로
+  return out;
+}
+function m3Fall(b) {   // 빈칸을 위로 모은다
+  const R = M3.R, N = M3.C;
+  for (let c = 0; c < N; c++) {
+    const col = [];
+    for (let r = R - 1; r >= 0; r--) { const x = b.g[r * N + c]; if (x) col.push(x); }
+    for (let r = R - 1, k = 0; r >= 0; r--, k++) b.g[r * N + c] = col[k] || null;
+  }
+}
+function m3New() {
+  const b = { g: new Array(M3.R * M3.C).fill(null), id: 0, wait: 0, chk: false, chain: 0, ev: [] };
+  for (let r = M3.R - 1; r >= M3.R - M3.pre; r--) for (let c = 0; c < M3.C; c++) {   // 아래 두 줄은 미리 채운다 (처음부터 맞춰진 줄은 없게)
+    const i = r * M3.C + c;
+    for (let n = 0; n < 20; n++) { b.g[i] = { s: Math.floor(rndG() * M3.kinds), id: ++b.id }; if (!m3Runs(b.g).has(i)) break; }
+  }
+  return b;
+}
+function m3Drop(c) {
+  const b = S.m3; let r = -1;
+  for (let k = M3.R - 1; k >= 0; k--) if (!b.g[k * M3.C + c]) { r = k; break; }
+  if (r < 0) return false;                   // 꽉 찬 열: 블록은 사라진다
+  b.g[r * M3.C + c] = { s: Math.floor(rndG() * M3.kinds), id: ++b.id };
+  b.chk = true; b.wait = Math.max(b.wait, M3.land);   // 떨어지는 모습을 보여 준 뒤에 맞춘다
+  return true;
+}
+// 이웃한 두 블록 맞바꾸기: 바꾼 블록이 줄을 만들 때만 된다 (아니면 되돌리고 bad)
+function m3Swap(i, j) {
+  const b = S && S.m3; if (!b || S.over) return { ok: false };
+  const N = M3.C, n = M3.R * N;
+  if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
+  const x = b.g[i], y = b.g[j]; if (!x || !y || x.s === y.s) return { ok: false };
+  b.g[i] = y; b.g[j] = x;
+  const run = m3Runs(b.g);
+  if (!run.has(i) && !run.has(j)) { b.g[i] = x; b.g[j] = y; return { ok: false, bad: true }; }
+  b.chain = 0; b.chk = true; b.wait = Math.max(b.wait, M3.swapT);
+  return { ok: true };
+}
+function m3Tick(dt) {
+  const b = S.m3;
+  if (b.wait > 0) { b.wait -= dt; return; }
+  if (!b.chk) return;
+  const run = m3Runs(b.g);
+  if (!run.size) { b.chk = false; b.chain = 0; return; }
+  b.chain++;
+  const gain = new Array(M3.C).fill(0), cells = [];
+  for (const i of run) { const x = b.g[i]; gain[i % M3.C] += b.chain; cells.push({ i, s: x.s, id: x.id }); b.g[i] = null; }
+  m3Fall(b);
+  for (let c = 0; c < M3.C; c++) {
+    const w = S.slots[c]; if (!gain[c] || !w) { gain[c] = 0; continue; }
+    const lv0 = w.lv; w.lv = Math.min(CFG.maxLv, w.lv + gain[c]); w.hi = Math.max(w.hi || 0, w.lv);   // 증강은 주지 않는다 (시험판)
+    gain[c] = w.lv - lv0; dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w);
+  }
+  b.ev.push({ k: 'pop', cells, gain, chain: b.chain });
+  S.slotDirty = true; b.wait = M3.wait;
+}
+
 /* ---------- 테스트 모드 ---------- */
 // S.cheat 는 테스트 게임에만 있다. 일반 게임에서는 아래 함수가 아무 일도 하지 않고, 본문의 분기도 `S.cheat &&` 뒤에만 있다.
 const CHEAT_KEYS = ['gold', 'shards', 'succ', 'god', 'melt'];   // 재화 무한, 조각 무한, 강화 100%, 기지 무적, 용해로 무한
@@ -3872,6 +3952,14 @@ const test = {
     if (i >= 0) S.invDirty = true;
     return i;
   },
+  // 맞추기 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 맞추기 판을 쓴다
+  m3() {
+    if (!testOn()) return false;
+    const ids = WEAPON_IDS.slice(), r = subG();
+    for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
+    S.inv.fill(null); S.m3 = m3New(); S.slotDirty = true; S.invDirty = true;
+    return true;
+  },
   // 적 지우기: 보상 없이 모두 없앤다
   clear() {
     if (!testOn()) return 0;
@@ -3892,6 +3980,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
+  M3, m3Swap,
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
@@ -4717,11 +4806,13 @@ function upText(t) {
 }
 function renderBottom() {
   const S = C.S; if (!S) return;
+  if (S.m3) { m3Mount(); return; }           // 맞추기 시험판: 인벤토리 대신 판 (한 번 만든 캔버스는 다시 만들지 않는다)
   if (drag) { needRender = true; return; }
   if (sel && sel.from === 'slot' && !S.slots[sel.k]) sel = null;
   if (sel && sel.from === 'inv' && !S.inv[sel.i]) sel = null;
   if (!sel) confirmDrop = false;
   for (const i of [...meltSet]) { const it = S.inv[i]; if (!meltMode || !it || (it.kind !== 'p' && it.kind !== 'w')) meltSet.delete(i); }
+  elB.classList.remove('m3on');
   elB.classList.toggle('melting', meltMode);     // 용해로 모드인 상태를 눈으로 알 수 있게 (강화 모드의 무기 칸 표시와 같은 방식)
   elB.innerHTML = invHtml();
   updateInfo();
@@ -5372,7 +5463,8 @@ function renderOverlay() {
       ${best ? '<p class="bestl">최고 기록</p>' + recHtml(best) : '<p class="bestl">기록 없음</p>'}
       ${iconRow()}
       <button type="button" class="btn primary" data-act="start">시작</button>
-      <button type="button" class="tlink" data-act="testStart">테스트 모드</button></div>`;
+      <button type="button" class="tlink" data-act="testStart">테스트 모드</button>
+      <button type="button" class="tlink" data-act="m3Start">맞추기 시험판</button></div>`;
   } else if (mode === 'pause' && pauseView === 'confirm') {
     h = `<div class="modal"><h2>처음부터 다시</h2><p>지금까지의 진행이 모두 사라지고 새 게임이 시작됩니다. 다시 시작할까요?</p>
       <button type="button" class="btn danger" data-act="restartOk">다시 시작</button>
@@ -5447,8 +5539,13 @@ function resetUi() {
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); evoRun.length = 0; rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = ''; testView = false; testMsg = '';
 }
-// test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작)
-function startGame(test) { shareReset(); if (test === true) C.test.newGame(loadTest()); else C.newGame(); resetUi(); mode = 'play'; acc = 0; renderAll(); }
+// test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작). 'm3' 이면 맞추기 시험판 (체크는 모두 끈 채로)
+function startGame(test) {
+  shareReset();
+  if (test === 'm3') { C.test.newGame({}); C.test.m3(); } else if (test === true) C.test.newGame(loadTest()); else C.newGame();
+  resetUi(); m3Reset(); mode = 'play'; acc = 0; renderAll();
+}
+const reTest = () => C.S && C.S.m3 ? 'm3' : isTest();
 function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; confirmDrop = false; renderOverlay(); } }
 // 상태를 비우기 전에 무기별 결과와 받은 거래를 챙긴다. slots: 5칸 그대로 (무기, 빈 칸 null, 폐쇄 'closed')
 function captureRes(S) {
@@ -5833,11 +5930,12 @@ function act(name) {
   switch (name) {
     case 'restart':
       if (mode === 'pause') { pauseView = 'confirm'; renderOverlay(); return; }   // 일시정지 중에는 한 번 더 묻는다
-      startGame(isTest()); Snd.play('pick'); return;   // 테스트 게임에서 다시 하면 테스트 게임
+      startGame(reTest()); Snd.play('pick'); return;   // 테스트 게임에서 다시 하면 테스트 게임 (맞추기 시험판이면 맞추기 시험판)
     case 'quit': if (mode === 'pause' && S && !S.over && !testView) { S.over = true; gameOver(); } return;   // 그만하기: 기지가 무너졌을 때와 같이 결과 화면으로
-    case 'restartOk': startGame(isTest()); Snd.play('pick'); return;
+    case 'restartOk': startGame(reTest()); Snd.play('pick'); return;
     case 'start': startGame(); Snd.play('pick'); return;
     case 'testStart': if (mode === 'start') { startGame(true); Snd.play('pick'); } return;
+    case 'm3Start': if (mode === 'start') { startGame('m3'); Snd.play('pick'); } return;
     case 'testOpen':
       if (mode !== 'play' || !isTest() || S.over || S.pendingAug || S.pendingPact) return;
       testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
@@ -9340,6 +9438,159 @@ function hud() {
   if (hudPrev.w !== w) { hudPrev.w = w; hudEl.fill.style.width = w; hudEl.fill.classList.toggle('low', S.hp / S.maxHp < 0.3); }
 }
 
+/* ---------- 맞추기 판 (시험판) ---------- */
+// 캔버스 하나에 그린다. 손가락이 닿아 있는 동안 DOM 을 다시 만들지 않도록 한 번 만든 캔버스를 계속 쓴다.
+// 밀어서 맞바꾸거나, 하나를 누르고 이웃을 눌러 맞바꾼다.
+const M3COL = ['#e5484d', '#2fae5f', '#14a3a8', '#e6b012', '#d9529b'];   // 원, 네모, 세모, 마름모, 육각 (등급 색인 회색·파랑·보라·주황은 피한다)
+const M3DK = M3COL.map(h => { const n = parseInt(h.slice(1), 16), f = (v) => Math.round(v * 0.62); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; });
+const M3TOP = 6;                                  // 열 위쪽의 무기 색 띠
+let m3cv = null, m3g = null, m3b = null, m3sel = -1, m3t = null, m3cw = 1, m3ch = 1;
+const m3vis = new Map(), m3fx = [];
+function m3Reset() { m3vis.clear(); m3fx.length = 0; m3b = null; m3sel = -1; m3t = null; }
+function m3Mount() {
+  if (m3cv && elB.contains(m3cv)) return;
+  elB.classList.remove('melting'); elB.classList.add('m3on');
+  elB.innerHTML = '<canvas id="m3cv" aria-label="맞추기 판"></canvas>';
+  m3cv = elB.querySelector('#m3cv'); m3g = m3cv.getContext('2d');
+  m3cv.addEventListener('pointerdown', m3Down);
+  m3cv.addEventListener('pointermove', m3Move);
+  m3cv.addEventListener('pointerup', m3Up);
+  m3cv.addEventListener('pointercancel', () => { m3t = null; });
+}
+function m3Can() { const S = C.S; return mode === 'play' && !!S && !!S.m3 && !S.over && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0; }
+function m3Cell(ev) {
+  const r = m3cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top - M3TOP;
+  const c = Math.floor(x / m3cw), rr = Math.floor(y / m3ch);
+  return { x: ev.clientX, y: ev.clientY, i: c >= 0 && c < C.M3.C && rr >= 0 && rr < C.M3.R ? rr * C.M3.C + c : -1 };
+}
+const m3Adj = (i, j) => { const N = C.M3.C; return i >= 0 && j >= 0 && Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) === 1; };
+function m3Down(ev) {
+  if (!m3Can() || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+  const p = m3Cell(ev); if (p.i < 0) return;
+  m3t = { id: ev.pointerId, x0: p.x, y0: p.y, i: p.i, done: false };
+  try { m3cv.setPointerCapture(ev.pointerId); } catch (e) { /* 무시 */ }
+}
+function m3Move(ev) {
+  if (!m3t || ev.pointerId !== m3t.id || m3t.done) return;
+  const dx = ev.clientX - m3t.x0, dy = ev.clientY - m3t.y0;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < Math.min(m3cw, m3ch) * 0.32) return;
+  const N = C.M3.C, i = m3t.i, c = i % N;
+  let j;
+  if (Math.abs(dx) > Math.abs(dy)) j = dx > 0 ? (c < N - 1 ? i + 1 : -1) : (c > 0 ? i - 1 : -1);
+  else j = dy > 0 ? i + N : i - N;
+  m3t.done = true;
+  if (j >= 0 && j < C.M3.R * N) m3Try(i, j);
+}
+function m3Up(ev) {
+  if (!m3t || ev.pointerId !== m3t.id) return;
+  const t = m3t; m3t = null;
+  if (t.done || !m3Can()) return;
+  const b = C.S.m3, i = t.i;
+  if (m3sel >= 0 && m3Adj(m3sel, i) && b.g[i]) m3Try(m3sel, i);
+  else m3sel = m3sel === i || !b.g[i] ? -1 : i;
+}
+function m3Try(i, j) {
+  const b = C.S.m3, x = b.g[i], y = b.g[j], N = C.M3.C;
+  m3sel = -1;
+  const r = C.m3Swap(i, j);
+  if (r.ok) { Snd.play('tap'); for (const o of [x, y]) { const v = m3vis.get(o.id); if (v) v.vy = 6; } }
+  else if (r.bad) {                              // 줄이 안 생김: 서로 반쯤 다가갔다가 돌아온다
+    const vx = m3vis.get(x.id), vy = m3vis.get(y.id);
+    const ax = i % N, ay = Math.floor(i / N), bx = j % N, by = Math.floor(j / N);
+    if (vx) { vx.x = ax + (bx - ax) * 0.45; vx.y = ay + (by - ay) * 0.45; }
+    if (vy) { vy.x = bx + (ax - bx) * 0.45; vy.y = by + (ay - by) * 0.45; }
+  }
+}
+function m3Path(g, x, y, R, s) {
+  g.beginPath();
+  if (s === 0) { g.arc(x, y, R * 0.8, 0, Math.PI * 2); return; }
+  if (s === 1) { const h = R * 0.72, q = R * 0.2; g.moveTo(x - h + q, y - h); g.arcTo(x + h, y - h, x + h, y + h, q); g.arcTo(x + h, y + h, x - h, y + h, q); g.arcTo(x - h, y + h, x - h, y - h, q); g.arcTo(x - h, y - h, x + h, y - h, q); g.closePath(); return; }
+  const n = s === 2 ? 3 : s === 3 ? 4 : 6, rr = s === 2 ? R * 0.98 : s === 3 ? R * 0.96 : R * 0.86, oy = s === 2 ? R * 0.16 : 0, a0 = s === 4 ? Math.PI / 6 : 0;
+  for (let k = 0; k < n; k++) { const a = a0 - Math.PI / 2 + k * Math.PI * 2 / n; const px = x + Math.cos(a) * rr, py = y + oy + Math.sin(a) * rr; k ? g.lineTo(px, py) : g.moveTo(px, py); }
+  g.closePath();
+}
+function m3Block(g, x, y, R, s, a) {
+  g.globalAlpha = a;
+  m3Path(g, x, y, R, s); g.fillStyle = M3COL[s]; g.fill(); g.lineWidth = 2; g.strokeStyle = M3DK[s]; g.stroke();
+  m3Path(g, x - R * 0.12, y - R * 0.14, R * 0.42, s); g.fillStyle = 'rgba(255,255,255,.28)'; g.fill();
+  g.globalAlpha = 1;
+}
+function m3Pop(e) {                               // 터짐: 블록이 퍼지며 사라지고, 빛 조각이 위의 무기로 날아간다
+  const N = C.M3.C, now = performance.now();
+  for (const c of e.cells) {
+    const x = c.i % N, y = Math.floor(c.i / N);
+    m3fx.push({ k: 'pop', x, y, s: c.s, t0: now, d: 320 });
+    m3fx.push({ k: 'fly', x: x + (Math.random() - 0.5) * 0.3, y, s: c.s, t0: now + Math.random() * 60, d: 380 + y * 40 });
+  }
+  if (e.chain > 1) m3fx.push({ k: 'txt', x: (e.cells.reduce((a, c) => a + c.i % N, 0) / e.cells.length), y: e.cells.reduce((a, c) => a + Math.floor(c.i / N), 0) / e.cells.length, t0: now, d: 800, txt: e.chain + '연쇄' });
+  Snd.play(e.chain > 1 ? 'rewpop' : 'ok');
+  e.gain.forEach((n, k) => { if (n > 0) setTimeout(() => { if (C.S && C.S.m3) burstAt(elW.querySelector(`[data-slot="${k}"]`), true, n); }, 330); });
+  while (m3fx.length > 120) m3fx.shift();
+}
+function m3Draw(dt) {
+  const S = C.S, b = S && S.m3;
+  if (!b || !m3cv || !elB.contains(m3cv)) return;
+  const N = C.M3.C, R = C.M3.R;
+  if (b !== m3b) { m3Reset(); m3b = b; b.g.forEach((x, i) => { if (x) m3vis.set(x.id, { x: i % N, y: Math.floor(i / N), vy: 0 }); }); }   // 새 판: 처음 블록은 제자리에
+  const rc = m3cv.getBoundingClientRect(); if (rc.width < 10) return;
+  const d = Math.min(2.5, window.devicePixelRatio || 1), pw = Math.round(rc.width * d), ph = Math.round(rc.height * d);
+  if (m3cv.width !== pw || m3cv.height !== ph) { m3cv.width = pw; m3cv.height = ph; }
+  m3cw = rc.width / N; m3ch = (rc.height - M3TOP) / R;
+  const g = m3g, cw = m3cw, ch = m3ch, Rb = Math.min(cw, ch) * 0.36;
+  const cx = (x) => (x + 0.5) * cw, cy = (y) => M3TOP + (y + 0.5) * ch;
+  g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, rc.width, rc.height);
+  for (let c = 0; c < N; c++) {                   // 열 띠: 그 열이 키우는 무기의 색
+    const w = S.slots[c];
+    g.fillStyle = w ? C.WEAPONS[w.type].color : theme.v.line; g.globalAlpha = w ? 0.85 : 0.4;
+    g.fillRect(c * cw + 5, 1, cw - 10, 3); g.globalAlpha = 1;
+    for (let r = 0; r < R; r++) {
+      const x = c * cw + 3, y = M3TOP + r * ch + 2;
+      g.beginPath(); g.roundRect ? g.roundRect(x, y, cw - 6, ch - 4, 6) : g.rect(x, y, cw - 6, ch - 4);
+      g.fillStyle = theme.v.panel; g.fill(); g.lineWidth = 1; g.strokeStyle = theme.v.line; g.stroke();
+    }
+  }
+  if (m3sel >= 0) {
+    const x = (m3sel % N) * cw + 3, y = M3TOP + Math.floor(m3sel / N) * ch + 2;
+    g.beginPath(); g.roundRect ? g.roundRect(x, y, cw - 6, ch - 4, 6) : g.rect(x, y, cw - 6, ch - 4);
+    g.lineWidth = 2.5; g.strokeStyle = theme.v.accent; g.stroke();
+  }
+  if (b.ev.length) for (const e of b.ev.splice(0)) m3Pop(e);
+  const k = 1 - Math.exp(-dt * 18), seen = new Set();
+  g.save(); g.beginPath(); g.rect(0, M3TOP, rc.width, rc.height - M3TOP); g.clip();
+  for (let i = 0; i < b.g.length; i++) {
+    const o = b.g[i]; if (!o) continue;
+    const tx = i % N, ty = Math.floor(i / N);
+    let v = m3vis.get(o.id);
+    if (!v) { v = { x: tx, y: -0.7, vy: 3 }; m3vis.set(o.id, v); }   // 새로 떨어진 블록: 판 위에서 떨어진다
+    v.x += (tx - v.x) * k;
+    if (v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }
+    else { v.y += (ty - v.y) * k; v.vy = 0; }
+    seen.add(o.id);
+    m3Block(g, cx(v.x), cy(v.y), Rb, o.s, 1);
+  }
+  g.restore();
+  for (const id of m3vis.keys()) if (!seen.has(id)) m3vis.delete(id);
+  const now = performance.now();
+  for (let n = m3fx.length - 1; n >= 0; n--) {
+    const f = m3fx[n], p = (now - f.t0) / f.d;
+    if (p < 0) continue;
+    if (p >= 1) { m3fx.splice(n, 1); continue; }
+    if (f.k === 'pop') { const e = 1 - Math.pow(1 - p, 2); m3Block(g, cx(f.x), cy(f.y), Rb * (1 + 0.5 * e), f.s, 0.9 * (1 - p)); }
+    else if (f.k === 'fly') {                     // 빛 조각: 위로 빨라지며 날아가고 짧은 꼬리가 남는다
+      const e = p * p, x = cx(f.x), y0 = cy(f.y), y = y0 + (-4 - y0) * e, tail = Math.min(ch * 1.2, (y0 - y) * 0.6 + 4);
+      const gr = g.createLinearGradient(x, y, x, y + tail);
+      gr.addColorStop(0, M3COL[f.s]); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.globalAlpha = Math.min(1, 1.6 * (1 - p)); g.fillStyle = gr; g.fillRect(x - 3, y, 6, tail);
+      g.beginPath(); g.arc(x, y, 4.2, 0, Math.PI * 2); g.fillStyle = M3COL[f.s]; g.fill(); g.globalAlpha = 1;
+    } else if (f.k === 'txt') {
+      g.globalAlpha = p < 0.7 ? 1 : (1 - p) / 0.3; g.font = `${Math.round(20 + 6 * Math.min(1, p * 5))}px 'Do Hyeon', 'IBM Plex Sans KR', sans-serif`;
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = theme.v.panel;
+      const x = cx(Math.max(0.6, Math.min(N - 1.6, f.x))), y = cy(f.y) - p * 18;
+      g.strokeText(f.txt, x, y); g.fillStyle = theme.v.accent; g.fillText(f.txt, x, y); g.globalAlpha = 1;
+    }
+  }
+}
+
 /* ---------- 진행 ---------- */
 let last = 0, acc = 0, lightAt = 0;
 function frame(ts) {
@@ -9364,6 +9615,7 @@ function frame(ts) {
   }
   if (drag && performance.now() - drag.at > 6000) endDrag(false);   // 신호가 끊긴 끌기 정리
   draw(); hud(); updateChips();
+  if (S && S.m3) m3Draw(dt);
   if (ts - lightAt > 120) { lightAt = ts; lightUpdate(); }
   requestAnimationFrame(frame);
 }

@@ -1222,8 +1222,9 @@ function crateStep(dt) {
 // 깨진 보급 상자: 셋 중 하나 (rndG 한 번). 처치로 치지 않는다 (처치 수, 처치 보상과 효과 없음)
 function crateOpen(e) {
   e.dead = true; S.crN = (S.crN || 0) + 1;
-  const rg = subG(), k = Math.floor(rg() * 3);
-  let v = 0, it = null;
+  const rg = subG();
+  let k = Math.floor(rg() * 3), v = 0, it = null;
+  if (S.m3 && k === 2) k = 1;                // 맞추기 시험판: 인벤토리가 없으니 파츠 대신 조각
   if (k === 0) { v = waveGold(S.t) * CRATE.waves * (1 + bstats().goldAll); S.gold += v; }
   else if (k === 1) { for (let i = 0; i < CRATE.gens; i++) v += BAL.bundle(genCost(), rg); addShards(v); }
   else { it = newPart(CRATE.partN, rg); S.drops.push(it); S.rewq.push({ item: it, x: e.x, y: e.y, k: 0, n: 1, crate: 1 }); }
@@ -1298,6 +1299,7 @@ function kill(e, st) {
   if (e.dead) return;
   if (e.cr) { crateOpen(e); return; }        // 보급 상자: 처치가 아니다
   e.dead = true; S.kills++;
+  if (S.m3 && !e.boss) m3Drop(Math.max(0, Math.min(LANES - 1, Math.floor(e.x / LW))));   // 맞추기 시험판: 죽은 자리의 열에 블록이 떨어진다
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
@@ -1334,7 +1336,7 @@ function kill(e, st) {
   if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
-    const rn = hasPact('hunt') ? 2 : 1;      // 사냥철: 보스 보상 2배
+    const rn = S.m3 ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (맞추기 시험판은 인벤토리가 없어 보상 없음)
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
       const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
     }
@@ -2518,6 +2520,7 @@ function step(dt) {
   if (!S || S.over || S.pendingAug || S.pendingPact) return;
   S.t += dt;
   if (S.hitFlash > 0) S.hitFlash -= dt;
+  if (S.m3) m3Tick(dt);
 
   // 적 등장
   if (CFG.waves) waveStep(dt);
@@ -2788,6 +2791,80 @@ function step(dt) {
   }
 }
 
+/* ---------- 맞추기 판 (시험판. 테스트 모드에서만 S.m3 가 생긴다) ---------- */
+// 적을 잡으면 죽은 자리 레인의 열에 도형 블록이 떨어진다(열이 꽉 차면 사라진다). 이웃한 두 블록을 맞바꿔
+// 같은 도형 3개 이상을 한 줄로 세우면 터지고, 터진 블록 하나마다 그 열의 무기가 '연쇄 번호'만큼 강화된다(1번째 +1, 2번째 연쇄 +2 ...).
+// g[r * C + c]: 위(r=0)에서 아래로. 블록은 늘 아래로 붙어 있다. 도형은 성장 갈래 난수(rndG)로 고른다(시험판이라 적 종류와 무관: 초반 적이 한 종류뿐이다).
+const M3 = { R: 5, C: LANES, kinds: 5, pre: 2, wait: 0.32, land: 0.4, swapT: 0.16 };
+function m3Runs(g) {   // 3개 이상 이어진 같은 도형 칸의 번호
+  const R = M3.R, N = M3.C, out = new Set();
+  const scan = (len, n, at) => {
+    for (let a = 0; a < len; a++) for (let b = 0; b < n;) {
+      const x = g[at(a, b)]; let e = b + 1;
+      if (x) while (e < n && g[at(a, e)] && g[at(a, e)].s === x.s) e++;
+      if (x && e - b >= 3) for (let k = b; k < e; k++) out.add(at(a, k));
+      b = e;
+    }
+  };
+  scan(R, N, (r, c) => r * N + c);   // 가로
+  scan(N, R, (c, r) => r * N + c);   // 세로
+  return out;
+}
+function m3Fall(b) {   // 빈칸을 위로 모은다
+  const R = M3.R, N = M3.C;
+  for (let c = 0; c < N; c++) {
+    const col = [];
+    for (let r = R - 1; r >= 0; r--) { const x = b.g[r * N + c]; if (x) col.push(x); }
+    for (let r = R - 1, k = 0; r >= 0; r--, k++) b.g[r * N + c] = col[k] || null;
+  }
+}
+function m3New() {
+  const b = { g: new Array(M3.R * M3.C).fill(null), id: 0, wait: 0, chk: false, chain: 0, ev: [] };
+  for (let r = M3.R - 1; r >= M3.R - M3.pre; r--) for (let c = 0; c < M3.C; c++) {   // 아래 두 줄은 미리 채운다 (처음부터 맞춰진 줄은 없게)
+    const i = r * M3.C + c;
+    for (let n = 0; n < 20; n++) { b.g[i] = { s: Math.floor(rndG() * M3.kinds), id: ++b.id }; if (!m3Runs(b.g).has(i)) break; }
+  }
+  return b;
+}
+function m3Drop(c) {
+  const b = S.m3; let r = -1;
+  for (let k = M3.R - 1; k >= 0; k--) if (!b.g[k * M3.C + c]) { r = k; break; }
+  if (r < 0) return false;                   // 꽉 찬 열: 블록은 사라진다
+  b.g[r * M3.C + c] = { s: Math.floor(rndG() * M3.kinds), id: ++b.id };
+  b.chk = true; b.wait = Math.max(b.wait, M3.land);   // 떨어지는 모습을 보여 준 뒤에 맞춘다
+  return true;
+}
+// 이웃한 두 블록 맞바꾸기: 바꾼 블록이 줄을 만들 때만 된다 (아니면 되돌리고 bad)
+function m3Swap(i, j) {
+  const b = S && S.m3; if (!b || S.over) return { ok: false };
+  const N = M3.C, n = M3.R * N;
+  if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
+  const x = b.g[i], y = b.g[j]; if (!x || !y || x.s === y.s) return { ok: false };
+  b.g[i] = y; b.g[j] = x;
+  const run = m3Runs(b.g);
+  if (!run.has(i) && !run.has(j)) { b.g[i] = x; b.g[j] = y; return { ok: false, bad: true }; }
+  b.chain = 0; b.chk = true; b.wait = Math.max(b.wait, M3.swapT);
+  return { ok: true };
+}
+function m3Tick(dt) {
+  const b = S.m3;
+  if (b.wait > 0) { b.wait -= dt; return; }
+  if (!b.chk) return;
+  const run = m3Runs(b.g);
+  if (!run.size) { b.chk = false; b.chain = 0; return; }
+  b.chain++;
+  const gain = new Array(M3.C).fill(0), cells = [];
+  for (const i of run) { const x = b.g[i]; gain[i % M3.C] += b.chain; cells.push({ i, s: x.s, id: x.id }); b.g[i] = null; }
+  m3Fall(b);
+  for (let c = 0; c < M3.C; c++) {
+    const w = S.slots[c]; if (!gain[c] || !w) { gain[c] = 0; continue; }
+    const lv0 = w.lv; w.lv = Math.min(CFG.maxLv, w.lv + gain[c]); w.hi = Math.max(w.hi || 0, w.lv);   // 증강은 주지 않는다 (시험판)
+    gain[c] = w.lv - lv0; dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w);
+  }
+  b.ev.push({ k: 'pop', cells, gain, chain: b.chain });
+  S.slotDirty = true; b.wait = M3.wait;
+}
+
 /* ---------- 테스트 모드 ---------- */
 // S.cheat 는 테스트 게임에만 있다. 일반 게임에서는 아래 함수가 아무 일도 하지 않고, 본문의 분기도 `S.cheat &&` 뒤에만 있다.
 const CHEAT_KEYS = ['gold', 'shards', 'succ', 'god', 'melt'];   // 재화 무한, 조각 무한, 강화 100%, 기지 무적, 용해로 무한
@@ -2886,6 +2963,14 @@ const test = {
     if (i >= 0) S.invDirty = true;
     return i;
   },
+  // 맞추기 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 맞추기 판을 쓴다
+  m3() {
+    if (!testOn()) return false;
+    const ids = WEAPON_IDS.slice(), r = subG();
+    for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
+    S.inv.fill(null); S.m3 = m3New(); S.slotDirty = true; S.invDirty = true;
+    return true;
+  },
   // 적 지우기: 보상 없이 모두 없앤다
   clear() {
     if (!testOn()) return 0;
@@ -2906,6 +2991,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
+  M3, m3Swap,
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;

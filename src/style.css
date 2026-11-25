@@ -104,6 +104,9 @@ b { font-weight: 600; }
 
 /* 하단: 인벤토리 또는 무기 상세 */
 #bottom { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+/* 맞추기 시험판: 판의 열이 무기 칸과 딱 맞도록 좌우 여백 없이 */
+#bottom.m3on { padding: 2px 0 8px; }
+#m3cv { display: block; width: 100%; height: calc(5 * var(--cell-h) + 30px); touch-action: none; -webkit-user-select: none; user-select: none; }
 .info { height: 34px; font-size: 12px; line-height: 17px; color: var(--dim); overflow: hidden; }
 .info b { color: var(--ink); }
 .info .g0 { color: var(--g0); } .info .g1 { color: var(--g1); } .info .g2 { color: var(--g2); } .info .g3 { color: var(--g3); }
