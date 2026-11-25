@@ -1473,7 +1473,8 @@ function renderOverlay() {
       ${iconRow()}
       <button type="button" class="btn primary" data-act="start">시작</button>
       <button type="button" class="tlink" data-act="testStart">테스트 모드</button>
-      <button type="button" class="tlink" data-act="m3Start">맞추기 시험판</button></div>`;
+      <button type="button" class="tlink" data-act="m3Start">맞추기 시험판</button>
+      <button type="button" class="tlink" data-act="pushStart">밀어 올리기 시험판</button></div>`;
   } else if (mode === 'pause' && pauseView === 'confirm') {
     h = `<div class="modal"><h2>처음부터 다시</h2><p>지금까지의 진행이 모두 사라지고 새 게임이 시작됩니다. 다시 시작할까요?</p>
       <button type="button" class="btn danger" data-act="restartOk">다시 시작</button>
@@ -1551,10 +1552,10 @@ function resetUi() {
 // test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작). 'm3' 이면 맞추기 시험판 (체크는 모두 끈 채로)
 function startGame(test) {
   shareReset();
-  if (test === 'm3') { C.test.newGame({}); C.test.m3(); } else if (test === true) C.test.newGame(loadTest()); else C.newGame();
+  if (test === 'm3' || test === 'push') { C.test.newGame({}); C.test.m3(test === 'push' ? 'push' : 'match'); } else if (test === true) C.test.newGame(loadTest()); else C.newGame();
   resetUi(); m3Reset(); mode = 'play'; acc = 0; renderAll();
 }
-const reTest = () => C.S && C.S.m3 ? 'm3' : isTest();
+const reTest = () => C.S && C.S.m3 ? (C.S.m3.mode === 'push' ? 'push' : 'm3') : isTest();
 function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; confirmDrop = false; renderOverlay(); } }
 // 상태를 비우기 전에 무기별 결과와 받은 거래를 챙긴다. slots: 5칸 그대로 (무기, 빈 칸 null, 폐쇄 'closed')
 function captureRes(S) {
@@ -1945,6 +1946,7 @@ function act(name) {
     case 'start': startGame(); Snd.play('pick'); return;
     case 'testStart': if (mode === 'start') { startGame(true); Snd.play('pick'); } return;
     case 'm3Start': if (mode === 'start') { startGame('m3'); Snd.play('pick'); } return;
+    case 'pushStart': if (mode === 'start') { startGame('push'); Snd.play('pick'); } return;
     case 'testOpen':
       if (mode !== 'play' || !isTest() || S.over || S.pendingAug || S.pendingPact) return;
       testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
@@ -5447,19 +5449,21 @@ function hud() {
   if (hudPrev.w !== w) { hudPrev.w = w; hudEl.fill.style.width = w; hudEl.fill.classList.toggle('low', S.hp / S.maxHp < 0.3); }
 }
 
-/* ---------- 맞추기 판 (시험판) ---------- */
+/* ---------- 시험판 판 (맞추기, 밀어 올리기) ---------- */
 // 캔버스 하나에 그린다. 손가락이 닿아 있는 동안 DOM 을 다시 만들지 않도록 한 번 만든 캔버스를 계속 쓴다.
-// 밀어서 맞바꾸거나, 하나를 누르고 이웃을 눌러 맞바꾼다.
+// 맞추기: 밀어서 맞바꾸거나, 하나를 누르고 이웃을 눌러 맞바꾼다.
+// 밀어 올리기: 행을 좌우로 끌면 손가락을 따라 한 칸씩 밀리고, 열을 위로 밀면(또는 빛나는 묶음을 누르면) 그 묶음이 무기로 올라간다.
 const M3COL = ['#e5484d', '#2fae5f', '#14a3a8', '#e6b012', '#d9529b'];   // 원, 네모, 세모, 마름모, 육각 (등급 색인 회색·파랑·보라·주황은 피한다)
 const M3DK = M3COL.map(h => { const n = parseInt(h.slice(1), 16), f = (v) => Math.round(v * 0.62); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; });
 const M3TOP = 6;                                  // 열 위쪽의 무기 색 띠
+const M3FONT = (px) => `${px}px 'Do Hyeon', 'IBM Plex Sans KR', sans-serif`;
 let m3cv = null, m3g = null, m3b = null, m3sel = -1, m3t = null, m3cw = 1, m3ch = 1;
-const m3vis = new Map(), m3fx = [];
+const m3vis = new Map(), m3fx = [], m3ic = {};
 function m3Reset() { m3vis.clear(); m3fx.length = 0; m3b = null; m3sel = -1; m3t = null; }
 function m3Mount() {
   if (m3cv && elB.contains(m3cv)) return;
   elB.classList.remove('melting'); elB.classList.add('m3on');
-  elB.innerHTML = '<canvas id="m3cv" aria-label="맞추기 판"></canvas>';
+  elB.innerHTML = '<canvas id="m3cv" aria-label="시험판"></canvas>';
   m3cv = elB.querySelector('#m3cv'); m3g = m3cv.getContext('2d');
   m3cv.addEventListener('pointerdown', m3Down);
   m3cv.addEventListener('pointermove', m3Move);
@@ -5468,38 +5472,63 @@ function m3Mount() {
 }
 function m3Can() { const S = C.S; return mode === 'play' && !!S && !!S.m3 && !S.over && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0; }
 function m3Cell(ev) {
-  const r = m3cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top - M3TOP;
+  const b = C.S.m3, r = m3cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top - M3TOP;
   const c = Math.floor(x / m3cw), rr = Math.floor(y / m3ch);
-  return { x: ev.clientX, y: ev.clientY, i: c >= 0 && c < C.M3.C && rr >= 0 && rr < C.M3.R ? rr * C.M3.C + c : -1 };
+  return { x: ev.clientX, y: ev.clientY, i: c >= 0 && c < b.C && rr >= 0 && rr < b.R ? rr * b.C + c : -1 };
 }
-const m3Adj = (i, j) => { const N = C.M3.C; return i >= 0 && j >= 0 && Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) === 1; };
+const m3Adj = (i, j) => { const N = C.S.m3.C; return i >= 0 && j >= 0 && Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) === 1; };
 function m3Down(ev) {
   if (!m3Can() || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
   const p = m3Cell(ev); if (p.i < 0) return;
-  m3t = { id: ev.pointerId, x0: p.x, y0: p.y, i: p.i, done: false };
+  m3t = { id: ev.pointerId, x0: p.x, y0: p.y, i: p.i, done: false, ax: 0 };
   try { m3cv.setPointerCapture(ev.pointerId); } catch (e) { /* 무시 */ }
 }
 function m3Move(ev) {
-  if (!m3t || ev.pointerId !== m3t.id || m3t.done) return;
-  const dx = ev.clientX - m3t.x0, dy = ev.clientY - m3t.y0;
+  if (!m3t || ev.pointerId !== m3t.id || !m3Can()) return;
+  const b = C.S.m3, N = b.C, dx = ev.clientX - m3t.x0, dy = ev.clientY - m3t.y0, i = m3t.i, c = i % N;
+  if (b.mode === 'push') {
+    if (m3t.ax === 1) {                           // 행 끌기: 한 칸 너비의 0.6만큼 움직일 때마다 한 칸씩
+      const step = m3cw * 0.6;
+      while (Math.abs(ev.clientX - m3t.x0) >= step) {
+        const dir = ev.clientX > m3t.x0 ? 1 : -1;
+        if (!C.m3Slide(Math.floor(i / N), dir).ok) break;
+        m3t.x0 += dir * step; Snd.play('tap');
+      }
+      return;
+    }
+    if (m3t.ax || Math.max(Math.abs(dx), Math.abs(dy)) < Math.min(m3cw, m3ch) * 0.3) return;
+    m3t.done = true;
+    if (Math.abs(dx) > Math.abs(dy)) { m3t.ax = 1; m3Move(ev); return; }
+    m3t.ax = 2;
+    if (dy < 0) m3PushAt(c);                      // 위로 밀기: 그 열 올리기
+    return;
+  }
+  if (m3t.done) return;
   if (Math.max(Math.abs(dx), Math.abs(dy)) < Math.min(m3cw, m3ch) * 0.32) return;
-  const N = C.M3.C, i = m3t.i, c = i % N;
   let j;
   if (Math.abs(dx) > Math.abs(dy)) j = dx > 0 ? (c < N - 1 ? i + 1 : -1) : (c > 0 ? i - 1 : -1);
   else j = dy > 0 ? i + N : i - N;
   m3t.done = true;
-  if (j >= 0 && j < C.M3.R * N) m3Try(i, j);
+  if (j >= 0 && j < b.R * N) m3Try(i, j);
 }
 function m3Up(ev) {
   if (!m3t || ev.pointerId !== m3t.id) return;
   const t = m3t; m3t = null;
   if (t.done || !m3Can()) return;
   const b = C.S.m3, i = t.i;
+  if (b.mode === 'push') { const c = i % b.C; if (Math.floor(i / b.C) < C.m3Top(c)) m3PushAt(c); return; }   // 빛나는 묶음을 누르면 올린다
   if (m3sel >= 0 && m3Adj(m3sel, i) && b.g[i]) m3Try(m3sel, i);
   else m3sel = m3sel === i || !b.g[i] ? -1 : i;
 }
+function m3PushAt(c) {
+  const r = C.m3Push(c);
+  if (!r.ok) {                                    // 올릴 수 없음: 그 열이 살짝 들썩였다가 돌아온다
+    const b = C.S.m3;
+    for (let k = 0; k < b.R; k++) { const o = b.g[k * b.C + c], v = o && m3vis.get(o.id); if (v) v.y -= 0.18; }
+  }
+}
 function m3Try(i, j) {
-  const b = C.S.m3, x = b.g[i], y = b.g[j], N = C.M3.C;
+  const b = C.S.m3, x = b.g[i], y = b.g[j], N = b.C;
   m3sel = -1;
   const r = C.m3Swap(i, j);
   if (r.ok) { Snd.play('tap'); for (const o of [x, y]) { const v = m3vis.get(o.id); if (v) v.vy = 6; } }
@@ -5518,28 +5547,49 @@ function m3Path(g, x, y, R, s) {
   for (let k = 0; k < n; k++) { const a = a0 - Math.PI / 2 + k * Math.PI * 2 / n; const px = x + Math.cos(a) * rr, py = y + oy + Math.sin(a) * rr; k ? g.lineTo(px, py) : g.moveTo(px, py); }
   g.closePath();
 }
+function m3RR(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
+function m3Icon(t) {                              // 무기 아이콘 그림 (처음 한 번 만든다)
+  if (!(t in m3ic)) { m3ic[t] = null; loadSvgImg(icon(t, 64)).then(im => { m3ic[t] = im; }); }
+  return m3ic[t];
+}
+const m3ColOf = (s) => typeof s === 'string' ? C.WEAPONS[s].color : M3COL[s];
 function m3Block(g, x, y, R, s, a) {
   g.globalAlpha = a;
-  m3Path(g, x, y, R, s); g.fillStyle = M3COL[s]; g.fill(); g.lineWidth = 2; g.strokeStyle = M3DK[s]; g.stroke();
-  m3Path(g, x - R * 0.12, y - R * 0.14, R * 0.42, s); g.fillStyle = 'rgba(255,255,255,.28)'; g.fill();
+  if (typeof s === 'string') {                    // 밀어 올리기: 무기 블록 (무기 색 테두리 + 아이콘)
+    const h = R * 1.05, col = C.WEAPONS[s].color;
+    m3RR(g, x - h, y - h, h * 2, h * 2, 7);
+    g.fillStyle = theme.v.panel; g.fill(); g.fillStyle = rgba(col, 0.14); g.fill(); g.lineWidth = 2; g.strokeStyle = col; g.stroke();
+    const im = m3Icon(s); if (im) g.drawImage(im, x - h * 0.72, y - h * 0.72, h * 1.44, h * 1.44);
+  } else {
+    m3Path(g, x, y, R, s); g.fillStyle = M3COL[s]; g.fill(); g.lineWidth = 2; g.strokeStyle = M3DK[s]; g.stroke();
+    m3Path(g, x - R * 0.12, y - R * 0.14, R * 0.42, s); g.fillStyle = 'rgba(255,255,255,.28)'; g.fill();
+  }
   g.globalAlpha = 1;
 }
-function m3Pop(e) {                               // 터짐: 블록이 퍼지며 사라지고, 빛 조각이 위의 무기로 날아간다
-  const N = C.M3.C, now = performance.now();
-  for (const c of e.cells) {
-    const x = c.i % N, y = Math.floor(c.i / N);
-    m3fx.push({ k: 'pop', x, y, s: c.s, t0: now, d: 320 });
-    m3fx.push({ k: 'fly', x: x + (Math.random() - 0.5) * 0.3, y, s: c.s, t0: now + Math.random() * 60, d: 380 + y * 40 });
+function m3Fly(c, y, s, now) { m3fx.push({ k: 'fly', x: c + (Math.random() - 0.5) * 0.3, y, s, t0: now + Math.random() * 60, d: 380 + y * 40 }); }
+function m3Gain(gain) { gain.forEach((n, k) => { if (n > 0) setTimeout(() => { if (C.S && C.S.m3) burstAt(elW.querySelector(`[data-slot="${k}"]`), true, n); }, 330); }); }
+function m3Ev(e) {
+  const b = C.S.m3, N = b.C, now = performance.now();
+  if (e.k === 'pop') {                            // 맞추기: 블록이 퍼지며 사라지고, 빛 조각이 위의 무기로 날아간다
+    for (const c of e.cells) { const x = c.i % N, y = Math.floor(c.i / N); m3fx.push({ k: 'pop', x, y, s: c.s, t0: now, d: 320 }); m3Fly(x, y, c.s, now); }
+    if (e.chain > 1) m3fx.push({ k: 'txt', x: e.cells.reduce((a, c) => a + c.i % N, 0) / e.cells.length, y: e.cells.reduce((a, c) => a + Math.floor(c.i / N), 0) / e.cells.length, t0: now, d: 800, txt: e.chain + '연쇄' });
+    Snd.play(e.chain > 1 ? 'rewpop' : 'ok'); m3Gain(e.gain);
+  } else if (e.k === 'push') {                    // 밀어 올리기: 묶음이 위로 빠져나가며 무기로 들어간다
+    for (const c of e.cells) { const y = Math.floor(c.i / N); m3fx.push({ k: 'mv', x: e.c, y, dx: 0, dy: -e.n - 0.4, s: c.s, t0: now, d: 260 }); m3Fly(e.c, y, c.s, now); }
+    m3fx.push({ k: 'txt', x: e.c, y: 0.4, t0: now, d: 800, txt: '+' + e.gain });
+    Snd.play(e.n >= 4 ? 'rewpop' : 'ok');
+    const gain = new Array(N).fill(0); gain[e.c] = e.gain; m3Gain(gain);
+  } else if (e.k === 'out') {                     // 밀려난 블록: 옆으로 빠져나가며 흐려진다
+    m3fx.push({ k: 'mv', x: e.i % N, y: Math.floor(e.i / N), dx: e.dx * 1.1, dy: 0, s: e.s, t0: now, d: 220 });
+  } else if (e.k === 'shuffle') {
+    m3fx.push({ k: 'txt', x: (N - 1) / 2, y: (b.R - 1) / 2, t0: now, d: 900, txt: '둘 곳이 없어 섞음' });
   }
-  if (e.chain > 1) m3fx.push({ k: 'txt', x: (e.cells.reduce((a, c) => a + c.i % N, 0) / e.cells.length), y: e.cells.reduce((a, c) => a + Math.floor(c.i / N), 0) / e.cells.length, t0: now, d: 800, txt: e.chain + '연쇄' });
-  Snd.play(e.chain > 1 ? 'rewpop' : 'ok');
-  e.gain.forEach((n, k) => { if (n > 0) setTimeout(() => { if (C.S && C.S.m3) burstAt(elW.querySelector(`[data-slot="${k}"]`), true, n); }, 330); });
   while (m3fx.length > 120) m3fx.shift();
 }
 function m3Draw(dt) {
   const S = C.S, b = S && S.m3;
   if (!b || !m3cv || !elB.contains(m3cv)) return;
-  const N = C.M3.C, R = C.M3.R;
+  const N = b.C, R = b.R, push = b.mode === 'push';
   if (b !== m3b) { m3Reset(); m3b = b; b.g.forEach((x, i) => { if (x) m3vis.set(x.id, { x: i % N, y: Math.floor(i / N), vy: 0 }); }); }   // 새 판: 처음 블록은 제자리에
   const rc = m3cv.getBoundingClientRect(); if (rc.width < 10) return;
   const d = Math.min(2.5, window.devicePixelRatio || 1), pw = Math.round(rc.width * d), ph = Math.round(rc.height * d);
@@ -5553,48 +5603,63 @@ function m3Draw(dt) {
     g.fillStyle = w ? C.WEAPONS[w.type].color : theme.v.line; g.globalAlpha = w ? 0.85 : 0.4;
     g.fillRect(c * cw + 5, 1, cw - 10, 3); g.globalAlpha = 1;
     for (let r = 0; r < R; r++) {
-      const x = c * cw + 3, y = M3TOP + r * ch + 2;
-      g.beginPath(); g.roundRect ? g.roundRect(x, y, cw - 6, ch - 4, 6) : g.rect(x, y, cw - 6, ch - 4);
+      m3RR(g, c * cw + 3, M3TOP + r * ch + 2, cw - 6, ch - 4, 6);
       g.fillStyle = theme.v.panel; g.fill(); g.lineWidth = 1; g.strokeStyle = theme.v.line; g.stroke();
     }
   }
-  if (m3sel >= 0) {
-    const x = (m3sel % N) * cw + 3, y = M3TOP + Math.floor(m3sel / N) * ch + 2;
-    g.beginPath(); g.roundRect ? g.roundRect(x, y, cw - 6, ch - 4, 6) : g.rect(x, y, cw - 6, ch - 4);
-    g.lineWidth = 2.5; g.strokeStyle = theme.v.accent; g.stroke();
+  if (m3sel >= 0) { m3RR(g, (m3sel % N) * cw + 3, M3TOP + Math.floor(m3sel / N) * ch + 2, cw - 6, ch - 4, 6); g.lineWidth = 2.5; g.strokeStyle = theme.v.accent; g.stroke(); }
+  const now = performance.now();
+  if (push) for (let c = 0; c < N; c++) {         // 올릴 수 있는 묶음: 무기 색으로 칠하고 숨 쉬듯 굵어지는 테두리
+    const n = C.m3Top(c); if (n < 2) continue;
+    const col = C.WEAPONS[S.slots[c].type].color;
+    m3RR(g, c * cw + 1.5, M3TOP + 0.5, cw - 3, n * ch - 1, 8);
+    g.fillStyle = rgba(col, 0.24); g.fill(); g.lineWidth = 2.6 + Math.sin(now / 160) * 0.9; g.strokeStyle = col; g.stroke();
   }
-  if (b.ev.length) for (const e of b.ev.splice(0)) m3Pop(e);
+  if (b.ev.length) for (const e of b.ev.splice(0)) m3Ev(e);
   const k = 1 - Math.exp(-dt * 18), seen = new Set();
   g.save(); g.beginPath(); g.rect(0, M3TOP, rc.width, rc.height - M3TOP); g.clip();
   for (let i = 0; i < b.g.length; i++) {
     const o = b.g[i]; if (!o) continue;
     const tx = i % N, ty = Math.floor(i / N);
     let v = m3vis.get(o.id);
-    if (!v) { v = { x: tx, y: -0.7, vy: 3 }; m3vis.set(o.id, v); }   // 새로 떨어진 블록: 판 위에서 떨어진다
+    if (!v) { v = { x: tx + (o.fx || 0), y: ty + (o.fy || 0), vy: 3 }; m3vis.set(o.id, v); }   // 새 블록: 판 밖(위, 아래, 옆)에서 들어온다
     v.x += (tx - v.x) * k;
-    if (v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }
+    if (!push && v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }   // 맞추기: 떨어진다
     else { v.y += (ty - v.y) * k; v.vy = 0; }
     seen.add(o.id);
     m3Block(g, cx(v.x), cy(v.y), Rb, o.s, 1);
   }
+  for (let n = m3fx.length - 1; n >= 0; n--) {    // 판 안에서 움직이는 효과 (판 밖으로 나가면 잘린다)
+    const f = m3fx[n]; if (f.k !== 'mv') continue;
+    const p = (now - f.t0) / f.d; if (p >= 1) { m3fx.splice(n, 1); continue; }
+    const e = p * p; m3Block(g, cx(f.x + f.dx * e), cy(f.y + f.dy * e), Rb, f.s, 1 - p);
+  }
   g.restore();
   for (const id of m3vis.keys()) if (!seen.has(id)) m3vis.delete(id);
-  const now = performance.now();
+  if (push) for (let c = 0; c < N; c++) {         // 묶음 위의 '▲ +강' 표
+    const n = C.m3Top(c); if (n < 2) continue;
+    const col = C.WEAPONS[S.slots[c].type].color, x = cx(c), y = M3TOP + 9;
+    g.font = M3FONT(15); g.textAlign = 'center'; g.textBaseline = 'middle';
+    const t = '▲ +' + C.m3PushGain(n), tw = g.measureText(t).width + 12;
+    m3RR(g, x - tw / 2, y - 8, tw, 17, 8.5); g.fillStyle = col; g.fill();
+    g.fillStyle = '#fff'; g.fillText(t, x, y + 0.5);
+  }
   for (let n = m3fx.length - 1; n >= 0; n--) {
-    const f = m3fx[n], p = (now - f.t0) / f.d;
+    const f = m3fx[n]; if (f.k === 'mv') continue;
+    const p = (now - f.t0) / f.d;
     if (p < 0) continue;
     if (p >= 1) { m3fx.splice(n, 1); continue; }
     if (f.k === 'pop') { const e = 1 - Math.pow(1 - p, 2); m3Block(g, cx(f.x), cy(f.y), Rb * (1 + 0.5 * e), f.s, 0.9 * (1 - p)); }
     else if (f.k === 'fly') {                     // 빛 조각: 위로 빨라지며 날아가고 짧은 꼬리가 남는다
-      const e = p * p, x = cx(f.x), y0 = cy(f.y), y = y0 + (-4 - y0) * e, tail = Math.min(ch * 1.2, (y0 - y) * 0.6 + 4);
+      const e = p * p, x = cx(f.x), y0 = cy(f.y), y = y0 + (-4 - y0) * e, tail = Math.min(ch * 1.2, (y0 - y) * 0.6 + 4), col = m3ColOf(f.s);
       const gr = g.createLinearGradient(x, y, x, y + tail);
-      gr.addColorStop(0, M3COL[f.s]); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.globalAlpha = Math.min(1, 1.6 * (1 - p)); g.fillStyle = gr; g.fillRect(x - 3, y, 6, tail);
-      g.beginPath(); g.arc(x, y, 4.2, 0, Math.PI * 2); g.fillStyle = M3COL[f.s]; g.fill(); g.globalAlpha = 1;
+      g.beginPath(); g.arc(x, y, 4.2, 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.globalAlpha = 1;
     } else if (f.k === 'txt') {
-      g.globalAlpha = p < 0.7 ? 1 : (1 - p) / 0.3; g.font = `${Math.round(20 + 6 * Math.min(1, p * 5))}px 'Do Hyeon', 'IBM Plex Sans KR', sans-serif`;
+      g.globalAlpha = p < 0.7 ? 1 : (1 - p) / 0.3; g.font = M3FONT(Math.round(20 + 6 * Math.min(1, p * 5)));
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = theme.v.panel;
-      const x = cx(Math.max(0.6, Math.min(N - 1.6, f.x))), y = cy(f.y) - p * 18;
+      const tw = g.measureText(f.txt).width / 2, x = Math.max(tw + 4, Math.min(rc.width - tw - 4, cx(f.x))), y = cy(f.y) - p * 18;
       g.strokeText(f.txt, x, y); g.fillStyle = theme.v.accent; g.fillText(f.txt, x, y); g.globalAlpha = 1;
     }
   }

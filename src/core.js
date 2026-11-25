@@ -1224,7 +1224,7 @@ function crateOpen(e) {
   e.dead = true; S.crN = (S.crN || 0) + 1;
   const rg = subG();
   let k = Math.floor(rg() * 3), v = 0, it = null;
-  if (S.m3 && k === 2) k = 1;                // 맞추기 시험판: 인벤토리가 없으니 파츠 대신 조각
+  if (S.m3 && k === 2) k = 1;                // 시험판: 인벤토리가 없으니 파츠 대신 조각
   if (k === 0) { v = waveGold(S.t) * CRATE.waves * (1 + bstats().goldAll); S.gold += v; }
   else if (k === 1) { for (let i = 0; i < CRATE.gens; i++) v += BAL.bundle(genCost(), rg); addShards(v); }
   else { it = newPart(CRATE.partN, rg); S.drops.push(it); S.rewq.push({ item: it, x: e.x, y: e.y, k: 0, n: 1, crate: 1 }); }
@@ -1299,7 +1299,6 @@ function kill(e, st) {
   if (e.dead) return;
   if (e.cr) { crateOpen(e); return; }        // 보급 상자: 처치가 아니다
   e.dead = true; S.kills++;
-  if (S.m3 && !e.boss) m3Drop(Math.max(0, Math.min(LANES - 1, Math.floor(e.x / LW))));   // 맞추기 시험판: 죽은 자리의 열에 블록이 떨어진다
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
@@ -1336,7 +1335,7 @@ function kill(e, st) {
   if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
-    const rn = S.m3 ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (맞추기 시험판은 인벤토리가 없어 보상 없음)
+    const rn = S.m3 ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (시험판은 인벤토리가 없어 보상 없음)
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
       const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
     }
@@ -2791,13 +2790,18 @@ function step(dt) {
   }
 }
 
-/* ---------- 맞추기 판 (시험판. 테스트 모드에서만 S.m3 가 생긴다) ---------- */
-// 적을 잡으면 죽은 자리 레인의 열에 도형 블록이 떨어진다(열이 꽉 차면 사라진다). 이웃한 두 블록을 맞바꿔
-// 같은 도형 3개 이상을 한 줄로 세우면 터지고, 터진 블록 하나마다 그 열의 무기가 '연쇄 번호'만큼 강화된다(1번째 +1, 2번째 연쇄 +2 ...).
-// g[r * C + c]: 위(r=0)에서 아래로. 블록은 늘 아래로 붙어 있다. 도형은 성장 갈래 난수(rndG)로 고른다(시험판이라 적 종류와 무관: 초반 적이 한 종류뿐이다).
-const M3 = { R: 5, C: LANES, kinds: 5, pre: 2, wait: 0.32, land: 0.4, swapT: 0.16 };
-function m3Runs(g) {   // 3개 이상 이어진 같은 도형 칸의 번호
-  const R = M3.R, N = M3.C, out = new Set();
+/* ---------- 시험판 판 (테스트 모드에서만 S.m3 가 생긴다) ---------- */
+// 두 가지 시험판이 같은 판(S.m3)을 쓴다. 블록 종류는 성장 갈래 난수(rndG)로 고른다.
+// - 맞추기(mode 'match', 5줄): 판은 늘 가득. 이웃한 두 블록을 맞바꿔 같은 도형 3개 이상을 한 줄로 세우면 터지고,
+//   터진 블록 하나마다 그 열의 무기가 '연쇄 번호'만큼 강화된다(1번째 +1, 2번째 연쇄 +2 ...). 빈칸은 위에서 새 블록이 떨어져 채운다.
+//   둘 곳이 없으면 판을 새로 섞는다.
+// - 밀어 올리기(mode 'push', 4줄, 블록 = 장착한 무기 종류): 행을 옆으로 밀면 한 칸씩 움직이고 끝 블록은 밖으로 밀려나며
+//   반대쪽에 새 블록이 들어온다. 열을 올리면 맨 위부터 이어진 '그 열 무기와 같은' 블록 묶음(2개 이상)이 무기로 들어가
+//   2개 +1, 3개 +3, 4개 +5강(2n-3). 빈칸은 아래에서 새 블록이 올라와 채운다.
+// g[r * C + c]: 위(r=0)에서 아래로. 새 블록의 fx, fy 는 화면이 그 블록을 처음 그릴 때 어디서 나타나는지(칸 단위 차이)다.
+const M3 = { kinds: 5, wait: 0.45, swapT: 0.16 };
+function m3Runs(g, R, N) {   // 3개 이상 이어진 같은 종류 칸의 번호
+  const out = new Set();
   const scan = (len, n, at) => {
     for (let a = 0; a < len; a++) for (let b = 0; b < n;) {
       const x = g[at(a, b)]; let e = b + 1;
@@ -2810,59 +2814,107 @@ function m3Runs(g) {   // 3개 이상 이어진 같은 도형 칸의 번호
   scan(N, R, (c, r) => r * N + c);   // 세로
   return out;
 }
-function m3Fall(b) {   // 빈칸을 위로 모은다
-  const R = M3.R, N = M3.C;
-  for (let c = 0; c < N; c++) {
-    const col = [];
-    for (let r = R - 1; r >= 0; r--) { const x = b.g[r * N + c]; if (x) col.push(x); }
-    for (let r = R - 1, k = 0; r >= 0; r--, k++) b.g[r * N + c] = col[k] || null;
+function m3Rand(b) {
+  if (b.mode !== 'push') return Math.floor(rndG() * M3.kinds);
+  const ts = S.slots.filter(Boolean).map(w => w.type);
+  return ts.length ? ts[Math.floor(rndG() * ts.length)] : WEAPON_IDS[0];
+}
+function m3Swappable(b, i, j) {   // 맞바꾸면 바꾼 블록이 줄을 만드는가
+  const g = b.g, x = g[i], y = g[j]; if (!x || !y || x.s === y.s) return false;
+  g[i] = y; g[j] = x; const run = m3Runs(g, b.R, b.C); g[i] = x; g[j] = y;
+  return run.has(i) || run.has(j);
+}
+function m3HasMove(b) {
+  const N = b.C, n = b.R * N;
+  for (let i = 0; i < n; i++) {
+    if (i % N < N - 1 && m3Swappable(b, i, i + 1)) return true;
+    if (i + N < n && m3Swappable(b, i, i + N)) return true;
+  }
+  return false;
+}
+function m3Fill(b, fy) {   // 판을 새로 채운다 (맞추기: 처음부터 맞춰진 줄은 없고, 둘 곳은 있게)
+  for (let t = 0; t < 60; t++) {
+    b.g = new Array(b.R * b.C).fill(null);
+    for (let i = 0; i < b.g.length; i++) for (let n = 0; n < 20; n++) {
+      b.g[i] = { s: m3Rand(b), id: ++b.id, fy };
+      if (b.mode === 'push' || !m3Runs(b.g, b.R, b.C).has(i)) break;
+    }
+    if (b.mode === 'push' || m3HasMove(b)) return;
   }
 }
-function m3New() {
-  const b = { g: new Array(M3.R * M3.C).fill(null), id: 0, wait: 0, chk: false, chain: 0, ev: [] };
-  for (let r = M3.R - 1; r >= M3.R - M3.pre; r--) for (let c = 0; c < M3.C; c++) {   // 아래 두 줄은 미리 채운다 (처음부터 맞춰진 줄은 없게)
-    const i = r * M3.C + c;
-    for (let n = 0; n < 20; n++) { b.g[i] = { s: Math.floor(rndG() * M3.kinds), id: ++b.id }; if (!m3Runs(b.g).has(i)) break; }
-  }
+function m3New(mode) {
+  const push = mode === 'push';
+  const b = { mode: push ? 'push' : 'match', R: push ? 4 : 5, C: LANES, g: null, id: 0, wait: 0, chk: false, chain: 0, ev: [] };
+  m3Fill(b);
   return b;
 }
-function m3Drop(c) {
-  const b = S.m3; let r = -1;
-  for (let k = M3.R - 1; k >= 0; k--) if (!b.g[k * M3.C + c]) { r = k; break; }
-  if (r < 0) return false;                   // 꽉 찬 열: 블록은 사라진다
-  b.g[r * M3.C + c] = { s: Math.floor(rndG() * M3.kinds), id: ++b.id };
-  b.chk = true; b.wait = Math.max(b.wait, M3.land);   // 떨어지는 모습을 보여 준 뒤에 맞춘다
-  return true;
-}
-// 이웃한 두 블록 맞바꾸기: 바꾼 블록이 줄을 만들 때만 된다 (아니면 되돌리고 bad)
+// 맞추기: 이웃한 두 블록 맞바꾸기. 바꾼 블록이 줄을 만들 때만 된다 (아니면 bad)
 function m3Swap(i, j) {
-  const b = S && S.m3; if (!b || S.over) return { ok: false };
-  const N = M3.C, n = M3.R * N;
+  const b = S && S.m3; if (!b || b.mode !== 'match' || S.over) return { ok: false };
+  const N = b.C, n = b.R * N;
   if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
-  const x = b.g[i], y = b.g[j]; if (!x || !y || x.s === y.s) return { ok: false };
-  b.g[i] = y; b.g[j] = x;
-  const run = m3Runs(b.g);
-  if (!run.has(i) && !run.has(j)) { b.g[i] = x; b.g[j] = y; return { ok: false, bad: true }; }
+  if (!b.g[i] || !b.g[j] || b.g[i].s === b.g[j].s) return { ok: false };
+  if (!m3Swappable(b, i, j)) return { ok: false, bad: true };
+  const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x;
   b.chain = 0; b.chk = true; b.wait = Math.max(b.wait, M3.swapT);
   return { ok: true };
 }
+function m3Grow(c, n) {   // c 열 무기를 n 단계 올린다 (증강은 주지 않는다). 실제로 오른 단계를 돌려준다
+  const w = S.slots[c]; if (!w || n <= 0) return 0;
+  const lv0 = w.lv; w.lv = Math.min(CFG.maxLv, w.lv + n); w.hi = Math.max(w.hi || 0, w.lv);
+  dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w);
+  S.slotDirty = true;
+  return w.lv - lv0;
+}
 function m3Tick(dt) {
-  const b = S.m3;
+  const b = S.m3; if (b.mode !== 'match') return;
   if (b.wait > 0) { b.wait -= dt; return; }
   if (!b.chk) return;
-  const run = m3Runs(b.g);
-  if (!run.size) { b.chk = false; b.chain = 0; return; }
-  b.chain++;
-  const gain = new Array(M3.C).fill(0), cells = [];
-  for (const i of run) { const x = b.g[i]; gain[i % M3.C] += b.chain; cells.push({ i, s: x.s, id: x.id }); b.g[i] = null; }
-  m3Fall(b);
-  for (let c = 0; c < M3.C; c++) {
-    const w = S.slots[c]; if (!gain[c] || !w) { gain[c] = 0; continue; }
-    const lv0 = w.lv; w.lv = Math.min(CFG.maxLv, w.lv + gain[c]); w.hi = Math.max(w.hi || 0, w.lv);   // 증강은 주지 않는다 (시험판)
-    gain[c] = w.lv - lv0; dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w);
+  const R = b.R, N = b.C, run = m3Runs(b.g, R, N);
+  if (!run.size) {
+    b.chk = false; b.chain = 0;
+    if (!m3HasMove(b)) { m3Fill(b, -R - 0.5); b.ev.push({ k: 'shuffle' }); b.wait = M3.wait; }   // 둘 곳이 없다: 새로 섞는다
+    return;
   }
+  b.chain++;
+  const gain = new Array(N).fill(0), cells = [];
+  for (const i of run) { const x = b.g[i]; gain[i % N] += b.chain; cells.push({ i, s: x.s, id: x.id }); b.g[i] = null; }
+  for (let c = 0; c < N; c++) {               // 남은 블록은 아래로 붙고, 빈칸은 위에서 새 블록이 떨어져 채운다
+    const col = [];
+    for (let r = R - 1; r >= 0; r--) { const x = b.g[r * N + c]; if (x) col.push(x); }
+    const k = R - col.length;
+    for (let r = R - 1, j = 0; r >= 0; r--, j++) b.g[r * N + c] = col[j] || { s: m3Rand(b), id: ++b.id, fy: -k - 0.3 };
+  }
+  for (let c = 0; c < N; c++) gain[c] = m3Grow(c, gain[c]);
   b.ev.push({ k: 'pop', cells, gain, chain: b.chain });
-  S.slotDirty = true; b.wait = M3.wait;
+  b.wait = M3.wait;                          // 떨어지는 모습을 보여 준 뒤 다시 맞춘다 (연쇄)
+}
+// 밀어 올리기: c 열 맨 위부터 이어진, 그 열 무기와 같은 블록 수
+function m3Top(c) {
+  const b = S && S.m3, w = S && S.slots[c]; if (!b || b.mode !== 'push' || !w) return 0;
+  let n = 0; while (n < b.R && b.g[n * b.C + c] && b.g[n * b.C + c].s === w.type) n++;
+  return n;
+}
+const m3PushGain = (n) => n >= 2 ? 2 * n - 3 : 0;
+function m3Push(c) {
+  const b = S && S.m3; if (!b || b.mode !== 'push' || S.over || c < 0 || c >= b.C) return { ok: false };
+  const n = m3Top(c); if (n < 2) return { ok: false, n };
+  const N = b.C, cells = [];
+  for (let r = 0; r < n; r++) { const x = b.g[r * N + c]; cells.push({ i: r * N + c, s: x.s, id: x.id }); }
+  for (let r = 0; r < b.R; r++) b.g[r * N + c] = r + n < b.R ? b.g[(r + n) * N + c] : { s: m3Rand(b), id: ++b.id, fy: n };
+  const gain = m3Grow(c, m3PushGain(n));
+  b.ev.push({ k: 'push', c, n, gain, cells });
+  return { ok: true, n, gain };
+}
+// 밀어 올리기: r 행을 dir(+1 오른쪽, -1 왼쪽)으로 한 칸. 끝 블록은 밖으로 밀려나고 반대쪽에 새 블록
+function m3Slide(r, dir) {
+  const b = S && S.m3; if (!b || b.mode !== 'push' || S.over || r < 0 || r >= b.R || (dir !== 1 && dir !== -1)) return { ok: false };
+  const N = b.C, row = b.g.slice(r * N, r * N + N), out = dir > 0 ? row[N - 1] : row[0];
+  const nw = { s: m3Rand(b), id: ++b.id, fx: -dir };
+  const nr = dir > 0 ? [nw].concat(row.slice(0, N - 1)) : row.slice(1).concat([nw]);
+  for (let c = 0; c < N; c++) b.g[r * N + c] = nr[c];
+  b.ev.push({ k: 'out', i: r * N + (dir > 0 ? N - 1 : 0), s: out.s, dx: dir });
+  return { ok: true };
 }
 
 /* ---------- 테스트 모드 ---------- */
@@ -2963,12 +3015,12 @@ const test = {
     if (i >= 0) S.invDirty = true;
     return i;
   },
-  // 맞추기 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 맞추기 판을 쓴다
-  m3() {
+  // 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 판을 쓴다. mode: 'match' 맞추기, 'push' 밀어 올리기
+  m3(mode) {
     if (!testOn()) return false;
     const ids = WEAPON_IDS.slice(), r = subG();
     for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
-    S.inv.fill(null); S.m3 = m3New(); S.slotDirty = true; S.invDirty = true;
+    S.inv.fill(null); S.m3 = m3New(mode); S.slotDirty = true; S.invDirty = true;
     return true;
   },
   // 적 지우기: 보상 없이 모두 없앤다
@@ -2991,7 +3043,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  M3, m3Swap,
+  M3, m3Swap, m3Slide, m3Push, m3Top, m3PushGain,
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
