@@ -2535,11 +2535,13 @@ function step(dt) {
   bossStep(dt);
 
   // 무기
+  const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결 시험판: 칸마다 연결 수
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
     if (S.act && !(w.act > 0)) continue;                    // 무기 켜짐 시험판: 꺼진 무기는 쏘지 않는다
-    w.cd -= S.act ? dt * ACT.rate[actTier(w.act)] : dt;
+    if (pl && pl[i][0] < PIPE.need) continue;               // 연결 시험판: 2개 이상 이어지지 않은 무기는 쏘지 않는다
+    w.cd -= S.act ? dt * ACT.rate[actTier(w.act)] : pl ? dt * pipeRate(pl[i][0]) : dt;
     if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
       w.ag -= dt;
@@ -2793,14 +2795,14 @@ function step(dt) {
 }
 
 /* ---------- 시험판 판 (테스트 모드에서만 S.m3 가 생긴다) ---------- */
-// 두 가지 시험판이 같은 판(S.m3)을 쓴다. 블록 종류는 성장 갈래 난수(rndG)로 고른다.
-// - 맞추기(mode 'match', 5줄): 판은 늘 가득. 이웃한 두 블록을 맞바꿔 같은 도형 3개 이상을 한 줄로 세우면 터지고,
+// 세 가지 시험판이 같은 판(S.m3, 5x5)을 쓴다. 블록 종류는 성장 갈래 난수(rndG)로 고른다.
+// - 맞추기(mode 'match'): 판은 늘 가득. 이웃한 두 블록을 맞바꿔 같은 도형 3개 이상을 한 줄로 세우면 터지고,
 //   터진 블록 하나마다 그 열의 무기가 '연쇄 번호'만큼 강화된다(1번째 +1, 2번째 연쇄 +2 ...). 빈칸은 위에서 새 블록이 떨어져 채운다.
 //   둘 곳이 없으면 판을 새로 섞는다.
-// - 밀어 올리기(mode 'push', 4줄, 블록 = 장착한 무기 종류): 행을 옆으로 밀면 한 칸씩 움직이고 끝 블록은 밖으로 밀려나며
-//   반대쪽에 새 블록이 들어온다. 열을 올리면 맨 위부터 이어진 '그 열 무기와 같은' 블록 묶음(2개 이상)이 무기로 들어가
-//   2개 +1, 3개 +3, 4개 +5강(2n-3). 빈칸은 아래에서 새 블록이 올라와 채운다.
-// g[r * C + c]: 위(r=0)에서 아래로. 새 블록의 fx, fy 는 화면이 그 블록을 처음 그릴 때 어디서 나타나는지(칸 단위 차이)다.
+// - 무기 켜짐(mode 'act'): 맞추기와 같은 규칙, 블록 = 장착한 무기 종류, 터지면 같은 종류 무기가 켜진 시간을 받는다 (정비 시간 시험판 아래).
+// - 연결(mode 'pipe'): 블록 = 장착한 무기 종류, 이웃한 두 블록을 아무 때나 맞바꾼다(터지지 않는다). 무기 바로 아래 칸(0행)에서
+//   시작해 상하좌우로 이어진 그 무기 종류 블록 수가 연결 수. 2개 이상이면 무기가 켜지고, 2개를 넘는 하나마다 공격 속도 +PIPE.bonus.
+// g[r * C + c]: 위(r=0)에서 아래로. 새 블록의 fy 는 화면이 그 블록을 처음 그릴 때 어디서 나타나는지(칸 단위 차이)다.
 const M3 = { kinds: 5, wait: 0.45, swapT: 0.16 };
 function m3Runs(g, R, N) {   // 3개 이상 이어진 같은 종류 칸의 번호
   const out = new Set();
@@ -2822,10 +2824,8 @@ function m3Pool(b) {
   b.pool = own;
 }
 function m3Rand(b) {
-  if (b.mode === 'act') return b.pool[Math.floor(rndG() * b.pool.length)];
-  if (b.mode !== 'push') return Math.floor(rndG() * M3.kinds);
-  const ts = S.slots.filter(Boolean).map(w => w.type);
-  return ts.length ? ts[Math.floor(rndG() * ts.length)] : WEAPON_IDS[0];
+  if (b.pool) return b.pool[Math.floor(rndG() * b.pool.length)];
+  return Math.floor(rndG() * M3.kinds);
 }
 function m3Swappable(b, i, j) {   // 맞바꾸면 바꾼 블록이 줄을 만드는가
   const g = b.g, x = g[i], y = g[j]; if (!x || !y || x.s === y.s) return false;
@@ -2841,18 +2841,19 @@ function m3HasMove(b) {
   return false;
 }
 function m3Fill(b, fy) {   // 판을 새로 채운다 (맞추기: 처음부터 맞춰진 줄은 없고, 둘 곳은 있게)
-  if (b.mode === 'act') m3Pool(b);
+  if (b.mode !== 'match') m3Pool(b);
+  const free = b.mode === 'pipe';           // 연결: 아무렇게나 깐다
   for (let t = 0; t < 60; t++) {
     b.g = new Array(b.R * b.C).fill(null);
     for (let i = 0; i < b.g.length; i++) for (let n = 0; n < 20; n++) {
       b.g[i] = { s: m3Rand(b), id: ++b.id, fy };
-      if (b.mode === 'push' || !m3Runs(b.g, b.R, b.C).has(i)) break;
+      if (free || !m3Runs(b.g, b.R, b.C).has(i)) break;
     }
-    if (b.mode === 'push' || m3HasMove(b)) return;
+    if (free || m3HasMove(b)) return;
   }
 }
 function m3Hint() {
-  const b = S && S.m3; if (!b || b.mode === 'push') return null;
+  const b = S && S.m3; if (!b || b.mode === 'pipe') return null;
   const N = b.C, n = b.R * N, g = b.g;
   const left = (t) => { let m = Infinity; for (const w of S.slots) if (w && w.type === t) m = Math.min(m, w.act || 0); return m; };
   let best = null, bv = Infinity;
@@ -2867,17 +2868,17 @@ function m3Hint() {
   return best;
 }
 function m3New(mode) {
-  const push = mode === 'push';
-  const b = { mode: push ? 'push' : mode === 'act' ? 'act' : 'match', R: push ? 4 : 5, C: LANES, g: null, id: 0, wait: 0, chk: false, chain: 0, ev: [] };
+  const b = { mode: mode === 'act' || mode === 'pipe' ? mode : 'match', R: 5, C: LANES, g: null, id: 0, wait: 0, chk: false, chain: 0, ev: [] };
   m3Fill(b);
   return b;
 }
 // 맞추기: 이웃한 두 블록 맞바꾸기. 바꾼 블록이 줄을 만들 때만 된다 (아니면 bad)
 function m3Swap(i, j) {
-  const b = S && S.m3; if (!b || (b.mode !== 'match' && b.mode !== 'act') || S.over) return { ok: false };
+  const b = S && S.m3; if (!b || S.over) return { ok: false };
   const N = b.C, n = b.R * N;
   if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
   if (!b.g[i] || !b.g[j] || b.g[i].s === b.g[j].s) return { ok: false };
+  if (b.mode === 'pipe') { const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x; return { ok: true }; }   // 연결: 조건 없이 맞바꾼다
   if (!m3Swappable(b, i, j)) return { ok: false, bad: true };
   const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x;
   b.chain = 0; b.chk = true; b.wait = Math.max(b.wait, M3.swapT);
@@ -2891,7 +2892,7 @@ function m3Grow(c, n) {   // c 열 무기를 n 단계 올린다 (증강은 주�
   return w.lv - lv0;
 }
 function m3Tick(dt) {
-  const b = S.m3; if (b.mode === 'push') return;
+  const b = S.m3; if (b.mode === 'pipe') return;
   if (b.wait > 0) { b.wait -= dt; return; }
   if (!b.chk) return;
   const R = b.R, N = b.C, run = m3Runs(b.g, R, N);
@@ -2919,33 +2920,26 @@ function m3Tick(dt) {
   b.ev.push({ k: 'pop', cells, gain, chain: b.chain, act });
   b.wait = M3.wait;                          // 떨어지는 모습을 보여 준 뒤 다시 맞춘다 (연쇄)
 }
-// 밀어 올리기: c 열 맨 위부터 이어진, 그 열 무기와 같은 블록 수
-function m3Top(c) {
-  const b = S && S.m3, w = S && S.slots[c]; if (!b || b.mode !== 'push' || !w) return 0;
-  let n = 0; while (n < b.R && b.g[n * b.C + c] && b.g[n * b.C + c].s === w.type) n++;
-  return n;
+// 연결: 칸마다 [연결 수, 연결된 판 칸 번호들]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록
+const PIPE = { need: 2, bonus: 0.05 };
+function pipeLinks() {
+  const b = S.m3, N = b.C, R = b.R, out = [];
+  for (let k = 0; k < LANES; k++) {
+    const w = S.slots[k], g0 = b.g[k];
+    if (!w || !g0 || g0.s !== w.type) { out.push([0, []]); continue; }
+    const seen = new Set([k]), q = [k];
+    while (q.length) {
+      const i = q.pop(), r = Math.floor(i / N), c = i % N;
+      for (const j of [r > 0 ? i - N : -1, r < R - 1 ? i + N : -1, c > 0 ? i - 1 : -1, c < N - 1 ? i + 1 : -1]) {
+        if (j < 0 || seen.has(j) || !b.g[j] || b.g[j].s !== w.type) continue;
+        seen.add(j); q.push(j);
+      }
+    }
+    out.push([seen.size, [...seen]]);
+  }
+  return out;
 }
-const m3PushGain = (n) => n >= 2 ? 2 * n - 3 : 0;
-function m3Push(c) {
-  const b = S && S.m3; if (!b || b.mode !== 'push' || S.over || c < 0 || c >= b.C) return { ok: false };
-  const n = m3Top(c); if (n < 2) return { ok: false, n };
-  const N = b.C, cells = [];
-  for (let r = 0; r < n; r++) { const x = b.g[r * N + c]; cells.push({ i: r * N + c, s: x.s, id: x.id }); }
-  for (let r = 0; r < b.R; r++) b.g[r * N + c] = r + n < b.R ? b.g[(r + n) * N + c] : { s: m3Rand(b), id: ++b.id, fy: n };
-  const gain = m3Grow(c, m3PushGain(n));
-  b.ev.push({ k: 'push', c, n, gain, cells });
-  return { ok: true, n, gain };
-}
-// 밀어 올리기: r 행을 dir(+1 오른쪽, -1 왼쪽)으로 한 칸. 끝 블록은 밖으로 밀려나고 반대쪽에 새 블록
-function m3Slide(r, dir) {
-  const b = S && S.m3; if (!b || b.mode !== 'push' || S.over || r < 0 || r >= b.R || (dir !== 1 && dir !== -1)) return { ok: false };
-  const N = b.C, row = b.g.slice(r * N, r * N + N), out = dir > 0 ? row[N - 1] : row[0];
-  const nw = { s: m3Rand(b), id: ++b.id, fx: -dir };
-  const nr = dir > 0 ? [nw].concat(row.slice(0, N - 1)) : row.slice(1).concat([nw]);
-  for (let c = 0; c < N; c++) b.g[r * N + c] = nr[c];
-  b.ev.push({ k: 'out', i: r * N + (dir > 0 ? N - 1 : 0), s: out.s, dx: dir });
-  return { ok: true };
-}
+const pipeRate = (n) => n >= PIPE.need ? 1 + PIPE.bonus * (n - PIPE.need) : 0;
 
 /* ---------- 정비 시간 시험판 (테스트 모드에서만 S.prep 이 생긴다) ---------- */
 // 웨이브는 적이 다 나오고(CFG.waveSpawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 최대 PREP.T 초 정비 시간,
@@ -2960,7 +2954,7 @@ function tD() { return S.prep ? S.t - S.prep.rest : S.t; }
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
   P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
-  if (S.act && S.m3) { const b = S.m3; m3Fill(b, -b.R - 0.5); b.chk = false; b.chain = 0; b.wait = 0; b.idle = 0; }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
+  if (S.m3 && (S.act || S.pipe)) { const b = S.m3; m3Fill(b, -b.R - 0.5); b.chk = false; b.chain = 0; b.wait = 0; }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
   return true;
 }
 function prepStep(dt) {
@@ -3082,7 +3076,7 @@ const test = {
     if (i >= 0) S.invDirty = true;
     return i;
   },
-  // 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 판을 쓴다. mode: 'match' 맞추기, 'push' 밀어 올리기
+  // 맞추기 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 판을 쓴다
   m3(mode) {
     if (!testOn()) return false;
     const ids = WEAPON_IDS.slice(), r = subG();
@@ -3091,13 +3085,15 @@ const test = {
     return true;
   },
   // 정비 시간 시험판: 일반 게임에 정비 시간 구조를 얹는다. act 면 무기 켜짐(웨이브 중 맞추기 판, 무기는 켜진 시간 동안만 쏜다)
-  prep(act) {
+  // kind: 없으면 정비 시간만, 'act' 무기 켜짐, 'pipe' 연결 (둘 다 겹치지 않는 무작위 무기 5개 0강으로 시작, 웨이브 중에는 판)
+  prep(kind) {
     if (!testOn()) return false;
     S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
-    if (act) {                               // 겹치지 않는 무작위 무기 5개(0강)로 시작
+    if (kind === 'act' || kind === 'pipe') {
       const ids = WEAPON_IDS.slice(), r = subG();
       for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
-      S.act = true; S.m3 = m3New('act');
+      if (kind === 'act') S.act = true; else S.pipe = true;
+      S.m3 = m3New(kind);
     }
     S.slotDirty = true; S.invDirty = true;
     return true;
@@ -3122,7 +3118,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  M3, m3Swap, m3Slide, m3Push, m3Top, m3PushGain, PREP, ACT, actTier, prepGo, m3Hint,
+  M3, m3Swap, PREP, ACT, actTier, prepGo, m3Hint, PIPE, pipeLinks, pipeRate,
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
