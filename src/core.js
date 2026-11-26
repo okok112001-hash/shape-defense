@@ -1096,12 +1096,12 @@ let boomDepth = 0;
 /* ---------- 적 생성 ---------- */
 function spawn(type, lane, x, y) {
   const d = ENEMIES[type];
-  let m = BAL.hpMul(S.t) * (d.boss ? BAL.bossHp : 1);
+  let m = BAL.hpMul(tD()) * (d.boss ? BAL.bossHp : 1);
   if (S.pacts.length) { if (hasPact('greed')) m *= PACT.greedHp; if (hasPact('rush')) m *= PACT.rushHp; }   // 이후 등장하는 적부터
   const cx = (lane + 0.5) * LW;
   const e = {
     type, lane, x: x != null ? x : cx + (d.boss ? 0 : (rndS() - 0.5) * 30), y: y != null ? y : -d.r,
-    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(S.t),
+    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(tD()),
     boss: !!d.boss, born: S.t, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
     fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9,   // 스킬: 화염 화상, 초점 누적, 전기 사슬 기절
   };
@@ -1127,13 +1127,13 @@ const noSwarm = (ws) => [ws[0], ws[1], 0, ws[3]];
 // 새 웨이브: 종류를 고르고, 세기(체력 합)가 예전 연속 등장과 같도록 등장 수를 정한다. 보스 웨이브면 보스를 예고한다
 function startWave() {
   const t0 = S.wEnd; S.wn++; S.wEnd = t0 + CFG.waveT; S.wTick = 3;
-  const boss = S.wn > 1 && t0 >= S.nextBoss - 1e-6;
+  const boss = S.prep ? S.wn > 1 && (S.wn - 1) % CFG.bossWaves === 0 : S.wn > 1 && t0 >= S.nextBoss - 1e-6;
   let v = 'mix';
   if (boss) { S.nextBoss = t0 + bossInterval(); spawnBoss(); }
   else if (S.wn > 1) { const ids = WAVE_IDS.length > 1 ? WAVE_IDS.filter(id => id !== S.wLast) : WAVE_IDS; v = ids[wpick(ids.map(id => WAVES[id].p), rndS)]; }
   if (!boss) S.wLast = v;
   S.crQ = !boss && S.t >= CRATE.from && S.spawnAcc > -1e6 && rndS() < CRATE.p ? 0.5 + rndS() * (CFG.waveSpawnT - CRATE.fly - 0.5) : 0;   // 보급 상자: 등장 시간 안에 날아와 사라진다
-  const D = WAVES[v], tm = S.t + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;
+  const D = WAVES[v], tm = tD() + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;
   const ws = v === 'line' ? noSwarm(base) : D.w || base;
   const hp0 = BAL.spawnRate(tm) * CFG.waveT * evHp(base, SWARM_GRP);   // 예전 방식이면 이 웨이브 동안 나왔을 체력의 합
   const per = v === 'line' ? LANES : v === 'elite' ? ELITE_HP : 1, hpv = per * evHp(ws, grp);
@@ -1245,6 +1245,7 @@ function waveSpawn(wv) {
 // 웨이브 진행: 웨이브 시계는 시계체가 살아 있으면 빨리 간다 (적 체력 곡선은 실제 시간 S.t 를 따른다).
 // S.spawnAcc 는 등장 몫이다. 도구가 -1e9 로 두면(예전부터의 관례) 웨이브가 와도 적이 나오지 않는다
 function waveStep(dt) {
+  if (S.prep) { prepStep(dt); return; }
   const mul = S.clockOn ? CLOCK_MUL : 1;
   S.wt += dt * mul;
   if (S.wt >= S.wEnd) startWave();
@@ -2537,7 +2538,8 @@ function step(dt) {
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
-    w.cd -= dt;
+    if (S.act && !(S.act[i] > 0)) continue;                 // 무기 켜짐 시험판: 꺼진 칸은 쏘지 않는다
+    w.cd -= S.act ? dt * ACT.rate[actTier(S.act[i])] : dt;
     if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
       w.ag -= dt;
@@ -2743,7 +2745,7 @@ function step(dt) {
     e.y += sp * H * dt;
     if (e.y + e.r * 0.3 >= H) {
       e.dead = true;
-      const dmg = Math.round(e.leak * BAL.leakMul(S.t) * (1 - bs.shield) * (1 - bs.dmgRed) * (hasPact('blood') ? PACT.bloodDmg : 1) * 10) / 10;
+      const dmg = Math.round(e.leak * BAL.leakMul(tD()) * (1 - bs.shield) * (1 - bs.dmgRed) * (hasPact('blood') ? PACT.bloodDmg : 1) * 10) / 10;
       if (!(S.cheat && S.cheat.god)) S.hp -= dmg;   // 테스트: 기지 무적
       S.hitFlash = 0.3;
       fx({ k: 'leak', d: 0.5, x: e.x, n: dmg });
@@ -2844,13 +2846,13 @@ function m3Fill(b, fy) {   // 판을 새로 채운다 (맞추기: 처음부터 �
 }
 function m3New(mode) {
   const push = mode === 'push';
-  const b = { mode: push ? 'push' : 'match', R: push ? 4 : 5, C: LANES, g: null, id: 0, wait: 0, chk: false, chain: 0, ev: [] };
+  const b = { mode: push ? 'push' : mode === 'act' ? 'act' : 'match', R: push ? 4 : 5, C: LANES, g: null, id: 0, wait: 0, chk: false, chain: 0, ev: [] };
   m3Fill(b);
   return b;
 }
 // 맞추기: 이웃한 두 블록 맞바꾸기. 바꾼 블록이 줄을 만들 때만 된다 (아니면 bad)
 function m3Swap(i, j) {
-  const b = S && S.m3; if (!b || b.mode !== 'match' || S.over) return { ok: false };
+  const b = S && S.m3; if (!b || (b.mode !== 'match' && b.mode !== 'act') || S.over) return { ok: false };
   const N = b.C, n = b.R * N;
   if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
   if (!b.g[i] || !b.g[j] || b.g[i].s === b.g[j].s) return { ok: false };
@@ -2867,7 +2869,7 @@ function m3Grow(c, n) {   // c 열 무기를 n 단계 올린다 (증강은 주�
   return w.lv - lv0;
 }
 function m3Tick(dt) {
-  const b = S.m3; if (b.mode !== 'match') return;
+  const b = S.m3; if (b.mode === 'push') return;
   if (b.wait > 0) { b.wait -= dt; return; }
   if (!b.chk) return;
   const R = b.R, N = b.C, run = m3Runs(b.g, R, N);
@@ -2885,7 +2887,10 @@ function m3Tick(dt) {
     const k = R - col.length;
     for (let r = R - 1, j = 0; r >= 0; r--, j++) b.g[r * N + c] = col[j] || { s: m3Rand(b), id: ++b.id, fy: -k - 0.3 };
   }
-  for (let c = 0; c < N; c++) gain[c] = m3Grow(c, gain[c]);
+  if (b.mode === 'act') for (let c = 0; c < N; c++) {   // 무기 켜짐: 블록 하나에 ACT.per 초 (연쇄 번호와 상관없이), 최대 ACT.max 초
+    let n = 0; for (const x of cells) if (x.i % N === c) n++;
+    const a0 = S.act[c]; S.act[c] = Math.min(ACT.max, a0 + n * ACT.per); gain[c] = S.act[c] - a0;
+  } else for (let c = 0; c < N; c++) gain[c] = m3Grow(c, gain[c]);
   b.ev.push({ k: 'pop', cells, gain, chain: b.chain });
   b.wait = M3.wait;                          // 떨어지는 모습을 보여 준 뒤 다시 맞춘다 (연쇄)
 }
@@ -2915,6 +2920,39 @@ function m3Slide(r, dir) {
   for (let c = 0; c < N; c++) b.g[r * N + c] = nr[c];
   b.ev.push({ k: 'out', i: r * N + (dir > 0 ? N - 1 : 0), s: out.s, dx: dir });
   return { ok: true };
+}
+
+/* ---------- 정비 시간 시험판 (테스트 모드에서만 S.prep 이 생긴다) ---------- */
+// 웨이브는 적이 다 나오고(CFG.waveSpawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 최대 PREP.T 초 정비 시간,
+// '다음 웨이브'를 누르거나 시간이 다 되면 다음 웨이브. 웨이브 중에는 무기·인벤토리 옮기기만 된다(화면이 막는다).
+// 정비 시간은 난이도 시간(tD)에 들어가지 않는다: 적 체력, 재화, 웨이브 세기, 기지 피해 배수는 웨이브를 치른 시간만으로 오른다.
+// 무기 켜짐(S.act): 칸마다 켜진 시간(초). 웨이브 중에만 줄고, 0이면 그 칸 무기는 쏘지 않는다. 5초, 10초를 넘으면 공격 속도가 빨라진다.
+const PREP = { T: 20 };
+const ACT = { max: 15, per: 1, step: 5, rate: [0, 1, 1.3, 1.6] };
+function actTier(t) { return t > 2 * ACT.step ? 3 : t > ACT.step ? 2 : t > 0 ? 1 : 0; }
+function tD() { return S.prep ? S.t - S.prep.rest : S.t; }
+function prepGo() {   // 다음 웨이브 시작
+  const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
+  P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
+  return true;
+}
+function prepStep(dt) {
+  const P = S.prep;
+  if (P.phase === 'rest') {
+    P.rest += dt; P.left -= dt;
+    if (P.tick > 0 && P.left <= P.tick) { P.tick--; snd('tick'); }   // 3초 전부터 초읽기
+    if (P.left <= 0) prepGo();
+    return;
+  }
+  if (!S.wave) { S.wEnd = S.wt; startWave(); }
+  const mul = S.clockOn ? CLOCK_MUL : 1, wv = S.wave;
+  S.wt += dt * mul;
+  if (S.wt - wv.t0 < CFG.waveSpawnT) S.spawnAcc += wv.rate * dt * mul;
+  while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
+  if (S.act) for (let i = 0; i < LANES; i++) if (S.act[i] > 0) S.act[i] = Math.max(0, S.act[i] - dt);
+  if (S.wt - wv.t0 >= CFG.waveSpawnT && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
+    P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
+  }
 }
 
 /* ---------- 테스트 모드 ---------- */
@@ -2993,6 +3031,7 @@ const test = {
   // 다음 웨이브: 쉬는 시간을 건너뛰고 지금 시작한다
   nextWave() {
     if (!testIdle() || !CFG.waves) return false;
+    if (S.prep) return prepGo();             // 정비 시험판: 정비 중일 때만
     S.wt = S.wEnd;
     return true;
   },
@@ -3023,6 +3062,14 @@ const test = {
     S.inv.fill(null); S.m3 = m3New(mode); S.slotDirty = true; S.invDirty = true;
     return true;
   },
+  // 정비 시간 시험판: 일반 게임에 정비 시간 구조를 얹는다. act 면 무기 켜짐(웨이브 중 맞추기 판, 무기는 켜진 시간 동안만 쏜다)
+  prep(act) {
+    if (!testOn()) return false;
+    S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
+    if (act) { S.m3 = m3New('act'); S.act = new Array(LANES).fill(0); }
+    S.slotDirty = true; S.invDirty = true;
+    return true;
+  },
   // 적 지우기: 보상 없이 모두 없앤다
   clear() {
     if (!testOn()) return 0;
@@ -3043,7 +3090,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  M3, m3Swap, m3Slide, m3Push, m3Top, m3PushGain,
+  M3, m3Swap, m3Slide, m3Push, m3Top, m3PushGain, PREP, ACT, actTier, prepGo,
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;

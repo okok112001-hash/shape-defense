@@ -918,6 +918,21 @@ b { font-weight: 600; }
 #app.test #hud { grid-template-columns: minmax(0, 1fr) 54px 50px 44px 38px 38px; }   /* 체력 | 시간 | 처치 | 테스트 | 속도 | 정지 */
 .tlink { align-self: center; height: 36px; padding: 0 18px; margin-top: -2px; font-size: 12px; color: var(--dim); border: 1px dashed var(--line); border-radius: 5px; }
 .tlink:active, .tchk:active, .twb:active { transform: translateY(1px); }
+/* 시험판 (핵심 재미 실험) */
+.trow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+.trow small { width: 100%; text-align: center; font-size: 11px; color: var(--dim); }
+.trow .tlink { height: 32px; padding: 0 10px; margin: 0; }
+#prepBar {
+  position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 3;
+  display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; white-space: nowrap;
+  border-radius: 8px; background: var(--panel); border: 1.5px solid var(--accent); box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+#prepBar[hidden] { display: none; }
+#prepBar .prt { font-size: 13px; color: var(--dim); }
+#prepBar .prt b { font: 20px var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+#prepBar .btn { height: 38px; padding: 0 14px; }
+.slot.dormant { opacity: .45; filter: grayscale(.85); }
+.acts.plock .btn { opacity: .4; }
 .modal.testm { gap: 8px; padding: 12px; }
 .testm .wm-head { align-items: center; }
 .testm .wm-head h2 { font: 22px/1 var(--font-display); flex: none; }

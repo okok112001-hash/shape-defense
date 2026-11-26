@@ -7,6 +7,8 @@ const cv = $('#field'), ctx = cv.getContext('2d'), wrap = $('#fieldWrap');
 const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
 const fxLayer = document.createElement('div'); fxLayer.id = 'fxLayer'; $('#app').appendChild(fxLayer);
 const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.appendChild(toastEl);   // 알림은 전장 아래쪽에 잠깐 뜬다
+const prepEl = document.createElement('div'); prepEl.id = 'prepBar'; prepEl.hidden = true;   // 정비 시간 시험판: 남은 정비 시간과 다음 웨이브 버튼
+prepEl.innerHTML = '<span class="prt">정비 시간 <b id="prepT">20</b>초</span><button type="button" class="btn primary" data-act="prepGo">다음 웨이브</button>'; wrap.appendChild(prepEl);
 const rewLayer = document.createElement('div'); rewLayer.id = 'rewLayer'; $('#app').appendChild(rewLayer);   // 보스 보상 연출 (거래 창 위에도 보인다, 입력을 막지 않는다)
 const aimCv = document.createElement('canvas'); aimCv.id = 'aimLayer'; aimCv.hidden = true; $('#app').appendChild(aimCv);   // 전장 밖(무기 칸, 인벤토리 위)까지 이어지는 예고선 (입력을 막지 않는다)
 const aimCtx = aimCv.getContext('2d');
@@ -790,7 +792,7 @@ function invHtml() {
       <button type="button" class="btn ember stk${meltAllArm && !n ? ' danger' : ''}" data-act="meltBulk"><span>${label}</span><small>게이지 +${v}</small></button>
       <button type="button" class="btn" data-act="meltOff">닫기</button>`;
   } else if (!sel) {
-    cols = ' three3';
+    cols = ' three3' + (prepWave() ? ' plock' : '');
     const canGen = C.goldCount() >= C.genCost() && C.freeSlot() >= 0;
     acts = `<button type="button" class="btn primary gen${canGen ? ' hint' : ' off'}" id="genBtn" data-act="gen"><span class="gc"><b id="genHave">◆ ${fmtInt(C.goldCount())}</b><small id="genCost">비용 ${C.genCost()}</small></span><span>생성</span></button>
       <button type="button" class="btn up${upMode ? ' on' : ''}${canUp() ? ' hint' : ''}" id="upBtn" data-act="upMode"><span class="gc"><b class="shb">${SHARD}<span id="upHave">${fmtInt(C.shardCount())}</span></b></span><span>강화</span></button>
@@ -815,8 +817,8 @@ function upText(t) {
 }
 function renderBottom() {
   const S = C.S; if (!S) return;
-  if (S.m3) { m3Mount(); return; }           // 맞추기 시험판: 인벤토리 대신 판 (한 번 만든 캔버스는 다시 만들지 않는다)
   if (drag) { needRender = true; return; }
+  if (m3Shown()) { m3Mount(); return; }      // 시험판: 인벤토리 대신 판 (한 번 만든 캔버스는 다시 만들지 않는다. 무기 켜짐은 웨이브 중에만)
   if (sel && sel.from === 'slot' && !S.slots[sel.k]) sel = null;
   if (sel && sel.from === 'inv' && !S.inv[sel.i]) sel = null;
   if (!sel) confirmDrop = false;
@@ -834,6 +836,8 @@ function lightUpdate() {
   updateChips(); updateMark();
   for (let k = 0; k < C.LANES; k++) {       // 예열: 무기 칸이 붉게 빛난다
     const w = S.slots[k], cell = elW.children[k]; if (!cell) continue;
+    const off = !!S.act && !!w && prepWave() && !(S.act[k] > 0);   // 무기 켜짐 시험판: 꺼진 무기
+    if (cell.classList.contains('dormant') !== off) cell.classList.toggle('dormant', off);
     const h = w && w.evo ? C.heatLevel(w) : 0;
     if (h > 0) { cell.classList.add('heat'); cell.style.setProperty('--heat', h.toFixed(2)); }
     else if (cell.classList.contains('heat')) { cell.classList.remove('heat'); cell.style.removeProperty('--heat'); }
@@ -1473,8 +1477,7 @@ function renderOverlay() {
       ${iconRow()}
       <button type="button" class="btn primary" data-act="start">시작</button>
       <button type="button" class="tlink" data-act="testStart">테스트 모드</button>
-      <button type="button" class="tlink" data-act="m3Start">맞추기 시험판</button>
-      <button type="button" class="tlink" data-act="pushStart">밀어 올리기 시험판</button></div>`;
+      <div class="trow"><small>시험판</small><button type="button" class="tlink" data-act="prepStart">정비 시간</button><button type="button" class="tlink" data-act="actStart">무기 켜짐</button><button type="button" class="tlink" data-act="m3Start">맞추기</button><button type="button" class="tlink" data-act="pushStart">밀어 올리기</button></div></div>`;
   } else if (mode === 'pause' && pauseView === 'confirm') {
     h = `<div class="modal"><h2>처음부터 다시</h2><p>지금까지의 진행이 모두 사라지고 새 게임이 시작됩니다. 다시 시작할까요?</p>
       <button type="button" class="btn danger" data-act="restartOk">다시 시작</button>
@@ -1552,10 +1555,29 @@ function resetUi() {
 // test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작). 'm3' 이면 맞추기 시험판 (체크는 모두 끈 채로)
 function startGame(test) {
   shareReset();
-  if (test === 'm3' || test === 'push') { C.test.newGame({}); C.test.m3(test === 'push' ? 'push' : 'match'); } else if (test === true) C.test.newGame(loadTest()); else C.newGame();
+  if (test === 'm3' || test === 'push') { C.test.newGame({}); C.test.m3(test === 'push' ? 'push' : 'match'); }
+  else if (test === 'prep' || test === 'act') { C.test.newGame({}); C.test.prep(test === 'act'); } else if (test === true) C.test.newGame(loadTest()); else C.newGame();
   resetUi(); m3Reset(); mode = 'play'; acc = 0; renderAll();
 }
-const reTest = () => C.S && C.S.m3 ? (C.S.m3.mode === 'push' ? 'push' : 'm3') : isTest();
+const reTest = () => { const S = C.S; if (!S) return false; if (S.prep) return S.act ? 'act' : 'prep'; if (S.m3) return S.m3.mode === 'push' ? 'push' : 'm3'; return isTest(); };
+// 정비 시간 시험판
+const prepWave = () => { const S = C.S; return !!S && !!S.prep && S.prep.phase === 'wave'; };   // 웨이브 중: 옮기기만 된다
+const m3Shown = () => { const S = C.S; return !!S && !!S.m3 && !(S.m3.mode === 'act' && S.prep && S.prep.phase !== 'wave'); };
+const PREP_LOCK = new Set(['gen', 'upMode', 'meltOn', 'meltBulk', 'craft', 'meltOne', 'bequip', 'bopen', 'evoOpen', 'evoOk', 'skOpen', 'skUp', 'bup', 'wopen', 'wup', 'wputOk', 'wdetach', 'pswapOk']);
+const PREP_MSG = '웨이브 중에는 무기를 옮기는 것만 할 수 있습니다. 적을 모두 막으면 정비 시간이 됩니다.';
+let prepPh = '';
+function prepSync() {                     // 정비 막대와 단계가 바뀔 때의 정리 (가볍게 자주 부른다)
+  const S = C.S, P = S && S.prep, on = !!P && mode === 'play' && P.phase === 'rest' && !S.over;
+  if (prepEl.hidden === on) prepEl.hidden = !on;
+  if (on) { const t = String(Math.max(0, Math.ceil(P.left))), b = $('#prepT'); if (b.textContent !== t) b.textContent = t; }
+  const ph = P ? P.phase : '';
+  if (ph === prepPh) return;
+  prepPh = ph;
+  if (ph === 'wave') {                    // 웨이브 시작: 열려 있던 창과 모드를 닫는다
+    upMode = false; meltMode = false; meltAllArm = false; meltSet.clear(); partSwap = null; evoK = -1; skK = -1; skSel = null;
+    if (wmodal >= 0 || bmodal) closeW(); else renderAll();
+  } else if (ph === 'rest') renderAll();
+}
 function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; confirmDrop = false; renderOverlay(); } }
 // 상태를 비우기 전에 무기별 결과와 받은 거래를 챙긴다. slots: 5칸 그대로 (무기, 빈 칸 null, 폐쇄 'closed')
 function captureRes(S) {
@@ -1798,6 +1820,7 @@ function tapSlot(k) {
     else if (isBasePart(it)) return say(BASE_ONLY, true);
     else if (!w) return say(NO_WEAPON, true);
     else if (it.kind === 'p') {
+      if (prepWave()) return say(PREP_MSG, true);
       const g = it.g;
       if (!C.attachPart(sel.i, k).ok) return askPartSwap(sel.i, k);
       sel = null; Snd.play('equip');
@@ -1805,7 +1828,7 @@ function tapSlot(k) {
     }
     renderWeapons(); renderBottom(); return;
   }
-  if (sel && sel.from === 'slot' && sel.k === k) return openW(k);
+  if (sel && sel.from === 'slot' && sel.k === k) { if (prepWave()) return say(PREP_MSG, true); return openW(k); }
   if (!w) {
     sel = null; renderWeapons(); renderBottom();
     return say('빈 칸입니다. 인벤토리에서 무기를 고른 다음 이 칸을 누르세요.');
@@ -1845,6 +1868,7 @@ function applyDrop(src, t) {               // 반환값: 실제로 옮겼는지
   if (src.from === 'inv') {
     const it = S.inv[src.i]; if (!it) return false;
     if (t.from === 'base') {                // 기지 버튼 위에 놓기
+      if (prepWave()) { say(PREP_MSG, true); return false; }
       if (isBasePart(it)) { const g = it.g, r = C.basePut(src.i); if (r.ok) { eqFx = { k: 'base', g }; return true; } if (r.reason === 'full') askPartSwap(src.i, 'base'); return false; }
       say('기지에는 기지 파츠만 달 수 있습니다.', true); return false;
     }
@@ -1854,6 +1878,7 @@ function applyDrop(src, t) {               // 반환값: 실제로 옮겼는지
     if (C.isClosed(t.k)) { say(CLOSED, true); return false; }
     if (isBasePart(it)) { say(BASE_ONLY, true); return false; }
     if (!w) { say(NO_WEAPON, true); return false; }
+    if (prepWave()) { say(PREP_MSG, true); return false; }
     if (C.attachPart(src.i, t.k).ok) { eqFx = { k: t.k, g: it.g }; return true; }
     askPartSwap(src.i, t.k); return false;
   }
@@ -1947,6 +1972,9 @@ function act(name) {
     case 'testStart': if (mode === 'start') { startGame(true); Snd.play('pick'); } return;
     case 'm3Start': if (mode === 'start') { startGame('m3'); Snd.play('pick'); } return;
     case 'pushStart': if (mode === 'start') { startGame('push'); Snd.play('pick'); } return;
+    case 'prepStart': if (mode === 'start') { startGame('prep'); Snd.play('pick'); } return;
+    case 'actStart': if (mode === 'start') { startGame('act'); Snd.play('pick'); } return;
+    case 'prepGo': if (mode === 'play' && C.prepGo()) { Snd.play('pick'); prepSync(); } return;
     case 'testOpen':
       if (mode !== 'play' || !isTest() || S.over || S.pendingAug || S.pendingPact) return;
       testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
@@ -2157,7 +2185,7 @@ $('#app').addEventListener('click', (ev) => {
     saveTest(); Snd.play('tap'); renderAll(); return;
   }
   if (ds.tw) { testRun('give', ds.tw); return; }     // 테스트 창의 무기 받기
-  if (ds.act) { act(ds.act); return; }
+  if (ds.act) { if (prepWave() && PREP_LOCK.has(ds.act)) { say(PREP_MSG, true); return; } act(ds.act); return; }
   if (ds.aug != null || ds.rep != null) {
     if (!S || !S.pendingAug || performance.now() - augOpenAt < 400) return; // 연타 중 잘못 누르는 것 방지
     if (ds.aug != null) { augSel = +ds.aug; augRep = -1; augOpenAt = performance.now(); } else augRep = +ds.rep;
@@ -5434,6 +5462,21 @@ function draw() {
     if (kick) ctx.restore();
     if (rst && rst.stk) drawStreak(x, H, w, seenCol(rst.color));   // 연속 사냥: 연속 처치 눈금
   }
+  if (S.act) drawActBars(S, H);
+}
+// 무기 켜짐 시험판: 레인 아래쪽에 켜진 시간 막대 (세 칸, 칸을 넘을 때마다 공격 속도가 빨라진다)
+function drawActBars(S, H) {
+  const A = C.ACT, y = H - 30, now = performance.now();
+  for (let k = 0; k < C.LANES; k++) {
+    const t = S.act[k], tier = C.actTier(t), x0 = k * C.LW + 8, bw = C.LW - 16, w = S.slots[k];
+    const col = w ? C.WEAPONS[w.type].color : TC.line || '#888';
+    ctx.fillStyle = rgba(theme.v.ink || '#000', 0.12); ctx.fillRect(x0, y, bw, 7);
+    if (t > 0) { ctx.fillStyle = col; ctx.globalAlpha = tier === 3 ? 0.85 + 0.15 * Math.sin(now / 120) : 0.9; ctx.fillRect(x0, y, bw * Math.min(1, t / A.max), 7); ctx.globalAlpha = 1; }
+    ctx.fillStyle = theme.v.panel; for (let q = 1; q < 3; q++) ctx.fillRect(x0 + bw * q / 3 - 1, y, 2, 7);
+    ctx.lineWidth = 1; ctx.strokeStyle = rgba(theme.v.ink || '#000', 0.35); ctx.strokeRect(x0, y, bw, 7);
+    if (tier >= 2) { ctx.fillStyle = col; ctx.font = '13px "Do Hyeon", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('공속 x' + A.rate[tier], x0 + bw / 2, y - 4); }
+    else if (w && t <= 0 && S.prep.phase === 'wave') { ctx.fillStyle = rgba(theme.v.ink || '#000', 0.45); ctx.font = '13px "Do Hyeon", sans-serif'; ctx.textAlign = 'center'; ctx.fillText('꺼짐', x0 + bw / 2, y - 4); }
+  }
 }
 
 /* ---------- 상태 표시 ---------- */
@@ -5470,7 +5513,7 @@ function m3Mount() {
   m3cv.addEventListener('pointerup', m3Up);
   m3cv.addEventListener('pointercancel', () => { m3t = null; });
 }
-function m3Can() { const S = C.S; return mode === 'play' && !!S && !!S.m3 && !S.over && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0; }
+function m3Can() { const S = C.S; return mode === 'play' && m3Shown() && !S.over && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0; }
 function m3Cell(ev) {
   const b = C.S.m3, r = m3cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top - M3TOP;
   const c = Math.floor(x / m3cw), rr = Math.floor(y / m3ch);
@@ -5573,7 +5616,9 @@ function m3Ev(e) {
   if (e.k === 'pop') {                            // 맞추기: 블록이 퍼지며 사라지고, 빛 조각이 위의 무기로 날아간다
     for (const c of e.cells) { const x = c.i % N, y = Math.floor(c.i / N); m3fx.push({ k: 'pop', x, y, s: c.s, t0: now, d: 320 }); m3Fly(x, y, c.s, now); }
     if (e.chain > 1) m3fx.push({ k: 'txt', x: e.cells.reduce((a, c) => a + c.i % N, 0) / e.cells.length, y: e.cells.reduce((a, c) => a + Math.floor(c.i / N), 0) / e.cells.length, t0: now, d: 800, txt: e.chain + '연쇄' });
-    Snd.play(e.chain > 1 ? 'rewpop' : 'ok'); m3Gain(e.gain);
+    Snd.play(e.chain > 1 ? 'rewpop' : 'ok');
+    if (b.mode === 'act') e.gain.forEach((n, c) => { if (n > 0) m3fx.push({ k: 'txt', x: c, y: 0.35, t0: now + 80, d: 700, txt: '+' + n + '초' }); });
+    else m3Gain(e.gain);
   } else if (e.k === 'push') {                    // 밀어 올리기: 묶음이 위로 빠져나가며 무기로 들어간다
     for (const c of e.cells) { const y = Math.floor(c.i / N); m3fx.push({ k: 'mv', x: e.c, y, dx: 0, dy: -e.n - 0.4, s: c.s, t0: now, d: 260 }); m3Fly(e.c, y, c.s, now); }
     m3fx.push({ k: 'txt', x: e.c, y: 0.4, t0: now, d: 800, txt: '+' + e.gain });
@@ -5588,7 +5633,7 @@ function m3Ev(e) {
 }
 function m3Draw(dt) {
   const S = C.S, b = S && S.m3;
-  if (!b || !m3cv || !elB.contains(m3cv)) return;
+  if (!b || !m3cv || !elB.contains(m3cv) || !m3Shown()) return;
   const N = b.C, R = b.R, push = b.mode === 'push';
   if (b !== m3b) { m3Reset(); m3b = b; b.g.forEach((x, i) => { if (x) m3vis.set(x.id, { x: i % N, y: Math.floor(i / N), vy: 0 }); }); }   // 새 판: 처음 블록은 제자리에
   const rc = m3cv.getBoundingClientRect(); if (rc.width < 10) return;
@@ -5670,7 +5715,7 @@ let last = 0, acc = 0, lightAt = 0;
 function frame(ts) {
   const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
   const S = C.S;
-  if (mode === 'play' && S && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0) {
+  if (mode === 'play' && S && !S.pendingAug && !S.pendingPact && ((wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0) || (S.prep && S.prep.phase === 'rest'))) {
     legendMark();
     acc += dt * speed; let n = 0;
     while (acc >= 1 / 60 && n < 12) { C.step(1 / 60); acc -= 1 / 60; n++; }
@@ -5690,6 +5735,7 @@ function frame(ts) {
   if (drag && performance.now() - drag.at > 6000) endDrag(false);   // 신호가 끊긴 끌기 정리
   draw(); hud(); updateChips();
   if (S && S.m3) m3Draw(dt);
+  if (S && S.prep) prepSync(); else if (!prepEl.hidden) prepEl.hidden = true;
   if (ts - lightAt > 120) { lightAt = ts; lightUpdate(); }
   requestAnimationFrame(frame);
 }
