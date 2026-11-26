@@ -836,7 +836,7 @@ function lightUpdate() {
   updateChips(); updateMark();
   for (let k = 0; k < C.LANES; k++) {       // 예열: 무기 칸이 붉게 빛난다
     const w = S.slots[k], cell = elW.children[k]; if (!cell) continue;
-    const off = !!S.act && !!w && prepWave() && !(S.act[k] > 0);   // 무기 켜짐 시험판: 꺼진 무기
+    const off = !!S.act && !!w && prepWave() && !(w.act > 0);   // 무기 켜짐 시험판: 꺼진 무기
     if (cell.classList.contains('dormant') !== off) cell.classList.toggle('dormant', off);
     const h = w && w.evo ? C.heatLevel(w) : 0;
     if (h > 0) { cell.classList.add('heat'); cell.style.setProperty('--heat', h.toFixed(2)); }
@@ -1574,6 +1574,7 @@ function prepSync() {                     // 정비 막대와 단계가 바뀔 �
   if (ph === prepPh) return;
   prepPh = ph;
   if (ph === 'wave') {                    // 웨이브 시작: 열려 있던 창과 모드를 닫는다
+    m3idle = 0; m3hint = null;
     upMode = false; meltMode = false; meltAllArm = false; meltSet.clear(); partSwap = null; evoK = -1; skK = -1; skSel = null;
     if (wmodal >= 0 || bmodal) closeW(); else renderAll();
   } else if (ph === 'rest') renderAll();
@@ -5468,7 +5469,7 @@ function draw() {
 function drawActBars(S, H) {
   const A = C.ACT, y = H - 30, now = performance.now();
   for (let k = 0; k < C.LANES; k++) {
-    const t = S.act[k], tier = C.actTier(t), x0 = k * C.LW + 8, bw = C.LW - 16, w = S.slots[k];
+    const w = S.slots[k], t = w ? w.act || 0 : 0, tier = C.actTier(t), x0 = k * C.LW + 8, bw = C.LW - 16;
     const col = w ? C.WEAPONS[w.type].color : TC.line || '#888';
     ctx.fillStyle = rgba(theme.v.ink || '#000', 0.12); ctx.fillRect(x0, y, bw, 7);
     if (t > 0) { ctx.fillStyle = col; ctx.globalAlpha = tier === 3 ? 0.85 + 0.15 * Math.sin(now / 120) : 0.9; ctx.fillRect(x0, y, bw * Math.min(1, t / A.max), 7); ctx.globalAlpha = 1; }
@@ -5500,9 +5501,10 @@ const M3COL = ['#e5484d', '#2fae5f', '#14a3a8', '#e6b012', '#d9529b'];   // 원,
 const M3DK = M3COL.map(h => { const n = parseInt(h.slice(1), 16), f = (v) => Math.round(v * 0.62); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; });
 const M3TOP = 6;                                  // 열 위쪽의 무기 색 띠
 const M3FONT = (px) => `${px}px 'Do Hyeon', 'IBM Plex Sans KR', sans-serif`;
-let m3cv = null, m3g = null, m3b = null, m3sel = -1, m3t = null, m3cw = 1, m3ch = 1;
+let m3cv = null, m3g = null, m3b = null, m3sel = -1, m3t = null, m3cw = 1, m3ch = 1, m3idle = 0, m3hint = null;
+const M3HINT = 3;                                 // 이 초 동안 못 맞추면 힌트
 const m3vis = new Map(), m3fx = [], m3ic = {};
-function m3Reset() { m3vis.clear(); m3fx.length = 0; m3b = null; m3sel = -1; m3t = null; }
+function m3Reset() { m3vis.clear(); m3fx.length = 0; m3b = null; m3sel = -1; m3t = null; m3idle = 0; m3hint = null; }
 function m3Mount() {
   if (m3cv && elB.contains(m3cv)) return;
   elB.classList.remove('melting'); elB.classList.add('m3on');
@@ -5574,7 +5576,7 @@ function m3Try(i, j) {
   const b = C.S.m3, x = b.g[i], y = b.g[j], N = b.C;
   m3sel = -1;
   const r = C.m3Swap(i, j);
-  if (r.ok) { Snd.play('tap'); for (const o of [x, y]) { const v = m3vis.get(o.id); if (v) v.vy = 6; } }
+  if (r.ok) { Snd.play('tap'); m3idle = 0; m3hint = null; for (const o of [x, y]) { const v = m3vis.get(o.id); if (v) v.vy = 6; } }
   else if (r.bad) {                              // 줄이 안 생김: 서로 반쯤 다가갔다가 돌아온다
     const vx = m3vis.get(x.id), vy = m3vis.get(y.id);
     const ax = i % N, ay = Math.floor(i / N), bx = j % N, by = Math.floor(j / N);
@@ -5609,16 +5611,22 @@ function m3Block(g, x, y, R, s, a) {
   }
   g.globalAlpha = 1;
 }
-function m3Fly(c, y, s, now) { m3fx.push({ k: 'fly', x: c + (Math.random() - 0.5) * 0.3, y, s, t0: now + Math.random() * 60, d: 380 + y * 40 }); }
+function m3Fly(c, y, s, now, tx) { const x = c + (Math.random() - 0.5) * 0.3; m3fx.push({ k: 'fly', x, tx: tx == null ? x : tx, y, s, t0: now + Math.random() * 60, d: 380 + y * 40 }); }
+const m3SlotOf = (t) => C.S.slots.findIndex(w => w && w.type === t);
 function m3Gain(gain) { gain.forEach((n, k) => { if (n > 0) setTimeout(() => { if (C.S && C.S.m3) burstAt(elW.querySelector(`[data-slot="${k}"]`), true, n); }, 330); }); }
 function m3Ev(e) {
   const b = C.S.m3, N = b.C, now = performance.now();
   if (e.k === 'pop') {                            // 맞추기: 블록이 퍼지며 사라지고, 빛 조각이 위의 무기로 날아간다
-    for (const c of e.cells) { const x = c.i % N, y = Math.floor(c.i / N); m3fx.push({ k: 'pop', x, y, s: c.s, t0: now, d: 320 }); m3Fly(x, y, c.s, now); }
+    for (const c of e.cells) {
+      const x = c.i % N, y = Math.floor(c.i / N), k = e.act ? m3SlotOf(c.s) : -1;
+      m3fx.push({ k: 'pop', x, y, s: c.s, t0: now, d: 320 }); m3Fly(x, y, c.s, now, k >= 0 ? k : null);
+    }
+    m3idle = 0; m3hint = null;
     if (e.chain > 1) m3fx.push({ k: 'txt', x: e.cells.reduce((a, c) => a + c.i % N, 0) / e.cells.length, y: e.cells.reduce((a, c) => a + Math.floor(c.i / N), 0) / e.cells.length, t0: now, d: 800, txt: e.chain + '연쇄' });
     Snd.play(e.chain > 1 ? 'rewpop' : 'ok');
-    if (b.mode === 'act') e.gain.forEach((n, c) => { if (n > 0) m3fx.push({ k: 'txt', x: c, y: 0.35, t0: now + 80, d: 700, txt: '+' + n + '초' }); });
-    else m3Gain(e.gain);
+    if (e.act) {                                  // 무기 켜짐: 그 종류의 장착 무기마다 '+n초'
+      C.S.slots.forEach((w, k) => { const n = w && e.act[w.type]; if (n) setTimeout(() => { if (C.S && C.S.act) burstAt(elW.querySelector(`[data-slot="${k}"]`), true, n + '초'); }, 330); });
+    } else m3Gain(e.gain);
   } else if (e.k === 'push') {                    // 밀어 올리기: 묶음이 위로 빠져나가며 무기로 들어간다
     for (const c of e.cells) { const y = Math.floor(c.i / N); m3fx.push({ k: 'mv', x: e.c, y, dx: 0, dy: -e.n - 0.4, s: c.s, t0: now, d: 260 }); m3Fly(e.c, y, c.s, now); }
     m3fx.push({ k: 'txt', x: e.c, y: 0.4, t0: now, d: 800, txt: '+' + e.gain });
@@ -5645,8 +5653,7 @@ function m3Draw(dt) {
   g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, rc.width, rc.height);
   for (let c = 0; c < N; c++) {                   // 열 띠: 그 열이 키우는 무기의 색
     const w = S.slots[c];
-    g.fillStyle = w ? C.WEAPONS[w.type].color : theme.v.line; g.globalAlpha = w ? 0.85 : 0.4;
-    g.fillRect(c * cw + 5, 1, cw - 10, 3); g.globalAlpha = 1;
+    if (b.mode !== 'act') { g.fillStyle = w ? C.WEAPONS[w.type].color : theme.v.line; g.globalAlpha = w ? 0.85 : 0.4; g.fillRect(c * cw + 5, 1, cw - 10, 3); g.globalAlpha = 1; }   // 무기 켜짐은 열과 무기가 이어지지 않는다
     for (let r = 0; r < R; r++) {
       m3RR(g, c * cw + 3, M3TOP + r * ch + 2, cw - 6, ch - 4, 6);
       g.fillStyle = theme.v.panel; g.fill(); g.lineWidth = 1; g.strokeStyle = theme.v.line; g.stroke();
@@ -5661,6 +5668,21 @@ function m3Draw(dt) {
     g.fillStyle = rgba(col, 0.24); g.fill(); g.lineWidth = 2.6 + Math.sin(now / 160) * 0.9; g.strokeStyle = col; g.stroke();
   }
   if (b.ev.length) for (const e of b.ev.splice(0)) m3Ev(e);
+  let hA = -1, hB = -1;
+  if (!push && m3Can()) {
+    m3idle += dt;
+    if (b.chk || b.wait > 0) { m3idle = Math.min(m3idle, M3HINT - 0.5); m3hint = null; }   // 터지는 중에는 기다린다
+    else if (m3idle >= M3HINT) {
+      if (!m3hint || !b.g[m3hint[0]] || !b.g[m3hint[1]] || b.g[m3hint[0]].id !== m3hint[2] || b.g[m3hint[1]].id !== m3hint[3]) {
+        const h = C.m3Hint(); m3hint = h ? [h[0], h[1], b.g[h[0]].id, b.g[h[1]].id] : null;
+      }
+      if (m3hint) {
+        hA = m3hint[0]; hB = m3hint[1];
+        const a = 0.7 + 0.3 * Math.sin(now / 170);
+        for (const i of [hA, hB]) { m3RR(g, (i % N) * cw + 2, M3TOP + Math.floor(i / N) * ch + 1, cw - 4, ch - 2, 7); g.fillStyle = rgba(theme.v.accent, 0.28 * a); g.fill(); g.globalAlpha = a; g.lineWidth = 3.5; g.strokeStyle = theme.v.accent; g.stroke(); g.globalAlpha = 1; }
+      }
+    }
+  }
   const k = 1 - Math.exp(-dt * 18), seen = new Set();
   g.save(); g.beginPath(); g.rect(0, M3TOP, rc.width, rc.height - M3TOP); g.clip();
   for (let i = 0; i < b.g.length; i++) {
@@ -5672,7 +5694,12 @@ function m3Draw(dt) {
     if (!push && v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }   // 맞추기: 떨어진다
     else { v.y += (ty - v.y) * k; v.vy = 0; }
     seen.add(o.id);
-    m3Block(g, cx(v.x), cy(v.y), Rb, o.s, 1);
+    let hx = 0, hy = 0;
+    if (i === hA || i === hB) {                   // 힌트: 짝 쪽으로 들썩인다
+      const j = i === hA ? hB : hA, q = Math.max(0, Math.sin(now / 170)) * 0.1;
+      hx = (j % N - tx) * q; hy = (Math.floor(j / N) - ty) * q;
+    }
+    m3Block(g, cx(v.x + hx), cy(v.y + hy), Rb, o.s, 1);
   }
   for (let n = m3fx.length - 1; n >= 0; n--) {    // 판 안에서 움직이는 효과 (판 밖으로 나가면 잘린다)
     const f = m3fx[n]; if (f.k !== 'mv') continue;
@@ -5696,7 +5723,7 @@ function m3Draw(dt) {
     if (p >= 1) { m3fx.splice(n, 1); continue; }
     if (f.k === 'pop') { const e = 1 - Math.pow(1 - p, 2); m3Block(g, cx(f.x), cy(f.y), Rb * (1 + 0.5 * e), f.s, 0.9 * (1 - p)); }
     else if (f.k === 'fly') {                     // 빛 조각: 위로 빨라지며 날아가고 짧은 꼬리가 남는다
-      const e = p * p, x = cx(f.x), y0 = cy(f.y), y = y0 + (-4 - y0) * e, tail = Math.min(ch * 1.2, (y0 - y) * 0.6 + 4), col = m3ColOf(f.s);
+      const e = p * p, x = cx(f.x + (f.tx - f.x) * (1 - Math.pow(1 - p, 2))), y0 = cy(f.y), y = y0 + (-4 - y0) * e, tail = Math.min(ch * 1.2, (y0 - y) * 0.6 + 4), col = m3ColOf(f.s);
       const gr = g.createLinearGradient(x, y, x, y + tail);
       gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.globalAlpha = Math.min(1, 1.6 * (1 - p)); g.fillStyle = gr; g.fillRect(x - 3, y, 6, tail);

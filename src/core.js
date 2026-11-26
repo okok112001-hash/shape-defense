@@ -2538,8 +2538,8 @@ function step(dt) {
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
-    if (S.act && !(S.act[i] > 0)) continue;                 // 무기 켜짐 시험판: 꺼진 칸은 쏘지 않는다
-    w.cd -= S.act ? dt * ACT.rate[actTier(S.act[i])] : dt;
+    if (S.act && !(w.act > 0)) continue;                    // 무기 켜짐 시험판: 꺼진 무기는 쏘지 않는다
+    w.cd -= S.act ? dt * ACT.rate[actTier(w.act)] : dt;
     if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
       w.ag -= dt;
@@ -2816,7 +2816,13 @@ function m3Runs(g, R, N) {   // 3개 이상 이어진 같은 종류 칸의 번�
   scan(N, R, (c, r) => r * N + c);   // 세로
   return out;
 }
+function m3Pool(b) {
+  const own = [...new Set(S.slots.filter(Boolean).map(w => w.type))], rest = WEAPON_IDS.filter(id => own.indexOf(id) < 0);
+  while (own.length < M3.kinds && rest.length) own.push(rest.splice(Math.floor(rndG() * rest.length), 1)[0]);
+  b.pool = own;
+}
 function m3Rand(b) {
+  if (b.mode === 'act') return b.pool[Math.floor(rndG() * b.pool.length)];
   if (b.mode !== 'push') return Math.floor(rndG() * M3.kinds);
   const ts = S.slots.filter(Boolean).map(w => w.type);
   return ts.length ? ts[Math.floor(rndG() * ts.length)] : WEAPON_IDS[0];
@@ -2835,6 +2841,7 @@ function m3HasMove(b) {
   return false;
 }
 function m3Fill(b, fy) {   // 판을 새로 채운다 (맞추기: 처음부터 맞춰진 줄은 없고, 둘 곳은 있게)
+  if (b.mode === 'act') m3Pool(b);
   for (let t = 0; t < 60; t++) {
     b.g = new Array(b.R * b.C).fill(null);
     for (let i = 0; i < b.g.length; i++) for (let n = 0; n < 20; n++) {
@@ -2843,6 +2850,21 @@ function m3Fill(b, fy) {   // 판을 새로 채운다 (맞추기: 처음부터 �
     }
     if (b.mode === 'push' || m3HasMove(b)) return;
   }
+}
+function m3Hint() {
+  const b = S && S.m3; if (!b || b.mode === 'push') return null;
+  const N = b.C, n = b.R * N, g = b.g;
+  const left = (t) => { let m = Infinity; for (const w of S.slots) if (w && w.type === t) m = Math.min(m, w.act || 0); return m; };
+  let best = null, bv = Infinity;
+  for (let i = 0; i < n; i++) for (const j of [i + 1, i + N]) {
+    if (j >= n || (j === i + 1 && j % N === 0)) continue;
+    const x = g[i], y = g[j]; if (!x || !y || x.s === y.s) continue;
+    g[i] = y; g[j] = x; const run = m3Runs(g, b.R, N); g[i] = x; g[j] = y;
+    if (!run.has(i) && !run.has(j)) continue;
+    const v = b.mode === 'act' ? Math.min(run.has(j) ? left(x.s) : Infinity, run.has(i) ? left(y.s) : Infinity) : 0;
+    if (!best || v < bv) { best = [i, j]; bv = v; }
+  }
+  return best;
 }
 function m3New(mode) {
   const push = mode === 'push';
@@ -2887,11 +2909,14 @@ function m3Tick(dt) {
     const k = R - col.length;
     for (let r = R - 1, j = 0; r >= 0; r--, j++) b.g[r * N + c] = col[j] || { s: m3Rand(b), id: ++b.id, fy: -k - 0.3 };
   }
-  if (b.mode === 'act') for (let c = 0; c < N; c++) {   // 무기 켜짐: 블록 하나에 ACT.per 초 (연쇄 번호와 상관없이), 최대 ACT.max 초
-    let n = 0; for (const x of cells) if (x.i % N === c) n++;
-    const a0 = S.act[c]; S.act[c] = Math.min(ACT.max, a0 + n * ACT.per); gain[c] = S.act[c] - a0;
+  let act = null;
+  if (b.mode === 'act') {                     // 무기 켜짐: 블록 하나에 ACT.per 초를 같은 종류의 장착 무기에 (연쇄 번호와 상관없이), 최대 ACT.max 초
+    act = {};
+    for (const x of cells) act[x.s] = (act[x.s] || 0) + ACT.per;
+    for (const w of S.slots) if (w && act[w.type]) w.act = Math.min(ACT.max, (w.act || 0) + act[w.type]);
+    b.idle = 0;
   } else for (let c = 0; c < N; c++) gain[c] = m3Grow(c, gain[c]);
-  b.ev.push({ k: 'pop', cells, gain, chain: b.chain });
+  b.ev.push({ k: 'pop', cells, gain, chain: b.chain, act });
   b.wait = M3.wait;                          // 떨어지는 모습을 보여 준 뒤 다시 맞춘다 (연쇄)
 }
 // 밀어 올리기: c 열 맨 위부터 이어진, 그 열 무기와 같은 블록 수
@@ -2926,14 +2951,16 @@ function m3Slide(r, dir) {
 // 웨이브는 적이 다 나오고(CFG.waveSpawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 최대 PREP.T 초 정비 시간,
 // '다음 웨이브'를 누르거나 시간이 다 되면 다음 웨이브. 웨이브 중에는 무기·인벤토리 옮기기만 된다(화면이 막는다).
 // 정비 시간은 난이도 시간(tD)에 들어가지 않는다: 적 체력, 재화, 웨이브 세기, 기지 피해 배수는 웨이브를 치른 시간만으로 오른다.
-// 무기 켜짐(S.act): 칸마다 켜진 시간(초). 웨이브 중에만 줄고, 0이면 그 칸 무기는 쏘지 않는다. 5초, 10초를 넘으면 공격 속도가 빨라진다.
+// 무기 켜짐(S.act = true): 무기마다 켜진 시간(w.act 초). 판의 블록이 장착한 무기 종류이고, 터진 블록 하나마다 같은 종류의 무기에 ACT.per 초.
+// 웨이브 중에만 줄고, 0이면 그 무기는 쏘지 않는다. 5초, 10초를 넘으면 공격 속도가 빨라진다. 웨이브가 끝나면 0으로, 다음 웨이브는 새 판.
 const PREP = { T: 20 };
-const ACT = { max: 15, per: 1, step: 5, rate: [0, 1, 1.3, 1.6] };
+const ACT = { max: 15, per: 2, step: 5, rate: [0, 1, 1.3, 1.6] };
 function actTier(t) { return t > 2 * ACT.step ? 3 : t > ACT.step ? 2 : t > 0 ? 1 : 0; }
 function tD() { return S.prep ? S.t - S.prep.rest : S.t; }
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
   P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
+  if (S.act && S.m3) { const b = S.m3; m3Fill(b, -b.R - 0.5); b.chk = false; b.chain = 0; b.wait = 0; b.idle = 0; }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
   return true;
 }
 function prepStep(dt) {
@@ -2949,9 +2976,10 @@ function prepStep(dt) {
   S.wt += dt * mul;
   if (S.wt - wv.t0 < CFG.waveSpawnT) S.spawnAcc += wv.rate * dt * mul;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
-  if (S.act) for (let i = 0; i < LANES; i++) if (S.act[i] > 0) S.act[i] = Math.max(0, S.act[i] - dt);
+  if (S.act) for (const w of S.slots) if (w && w.act > 0) w.act = Math.max(0, w.act - dt);
   if (S.wt - wv.t0 >= CFG.waveSpawnT && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
     P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
+    if (S.act) for (const w of S.slots.concat(S.inv)) if (w && w.kind === 'w') w.act = 0;   // 켜진 시간은 웨이브마다 처음부터
   }
 }
 
@@ -3066,7 +3094,11 @@ const test = {
   prep(act) {
     if (!testOn()) return false;
     S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
-    if (act) { S.m3 = m3New('act'); S.act = new Array(LANES).fill(0); }
+    if (act) {                               // 겹치지 않는 무작위 무기 5개(0강)로 시작
+      const ids = WEAPON_IDS.slice(), r = subG();
+      for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
+      S.act = true; S.m3 = m3New('act');
+    }
     S.slotDirty = true; S.invDirty = true;
     return true;
   },
@@ -3090,7 +3122,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  M3, m3Swap, m3Slide, m3Push, m3Top, m3PushGain, PREP, ACT, actTier, prepGo,
+  M3, m3Swap, m3Slide, m3Push, m3Top, m3PushGain, PREP, ACT, actTier, prepGo, m3Hint,
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
