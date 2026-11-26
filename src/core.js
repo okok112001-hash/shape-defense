@@ -590,7 +590,9 @@ function newWeapon(type) {
   return { kind: 'w', type, lv: 0, parts: [null, null, null], augs: [null, null, null], cd: 0.3, n: 0, kills: 0, dealt: 0 };
 }
 
-function newGame(h) {
+// mode 'pipe': 정식 게임(연결 모드). 정비 시간 구조, 겹치지 않는 무작위 무기 5개(0강), 웨이브 중 연결 판.
+// mode 없이 부르면 예전 방식(웨이브가 시간으로 넘어가고 무기는 늘 쏜다). 봇과 측정 도구는 이쪽을 쓴다.
+function newGame(h, mode) {
   if (h) H = h;
   S = {
     v: 1, t: 0, hp: CFG.baseHp, maxHp: CFG.baseHp, gold: CFG.startGold, kills: 0, dealt: 0, bossKills: 0, gen: 0,
@@ -609,7 +611,16 @@ function newGame(h) {
   S.base = newBase();
   S.slots[2] = newWeapon('blaster');
   syncMaxHp(); S.hp = S.maxHp;
+  if (mode === 'pipe') pipeSetup('pipe');
   return S;
+}
+function pipeSetup(kind) {   // 정비 시간 구조 (+ kind 'act' 무기 켜짐, 'pipe' 연결: 무작위 무기 5개와 판)
+  S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
+  if (kind !== 'act' && kind !== 'pipe') return;
+  const ids = WEAPON_IDS.slice(), r = subG();
+  for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
+  if (kind === 'act') S.act = true; else S.pipe = true;
+  S.m3 = m3New(kind);
 }
 function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.mines) S.mines = []; if (!S.melt) S.melt = 0; if (!S.rewq) S.rewq = []; if (!S.crafts) S.crafts = 0; if (!S.base) S.base = newBase();
   S.shards = S.shards || 0;   // 예전 저장의 강화 조각 아이템은 재화로 바꾼다
@@ -2988,8 +2999,8 @@ function testTop(w) { w.lv = CFG.maxLv; w.hi = CFG.maxLv; dirty(w); if (effLv(w)
 const test = {
   KEYS: CHEAT_KEYS,
   // 테스트 게임 시작. flags: { gold, shards, succ, god, melt }
-  newGame(flags, h) {
-    newGame(h);
+  newGame(flags, h, mode) {
+    newGame(h, mode);
     S.cheat = {};
     for (const k of CHEAT_KEYS) S.cheat[k] = !!(flags && flags[k]);
     return S;
@@ -3088,13 +3099,7 @@ const test = {
   // kind: 없으면 정비 시간만, 'act' 무기 켜짐, 'pipe' 연결 (둘 다 겹치지 않는 무작위 무기 5개 0강으로 시작, 웨이브 중에는 판)
   prep(kind) {
     if (!testOn()) return false;
-    S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
-    if (kind === 'act' || kind === 'pipe') {
-      const ids = WEAPON_IDS.slice(), r = subG();
-      for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
-      if (kind === 'act') S.act = true; else S.pipe = true;
-      S.m3 = m3New(kind);
-    }
+    pipeSetup(kind);
     S.slotDirty = true; S.invDirty = true;
     return true;
   },
@@ -3118,7 +3123,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  M3, m3Swap, PREP, ACT, actTier, prepGo, m3Hint, PIPE, pipeLinks, pipeRate,
+  M3, m3Swap, PREP, ACT, actTier, prepGo, m3Hint, PIPE, pipeLinks, pipeRate, tD: () => tD(),
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;

@@ -1157,7 +1157,7 @@ function swapHtml() {
 
 /* ---------- 겹침 창 ---------- */
 function recHtml(r) {
-  return `<div class="rec"><div><small>생존 시간</small><b>${fmtTime(r.t)}</b></div><div><small>처치</small><b>${r.kills}</b></div>${r.boss != null ? `<div><small>보스 처치</small><b>${r.boss}</b></div>` : ''}</div>`;
+  return `<div class="rec">${r.wave ? `<div><small>웨이브</small><b>${r.wave}</b></div>` : ''}<div><small>생존 시간</small><b>${fmtTime(r.t)}</b></div><div><small>처치</small><b>${r.kills}</b></div>${r.boss != null ? `<div><small>보스 처치</small><b>${r.boss}</b></div>` : ''}</div>`;
 }
 /* ---------- 천칭의 거래 ---------- */
 function pactLines(id) { const d = C.PACTS[id]; return `<span class="up">▲ ${d.up}</span><span class="dn">▼ ${d.dn}</span>`; }
@@ -1457,10 +1457,11 @@ function helpHtml() {
     <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 300 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 부식체나 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div><p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 보스가 황금체가 됩니다.</p>`;
-  const waves = `<p class="hnote">적은 ${C.CFG.waveT}초마다 웨이브로 몰려옵니다. 웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 다 못 잡아도 시간이 되면 다음 웨이브가 옵니다.</p>
+  const link = `<p class="hnote">웨이브 중에는 무기 아래 판에서 블록을 이웃 칸 쪽으로 밀어 자리를 바꿉니다. 무기 바로 아래 칸부터 그 무기 블록을 ${C.PIPE.need}개 이상 이으면 무기가 공격합니다. ${C.PIPE.need}개를 넘는 블록 하나마다 공격 속도 +${Math.round(C.PIPE.bonus * 100)}%.</p>`;
+  const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 적을 모두 막으면 정비 시간(최대 ${C.PREP.T}초)이 됩니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
     <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
-    ${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
+    ${sec('연결', link)}${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
 }
 function renderOverlay() {
@@ -1478,7 +1479,7 @@ function renderOverlay() {
       ${iconRow()}
       <button type="button" class="btn primary" data-act="start">시작</button>
       <button type="button" class="tlink" data-act="testStart">테스트 모드</button>
-      <div class="trow"><small>시험판</small><button type="button" class="tlink" data-act="prepStart">정비 시간</button><button type="button" class="tlink" data-act="actStart">무기 켜짐</button><button type="button" class="tlink" data-act="pipeStart">연결</button><button type="button" class="tlink" data-act="m3Start">맞추기</button></div></div>`;
+      <div class="trow"><small>시험판</small><button type="button" class="tlink" data-act="prepStart">정비 시간</button><button type="button" class="tlink" data-act="actStart">무기 켜짐</button><button type="button" class="tlink" data-act="m3Start">맞추기</button></div></div>`;
   } else if (mode === 'pause' && pauseView === 'confirm') {
     h = `<div class="modal"><h2>처음부터 다시</h2><p>지금까지의 진행이 모두 사라지고 새 게임이 시작됩니다. 다시 시작할까요?</p>
       <button type="button" class="btn danger" data-act="restartOk">다시 시작</button>
@@ -1557,10 +1558,10 @@ function resetUi() {
 function startGame(test) {
   shareReset();
   if (test === 'm3') { C.test.newGame({}); C.test.m3('match'); }
-  else if (test === 'prep' || test === 'act' || test === 'pipe') { C.test.newGame({}); C.test.prep(test === 'prep' ? null : test); } else if (test === true) C.test.newGame(loadTest()); else C.newGame();
+  else if (test === 'prep' || test === 'act') { C.test.newGame({}); C.test.prep(test === 'prep' ? null : test); } else if (test === true) C.test.newGame(loadTest(), undefined, 'pipe'); else C.newGame(undefined, 'pipe');
   resetUi(); m3Reset(); mode = 'play'; acc = 0; renderAll();
 }
-const reTest = () => { const S = C.S; if (!S) return false; if (S.prep) return S.pipe ? 'pipe' : S.act ? 'act' : 'prep'; if (S.m3) return 'm3'; return isTest(); };
+const reTest = () => { const S = C.S; if (!S) return false; if (S.prep && !S.pipe) return S.act ? 'act' : 'prep'; if (S.m3 && !S.pipe) return 'm3'; return isTest(); };
 // 정비 시간 시험판
 const prepWave = () => { const S = C.S; return !!S && !!S.prep && S.prep.phase === 'wave'; };   // 웨이브 중: 옮기기만 된다
 const m3Shown = () => { const S = C.S; return !!S && !!S.m3 && !(S.m3.mode !== 'match' && S.prep && S.prep.phase !== 'wave'); };
@@ -1593,7 +1594,8 @@ function captureRes(S) {
 }
 function gameOver() {
   const S = C.S;
-  lastRec = { t: S.t, kills: S.kills, lv: S.maxLv, boss: S.bossKills || 0 };
+  lastRec = { t: S.prep ? C.tD() : S.t, kills: S.kills, lv: S.maxLv, boss: S.bossKills || 0 };   // 정비 시간은 생존 시간에 넣지 않는다
+  if (S.prep) lastRec.wave = S.wn;
   lastRes = captureRes(S);
   const test = isTest();              // 테스트 게임: 최고 기록을 저장하지 않고 공유 이미지도 만들지 않는다
   newRec = !test && (!best || lastRec.t > best.t);
@@ -1603,7 +1605,7 @@ function gameOver() {
   if (!test) prepareShare();     // 버튼을 누르기 전에 이미지를 미리 만들어 둔다 (누르는 순간 바로 공유 창을 띄우기 위해)
 }
 // 처음으로: 앱을 켰을 때 처음 보이는 화면
-function goHome() { shareReset(); C.newGame(); resetUi(); mode = 'start'; renderAll(); Snd.play('tap'); }
+function goHome() { shareReset(); C.newGame(undefined, 'pipe'); resetUi(); mode = 'start'; renderAll(); Snd.play('tap'); }
 
 /* ---------- 기록 공유 ---------- */
 const SHARE_NAME = '도형디펜스-기록.png';
@@ -1973,7 +1975,6 @@ function act(name) {
     case 'start': startGame(); Snd.play('pick'); return;
     case 'testStart': if (mode === 'start') { startGame(true); Snd.play('pick'); } return;
     case 'm3Start': if (mode === 'start') { startGame('m3'); Snd.play('pick'); } return;
-    case 'pipeStart': if (mode === 'start') { startGame('pipe'); Snd.play('pick'); } return;
     case 'prepStart': if (mode === 'start') { startGame('prep'); Snd.play('pick'); } return;
     case 'actStart': if (mode === 'start') { startGame('act'); Snd.play('pick'); } return;
     case 'prepGo': if (mode === 'play' && C.prepGo()) { Snd.play('pick'); prepSync(); } return;
@@ -5508,15 +5509,15 @@ function hud() {
 
 /* ---------- 시험판 판 (맞추기, 무기 켜짐, 연결) ---------- */
 // 캔버스 하나에 그린다. 손가락이 닿아 있는 동안 DOM 을 다시 만들지 않도록 한 번 만든 캔버스를 계속 쓴다.
-// 밀어서 맞바꾸거나, 하나를 누르고 이웃을 눌러 맞바꾼다. 연결은 손가락을 떼지 않고 끌면 그 블록이 계속 따라 움직인다.
+// 블록을 이웃 칸 쪽으로 밀면 두 블록이 자리를 바꾼다 (끌기 한 번에 한 번).
 const M3COL = ['#e5484d', '#2fae5f', '#14a3a8', '#e6b012', '#d9529b'];   // 원, 네모, 세모, 마름모, 육각 (등급 색인 회색·파랑·보라·주황은 피한다)
 const M3DK = M3COL.map(h => { const n = parseInt(h.slice(1), 16), f = (v) => Math.round(v * 0.62); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; });
 const M3TOP = 6;                                  // 열 위쪽의 무기 색 띠
 const M3FONT = (px) => `${px}px 'Do Hyeon', 'IBM Plex Sans KR', sans-serif`;
-let m3cv = null, m3g = null, m3b = null, m3sel = -1, m3t = null, m3cw = 1, m3ch = 1, m3idle = 0, m3hint = null;
+let m3cv = null, m3g = null, m3b = null, m3t = null, m3cw = 1, m3ch = 1, m3idle = 0, m3hint = null;
 const M3HINT = 3;                                 // 이 초 동안 못 맞추면 힌트
 const m3vis = new Map(), m3fx = [], m3ic = {};
-function m3Reset() { m3vis.clear(); m3fx.length = 0; m3b = null; m3sel = -1; m3t = null; m3idle = 0; m3hint = null; }
+function m3Reset() { m3vis.clear(); m3fx.length = 0; m3b = null; m3t = null; m3idle = 0; m3hint = null; }
 function m3Mount() {
   if (m3cv && elB.contains(m3cv)) return;
   elB.classList.remove('melting'); elB.classList.add('m3on');
@@ -5533,7 +5534,6 @@ function m3Cell(ev) {
   const c = Math.floor(x / m3cw), rr = Math.floor(y / m3ch);
   return { x: ev.clientX, y: ev.clientY, i: c >= 0 && c < b.C && rr >= 0 && rr < b.R ? rr * b.C + c : -1 };
 }
-const m3Adj = (i, j) => { const N = C.S.m3.C; return i >= 0 && j >= 0 && Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) === 1; };
 function m3Down(ev) {
   if (!m3Can() || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
   const p = m3Cell(ev); if (p.i < 0) return;
@@ -5543,30 +5543,20 @@ function m3Down(ev) {
 function m3Move(ev) {
   if (!m3t || ev.pointerId !== m3t.id || !m3Can()) return;
   const b = C.S.m3, N = b.C, dx = ev.clientX - m3t.x0, dy = ev.clientY - m3t.y0, i = m3t.i, c = i % N;
-  if (m3t.done && b.mode !== 'pipe') return;
-  const lim = b.mode === 'pipe' ? 0.55 : 0.32;   // 연결: 한 칸쯤 움직일 때마다 한 칸씩
-  if (Math.max(Math.abs(dx) / m3cw, Math.abs(dy) / m3ch) < lim) return;
+  if (m3t.done) return;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < Math.min(m3cw, m3ch) * 0.3) return;
   let j;
-  if (Math.abs(dx) / m3cw > Math.abs(dy) / m3ch) j = dx > 0 ? (c < N - 1 ? i + 1 : -1) : (c > 0 ? i - 1 : -1);
+  if (Math.abs(dx) > Math.abs(dy)) j = dx > 0 ? (c < N - 1 ? i + 1 : -1) : (c > 0 ? i - 1 : -1);
   else j = dy > 0 ? i + N : i - N;
   m3t.done = true;
-  if (j < 0 || j >= b.R * N) return;
-  const ok = m3Try(i, j);
-  if (b.mode === 'pipe' && ok) {                  // 끌던 블록은 손가락을 따라 다음 칸으로
-    m3t.i = j; m3t.x0 += (j % N - c) * m3cw; m3t.y0 += (Math.floor(j / N) - Math.floor(i / N)) * m3ch;
-  }
+  if (j >= 0 && j < b.R * N) m3Try(i, j);
 }
 function m3Up(ev) {
   if (!m3t || ev.pointerId !== m3t.id) return;
-  const t = m3t; m3t = null;
-  if (t.done || !m3Can()) return;
-  const b = C.S.m3, i = t.i;
-  if (m3sel >= 0 && m3Adj(m3sel, i) && b.g[i]) m3Try(m3sel, i);
-  else m3sel = m3sel === i || !b.g[i] ? -1 : i;
+  m3t = null;
 }
 function m3Try(i, j) {
   const b = C.S.m3, x = b.g[i], y = b.g[j], N = b.C;
-  m3sel = -1;
   const r = C.m3Swap(i, j);
   if (r.ok) { Snd.play('tap'); m3idle = 0; m3hint = null; for (const o of [x, y]) { const v = m3vis.get(o.id); if (v) v.vy = 6; } return true; }
   else if (r.bad) {                              // 줄이 안 생김: 서로 반쯤 다가갔다가 돌아온다
@@ -5670,7 +5660,6 @@ function m3Draw(dt) {
       g.fillStyle = theme.v.panel; g.fill(); g.lineWidth = 1; g.strokeStyle = theme.v.line; g.stroke();
     }
   }
-  if (m3sel >= 0) { m3RR(g, (m3sel % N) * cw + 3, M3TOP + Math.floor(m3sel / N) * ch + 2, cw - 6, ch - 4, 6); g.lineWidth = 2.5; g.strokeStyle = theme.v.accent; g.stroke(); }
   const now = performance.now();
   if (pipe) m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now);   // 연결: 무기와 이어진 블록 아래에 물길
   if (b.ev.length) for (const e of b.ev.splice(0)) m3Ev(e);
@@ -5775,7 +5764,7 @@ function start(data) {
     const s = data && data.S;
     if (s && s.v === 1 && Array.isArray(s.slots) && Array.isArray(s.inv) && !s.over) { C.setState(s); mode = 'pause'; }
   } catch (e) { /* 이어하기 실패 시 새로 시작 */ }
-  if (!C.S) C.newGame();
+  if (!C.S) C.newGame(undefined, 'pipe');
   resize();
   if (window.ResizeObserver) new ResizeObserver(resize).observe(wrap); else window.addEventListener('resize', resize);
   renderAll();
