@@ -1408,14 +1408,33 @@ function bossSvg(t) {
       g = `<polygon points="${-r},${-r * 0.8} ${r},${-r * 0.8} ${r},${r * 0.1} 0,${r} ${-r},${r * 0.1}" ${a}/><path d="M${(cx + Math.cos(a0) * R).toFixed(1)} ${(cy + Math.sin(a0) * R).toFixed(1)}A${R} ${R} 0 0 1 ${(cx + Math.cos(a1) * R).toFixed(1)} ${(cy + Math.sin(a1) * R).toFixed(1)}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round"/>`;
       break;
     }
-    case 'jumble': g = `<polygon points="${shPts(JUMBLE_SH, r).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" ${a}/><path d="${mixArrows(0, 0, r * 0.4, 0.4)}" ${b} stroke-linecap="round" stroke-linejoin="round"/>`; break;
+    case 'jumble': g = pinwheelSvg(r); break;
     case 'corrode': { const pts = []; for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8, q = (i >> 1) % 2 ? r * 0.78 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.4}" ${b}/>`; break; }
     case 'charge': g = `<polygon points="${-r},${-r * 0.8} 0,${-r * 0.3} ${r},${-r * 0.8} 0,${r}" ${a}/><path d="M${-r * 0.36} ${-r * 0.12}L0 ${r * 0.16}L${r * 0.36} ${-r * 0.12}M${-r * 0.26} ${r * 0.24}L0 ${r * 0.46}L${r * 0.26} ${r * 0.24}" ${b}/>`; break;
-    case 'stone': g = `<polygon points="${shPts(STONE_SH, r).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" ${a}/><path d="${STONE_CRACK.map(c => c.map((q, j) => (j ? 'L' : 'M') + (q[0] * r).toFixed(1) + ' ' + (q[1] * r).toFixed(1)).join('')).join('')}" ${b} stroke-linecap="round" stroke-linejoin="round"/>`; break;
+    case 'stone': g = rockSvg(r); break;
     case 'gold': { const c = theme.v.gold; g = `<polygon points="${-r * 0.5},${-r * 0.62} ${r * 0.5},${-r * 0.62} ${r},${-r * 0.12} 0,${r} ${-r},${-r * 0.12}" fill="${c}" fill-opacity=".45" stroke="${c}" stroke-width="3" stroke-linejoin="round"/><path d="M${-r} ${-r * 0.12}H${r}M${-r * 0.5} ${-r * 0.62}L${-r * 0.24} ${-r * 0.12}L0 ${-r * 0.62}L${r * 0.24} ${-r * 0.12}L${r * 0.5} ${-r * 0.62}M${-r * 0.24} ${-r * 0.12}L0 ${r}L${r * 0.24} ${-r * 0.12}" fill="none" stroke="${c}" stroke-width="1.6" stroke-opacity=".7"/>`; break; }
     case 'scale': { const hw = r * 0.82, ink = theme.v.ink; g = `<g transform="rotate(-11)"><polygon points="0,${-r} ${-hw},0 0,${r}" fill="${SC_HV}" fill-opacity=".95" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><polygon points="0,${-r} ${hw},0 0,${r}" fill="${SC_LT}" fill-opacity=".22" stroke="${SC_LT}" stroke-opacity=".6" stroke-width="2" stroke-linejoin="round"/></g>`; break; }
   }
   return `<svg viewBox="-36 -36 72 72" width="40" height="40" aria-hidden="true">${g}</svg>`;
+}
+// 도움말 그림: 석화체(깎인 돌과 붉은 금), 교란체(접힌 종이 바람개비). 전장의 그림과 같은 모양과 색. 이웃한 면 사이 틈이 보이지 않게 같은 색 선을 얇게 두른다
+function rockSvg(r) {
+  const L = theme.scheme === 'light', pal = L ? ROCK_BOSS_L : ROCK_BOSS_D, P = rockPts(0, 0, r, 0, 0), n = P.length, f = (p) => p[0].toFixed(1) + ',' + p[1].toFixed(1), rx = (-r * 0.14).toFixed(1), ry = (-r * 0.2).toFixed(1);
+  let s = '';
+  for (let i = 0; i < n; i++) { const p = P[i], q = P[(i + 1) % n], ma = Math.atan2((p[1] + q[1]) / 2, (p[0] + q[0]) / 2), c = rockFacetCol(pal, (0.5 + 0.5 * Math.cos(ma - ROCK_LA)) * 0.85 + 0.08); s += `<polygon points="${rx},${ry} ${f(p)} ${f(q)}" fill="${c}" stroke="${c}" stroke-width=".7"/>`; }
+  s += `<polygon points="${P.map(f).join(' ')}" fill="none" stroke="${pal[3]}" stroke-width="2.2" stroke-linejoin="round"/>`;
+  const v = STONE_CRACK.map(c => c.map((q, j) => (j ? 'L' : 'M') + (q[0] * r).toFixed(1) + ' ' + (q[1] * r).toFixed(1)).join('')).join('');
+  return s + `<path d="${v}" fill="none" stroke="${ECOL.stone}" stroke-opacity=".5" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="${v}" fill="none" stroke="${L ? '#a8361d' : '#ffb48a'}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+function pinwheelSvg(r) {
+  const L = theme.scheme === 'light', f = (p) => p[0].toFixed(1) + ',' + p[1].toFixed(1), out = [];
+  let s = '';
+  for (let k = 0; k < 4; k++) {
+    const a = -0.35 + k * Math.PI / 2, P = shPts(BLADE, r, a), c = JB_COL[k % 2], F = [Math.cos(a + FOLD[0]) * FOLD[1] * r, Math.sin(a + FOLD[0]) * FOLD[1] * r];
+    s += `<polygon points="0,0 ${f(P[0])} ${f(F)}" fill="${c[0]}" stroke="${c[0]}" stroke-width=".7"/><polygon points="0,0 ${f(F)} ${f(P[1])} ${f(P[2])}" fill="${c[1]}" stroke="${c[1]}" stroke-width=".7"/>`;
+    out.push(f(P[0]), f(P[1]), f(P[2]));
+  }
+  return s + `<polygon points="${out.join(' ')}" fill="none" stroke="${L ? '#b0185f' : '#ff8cc4'}" stroke-width="2" stroke-linejoin="round"/><circle r="${(r * 0.16).toFixed(1)}" fill="#fff" stroke="${L ? '#b0185f' : ECOL.jumble}" stroke-width="1.6"/>`;
 }
 const BOSS_HELP = {
   giant: ['체력이 아주 많고 크고 단단한 보스입니다.', '무기와 강화를 한곳에 몰아서 기지에 닿기 전에 쓰러뜨리세요.'],
@@ -2252,10 +2271,15 @@ function enemyPath(e) {
     case 'shield':                                                             // 아래가 뾰족한 방패
       ctx.moveTo(x - r, y - r * 0.8); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x + r, y + r * 0.1); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y + r * 0.1); ctx.closePath();
       break;
-    case 'jumble':                                                             // 바람개비 (날개 넷)
-    case 'stone': {                                                            // 울퉁불퉁한 돌
-      const P = shPts(e.type === 'jumble' ? JUMBLE_SH : STONE_SH, r);
+    case 'jumble': {                                                           // 바람개비 (날개 넷, 돌아간 각 e._ang)
+      const P = shPts(JUMBLE_SH, r, e._ang || 0);
       for (let i = 0; i < P.length; i++) { if (i) ctx.lineTo(x + P[i][0], y + P[i][1]); else ctx.moveTo(x + P[i][0], y + P[i][1]); }
+      ctx.closePath();
+      break;
+    }
+    case 'stone': {                                                            // 깎인 돌
+      const P = rockPts(x, y, r, 0, 0);
+      for (let i = 0; i < P.length; i++) { if (i) ctx.lineTo(P[i][0], P[i][1]); else ctx.moveTo(P[i][0], P[i][1]); }
       ctx.closePath();
       break;
     }
@@ -2360,46 +2384,145 @@ function drawChargeMark(e, col) {
   ctx.moveTo(x - r * 0.36, y - r * 0.12); ctx.lineTo(x, y + r * 0.16); ctx.lineTo(x + r * 0.36, y - r * 0.12);
   ctx.moveTo(x - r * 0.26, y + r * 0.24); ctx.lineTo(x, y + r * 0.46); ctx.lineTo(x + r * 0.26, y + r * 0.24); ctx.stroke();
 }
-// 교란체·석화체 모양 (반지름 1 기준 [각도, 거리]). 바람개비: 날개 끝, 뒤로 휘는 날개 뒤쪽, 가운데 가까운 홈
-const JUMBLE_SH = []; for (let k = 0; k < 4; k++) { const b = k * Math.PI / 2 - Math.PI / 2; JUMBLE_SH.push([b, 1], [b + 0.62, 0.62], [b + Math.PI / 2 - 0.14, 0.3]); }
-const STONE_SH = [1, 0.84, 0.97, 0.79, 0.95, 0.87, 1, 0.82, 0.93].map((q, i) => [i * Math.PI * 2 / 9 + [0, 0.1, -0.06, 0.08, 0, -0.1, 0.05, 0.07, -0.04][i], q]);
-const STONE_CRACK = [[[-0.05, -0.1], [0.12, -0.38], [0.06, -0.62]], [[-0.05, -0.1], [-0.36, 0.06], [-0.5, 0.3]], [[-0.05, -0.1], [0.22, 0.2], [0.18, 0.46], [0.36, 0.58]]];   // 가운데에서 갈라지는 금 (반지름 1 기준 x, y)
-function shPts(sh, r) { return sh.map(([a, q]) => [Math.cos(a) * q * r, Math.sin(a) * q * r]); }
-// 섞기 화살표 둘 (가운데 x, y, 반지름 R, 돌아간 각 ph): 원을 따라 도는 두 호와 끝의 화살촉. SVG 경로 문자열 (캔버스는 Path2D 로)
-function mixArrows(x, y, R, ph) {
-  let d = '';
-  for (let k = 0; k < 2; k++) {
-    const a0 = ph + k * Math.PI, a1 = a0 + 2.1, ex = x + Math.cos(a1) * R, ey = y + Math.sin(a1) * R, tx = -Math.sin(a1), ty = Math.cos(a1), h = R * 0.42;
-    d += `M${(x + Math.cos(a0) * R).toFixed(1)} ${(y + Math.sin(a0) * R).toFixed(1)}A${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
-    d += `M${(ex - tx * h + Math.cos(a1) * h * 0.6).toFixed(1)} ${(ey - ty * h + Math.sin(a1) * h * 0.6).toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}L${(ex - tx * h - Math.cos(a1) * h * 0.6).toFixed(1)} ${(ey - ty * h - Math.sin(a1) * h * 0.6).toFixed(1)}`;
-  }
-  return d;
+// 교란체·석화체 모양 (T12 O2, 다시 그림). 황금체·보급 상자와 같은 수준으로: 명암이 있는 면, 은은한 빛, 흩어지는 흔적, 살아 있는 움직임.
+// 돌: 반지름 1 기준 [각도, 거리] 11각. 판의 굳은 칸도 같은 모양을 쓴다
+const STONE_SH = [1, 0.86, 0.95, 0.8, 0.93, 0.84, 0.98, 0.8, 0.9, 0.85, 0.96].map((q, i) => [i * Math.PI * 2 / 11 + [0, 0.08, -0.05, 0.07, 0, -0.08, 0.05, 0.06, -0.04, 0.03, -0.06][i], q]);
+const STONE_CRACK = [[[-0.05, -0.1], [0.12, -0.38], [0.06, -0.62]], [[-0.05, -0.1], [-0.36, 0.06], [-0.5, 0.3]], [[-0.05, -0.1], [0.22, 0.2], [0.18, 0.46], [0.36, 0.58]]];   // 석화체 몸의 금 (반지름 1 기준 x, y)
+// 바람개비 날개 하나 (반지름 1 기준 [각도, 거리]): 끝, 뒤로 휘는 배, 다음 날개 뿌리 쪽. 접힌 선은 가운데에서 끝과 배 사이(FOLD)로
+const BLADE = [[0, 1], [0.98, 0.6], [Math.PI / 2 - 0.1, 0.2]], FOLD = [0.42, 0.78];
+const JUMBLE_SH = []; for (let k = 0; k < 4; k++) for (const [a, q] of BLADE) JUMBLE_SH.push([a + k * Math.PI / 2 - Math.PI / 2, q]);
+function shPts(sh, r, rot) { const o = rot || 0; return sh.map(([a, q]) => [Math.cos(a + o) * q * r, Math.sin(a + o) * q * r]); }
+// 깎인 돌: 가운데에서 둘레로 나눈 면마다 왼쪽 위 빛을 받는 만큼 밝기가 다르다. pal: [밝은, 가운데, 어두운, 테두리]. sd: 블록마다 조금씩 다른 모양 (0 이면 기본)
+const ROCK_LA = -2.3, rockCol = {};
+function rockFacetCol(pal, b) { const k = pal.join() + (b * 20 | 0); return rockCol[k] || (rockCol[k] = b < 0.5 ? VX.lerp(pal[2], pal[1], b * 2) : VX.lerp(pal[1], pal[0], b * 2 - 1)); }
+function rockPts(x, y, R, sd, rot) {
+  const P = [];
+  STONE_SH.forEach(([a, q], i) => { const qq = R * q * (sd ? 0.93 + 0.12 * hash(sd + i * 1.1) : 1), aa = a + (rot || 0); P.push([x + Math.cos(aa) * qq * 1.04, y + Math.sin(aa) * qq]); });
+  return P;
 }
-// 교란체: 가운데에서 천천히 도는 섞기 화살표. 판의 줄을 예고하는 동안에는 빨리 돌고, 바람개비 둘레로 옅은 바람 자국이 흐른다
-function drawJumbleMark(e, col) {
-  const x = e.x, y = e.y, r = e.r, now = performance.now(), b = C.S.m3, on = !!(b && b.jw);
-  const ph = now * (on ? 0.0042 : 0.0009) + e.born * 3;
-  ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = col;
-  ctx.stroke(new Path2D(mixArrows(x, y, r * 0.36, ph)));
-  if (on && !RM.matches) for (let i = 0; i < 3; i++) {
-    const u = (now / 900 + i / 3) % 1, a0 = hash(e.born + i * 5 + Math.floor(now / 900 + i / 3)) * 6.28 - u * 1.6;
-    ctx.beginPath(); ctx.arc(x, y, r * (1.08 + 0.6 * u), a0, a0 - 0.9 - 0.8 * (1 - u), true);
-    ctx.lineWidth = 0.6 + 2 * (1 - u); ctx.strokeStyle = rgba(col, 0.4 * (1 - u) * Math.min(1, u * 6)); ctx.stroke();
+function drawRock(g, x, y, R, sd, rot, pal, edge) {
+  const P = rockPts(x, y, R, sd, rot), n = P.length, rx = x - R * 0.14, ry = y - R * 0.2;   // 마루: 가운데보다 조금 왼쪽 위
+  for (let i = 0; i < n; i++) {
+    const p = P[i], q = P[(i + 1) % n], ma = Math.atan2((p[1] + q[1]) / 2 - y, (p[0] + q[0]) / 2 - x), b = 0.5 + 0.5 * Math.cos(ma - ROCK_LA);
+    g.beginPath(); g.moveTo(rx, ry); g.lineTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.closePath(); g.fillStyle = rockFacetCol(pal, b * 0.85 + 0.08); g.fill();
   }
-  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+  g.beginPath(); for (let i = 0; i < n; i += 2) { g.moveTo(rx, ry); g.lineTo(P[i][0], P[i][1]); }   // 면의 경계 (절반만, 너무 반듯하지 않게)
+  g.lineWidth = 1; g.strokeStyle = rgba(pal[2], 0.28); g.stroke();
+  g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
+  g.lineWidth = edge || 1.6; g.lineJoin = 'round'; g.strokeStyle = pal[3]; g.stroke();
+  g.beginPath();                                 // 빛을 받는 왼쪽 위 가장자리만 밝은 선
+  for (let i = 0; i < n; i++) { const p = P[i], q = P[(i + 1) % n], ma = Math.atan2((p[1] + q[1]) / 2 - y, (p[0] + q[0]) / 2 - x); if (Math.cos(ma - ROCK_LA) > 0.55) { g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); } }
+  g.lineWidth = Math.max(1, (edge || 1.6) * 0.7); g.strokeStyle = rgba(pal[0], 0.85); g.stroke(); g.lineJoin = 'miter';
+  return P;
 }
-// 석화체: 몸에 난 금. 칸을 굳히려 할 때(예고) 금 사이로 옅은 빛이 새고, 둘레에서 돌가루가 떨어진다
-function drawStoneMark(e, col) {
-  const x = e.x, y = e.y, r = e.r, now = performance.now(), b = C.S.m3, on = !!(b && b.sw);
-  const P = new Path2D(); for (const c of STONE_CRACK) c.forEach((q, j) => j ? P.lineTo(x + q[0] * r, y + q[1] * r) : P.moveTo(x + q[0] * r, y + q[1] * r));
+const ROCK_BOSS_L = ['#e0c3ad', '#a97f68', '#5c3f32', '#3a271f'], ROCK_BOSS_D = ['#e8cbb3', '#b18a72', '#5e4236', '#22160f'];   // 석화체: 붉은 기가 도는 돌 (적이라는 것이 보이게)
+// 석화체: 깎인 돌 몸, 몸속에서 은은하게 숨 쉬는 붉은 금(칸을 굳히려 할 때 밝아지고 굵어짐), 둘레에 떠서 천천히 도는 돌조각 셋, 떨어지는 돌가루.
+// 보스 표시는 점선 고리 대신 몸 아래의 따뜻한 빛 번짐
+function drawStoneBoss(e) {
+  const x = e.x, y = e.y, t = VX.t, L = VX.light, rm = RM.matches, b = C.S.m3, on = !!(b && b.sw), sd = hash(e.born * 3.1) * 50;
+  const r = e.r * (e.flash > 0 ? 1.06 : 1), pal = L ? ROCK_BOSS_L : ROCK_BOSS_D;
+  e._on = (e._on || 0) + ((on ? 1 : 0) - (e._on || 0)) * Math.min(1, (VX.dt || 0.016) * 3);   // 예고의 세기 (서서히)
+  const k = e._on, br = 0.5 + 0.5 * Math.sin(t * (1.4 + 2.2 * k) + sd);
+  VX.glow(x, y + r * 0.1, r * 2.1, ECOL.stone, (L ? 0.14 : 0.22) + 0.12 * k);
+  const peb = (front) => {                       // 떠 있는 돌조각: 기울어진 타원을 돈다 (뒤쪽은 몸 뒤에, 앞쪽은 몸 앞에)
+    for (let i = 0; i < 3; i++) {
+      const h1 = hash(sd + i * 3.3), sp = (0.5 + 0.35 * h1) * (rm ? 0 : 1), a = t * sp + i * 2.09 + h1, s = Math.sin(a);
+      if ((s > 0) !== front) continue;
+      const tr = rm ? 0 : k * Math.sin(t * 40 + i * 7) * 1.4, px = x + Math.cos(a) * r * (1.32 + 0.1 * h1) + tr, py = y + s * r * 0.42 - r * 0.15 + Math.sin(t * 1.3 + i) * 3;
+      const z = 0.75 + 0.25 * s;
+      drawRock(ctx, px, py, r * (0.15 + 0.05 * hash(sd + i)) * z, sd + i * 17, a * 0.4, pal, 1.2);
+    }
+  };
+  peb(false);
+  const P = drawRock(ctx, x, y, r, 0, 0, pal, 3);
+  if (e.flash > 0) { ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fillStyle = rgba('#ffffff', L ? 0.45 : 0.35); ctx.fill(); }
+  for (let i = 0; i < 7; i++) {                  // 결: 작은 패임과 밝은 알갱이
+    const a = hash(sd + i * 5.1) * 6.28, q = r * (0.2 + 0.5 * hash(sd + i * 2.7)), px = x + Math.cos(a) * q, py = y + Math.sin(a) * q;
+    ctx.fillStyle = i % 3 ? rgba(pal[2], 0.45) : rgba(pal[0], 0.7); ctx.beginPath(); ctx.arc(px, py, 1.2 + 1.4 * hash(sd + i), 0, 6.283); ctx.fill();
+  }
+  const V = new Path2D(); for (const c of STONE_CRACK) c.forEach((q, j) => j ? V.lineTo(x + q[0] * r, y + q[1] * r) : V.moveTo(x + q[0] * r, y + q[1] * r));
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (on) { const pu = 0.5 + 0.5 * Math.sin(now / 160); ctx.lineWidth = 5; ctx.strokeStyle = rgba(TC.stoneL, 0.25 + 0.3 * pu); ctx.stroke(P); }
-  ctx.lineWidth = 2.2; ctx.strokeStyle = col; ctx.stroke(P);
+  ctx.lineWidth = 6 + 4 * k; ctx.strokeStyle = rgba(ECOL.stone, (L ? 0.22 : 0.3) + (0.15 + 0.3 * k) * br); ctx.stroke(V);   // 금 사이로 새는 빛
+  ctx.lineWidth = 2 + 0.8 * k; ctx.strokeStyle = L ? VX.lerp('#8a2a17', '#d24a26', 0.4 * br + 0.6 * k) : VX.lerp('#ff9a6a', '#fff0dc', 0.3 * br + 0.6 * k); ctx.stroke(V);
   ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
-  if (on && !RM.matches) for (let i = 0; i < 5; i++) {           // 돌가루: 몸 아래쪽에서 떨어지며 옅어진다
-    const per = 700 + 300 * hash(i * 3.7), u = ((now + hash(i * 1.3) * per) % per) / per, h = hash(i * 9.1 + Math.floor((now + hash(i * 1.3) * per) / per));
-    ctx.fillStyle = rgba(TC.stone, 0.7 * (1 - u)); ctx.fillRect(x + (h - 0.5) * r * 1.4, y + r * 0.5 + u * r * 0.9, 2.2, 2.2);
+  if (drawCorr(e)) { }
+  if (e.slowT > 0 || e.stunT > 0) { ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.lineWidth = 3; ctx.strokeStyle = e.stunT > 0 ? '#fff3a0' : '#8fe3ff'; ctx.stroke(); }
+  peb(true);
+  if (!rm) for (let n = VX.rate(3 + 12 * k); n > 0; n--) {   // 돌가루: 몸 아래쪽에서 떨어진다 (흔적)
+    const a = 0.35 + Math.random() * 2.4; VX.spark(x + Math.cos(a) * r * 0.8, y + Math.sin(a) * r * 0.75, (Math.random() - 0.5) * 18, 10 + Math.random() * 20, 0.6 + Math.random() * 0.5, 1.3 + Math.random() * 1.5, Math.random() < 0.5 ? pal[1] : pal[2], 140, 1, 0);
   }
+  drawStatus(e, false);
+  bossHpBar(e, r, ECOL.stone);
+}
+// 교란체: 접힌 종이 바람개비 (날개마다 빛을 받는 면과 그늘 면, 두 색이 번갈아). 천천히 돌며 잔상이 남고, 판의 줄을 예고하는 동안 빨라진다.
+// 둘레에는 작은 블록 넷이 기울어진 타원을 돌며 이따금 둘씩 자리를 바꾼다 (섞기). 바람 자국이 몸을 따라 흐른다
+const JB_COL = [['#ff6fb0', '#c8186e'], ['#ffc9df', '#ea5a97']];   // 날개 두 가지가 번갈아 [빛을 받는 면, 그늘 면]
+function bladeDraw(x, y, r, ang, al) {
+  for (let k = 0; k < 4; k++) {
+    const a = ang + k * Math.PI / 2, P = shPts(BLADE, r, a), c = JB_COL[k % 2], fx = Math.cos(a + FOLD[0]) * FOLD[1] * r, fy = Math.sin(a + FOLD[0]) * FOLD[1] * r;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + P[0][0], y + P[0][1]); ctx.lineTo(x + fx, y + fy); ctx.closePath();
+    ctx.fillStyle = rgba(c[0], al); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + fx, y + fy); ctx.lineTo(x + P[1][0], y + P[1][1]); ctx.lineTo(x + P[2][0], y + P[2][1]); ctx.closePath();
+    ctx.fillStyle = rgba(c[1], al); ctx.fill();
+  }
+}
+function drawJumbleBoss(e) {
+  const x = e.x, y = e.y, t = VX.t, dt = VX.dt || 0.016, L = VX.light, rm = RM.matches, b = C.S.m3, on = !!(b && b.jw), sd = hash(e.born * 2.7) * 50;
+  const r = e.r * (e.flash > 0 ? 1.06 : 1), col = ECOL.jumble;
+  e._on = (e._on || 0) + ((on ? 1 : 0) - (e._on || 0)) * Math.min(1, dt * 3);
+  const k = e._on, w = rm ? 0 : 0.9 + 4.2 * k;   // 도는 빠르기 (라디안/초)
+  e._ang = (e._ang == null ? sd : e._ang) - w * dt;
+  const ang = e._ang;
+  VX.glow(x, y, r * 2.1, col, (L ? 0.14 : 0.24) + 0.1 * k);
+  // 둘레의 블록 넷: 자리(슬롯)를 돌며, 주기마다 이웃한 둘이 위로 떠올라 자리를 바꾼다
+  const per = rm ? 1e9 : 1.7 - 0.9 * k, cyc = Math.floor((t + sd) / per), u = ((t + sd) / per) - cyc;
+  if (e._cyc !== cyc) { const pm = e._pm || (e._pm = [0, 1, 2, 3]); if (e._cyc != null && e._sw) { const [i, j] = e._sw; const q = pm[i]; pm[i] = pm[j]; pm[j] = q; } e._cyc = cyc; const i = Math.floor(hash(cyc * 1.7 + sd) * 4); e._sw = [i, (i + 1) % 4]; }
+  const pm = e._pm, sw = e._sw, mv = Math.min(1, u / 0.5), em = mv * mv * (3 - 2 * mv), orb = t * 0.35 * (rm ? 0 : 1) + sd;
+  const ids = e._wt || (e._wt = [0, 1, 2, 3].map(i => C.WEAPON_IDS[Math.floor(hash(sd + i * 4.4) * C.WEAPON_IDS.length)]));
+  const tiles = [];
+  for (let s = 0; s < 4; s++) {
+    let a = orb + s * Math.PI / 2, lift = 0;
+    if (sw && (s === sw[0] || s === sw[1])) { const o = s === sw[0] ? sw[1] : sw[0], d = ((o - s + 4) % 4 === 1 ? 1 : -1) * Math.PI / 2; a += d * em; lift = Math.sin(Math.PI * em) * r * 0.22; }
+    tiles.push({ a, lift, id: ids[pm[s]] });
+  }
+  const tile = (o) => {
+    const s = Math.sin(o.a), px = x + Math.cos(o.a) * r * 1.36, py = y + s * r * 0.46 - o.lift - r * 0.08, z = 0.8 + 0.2 * s, h = r * 0.17 * z, wc = C.WEAPONS[o.id].color;
+    ctx.globalAlpha = 0.72 + 0.28 * z;
+    m3RR(ctx, px - h, py - h, h * 2, h * 2, h * 0.45); ctx.fillStyle = theme.v.panel; ctx.fill(); ctx.fillStyle = rgba(wc, 0.3); ctx.fill();
+    ctx.lineWidth = 1.6; ctx.strokeStyle = wc; ctx.stroke();
+    ctx.fillStyle = wc; ctx.beginPath(); ctx.arc(px, py, h * 0.32, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+  for (const o of tiles) if (Math.sin(o.a) <= 0) tile(o);
+  if (!rm) for (let i = 0; i < 3; i++) {          // 바람 자국: 도는 쪽으로 흐르며 가늘어지고 옅어진다
+    const pu = (t * (0.9 + 0.8 * k) + i / 3 + hash(sd + i)) % 1, a0 = hash(sd + i * 5 + Math.floor(t * (0.9 + 0.8 * k) + i / 3 + hash(sd + i))) * 6.28 - pu * 1.4, rr = r * (1.05 + 0.35 * hash(sd * 3 + i + Math.floor(t + i)));
+    for (let j = 0; j < 3; j++) {
+      const s0 = a0 + j * 0.28, al = (0.16 + 0.22 * k) * Math.sin(Math.PI * pu) * (1 - j / 3);
+      ctx.beginPath(); ctx.arc(x, y, rr, s0, s0 + 0.32); ctx.lineWidth = (2.6 - j * 0.8) * (0.6 + 0.4 * k); ctx.strokeStyle = rgba(col, al); ctx.stroke();
+    }
+  }
+  if (!rm) { bladeDraw(x, y, r, ang + w * 0.09, 0.12 + 0.06 * k); bladeDraw(x, y, r, ang + w * 0.045, 0.2 + 0.08 * k); }   // 잔상
+  bladeDraw(x, y, r, ang, 1);
+  e._ang = ang; enemyPath(e);
+  if (e.flash > 0) { ctx.fillStyle = rgba('#ffffff', L ? 0.5 : 0.4); ctx.fill(); }
+  ctx.lineWidth = 2.6; ctx.lineJoin = 'round';
+  ctx.strokeStyle = e.stunT > 0 ? '#fff3a0' : e.slowT > 0 ? '#8fe3ff' : L ? '#b0185f' : '#ff8cc4'; ctx.stroke(); ctx.lineJoin = 'miter';
+  ctx.beginPath();                               // 접힌 선: 가운데에서 바깥으로 갈수록 옅게 (밝은 줄)
+  for (let i = 0; i < 4; i++) { const a = ang + i * Math.PI / 2 + FOLD[0]; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * FOLD[1] * r, y + Math.sin(a) * FOLD[1] * r); }
+  ctx.lineWidth = 1.2; ctx.strokeStyle = rgba('#ffffff', L ? 0.55 : 0.4); ctx.stroke();
+  if (drawCorr(e)) { }
+  ctx.beginPath(); ctx.arc(x, y, r * 0.15, 0, 6.283);   // 가운데 핀
+  const hg = ctx.createRadialGradient(x - r * 0.05, y - r * 0.05, 0, x, y, r * 0.15); hg.addColorStop(0, '#ffffff'); hg.addColorStop(1, L ? '#f2b8d2' : '#ffd0e6');
+  ctx.fillStyle = hg; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = L ? '#b0185f' : col; ctx.stroke();
+  for (const o of tiles) if (Math.sin(o.a) > 0) tile(o);
+  drawStatus(e, false);
+  bossHpBar(e, r, col);
+}
+function bossHpBar(e, r, col) {
+  if (!(e.hp < e.maxHp)) return;
+  const w = r * 1.8, h = 6, bx = e.x - w / 2, by = e.y - r - 14;
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(bx, by, w, h);
+  ctx.fillStyle = col; ctx.fillRect(bx, by, w * Math.max(0, e.hp / e.maxHp), h);
 }
 // 돌격체: 예고하는 레인을 아래로 흐르는 갈매기표와 옅은 띠로 물들이고, 돌진할 때는 지나온 자리에 옅어지는 잔상을 남긴다 (화면용 기록은 적 객체에)
 function drawCharge(e, H, now) {
@@ -2668,6 +2791,8 @@ function crateTap(ev) {
 function drawEnemy0(e) {
   if (e.gd) { drawGold(e); return; }
   if (e.cr) { drawCrate(e); return; }
+  if (e.type === 'stone') { drawStoneBoss(e); return; }
+  if (e.type === 'jumble') { drawJumbleBoss(e); return; }
   if (e.type === 'scale') {
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 18 + Math.sin(performance.now() / 160) * 4, 0, Math.PI * 2);
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(ECOL.scale, 0.5); ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
@@ -2702,10 +2827,8 @@ function drawEnemy0(e) {
     ctx.lineWidth = 6; ctx.strokeStyle = rgba(col, 0.9); ctx.stroke();
     ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
   }
-  if (e.type === 'jumble') drawJumbleMark(e, col);
   if (e.type === 'corrode') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.4, 0, Math.PI * 2); ctx.stroke(); }
   if (e.type === 'charge') drawChargeMark(e, col);
-  if (e.type === 'stone') drawStoneMark(e, col);
   if (e.elite) drawElite(e, col);
   drawStatus(e, iced);
   if (e.hp < e.maxHp) {
@@ -5569,11 +5692,6 @@ function m3Gold(g, x, y, R, id, now) {
   }
 }
 // 돌 (석화체): 블록마다 조금씩 다른 울퉁불퉁한 돌, 갈라진 금, 왼쪽 위의 밝은 면. a: 짙기 (예고 중에는 옅게)
-function m3StonePath(g, x, y, h, id) {
-  const rot = hash(id * 2.9) * 6.28; g.beginPath();
-  STONE_SH.forEach(([an, q], i) => { const qq = h * (0.9 + 0.1 * q) * (0.96 + 0.08 * hash(id + i * 1.1)), a = an + rot, px = x + Math.cos(a) * qq * 1.08, py = y + Math.sin(a) * qq; if (i) g.lineTo(px, py); else g.moveTo(px, py); });
-  g.closePath();
-}
 function m3Cracks(g, x, y, h, id, k) {           // 금: 가운데 가까이에서 두세 갈래 (k: 0~1 뻗은 정도)
   const n = 2 + (hash(id * 4.1) > 0.5 ? 1 : 0), cx = x + (hash(id * 5.7) - 0.5) * h * 0.3, cy = y + (hash(id * 6.1) - 0.5) * h * 0.3;
   g.beginPath();
@@ -5582,15 +5700,11 @@ function m3Cracks(g, x, y, h, id, k) {           // 금: 가운데 가까이에�
     for (let m = 1; m <= 3; m++) { const L = h * 0.24 * k, aa = a + (hash(id * 8.9 + j * 5 + m) - 0.5) * 0.9; px += Math.cos(aa) * L; py += Math.sin(aa) * L; g.lineTo(px, py); }
   }
 }
-function m3Stone(g, x, y, R, id, a) {
-  const h = R * 1.05, a0 = g.globalAlpha;
+function m3Stone(g, x, y, R, id, a) {           // 판의 굳은 칸: 석화체와 같은 깎인 돌 (블록마다 모양과 돌아간 각이 조금씩 다르다), 어두운 금
+  const h = R * 1.05, a0 = g.globalAlpha, pal = [TC.stoneL, TC.stone, TC.stoneD, TC.stoneD];
   g.globalAlpha = a0 * a;
-  m3StonePath(g, x, y, h, id);
-  const f = g.createLinearGradient(x - h, y - h, x + h, y + h);
-  f.addColorStop(0, TC.stoneL); f.addColorStop(0.45, TC.stone); f.addColorStop(1, TC.stoneD);
-  g.fillStyle = f; g.fill(); g.lineWidth = 1.6; g.strokeStyle = rgba(TC.stoneD, 0.9); g.stroke();
-  m3Cracks(g, x, y, h, id, 1); g.lineWidth = 1.3; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = rgba(TC.stoneD, 0.85); g.stroke();
-  g.beginPath(); g.arc(x - h * 0.18, y - h * 0.16, h * 0.55, Math.PI * 1.05, Math.PI * 1.45); g.lineWidth = 2; g.strokeStyle = rgba(TC.stoneL, 0.7); g.stroke();
+  drawRock(g, x, y, h * 1.1, id + 1, (hash(id * 2.9) - 0.5) * 0.9, pal, 1.5);
+  m3Cracks(g, x, y, h, id, 1); g.lineWidth = 1.3; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = rgba(TC.stoneD, 0.8); g.stroke();
   g.lineCap = 'butt'; g.lineJoin = 'miter';
   g.globalAlpha = a0;
 }
