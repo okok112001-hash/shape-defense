@@ -268,10 +268,12 @@ const Snd = (function () {
 })();
 
 /* ---------- 도우미 ---------- */
-function loadBest() {
-  try { const o = JSON.parse(localStorage.getItem(BEST_KEY) || 'null'); if (o && typeof o.t === 'number') return o; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
+function loadBest() {   // wave 가 없는 예전 기록은 다른 방식의 기록이라 버린다(없는 것으로 친다)
+  try { const o = JSON.parse(localStorage.getItem(BEST_KEY) || 'null'); if (o && typeof o.t === 'number' && typeof o.wave === 'number') return o; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
   return null;
 }
+// 더 좋은 기록: 웨이브가 크면, 같으면 플레이 시간이 짧으면
+const beats = (a, b) => !b || a.wave > b.wave || (a.wave === b.wave && a.t < b.t);
 function saveBest(o) { best = o; try { localStorage.setItem(BEST_KEY, JSON.stringify(o)); } catch (e) { /* 무시 */ } }
 function applyTheme(th, save) {
   theme = th;
@@ -1156,8 +1158,8 @@ function swapHtml() {
 }
 
 /* ---------- 겹침 창 ---------- */
-function recHtml(r) {
-  return `<div class="rec">${r.wave ? `<div><small>웨이브</small><b>${r.wave}</b></div>` : ''}<div><small>생존 시간</small><b>${fmtTime(r.t)}</b></div><div><small>처치</small><b>${r.kills}</b></div>${r.boss != null ? `<div><small>보스 처치</small><b>${r.boss}</b></div>` : ''}</div>`;
+function recHtml(r) {   // 웨이브가 주(크게), 플레이 시간·처치·보스 처치는 작게
+  return `<div class="rec"><div class="rmain"><small>웨이브</small><b>${r.wave}</b></div><div class="rsub"><div><small>플레이 시간</small><b>${fmtTime(r.t)}</b></div><div><small>처치</small><b>${r.kills}</b></div>${r.boss != null ? `<div><small>보스 처치</small><b>${r.boss}</b></div>` : ''}</div></div>`;
 }
 /* ---------- 천칭의 거래 ---------- */
 function pactLines(id) { const d = C.PACTS[id]; return `<span class="up">▲ ${d.up}</span><span class="dn">▼ ${d.dn}</span>`; }
@@ -1485,7 +1487,7 @@ function renderOverlay() {
       <button type="button" class="btn danger" data-act="restartOk">다시 시작</button>
       <button type="button" class="btn" data-act="pauseBack">뒤로</button></div>`;
   } else if (mode === 'pause') {
-    h = `<div class="modal pausem"><h2>일시정지</h2>${S ? recHtml({ t: S.t, kills: S.kills }) : ''}
+    h = `<div class="modal pausem"><h2>일시정지</h2>${S ? recHtml({ wave: Math.max(1, S.wn || 0), t: S.t, kills: S.kills, boss: S.bossKills || 0 }) : ''}
       ${iconRow()}
       <button type="button" class="btn primary" data-act="resume">계속하기</button>
       <button type="button" class="btn" data-act="quit">그만하기</button>
@@ -1592,11 +1594,10 @@ function captureRes(S) {
 }
 function gameOver() {
   const S = C.S;
-  lastRec = { t: S.prep ? C.tD() : S.t, kills: S.kills, lv: S.maxLv, boss: S.bossKills || 0 };   // 정비 시간은 생존 시간에 넣지 않는다
-  if (S.prep) lastRec.wave = S.wn;
+  lastRec = { wave: Math.max(1, S.wn || 0), t: S.t, kills: S.kills, lv: S.maxLv, boss: S.bossKills || 0 };   // 플레이 시간 = 실제로 흐른 시간(정비 시간 포함)
   lastRes = captureRes(S);
   const test = isTest();              // 테스트 게임: 최고 기록을 저장하지 않고 공유 이미지도 만들지 않는다
-  newRec = !test && (!best || lastRec.t > best.t);
+  newRec = !test && beats(lastRec, best);
   if (newRec) saveBest(lastRec);
   shareReset(); shareDate = new Date();
   mode = 'over'; resetUi(); renderAll(); Snd.play('over');
@@ -1614,8 +1615,8 @@ function shareReset() {
 }
 function shareData() {
   const S = C.S, over = mode === 'over' && lastRes && lastRec;
-  const rec = over ? lastRec : { t: S.t, kills: S.kills, boss: S.bossKills || 0 }, res = over ? lastRes : captureRes(S);
-  return { t: rec.t, kills: rec.kills, boss: rec.boss || 0, newRec: over ? newRec : false, slots: res.slots, pacts: res.pacts, date: over ? shareDate : new Date() };
+  const rec = over ? lastRec : { wave: Math.max(1, S.wn || 0), t: S.t, kills: S.kills, boss: S.bossKills || 0 }, res = over ? lastRes : captureRes(S);
+  return { wave: rec.wave, t: rec.t, kills: rec.kills, boss: rec.boss || 0, newRec: over ? newRec : false, slots: res.slots, pacts: res.pacts, date: over ? shareDate : new Date() };
 }
 const SHARE_FONT = '"Do Hyeon", "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", sans-serif';
 function loadSvgImg(svg) {
@@ -1645,21 +1646,21 @@ async function buildShare() {
   const a = '도형 ', b = '디펜스', wa = g.measureText(a).width, wb = g.measureText(b).width, x0 = W / 2 - (wa + wb) / 2;
   g.textAlign = 'left'; g.fillStyle = V.ink; g.fillText(a, x0, 150); g.fillStyle = V['accent-ink']; g.fillText(b, x0 + wa, 150);
   g.textAlign = 'center';
-  // 생존 시간 (가장 크게)
-  g.fillStyle = V.dim; g.font = '40px ' + SHARE_FONT; g.fillText('생존 시간', W / 2, 262);
-  g.fillStyle = V.ink; g.font = '250px ' + SHARE_FONT; g.fillText(fmtTime(d.t), W / 2, 486);
+  // 웨이브 (가장 크게)
+  g.fillStyle = V.dim; g.font = '40px ' + SHARE_FONT; g.fillText('웨이브', W / 2, 262);
+  g.fillStyle = V.ink; g.font = '250px ' + SHARE_FONT; g.fillText(String(d.wave), W / 2, 486);
   if (d.newRec) {
     g.font = '40px ' + SHARE_FONT;
     const label = '최고 기록', tw = g.measureText(label).width + 70;
     g.fillStyle = V.accent; rrect(g, W / 2 - tw / 2, 520, tw, 66, 33); g.fill();
     g.fillStyle = V['on-accent']; g.fillText(label, W / 2, 566);
   }
-  // 처치, 보스 처치
-  [['처치', d.kills], ['보스 처치', d.boss]].forEach(([lab, v], i) => {
-    const x = 70 + i * 480, w = 460;
+  // 플레이 시간, 처치, 보스 처치 (작게)
+  [['플레이 시간', fmtTime(d.t)], ['처치', d.kills], ['보스 처치', d.boss]].forEach(([lab, v], i) => {
+    const x = 70 + i * 320, w = 300;
     g.fillStyle = V.panel; rrect(g, x, 616, w, 128, 18); g.fill(); g.strokeStyle = V.line; g.lineWidth = 3; g.stroke();
-    g.textAlign = 'left'; g.fillStyle = V.dim; g.font = '32px ' + SHARE_FONT; g.fillText(lab, x + 28, 664);
-    g.textAlign = 'right'; g.fillStyle = V.ink; g.font = '68px ' + SHARE_FONT; g.fillText(String(v), x + w - 28, 716);
+    g.textAlign = 'left'; g.fillStyle = V.dim; g.font = '30px ' + SHARE_FONT; g.fillText(lab, x + 24, 658);
+    g.textAlign = 'right'; g.fillStyle = V.ink; g.font = '58px ' + SHARE_FONT; g.fillText(String(v), x + w - 24, 722);
   });
   // 무기 5칸
   g.textAlign = 'left'; g.fillStyle = V.dim; g.font = '32px ' + SHARE_FONT; g.fillText('무기', 74, 800);
@@ -1732,7 +1733,7 @@ function doShare() {
   try { can = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [f] })); } catch (e) { can = false; }
   if (!can) return shareDownload();
   let p;
-  try { p = navigator.share({ files: [f], title: '도형 디펜스', text: `생존 ${fmtTime(lastRec ? lastRec.t : C.S.t)} · 처치 ${lastRec ? lastRec.kills : C.S.kills}` }); } catch (e) { return shareDownload(); }
+  try { p = navigator.share({ files: [f], title: '도형 디펜스', text: `웨이브 ${lastRec ? lastRec.wave : Math.max(1, C.S.wn || 0)} · 플레이 시간 ${fmtTime(lastRec ? lastRec.t : C.S.t)} · 처치 ${lastRec ? lastRec.kills : C.S.kills}` }); } catch (e) { return shareDownload(); }
   Promise.resolve(p).catch((e) => { if (e && e.name === 'AbortError') return; shareDownload(); });
 }
 function askPartSwap(i, k) { partSwap = { i, k, sel: -1 }; pswapAt = performance.now(); sel = null; upMode = false; msg = ''; renderAll(); }
