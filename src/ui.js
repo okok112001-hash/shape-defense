@@ -1305,8 +1305,8 @@ function testHtml() {
     </div>
     <div class="wm-sec">전장 <b class="tnow">${fmtTime(S.t)}${C.CFG.waves ? ' · 웨이브 ' + S.wn : ''}</b></div>
     <div class="tgrid">
-      <button type="button" class="btn" data-act="testT1">시간 +1분</button>
-      <button type="button" class="btn" data-act="testT5">시간 +5분</button>
+      <button type="button" class="btn" data-act="testT1">${S.prep ? '웨이브 +' + Math.round(60 / C.PREP.span) : '시간 +1분'}</button>
+      <button type="button" class="btn" data-act="testT5">${S.prep ? '웨이브 +' + Math.round(300 / C.PREP.span) : '시간 +5분'}</button>
       <button type="button" class="btn${off(!!S.pendingBoss)}" data-act="testBoss">보스 부르기</button>
       <button type="button" class="btn" data-act="testClear">적 지우기</button>
       <button type="button" class="btn${off(!C.CFG.waves)}" data-act="testWave">다음 웨이브</button>
@@ -1332,7 +1332,7 @@ function testRun(name, arg) {
     case 'testMax': ok = T.maxAll() > 0; m = '모두 100강'; break;
     case 'testEvo': ok = T.evolveAll() > 0; m = '모두 진화'; break;
     case 'testSkReset': ok = T.resetSkills() > 0; m = '스킬 초기화'; break;
-    case 'testT1': case 'testT5': ok = T.addTime(name === 'testT1' ? 60 : 300); m = '시간 ' + fmtTime(S.t); break;
+    case 'testT1': case 'testT5': ok = T.addTime(name === 'testT1' ? 60 : 300); m = S.prep ? '웨이브 ' + S.wn : '시간 ' + fmtTime(S.t); break;   // 연결 모드는 웨이브 번호를 올린다
     case 'testBoss': ok = T.boss(); m = '보스 예고'; break;
     case 'testClear': T.clear(); m = '적 지움'; break;
     case 'testWave': ok = T.nextWave(); m = '다음 웨이브'; break;
