@@ -304,7 +304,7 @@ T1·T4(가능하면 T5)가 끝난 뒤 한다. 측정은 `tools/skill_eq.js`, 첫
 연결 모드가 정식 게임이 됐다(`CLAUDE.md` 의 "연결 모드" 줄). 봇·측정 도구는 예전 방식(`newGame` 에 mode 없음)으로 돌고, 아래 변경은 연결 모드(`S.pipe`, `S.prep`)에만 건다. 단, 보스 수치(S2)는 두 방식 모두.
 **묶음 S (sonnet, 정해진 수정)**: S1 → S2 → S3. **묶음 O (opus, 판단이 필요한 설계·연출)**: O1 → O2. S 를 먼저 한다(S1 이 코드를 줄여 O 가 쉬워진다).
 
-### S1. 남은 시험판 지우기 (sonnet)
+### S1. [완료 2026-11-27] 남은 시험판 지우기 (sonnet)
 - 시작 화면의 `시험판` 줄(정비 시간, 무기 켜짐, 맞추기)과 그 동작(`prepStart`, `actStart`, `m3Start`), `startGame` 의 `'prep'`·`'act'`·`'m3'` 갈래, `reTest` 의 시험판 갈래를 지운다.
 - core: 무기 켜짐(`S.act`, `ACT`, `actTier`, 무기 반복문의 `S.act` 줄, `prepStep` 의 켜진 시간 줄이기·초기화, `pipeSetup` 의 `'act'` 갈래), 맞추기(`m3Runs`, `m3Swappable`, `m3HasMove`, `m3Hint`, `m3Tick`, `m3Grow`, `test.m3`, `m3Fill` 의 '맞춰진 줄 없게' 처리, `M3.wait`·`swapT`, 크레이트·보스 보상의 `S.m3.mode === 'match'` 조건), `step` 의 `m3Tick` 호출. `pipeSetup` 에서 정비 구조만 거는 갈래(kind 없음)도 지운다. 남기는 것: `S.prep`·`PREP`·`prepStep`·`prepGo`·`tD`, 연결(`S.pipe`, `PIPE`, `pipeLinks`, `pipeRate`, `m3New`/`m3Fill`/`m3Pool`/`m3Rand`/`m3Swap`).
 - ui: `drawActBars`, 힌트(`m3idle`·`m3hint`·`M3HINT` 와 그리기), 도형 블록(`M3COL`·`M3DK`·`m3Path`, `m3Block` 의 도형 갈래), `m3Ev` 의 터짐·연쇄·섞음 처리와 `m3Fly`·`m3Gain`·`m3SlotOf`, 맞추기 열 띠, 무기 칸 흐리게의 `S.act` 조건, `burstAt` 의 '초' 표시 호출. 판은 연결만 남는다(이름 `m3*` 는 그대로 둬도 된다).

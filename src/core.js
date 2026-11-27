@@ -611,16 +611,15 @@ function newGame(h, mode) {
   S.base = newBase();
   S.slots[2] = newWeapon('blaster');
   syncMaxHp(); S.hp = S.maxHp;
-  if (mode === 'pipe') pipeSetup('pipe');
+  if (mode === 'pipe') pipeSetup();
   return S;
 }
-function pipeSetup(kind) {   // 정비 시간 구조 (+ kind 'act' 무기 켜짐, 'pipe' 연결: 무작위 무기 5개와 판)
+function pipeSetup() {   // 연결 모드: 정비 시간 구조, 겹치지 않는 무작위 무기 5개(0강), 웨이브 중 연결 판
   S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
-  if (kind !== 'act' && kind !== 'pipe') return;
   const ids = WEAPON_IDS.slice(), r = subG();
   for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
-  if (kind === 'act') S.act = true; else S.pipe = true;
-  S.m3 = m3New(kind);
+  S.pipe = true;
+  S.m3 = m3New();
 }
 function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.mines) S.mines = []; if (!S.melt) S.melt = 0; if (!S.rewq) S.rewq = []; if (!S.crafts) S.crafts = 0; if (!S.base) S.base = newBase();
   S.shards = S.shards || 0;   // 예전 저장의 강화 조각 아이템은 재화로 바꾼다
@@ -1235,7 +1234,6 @@ function crateOpen(e) {
   e.dead = true; S.crN = (S.crN || 0) + 1;
   const rg = subG();
   let k = Math.floor(rg() * 3), v = 0, it = null;
-  if (S.m3 && S.m3.mode === 'match' && k === 2) k = 1;   // 맞추기 시험판: 인벤토리가 없으니 파츠 대신 조각
   if (k === 0) { v = waveGold(S.t) * CRATE.waves * (1 + bstats().goldAll); S.gold += v; }
   else if (k === 1) { for (let i = 0; i < CRATE.gens; i++) v += BAL.bundle(genCost(), rg); addShards(v); }
   else { it = newPart(CRATE.partN, rg); S.drops.push(it); S.rewq.push({ item: it, x: e.x, y: e.y, k: 0, n: 1, crate: 1 }); }
@@ -1347,7 +1345,7 @@ function kill(e, st) {
   if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
-    const rn = S.m3 && S.m3.mode === 'match' ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (맞추기 시험판은 인벤토리가 없어 보상 없음)
+    const rn = hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
       const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
     }
@@ -2531,7 +2529,6 @@ function step(dt) {
   if (!S || S.over || S.pendingAug || S.pendingPact) return;
   S.t += dt;
   if (S.hitFlash > 0) S.hitFlash -= dt;
-  if (S.m3) m3Tick(dt);
 
   // 적 등장
   if (CFG.waves) waveStep(dt);
@@ -2546,13 +2543,12 @@ function step(dt) {
   bossStep(dt);
 
   // 무기
-  const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결 시험판: 칸마다 연결 수
+  const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결: 칸마다 연결 수
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
-    if (S.act && !(w.act > 0)) continue;                    // 무기 켜짐 시험판: 꺼진 무기는 쏘지 않는다
-    if (pl && pl[i][0] < PIPE.need) continue;               // 연결 시험판: 2개 이상 이어지지 않은 무기는 쏘지 않는다
-    w.cd -= S.act ? dt * ACT.rate[actTier(w.act)] : pl ? dt * pipeRate(pl[i][0]) : dt;
+    if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 2개 이상 이어지지 않은 무기는 쏘지 않는다
+    w.cd -= pl ? dt * pipeRate(pl[i][0]) : dt;
     if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
       w.ag -= dt;
@@ -2805,131 +2801,34 @@ function step(dt) {
   }
 }
 
-/* ---------- 시험판 판 (테스트 모드에서만 S.m3 가 생긴다) ---------- */
-// 세 가지 시험판이 같은 판(S.m3, 5x5)을 쓴다. 블록 종류는 성장 갈래 난수(rndG)로 고른다.
-// - 맞추기(mode 'match'): 판은 늘 가득. 이웃한 두 블록을 맞바꿔 같은 도형 3개 이상을 한 줄로 세우면 터지고,
-//   터진 블록 하나마다 그 열의 무기가 '연쇄 번호'만큼 강화된다(1번째 +1, 2번째 연쇄 +2 ...). 빈칸은 위에서 새 블록이 떨어져 채운다.
-//   둘 곳이 없으면 판을 새로 섞는다.
-// - 무기 켜짐(mode 'act'): 맞추기와 같은 규칙, 블록 = 장착한 무기 종류, 터지면 같은 종류 무기가 켜진 시간을 받는다 (정비 시간 시험판 아래).
-// - 연결(mode 'pipe'): 블록 = 장착한 무기 종류, 이웃한 두 블록을 아무 때나 맞바꾼다(터지지 않는다). 무기 바로 아래 칸(0행)에서
-//   시작해 상하좌우로 이어진 그 무기 종류 블록 수가 연결 수. 2개 이상이면 무기가 켜지고, 2개를 넘는 하나마다 공격 속도 +PIPE.bonus.
+/* ---------- 연결 판 (연결 모드에서만 S.m3 가 생긴다) ---------- */
+// 판은 5x5. 블록 종류는 성장 갈래 난수(rndG)로 고른다. 블록 = 장착한 무기 종류(모자라면 안 가진 무기로 5종).
+// 이웃한 두 블록을 아무 때나 맞바꾼다(터지지 않는다). 무기 바로 아래 칸(0행)에서 시작해 상하좌우로 이어진 그 무기 종류 블록 수가
+// 연결 수. 2개 이상이면 무기가 켜지고, 2개를 넘는 하나마다 공격 속도 +PIPE.bonus.
 // g[r * C + c]: 위(r=0)에서 아래로. 새 블록의 fy 는 화면이 그 블록을 처음 그릴 때 어디서 나타나는지(칸 단위 차이)다.
-const M3 = { kinds: 5, wait: 0.45, swapT: 0.16 };
-function m3Runs(g, R, N) {   // 3개 이상 이어진 같은 종류 칸의 번호
-  const out = new Set();
-  const scan = (len, n, at) => {
-    for (let a = 0; a < len; a++) for (let b = 0; b < n;) {
-      const x = g[at(a, b)]; let e = b + 1;
-      if (x) while (e < n && g[at(a, e)] && g[at(a, e)].s === x.s) e++;
-      if (x && e - b >= 3) for (let k = b; k < e; k++) out.add(at(a, k));
-      b = e;
-    }
-  };
-  scan(R, N, (r, c) => r * N + c);   // 가로
-  scan(N, R, (c, r) => r * N + c);   // 세로
-  return out;
-}
 function m3Pool(b) {
   const own = [...new Set(S.slots.filter(Boolean).map(w => w.type))], rest = WEAPON_IDS.filter(id => own.indexOf(id) < 0);
-  while (own.length < M3.kinds && rest.length) own.push(rest.splice(Math.floor(rndG() * rest.length), 1)[0]);
+  while (own.length < 5 && rest.length) own.push(rest.splice(Math.floor(rndG() * rest.length), 1)[0]);
   b.pool = own;
 }
-function m3Rand(b) {
-  if (b.pool) return b.pool[Math.floor(rndG() * b.pool.length)];
-  return Math.floor(rndG() * M3.kinds);
+function m3Rand(b) { return b.pool[Math.floor(rndG() * b.pool.length)]; }
+function m3Fill(b, fy) {   // 판을 새로 채운다 (아무렇게나 깐다)
+  m3Pool(b);
+  b.g = new Array(b.R * b.C).fill(null);
+  for (let i = 0; i < b.g.length; i++) b.g[i] = { s: m3Rand(b), id: ++b.id, fy };
 }
-function m3Swappable(b, i, j) {   // 맞바꾸면 바꾼 블록이 줄을 만드는가
-  const g = b.g, x = g[i], y = g[j]; if (!x || !y || x.s === y.s) return false;
-  g[i] = y; g[j] = x; const run = m3Runs(g, b.R, b.C); g[i] = x; g[j] = y;
-  return run.has(i) || run.has(j);
-}
-function m3HasMove(b) {
-  const N = b.C, n = b.R * N;
-  for (let i = 0; i < n; i++) {
-    if (i % N < N - 1 && m3Swappable(b, i, i + 1)) return true;
-    if (i + N < n && m3Swappable(b, i, i + N)) return true;
-  }
-  return false;
-}
-function m3Fill(b, fy) {   // 판을 새로 채운다 (맞추기: 처음부터 맞춰진 줄은 없고, 둘 곳은 있게)
-  if (b.mode !== 'match') m3Pool(b);
-  const free = b.mode === 'pipe';           // 연결: 아무렇게나 깐다
-  for (let t = 0; t < 60; t++) {
-    b.g = new Array(b.R * b.C).fill(null);
-    for (let i = 0; i < b.g.length; i++) for (let n = 0; n < 20; n++) {
-      b.g[i] = { s: m3Rand(b), id: ++b.id, fy };
-      if (free || !m3Runs(b.g, b.R, b.C).has(i)) break;
-    }
-    if (free || m3HasMove(b)) return;
-  }
-}
-function m3Hint() {
-  const b = S && S.m3; if (!b || b.mode === 'pipe') return null;
-  const N = b.C, n = b.R * N, g = b.g;
-  const left = (t) => { let m = Infinity; for (const w of S.slots) if (w && w.type === t) m = Math.min(m, w.act || 0); return m; };
-  let best = null, bv = Infinity;
-  for (let i = 0; i < n; i++) for (const j of [i + 1, i + N]) {
-    if (j >= n || (j === i + 1 && j % N === 0)) continue;
-    const x = g[i], y = g[j]; if (!x || !y || x.s === y.s) continue;
-    g[i] = y; g[j] = x; const run = m3Runs(g, b.R, N); g[i] = x; g[j] = y;
-    if (!run.has(i) && !run.has(j)) continue;
-    const v = b.mode === 'act' ? Math.min(run.has(j) ? left(x.s) : Infinity, run.has(i) ? left(y.s) : Infinity) : 0;
-    if (!best || v < bv) { best = [i, j]; bv = v; }
-  }
-  return best;
-}
-function m3New(mode) {
-  const b = { mode: mode === 'act' || mode === 'pipe' ? mode : 'match', R: 5, C: LANES, g: null, id: 0, wait: 0, chk: false, chain: 0, ev: [] };
+function m3New() {
+  const b = { mode: 'pipe', R: 5, C: LANES, g: null, id: 0, ev: [] };
   m3Fill(b);
   return b;
 }
-// 맞추기: 이웃한 두 블록 맞바꾸기. 바꾼 블록이 줄을 만들 때만 된다 (아니면 bad)
+// 이웃한 두 블록 맞바꾸기 (조건 없음, 같은 종류끼리는 안 바뀜)
 function m3Swap(i, j) {
   const b = S && S.m3; if (!b || S.over) return { ok: false };
   const N = b.C, n = b.R * N;
   if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
   if (!b.g[i] || !b.g[j] || b.g[i].s === b.g[j].s) return { ok: false };
-  if (b.mode === 'pipe') { const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x; return { ok: true }; }   // 연결: 조건 없이 맞바꾼다
-  if (!m3Swappable(b, i, j)) return { ok: false, bad: true };
-  const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x;
-  b.chain = 0; b.chk = true; b.wait = Math.max(b.wait, M3.swapT);
-  return { ok: true };
-}
-function m3Grow(c, n) {   // c 열 무기를 n 단계 올린다 (증강은 주지 않는다). 실제로 오른 단계를 돌려준다
-  const w = S.slots[c]; if (!w || n <= 0) return 0;
-  const lv0 = w.lv; w.lv = Math.min(CFG.maxLv, w.lv + n); w.hi = Math.max(w.hi || 0, w.lv);
-  dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w);
-  S.slotDirty = true;
-  return w.lv - lv0;
-}
-function m3Tick(dt) {
-  const b = S.m3; if (b.mode === 'pipe') return;
-  if (b.wait > 0) { b.wait -= dt; return; }
-  if (!b.chk) return;
-  const R = b.R, N = b.C, run = m3Runs(b.g, R, N);
-  if (!run.size) {
-    b.chk = false; b.chain = 0;
-    if (!m3HasMove(b)) { m3Fill(b, -R - 0.5); b.ev.push({ k: 'shuffle' }); b.wait = M3.wait; }   // 둘 곳이 없다: 새로 섞는다
-    return;
-  }
-  b.chain++;
-  const gain = new Array(N).fill(0), cells = [];
-  for (const i of run) { const x = b.g[i]; gain[i % N] += b.chain; cells.push({ i, s: x.s, id: x.id }); b.g[i] = null; }
-  for (let c = 0; c < N; c++) {               // 남은 블록은 아래로 붙고, 빈칸은 위에서 새 블록이 떨어져 채운다
-    const col = [];
-    for (let r = R - 1; r >= 0; r--) { const x = b.g[r * N + c]; if (x) col.push(x); }
-    const k = R - col.length;
-    for (let r = R - 1, j = 0; r >= 0; r--, j++) b.g[r * N + c] = col[j] || { s: m3Rand(b), id: ++b.id, fy: -k - 0.3 };
-  }
-  let act = null;
-  if (b.mode === 'act') {                     // 무기 켜짐: 블록 하나에 ACT.per 초를 같은 종류의 장착 무기에 (연쇄 번호와 상관없이), 최대 ACT.max 초
-    act = {};
-    for (const x of cells) act[x.s] = (act[x.s] || 0) + ACT.per;
-    for (const w of S.slots) if (w && act[w.type]) w.act = Math.min(ACT.max, (w.act || 0) + act[w.type]);
-    b.idle = 0;
-  } else for (let c = 0; c < N; c++) gain[c] = m3Grow(c, gain[c]);
-  b.ev.push({ k: 'pop', cells, gain, chain: b.chain, act });
-  b.wait = M3.wait;                          // 떨어지는 모습을 보여 준 뒤 다시 맞춘다 (연쇄)
+  const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x; return { ok: true };
 }
 // 연결: 칸마다 [연결 수, 연결된 판 칸 번호들]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록
 const PIPE = { need: 2, bonus: 0.05 };
@@ -2952,20 +2851,16 @@ function pipeLinks() {
 }
 const pipeRate = (n) => n >= PIPE.need ? 1 + PIPE.bonus * (n - PIPE.need) : 0;
 
-/* ---------- 정비 시간 시험판 (테스트 모드에서만 S.prep 이 생긴다) ---------- */
+/* ---------- 정비 시간 (연결 모드에서만 S.prep 이 생긴다) ---------- */
 // 웨이브는 적이 다 나오고(CFG.waveSpawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 최대 PREP.T 초 정비 시간,
 // '다음 웨이브'를 누르거나 시간이 다 되면 다음 웨이브. 웨이브 중에는 무기·인벤토리 옮기기만 된다(화면이 막는다).
 // 정비 시간은 난이도 시간(tD)에 들어가지 않는다: 적 체력, 재화, 웨이브 세기, 기지 피해 배수는 웨이브를 치른 시간만으로 오른다.
-// 무기 켜짐(S.act = true): 무기마다 켜진 시간(w.act 초). 판의 블록이 장착한 무기 종류이고, 터진 블록 하나마다 같은 종류의 무기에 ACT.per 초.
-// 웨이브 중에만 줄고, 0이면 그 무기는 쏘지 않는다. 5초, 10초를 넘으면 공격 속도가 빨라진다. 웨이브가 끝나면 0으로, 다음 웨이브는 새 판.
 const PREP = { T: 20 };
-const ACT = { max: 15, per: 2, step: 5, rate: [0, 1, 1.3, 1.6] };
-function actTier(t) { return t > 2 * ACT.step ? 3 : t > ACT.step ? 2 : t > 0 ? 1 : 0; }
 function tD() { return S.prep ? S.t - S.prep.rest : S.t; }
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
   P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
-  if (S.m3 && (S.act || S.pipe)) { const b = S.m3; m3Fill(b, -b.R - 0.5); b.chk = false; b.chain = 0; b.wait = 0; }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
+  if (S.m3) { const b = S.m3; m3Fill(b, -b.R - 0.5); }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
   return true;
 }
 function prepStep(dt) {
@@ -2981,10 +2876,8 @@ function prepStep(dt) {
   S.wt += dt * mul;
   if (S.wt - wv.t0 < CFG.waveSpawnT) S.spawnAcc += wv.rate * dt * mul;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
-  if (S.act) for (const w of S.slots) if (w && w.act > 0) w.act = Math.max(0, w.act - dt);
   if (S.wt - wv.t0 >= CFG.waveSpawnT && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
     P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
-    if (S.act) for (const w of S.slots.concat(S.inv)) if (w && w.kind === 'w') w.act = 0;   // 켜진 시간은 웨이브마다 처음부터
   }
 }
 
@@ -3064,7 +2957,7 @@ const test = {
   // 다음 웨이브: 쉬는 시간을 건너뛰고 지금 시작한다
   nextWave() {
     if (!testIdle() || !CFG.waves) return false;
-    if (S.prep) return prepGo();             // 정비 시험판: 정비 중일 때만
+    if (S.prep) return prepGo();             // 정비 중일 때만
     S.wt = S.wEnd;
     return true;
   },
@@ -3087,22 +2980,6 @@ const test = {
     if (i >= 0) S.invDirty = true;
     return i;
   },
-  // 맞추기 시험판: 서로 다른 무작위 무기 5개(0강)를 고정으로 두고 인벤토리 대신 판을 쓴다
-  m3(mode) {
-    if (!testOn()) return false;
-    const ids = WEAPON_IDS.slice(), r = subG();
-    for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
-    S.inv.fill(null); S.m3 = m3New(mode); S.slotDirty = true; S.invDirty = true;
-    return true;
-  },
-  // 정비 시간 시험판: 일반 게임에 정비 시간 구조를 얹는다. act 면 무기 켜짐(웨이브 중 맞추기 판, 무기는 켜진 시간 동안만 쏜다)
-  // kind: 없으면 정비 시간만, 'act' 무기 켜짐, 'pipe' 연결 (둘 다 겹치지 않는 무작위 무기 5개 0강으로 시작, 웨이브 중에는 판)
-  prep(kind) {
-    if (!testOn()) return false;
-    pipeSetup(kind);
-    S.slotDirty = true; S.invDirty = true;
-    return true;
-  },
   // 적 지우기: 보상 없이 모두 없앤다
   clear() {
     if (!testOn()) return 0;
@@ -3123,7 +3000,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  M3, m3Swap, PREP, ACT, actTier, prepGo, m3Hint, PIPE, pipeLinks, pipeRate, tD: () => tD(),
+  m3Swap, PREP, prepGo, PIPE, pipeLinks, pipeRate, tD: () => tD(),
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;

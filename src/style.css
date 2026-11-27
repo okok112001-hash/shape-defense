@@ -104,7 +104,7 @@ b { font-weight: 600; }
 
 /* 하단: 인벤토리 또는 무기 상세 */
 #bottom { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
-/* 맞추기 시험판: 판의 열이 무기 칸과 딱 맞도록 좌우 여백 없이 */
+/* 연결 판: 판의 열이 무기 칸과 딱 맞도록 좌우 여백 없이 */
 #bottom.m3on { padding: 2px 0 8px; }
 #m3cv { display: block; width: 100%; height: calc(5 * var(--cell-h) + 30px); touch-action: none; -webkit-user-select: none; user-select: none; }
 .info { height: 34px; font-size: 12px; line-height: 17px; color: var(--dim); overflow: hidden; }
@@ -918,10 +918,7 @@ b { font-weight: 600; }
 #app.test #hud { grid-template-columns: minmax(0, 1fr) 54px 50px 44px 38px 38px; }   /* 체력 | 시간 | 처치 | 테스트 | 속도 | 정지 */
 .tlink { align-self: center; height: 36px; padding: 0 18px; margin-top: -2px; font-size: 12px; color: var(--dim); border: 1px dashed var(--line); border-radius: 5px; }
 .tlink:active, .tchk:active, .twb:active { transform: translateY(1px); }
-/* 시험판 (핵심 재미 실험) */
-.trow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
-.trow small { width: 100%; text-align: center; font-size: 11px; color: var(--dim); }
-.trow .tlink { height: 32px; padding: 0 10px; margin: 0; }
+/* 정비 시간 막대 */
 #prepBar {
   position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); z-index: 3;
   display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; white-space: nowrap;
