@@ -1521,7 +1521,7 @@ Object.defineProperty(ENEMIES, 'clock', { enumerable: false, value: { hp: 320, s
   hint: '살아 있는 동안 웨이브가 빨리 흐릅니다. 빨리 쓰러뜨리세요', tip: ['웨이브가 빨라짐', '빨리 쓰러뜨리기'] } });
 // 보스는 처음부터 무작위 (같은 보스가 연달아 나오지 않음). 10번째마다는 천칭
 const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'thief', 'corrode', 'charge', 'clock', 'gold'];
-const CHG_WAIT = 5, CHG_FIRST = 3, CHG_WARN = 1.6, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
+const CHG_WAIT = 10, CHG_FIRST = 6, CHG_WARN = 4, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
 const CLOCK_MUL = 1.5;   // 시계체가 살아 있는 동안 웨이브 시간이 흐르는 빠르기
 
 /* ---------- 웨이브 (T11) ---------- */
@@ -1546,7 +1546,7 @@ const SWARM_GRP = 4;                                           // 보통 무리 
 // 나타난 뒤 T초 동안 꾸준히 내려와 기지에 닿는다 (거대체만큼 기지 피해). move초마다 1~2레인 옮기고, warn초 전에 예고한다.
 // 체력은 그 시점 거대체의 hp배. 맞힐 때마다 깎은 체력만큼 재화 (다 깎으면 보통 웨이브 waves개치), 처치하면 보스 보상 대신 전설 파츠.
 // coin: 다 깎았을 때 튀는 동전 수 (동전 하나 = 받는 재화의 1/coin. 화면은 받은 양만큼 동전을 터뜨린다). ticket: 보스 보상이 파츠 대신 황금 티켓이 될 확률. side: 레인을 옮기는 빠르기(px/초)
-const GOLD = { T: 15, move: 2, warn: 0.7, hp: 1.5, waves: 5, coin: 150, ticket: 0.04, side: 480 };
+const GOLD = { T: 15, move: 4, warn: 4, hp: 1.5, waves: 5, coin: 150, ticket: 0.04, side: 480 };
 // 체력 배수 GOLD.hp 와 속도는 나타날 때 정한다 (appearBoss)
 Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES.giant.hp, speed: 0, r: 44, leak: ENEMIES.giant.leak, gold: 0, boss: true, name: '황금체',
   hint: '맞힐 때마다 재화가 나옵니다. 쓰러뜨리면 전설 파츠', tip: ['맞힐 때마다 재화', '처치하면 전설 파츠'] } });
@@ -2092,7 +2092,8 @@ function choosePact(i) {
 function skipPact() { S.pendingPact = null; }
 
 /* ---------- 효과 표시용 ---------- */
-const WARN_T = 3;   // 보스 능력 예고 시간(초)
+const WARN_T = 3;   // 보스 등장 예고(소환진) 시간(초)
+const AB_WARN = 4;  // 보스 능력 예고 시간(초): 봉쇄체 칸 잠금, 약탈체 훔치기, 부식체
 function snd(name) { if (S.snd && S.snd.length < 24) S.snd.push(name); }
 // 보스 능력이 발동한 순간을 화면에 알린다 (번쩍임용)
 function abfx(kind, i) { if (S.abfx && S.abfx.length < 8) S.abfx.push({ kind, i }); }
@@ -3423,7 +3424,7 @@ function bossStep(dt) {
         if (e.abT <= 0) {
           e.abT += 7;
           const c = []; for (let k = 0; k < LANES; k++) if (S.slots[k] && !S.locks[k]) c.push(k);
-          if (c.length) { S.locks[pick(c, rndS)] = { w: WARN_T, l: 0 }; S.slotDirty = true; snd('alert'); }
+          if (c.length) { S.locks[pick(c, rndS)] = { w: AB_WARN, l: 0 }; S.slotDirty = true; snd('alert'); }
         }
         break;
       }
@@ -3433,7 +3434,7 @@ function bossStep(dt) {
           e.abT += 9;
           if (!S.steal) {
             const c = []; for (let k = 0; k < S.inv.length; k++) if (S.inv[k]) c.push(k);
-            if (c.length) { S.steal = { i: pick(c, rndS), t: WARN_T }; S.invDirty = true; snd('alert'); }
+            if (c.length) { S.steal = { i: pick(c, rndS), t: AB_WARN }; S.invDirty = true; snd('alert'); }
           }
         }
         break;
@@ -3467,7 +3468,7 @@ function bossStep(dt) {
           if (!S.corr) {
             let c = []; for (let k = 0; k < LANES; k++) if (S.slots[k] && effLv(S.slots[k]) > 0) c.push(k);
             if (!c.length) for (let k = 0; k < LANES; k++) if (S.slots[k]) c.push(k);
-            if (c.length) { S.corr = { k: pick(c, rndS), t: WARN_T }; S.slotDirty = true; snd('alert'); }
+            if (c.length) { S.corr = { k: pick(c, rndS), t: AB_WARN }; S.slotDirty = true; snd('alert'); }
           }
         }
         break;
@@ -3994,7 +3995,7 @@ const test = {
 const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
-  newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T,
+  newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T, AB_WARN,
   attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
@@ -4463,7 +4464,7 @@ const LOCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" ari
 const HAND_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 11V6a1.5 1.5 0 0 1 3 0v4.500M10.500 10V4.500a1.500 1.500 0 0 1 3 0V10M13.500 10V5.500a1.500 1.500 0 0 1 3 0V12M16.500 12V8.500a1.500 1.500 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.700L4.500 14a1.600 1.600 0 0 1 2.600-1.800l.4.500"/></svg>`;
 // 줄어드는 막대: 애니메이션 길이와 시작 위치를 남은 시간에 맞춘다. 화면을 다시 그려도 끊기지 않고 이어진다
 function cdStyle(rem) {
-  const T = C.WARN_T, r = Math.max(0, Math.min(T, rem)), sp = speed || 1;
+  const T = C.AB_WARN, r = Math.max(0, Math.min(T, rem)), sp = speed || 1;
   return `--d:${(T / sp).toFixed(2)}s;--l:-${((T - r) / sp).toFixed(2)}s`;
 }
 // 지금 예고 중인 보스 능력 목록
@@ -5433,7 +5434,7 @@ const BOSS_HELP = {
   corrode: ['예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
   charge: ['천천히 내려오다 멈춰서 다른 레인을 깜빡여 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진합니다.', '예고된 레인으로 무기를 옮겨 모으세요.'],
   clock: ['살아 있는 동안 웨이브 시간이 빨리 흘러 다음 웨이브와 보스가 일찍 옵니다.', '가장 먼저 쓰러뜨리세요.'],
-  gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 2초마다 레인을 옮깁니다(화살표로 미리 알림).', '옮겨 가는 레인을 보고 무기를 모으세요. 늘 맞히는 저격포가 잘 맞습니다.'],
+  gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 4초마다 레인을 옮깁니다(옮길 레인을 화살표로 4초 전에 알림).', '옮겨 가는 레인을 보고 무기를 모으세요. 늘 맞히는 저격포가 잘 맞습니다.'],
   scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
 };
 function bossCard(t) {

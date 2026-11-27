@@ -310,7 +310,7 @@ T1·T4(가능하면 T5)가 끝난 뒤 한다. 측정은 `tools/skill_eq.js`, 첫
 - ui: `drawActBars`, 힌트(`m3idle`·`m3hint`·`M3HINT` 와 그리기), 도형 블록(`M3COL`·`M3DK`·`m3Path`, `m3Block` 의 도형 갈래), `m3Ev` 의 터짐·연쇄·섞음 처리와 `m3Fly`·`m3Gain`·`m3SlotOf`, 맞추기 열 띠, 무기 칸 흐리게의 `S.act` 조건, `burstAt` 의 '초' 표시 호출. 판은 연결만 남는다(이름 `m3*` 는 그대로 둬도 된다).
 - 확인: `grep -n "S.act\|ACT\b\|m3Hint\|m3Runs\|'match'\|'act'" src/*.js` 가 비어야 한다. `node tools/evo_test.js`, `python build.py`, `python tests/smoke.py`, 시작 → 연결 판에서 끌어 바꾸기·연결 표시·정비 전환을 Playwright 로 한 번 확인. `CLAUDE.md` 의 "시험판 세 개" 줄을 지운다.
 
-### S2. 보스 수치 (sonnet, 연결 모드와 예전 방식 모두)
+### S2. [완료 2026-11-27] 보스 수치 (sonnet, 연결 모드와 예전 방식 모두)
 - 능력 예고 시간 4초: 지금 `WARN_T`(3초)는 보스 등장 예고와 능력 예고가 같이 쓴다. 능력 예고용 상수(예: `AB_WARN = 4`)를 따로 두고 봉쇄체(칸 잠금), 약탈체(훔치기, O2 에서 바뀜), 부식체 예고에 쓴다. 화면의 예고 막대(`cdStyle`, `C.WARN_T` 를 씀)도 새 상수를 쓰게 한다. 보스 등장 예고(소환진)는 3초 그대로.
 - 레인을 옮기는 보스: 돌격체 `CHG_WAIT` 5 → 10, `CHG_FIRST` 3 → 6(옮기는 간격 2배), 예고 `CHG_WARN` 1.6 → 4. 황금체 `GOLD.move` 2 → 4, `GOLD.warn` 0.7 → 4(간격과 같아져 늘 다음 레인이 예고된 상태가 된다. 그대로 둔다).
 - 도움말·보스 설명에 숫자가 있으면 맞춘다. `evo_test.js`, smoke, 테스트 모드의 `보스 부르기`·`황금체 부르기`로 예고가 4초인지 확인.

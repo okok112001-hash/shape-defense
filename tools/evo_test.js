@@ -973,9 +973,10 @@ function scene(type, lines, secs, opt) {
   {
     const S = game(6); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.bossOnly = 'charge'; S.nextBoss = WT; S.spawnAcc = -1e9;
     run(S, WT + Core.WARN_T + 0.05);
+    const CHG_T0 = 6;   // CHG_FIRST (S2)
     const c = S.enemies.find((e) => e.type === 'charge'); assert(c);
     const lane0 = c.lane; let ph1 = null, ph2 = null, y1 = 0, yw = 0;
-    run(S, S.t + 8, () => {
+    run(S, S.t + CHG_T0 + Core.CHG_WARN + 2, () => {
       if (c.ch && c.ch.ph === 1 && !ph1) { ph1 = { t: S.t, y: c.y, to: c.ch.to }; }
       if (ph1 && !ph2 && c.ch.ph === 1) yw = c.y;
       if (c.ch && c.ch.ph === 2 && !ph2) { ph2 = { t: S.t, y: c.y }; }
@@ -1022,11 +1023,11 @@ function scene(type, lines, secs, opt) {
       if (e.dead && tHit == null) tHit = S.t;
     });
     assert(others > 0, '보스 웨이브의 일반 적');
-    assert(moves.length >= 6 && moves.length <= 7, '옮긴 횟수 ' + moves.length);
+    assert(moves.length >= 3 && moves.length <= 4, '옮긴 횟수 ' + moves.length);
     moves.forEach((m, i) => {
       assert(m.d >= 1 && m.d <= 2, '1~2레인');
-      assert(Math.abs(m.t - t0 - G.move * (i + 1)) < DT * 1.5, '2초마다 ' + (m.t - t0));
-      assert(m.w != null && Math.abs(m.t - m.w - G.warn) < DT * 1.5, '0.7초 전 예고');
+      assert(Math.abs(m.t - t0 - G.move * (i + 1)) < DT * 1.5, '4초마다 ' + (m.t - t0));
+      assert(m.w != null && Math.abs(m.t - m.w - G.warn) < (i === 0 ? 0.2 : DT * 1.5), '4초 전 예고 ' + (m.t - m.w));
     });
     assert(tHit != null && Math.abs(tHit - t0 - G.T) < 0.15, '15초에 기지 ' + (tHit - t0));
     assert(!S.inv.some(Boolean) && S.bossKills === 0, '닿으면 보상 없음');
