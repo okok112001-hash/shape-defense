@@ -5474,8 +5474,8 @@ function bossSvg(t) {
       g = `<polygon points="${shPts(JUMBLE_SH, r, -0.35).map(f).join(' ')}" ${a}/><path d="${[0, 1, 2, 3].map(k => { const q = a0 + k * Math.PI / 2; return `M${f([Math.cos(q) * r * 0.17, Math.sin(q) * r * 0.17])}L${f([Math.cos(q) * r * 0.82, Math.sin(q) * r * 0.82])}`; }).join('')}" ${b} stroke-linecap="round"/><circle r="${(r * 0.15).toFixed(1)}" fill="${theme.v.panel}" stroke="${col}" stroke-width="2"/><circle r="${(r * 0.05).toFixed(1)}" fill="${col}"/>`; break; }
     case 'corrode': { const pts = []; for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8, q = (i >> 1) % 2 ? r * 0.78 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.4}" ${b}/>`; break; }
     case 'charge': g = `<polygon points="${-r},${-r * 0.8} 0,${-r * 0.3} ${r},${-r * 0.8} 0,${r}" ${a}/><path d="M${-r * 0.36} ${-r * 0.12}L0 ${r * 0.16}L${r * 0.36} ${-r * 0.12}M${-r * 0.26} ${r * 0.24}L0 ${r * 0.46}L${r * 0.26} ${r * 0.24}" ${b}/>`; break;
-    case 'stone': { const f = (p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1), P = stonePts(0, 0, r), rd = f([STONE_RIDGE[0] * r, STONE_RIDGE[1] * r]);
-      g = `<polygon points="${P.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" ${a}/><path d="${[0, 2, 4, 6].map(i => `M${rd}L${f(P[i])}`).join('')}M${STONE_CRACK.map(q => f([q[0] * r, q[1] * r])).join('L')}" ${b} stroke-linecap="round" stroke-linejoin="round"/>`; break; }
+    case 'stone': { const f = (Q) => Q.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '), P = stonePts(0, 0, r), M = [STONE_R[0] * r, STONE_R[1] * r];
+      g = `<polygon points="${f(P)}" fill="${col}" fill-opacity=".28"/><polygon points="${f([P[0], P[1], P[2], M])}" fill="#fff" fill-opacity=".3"/><polygon points="${f([P[2], P[3], P[4], M])}" fill="rgb(60,20,10)" fill-opacity=".14"/><polygon points="${f(P)}" fill="none" stroke="${col}" stroke-width="3" stroke-linejoin="round"/>`; break; }
     case 'gold': { const c = theme.v.gold; g = `<polygon points="${-r * 0.5},${-r * 0.62} ${r * 0.5},${-r * 0.62} ${r},${-r * 0.12} 0,${r} ${-r},${-r * 0.12}" fill="${c}" fill-opacity=".45" stroke="${c}" stroke-width="3" stroke-linejoin="round"/><path d="M${-r} ${-r * 0.12}H${r}M${-r * 0.5} ${-r * 0.62}L${-r * 0.24} ${-r * 0.12}L0 ${-r * 0.62}L${r * 0.24} ${-r * 0.12}L${r * 0.5} ${-r * 0.62}M${-r * 0.24} ${-r * 0.12}L0 ${r}L${r * 0.24} ${-r * 0.12}" fill="none" stroke="${c}" stroke-width="1.6" stroke-opacity=".7"/>`; break; }
     case 'scale': { const hw = r * 0.82, ink = theme.v.ink; g = `<g transform="rotate(-11)"><polygon points="0,${-r} ${-hw},0 0,${r}" fill="${SC_HV}" fill-opacity=".95" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><polygon points="0,${-r} ${hw},0 0,${r}" fill="${SC_LT}" fill-opacity=".22" stroke="${SC_LT}" stroke-opacity=".6" stroke-width="2" stroke-linejoin="round"/></g>`; break; }
   }
@@ -6433,11 +6433,10 @@ function drawChargeMark(e, col) {
   ctx.moveTo(x - r * 0.36, y - r * 0.12); ctx.lineTo(x, y + r * 0.16); ctx.lineTo(x + r * 0.36, y - r * 0.12);
   ctx.moveTo(x - r * 0.26, y + r * 0.24); ctx.lineTo(x, y + r * 0.46); ctx.lineTo(x + r * 0.26, y + r * 0.24); ctx.stroke();
 }
-// 교란체·석화체 모양 (T12 O2). 다른 보스와 같은 그림체: 반투명 채움, 굵은 색 윤곽(drawEnemy0), 안쪽은 2px 선 무늬.
-// 석화체: 깎인 바위 칠각 (반지름 1 기준 각도와 거리, 가로로 조금 넓게). 마루(가운데보다 왼쪽 위)에서 꼭짓점 넷으로 면 선, 아래쪽에 금 하나
-const STONE_A = [-1.75, -0.95, -0.15, 0.6, 1.4, 2.15, 2.95], STONE_Q = [1, 0.92, 1, 0.9, 1, 0.94, 0.96];
-const STONE_RIDGE = [-0.12, -0.18], STONE_CRACK = [[0.05, 0.2], [0.28, 0.38], [0.2, 0.6], [0.38, 0.78]];
-function stonePts(x, y, r) { return STONE_A.map((a, i) => [x + Math.cos(a) * r * STONE_Q[i] * 1.05, y + Math.sin(a) * r * STONE_Q[i]]); }
+// 교란체·석화체 모양 (T12 O2). 다른 보스와 같은 그림체: 반투명 채움, 굵은 색 윤곽(drawEnemy0). 교란체는 안쪽 2px 선, 석화체는 선 없이 면의 명암만 (사용자 2026-11-28 B안).
+// 석화체: 깎인 바위
+const STONE_V = [[-0.96, -0.22], [-0.42, -0.92], [0.52, -0.86], [0.98, -0.08], [0.6, 0.84], [-0.62, 0.86]], STONE_R = [-0.08, -0.16];   // 반듯한 변의 육각 바위 (반지름 1 기준 x, y), 면이 모이는 마루
+function stonePts(x, y, r) { return STONE_V.map(p => [x + p[0] * r, y + p[1] * r]); }
 // 교란체: 바람개비. 날개 하나 (반지름 1 기준 [각도, 거리]): 끝, 뒤로 휘는 배, 다음 날개 뿌리 쪽. 접힌 선은 핀에서 끝과 배 사이(FOLD 각)로
 const BLADE = [[0, 1.1], [0.98, 0.68], [Math.PI / 2 - 0.1, 0.22]], FOLD = 0.4;   // 날개가 가늘어 다른 보스와 덩치가 비슷하게 반지름보다 조금 크게
 const JUMBLE_SH = []; for (let k = 0; k < 4; k++) for (const [a, q] of BLADE) JUMBLE_SH.push([a + k * Math.PI / 2 - Math.PI / 2, q]);
@@ -6458,14 +6457,12 @@ function drawJumbleMark(e, col) {                // 접힌 선 넷과 가운데 
   ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.stroke();
   ctx.beginPath(); ctx.arc(x, y, r * 0.05, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
 }
-function drawStoneMark(e, col) {                 // 면 선과 금. 판의 칸을 굳히려 할 때(예고) 금이 하얗게 깜빡인다 (몸이 떠는 것은 drawEnemy)
-  const x = e.x, y = e.y, r = e.r, P = stonePts(x, y, r), rx = x + STONE_RIDGE[0] * r, ry = y + STONE_RIDGE[1] * r, b = C.S.m3;
-  ctx.beginPath(); for (const i of [0, 2, 4, 6]) { ctx.moveTo(rx, ry); ctx.lineTo(P[i][0], P[i][1]); }
-  ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke();
-  ctx.beginPath(); STONE_CRACK.forEach((q, j) => j ? ctx.lineTo(x + q[0] * r, y + q[1] * r) : ctx.moveTo(x + q[0] * r, y + q[1] * r));
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  if (b && b.sw) { const k = RM.matches ? 0.6 : 0.5 + 0.5 * Math.sin(performance.now() / 130); ctx.lineWidth = 4.5; ctx.strokeStyle = rgba('#ffffff', 0.45 + 0.45 * k); ctx.stroke(); }
-  ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke(); ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+// 석화체의 면: 선 없이 바탕색만 달리 한다. 윗면(왼쪽 위 셋째 변까지)은 흰빛을 얹어 밝게, 오른쪽 면은 그늘. 판의 칸을 굳히려 할 때(예고) 밝은 면이 하얗게 깜빡인다 (몸이 떠는 것은 drawEnemy)
+function stoneFacets(e, r) {
+  const x = e.x, y = e.y, P = stonePts(x, y, r), M = [x + STONE_R[0] * r, y + STONE_R[1] * r], b = C.S.m3, k = b && b.sw ? (RM.matches ? 0.6 : 0.5 + 0.5 * Math.sin(performance.now() / 130)) : 0;
+  const face = (Q, fill) => { ctx.beginPath(); Q.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
+  face([P[0], P[1], P[2], M], `rgba(255,255,255,${0.28 + 0.45 * k})`);
+  face([P[2], P[3], P[4], M], 'rgba(60,20,10,.14)');
 }
 // 돌격체: 예고하는 레인을 아래로 흐르는 갈매기표와 옅은 띠로 물들이고, 돌진할 때는 지나온 자리에 옅어지는 잔상을 남긴다 (화면용 기록은 적 객체에)
 function drawCharge(e, H, now) {
@@ -6755,6 +6752,7 @@ function drawEnemy0(e) {
   enemyPath(e); e.r = r0;
   ctx.fillStyle = e.flash > 0 ? TC.hit : iced ? 'rgba(160,230,255,.5)' : rgba(col, e.boss ? 0.28 : 0.2);
   ctx.fill();
+  if (e.type === 'stone') { const rr = e.flash > 0 ? r0 * 1.2 : r0; stoneFacets(e, rr); e.r = rr; enemyPath(e); e.r = r0; }   // 면의 명암 (윤곽선 밑에)
   if (drawCorr(e)) { if (e.flash > 0) e.r = r0 * 1.2; enemyPath(e); e.r = r0; }   // 부식 겹: 몸이 산 색으로 차오른다 (경로를 다시 잡고 테두리)
   ctx.lineWidth = e.boss ? 4 : 2.5; ctx.strokeStyle = iced ? '#d6f6ff' : e.stunT > 0 ? '#fff3a0' : e.slowT > 0 ? '#8fe3ff' : col; ctx.stroke();
   if (e.type === 'giant') { ctx.beginPath(); ngon(e.x, e.y, e.r * 0.55, 8, Math.PI / 8); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke(); }
@@ -6772,7 +6770,6 @@ function drawEnemy0(e) {
   if (e.type === 'corrode') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.4, 0, Math.PI * 2); ctx.stroke(); }
   if (e.type === 'charge') drawChargeMark(e, col);
   if (e.type === 'jumble') drawJumbleMark(e, col);
-  if (e.type === 'stone') drawStoneMark(e, col);
   if (e.elite) drawElite(e, col);
   drawStatus(e, iced);
   if (e.hp < e.maxHp) {
