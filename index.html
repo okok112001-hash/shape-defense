@@ -2239,7 +2239,7 @@ function crateOpen(e) {
   e.dead = true; S.crN = (S.crN || 0) + 1;
   const rg = subG();
   let k = Math.floor(rg() * 3), v = 0, it = null;
-  if (S.m3 && k === 2) k = 1;                // 시험판: 인벤토리가 없으니 파츠 대신 조각
+  if (S.m3 && S.m3.mode === 'match' && k === 2) k = 1;   // 맞추기 시험판: 인벤토리가 없으니 파츠 대신 조각
   if (k === 0) { v = waveGold(S.t) * CRATE.waves * (1 + bstats().goldAll); S.gold += v; }
   else if (k === 1) { for (let i = 0; i < CRATE.gens; i++) v += BAL.bundle(genCost(), rg); addShards(v); }
   else { it = newPart(CRATE.partN, rg); S.drops.push(it); S.rewq.push({ item: it, x: e.x, y: e.y, k: 0, n: 1, crate: 1 }); }
@@ -2351,7 +2351,7 @@ function kill(e, st) {
   if (e.boss) {
     S.bossKills++;
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
-    const rn = S.m3 ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (시험판은 인벤토리가 없어 보상 없음)
+    const rn = S.m3 && S.m3.mode === 'match' ? 0 : hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배 (맞추기 시험판은 인벤토리가 없어 보상 없음)
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
       const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
     }
