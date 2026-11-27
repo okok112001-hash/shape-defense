@@ -20,8 +20,8 @@ let markN = 0, markLow = null;
 const GR = C.GRADES;
 const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];   // 등급 색 (테마를 바꾸면 값만 바뀐다)
 const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d',
-  summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', thief: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5',
-  charge: '#ff4d2e', clock: '#ff5c7a', gold: '#ffd84a' };
+  summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', jumble: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5',
+  charge: '#ff4d2e', stone: '#e0785c', gold: '#ffd84a' };
 const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
 const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
@@ -43,6 +43,7 @@ const BLUE_CV = {
   bossTxt: '#ffd0d0', bossLine: 'rgba(255,255,255,.7)', hit: 'rgba(255,255,255,.8)', fence: 'rgba(255,230,120,.85)',
   gold: '#ffd84a', goldA: '#fff3b0', goldB: '#ffc928',   // 황금: 선과 글자, 몸의 밝은 쪽, 어두운 쪽
   crate: '#c39561', crateD: '#6e4a26', crateL: '#ecd2a6', wing: '#f7f3ea',   // 보급 상자: 나무, 짙은 나뭇결과 테두리, 밝은 면, 날개
+  stone: '#8a8070', stoneD: '#3e3830', stoneL: '#c2b8a4',   // 굳은 칸(석화체): 돌, 금과 그늘, 밝은 면 (일반 등급의 푸른 회색과 다른 따뜻한 회갈색)
 };
 // 밝은 테마는 무기 색을 더 어둡게 (바탕과 겹쳐 보이지 않도록)
 const LIGHT_WC = { blaster: '#0a9fc4', shotgun: '#d99400', laser: '#d8409f', pulse: '#12a579', mortar: '#e56a1f', tesla: '#7257e0', rail: '#4a5568', acid: '#5f9e12' };
@@ -58,7 +59,7 @@ const THEMES = [
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '28,39,64',
       bossTxt: '#a01c1c', bossLine: 'rgba(28,39,64,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
       gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
-      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff' },
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#a39885', stoneD: '#4f473c', stoneL: '#ddd4c2' },
     wc: LIGHT_WC },
   { id: 'sand', name: '모래', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#f3ecdd', panel: '#fffaf0', 'panel-2': '#e9dfc9', line: 'rgba(80,55,20,.24)', ink: '#3a2f1f', dim: '#76664d',
@@ -70,7 +71,7 @@ const THEMES = [
       dmgStroke: '255,250,240', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '58,47,31',
       bossTxt: '#a01c1c', bossLine: 'rgba(58,47,31,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
       gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
-      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff' },
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#a39885', stoneD: '#4f473c', stoneL: '#ddd4c2' },
     wc: LIGHT_WC },
   { id: 'sky', name: '하늘', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#e3effb', panel: '#ffffff', 'panel-2': '#d3e4f6', line: 'rgba(22,48,79,.22)', ink: '#16304f', dim: '#52708f',
@@ -82,7 +83,7 @@ const THEMES = [
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '22,48,79',
       bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
       gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
-      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff' },
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#a39885', stoneD: '#4f473c', stoneL: '#ddd4c2' },
     wc: LIGHT_WC },
   { id: 'navy', name: '짙은 남색',
     v: Object.assign({}, BLUE_V, { bg: '#0e1c3a', panel: '#13264d', 'panel-2': '#1a3263', line: 'rgba(150,190,255,.18)', dim: '#93a8cf',
@@ -216,13 +217,15 @@ const Snd = (function () {
     warn: [500, () => { for (let i = 0; i < 3; i++) { tone('square', 440, 440, 0.14, 0.07, i * 0.32); tone('square', 330, 330, 0.14, 0.07, i * 0.32 + 0.16); } }],
     alert: [300, () => { for (let i = 0; i < 2; i++) { tone('square', 880, 880, 0.07, 0.08, i * 0.12); tone('square', 660, 660, 0.07, 0.08, i * 0.12 + 0.06); } }],   // 능력 예고: 짧고 높은 경보
     hitlock: [200, () => { tone('square', 140, 90, 0.12, 0.13); hiss(0.1, 0.16, 2500, 2, 'bandpass'); tone('triangle', 1200, 700, 0.1, 0.06, 0.05); }],   // 잠기는 철컹 소리
-    hitsteal: [200, () => { tone('sawtooth', 900, 180, 0.28, 0.08); hiss(0.2, 0.12, 1200, 1, 'highpass'); }],                                         // 낚아채는 휙 소리
+    hitjumble: [250, () => { for (let i = 0; i < 6; i++) hiss(0.035, 0.09, 1400 + 380 * ((i * 5) % 6), 2.2, 'bandpass', i * 0.045); tone('triangle', 520, 300, 0.2, 0.04, 0.02); }],   // 교란: 패를 섞는 사르륵
+    hitstone: [200, () => { tone('sine', 110, 52, 0.28, 0.16); hiss(0.3, 0.12, 700, 0.9, 'bandpass', 0.01); hiss(0.12, 0.06, 3200, 1.5, 'highpass', 0.05); }],   // 석화: 묵직하게 굳고 돌가루
+    stonetap: [120, () => { tone('triangle', 180, 120, 0.07, 0.07); hiss(0.04, 0.05, 1600, 2, 'bandpass'); }],                                       // 굳은 칸은 안 움직임: 딱
     hitcorr: [200, () => { hiss(0.35, 0.16, 900, 1.2, 'bandpass'); tone('sawtooth', 160, 60, 0.35, 0.09); }],                                         // 녹아내리는 지글 소리
     wave: [500, () => { seq('triangle', [523, 784], 0.16, 0.07, 0.09); hiss(0.25, 0.025, 1800, 0.7, 'lowpass'); }],                                  // 웨이브 시작: 가볍게 올라가는 두 음 (보스 경보보다 작게)
     tick: [300, () => { tone('square', 1760, 1760, 0.016, 0.022); tone('triangle', 880, 880, 0.035, 0.035); }],                                     // 다음 웨이브 초읽기: 작은 똑딱
     goldboss: [500, () => { seq('triangle', [784, 988, 1175, 1568], 0.18, 0.07, 0.08); seq('sine', [1568, 2093, 2637], 0.35, 0.028, 0.12); tone('triangle', 392, 392, 0.5, 0.05); }],   // 황금체 예고: 경보 대신 반짝이며 올라가는 음
     coinburst: [120, () => { for (let i = 0; i < 4; i++) tone('square', 1760 + i * 330, 1760 + i * 330, 0.03, 0.014, i * 0.022); }],                // 동전이 한꺼번에 터짐
-    goldwarn: [400, () => { tone('sine', 1320, 1580, 0.07, 0.03); }],                                                                                // 황금체가 레인을 옮기려 함: 작은 휘익
+    goldblk: [300, () => { tone('sine', 1568, 1568, 0.16, 0.03); tone('triangle', 2349, 2349, 0.22, 0.018, 0.06); }],                                 // 판에 황금 블록이 생김: 맑은 딩
     coin: [70, () => { tone('square', 1975, 1975, 0.03, 0.018); tone('triangle', 2637, 2637, 0.06, 0.02, 0.025); }],                                 // 동전이 재화 숫자에 닿음: 짤랑
     ticket: [300, () => { seq('triangle', [659, 880, 1319], 0.14, 0.07, 0.06); }],                                                                   // 황금 티켓을 씀
     crate: [500, () => { for (let i = 0; i < 4; i++) hiss(0.05, 0.05, 1100 + 200 * i, 1.4, 'bandpass', i * 0.085); tone('sine', 620, 820, 0.14, 0.025, 0.05); }],   // 보급 상자가 날아옴: 날갯짓 푸드덕
@@ -448,9 +451,10 @@ function renderWeapons() {
   elW.classList.toggle('upmode', upmode);     // 강화 모드인 상태를 눈으로 알 수 있게
 }
 // 보스 능력 예고: 칸 표시에 쓰는 도우미
-const AB_COL = { lock: '#ff3d5a', steal: '#ff4fa3', corr: '#c04bff' };
+const AB_COL = { lock: '#ff3d5a', corr: '#c04bff' };
 const LOCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
-const HAND_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 11V6a1.5 1.5 0 0 1 3 0v4.500M10.500 10V4.500a1.500 1.500 0 0 1 3 0V10M13.500 10V5.500a1.500 1.500 0 0 1 3 0V12M16.500 12V8.500a1.500 1.500 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.700L4.500 14a1.600 1.600 0 0 1 2.600-1.800l.4.500"/></svg>`;
+const MIX_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h4c3 0 5 10 9 10h4M3 17h4c1.400 0 2.500-1.300 3.400-3M13.600 10c.9-1.700 2-3 3.400-3h3M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>`;   // 교란: 섞기
+const ROCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path d="M5 18.500 3.500 12 7 6.500l6-2 5.500 3 2 6.500-3 4.500z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 7.500 11 12l-3 3M11 12l4.500 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;   // 석화: 돌
 // 줄어드는 막대: 애니메이션 길이와 시작 위치를 남은 시간에 맞춘다. 화면을 다시 그려도 끊기지 않고 이어진다
 function cdStyle(rem) {
   const T = C.AB_WARN, r = Math.max(0, Math.min(T, rem)), sp = speed || 1;
@@ -461,7 +465,9 @@ function abList() {
   const S = C.S, out = [];
   if (!S) return out;
   for (const j of Object.keys(S.locks || {})) { const lk = S.locks[j]; if (lk.w > 0) out.push({ kind: 'lock', i: +j, rem: lk.w, nm: C.ENEMIES.jammer.name, txt: `${+j + 1}번 칸 잠금 예고` }); }
-  if (S.steal) out.push({ kind: 'steal', i: S.steal.i, rem: S.steal.t, nm: C.ENEMIES.thief.name, txt: `인벤토리 ${S.steal.i + 1}번 칸 약탈 예고` });
+  const b = S.m3;   // 판에 거는 능력 (교란체, 석화체)
+  if (b && b.jw) out.push({ kind: 'jumble', i: b.jw.rows.join(''), rem: b.jw.t, nm: C.ENEMIES.jumble.name, txt: '판 두 줄이 바뀝니다' });
+  if (b && b.sw) out.push({ kind: 'stone', i: b.sw.map(w => w.i).join('.'), rem: Math.min(...b.sw.map(w => w.t)), nm: C.ENEMIES.stone.name, txt: `판 ${b.sw.length}칸이 굳습니다` });
   if (S.corr) out.push({ kind: 'corr', i: S.corr.k, rem: S.corr.t, nm: C.ENEMIES.corrode.name, txt: `${S.corr.k + 1}번 칸 강화 -5 예고` });
   return out;
 }
@@ -470,16 +476,16 @@ function updateChips() {
   const L = abList(), key = L.map(a => a.kind + a.i).join('|');
   if (key === abKey) return;
   abKey = key;
-  chipsEl.innerHTML = L.map(a => `<div class="abchip ${a.kind}" role="status"><span class="aic">${a.kind === 'lock' ? LOCK_SVG(14) : a.kind === 'steal' ? HAND_SVG(14) : '<b>-5</b>'}</span><span class="atx"><b>${a.nm}</b>: ${a.txt}</span><i class="cd" style="${cdStyle(a.rem)}"></i></div>`).join('');
+  chipsEl.innerHTML = L.map(a => `<div class="abchip ${a.kind}" role="status"><span class="aic">${a.kind === 'lock' ? LOCK_SVG(14) : a.kind === 'jumble' ? MIX_SVG(14) : a.kind === 'stone' ? ROCK_SVG(14) : '<b>-5</b>'}</span><span class="atx"><b>${a.nm}</b>: ${a.txt}</span><i class="cd" style="${cdStyle(a.rem)}"></i></div>`).join('');
 }
 // 발동하는 순간: 칸 위에 번쩍임
 function abHitFx(kind, i) {
-  const el = kind === 'steal' ? elB.querySelector(`[data-inv="${i}"]`) : elW.querySelector(`[data-slot="${i}"]`);
+  const el = elW.querySelector(`[data-slot="${i}"]`);
   if (!el) return;
   const a = $('#app').getBoundingClientRect(), r = el.getBoundingClientRect(), d = document.createElement('div');
   d.className = 'abhit'; d.style.setProperty('--c', AB_COL[kind]);
   d.style.left = (r.left - a.left) + 'px'; d.style.top = (r.top - a.top) + 'px'; d.style.width = r.width + 'px'; d.style.height = r.height + 'px';
-  d.innerHTML = `<i></i><span>${kind === 'lock' ? LOCK_SVG(22) : kind === 'steal' ? HAND_SVG(22) : '<b>-5</b>'}</span>`;
+  d.innerHTML = `<i></i><span>${kind === 'lock' ? LOCK_SVG(22) : '<b>-5</b>'}</span>`;
   while (fxLayer.children.length > 8) fxLayer.firstChild.remove();
   fxLayer.appendChild(d);
   setTimeout(() => d.remove(), 800);
@@ -773,8 +779,6 @@ function cellHtml(it, i) {
   if (!meltMode && sel && sel.from === 'inv' && sel.i === i) cls += ' sel';
   if (i === newCell) cls += ' new';
   if (it && incoming.has(it)) cls += ' incoming';
-  const st = C.S.steal && C.S.steal.i === i;
-  if (st) { cls += ' warn-steal'; inner += `<span class="abic st">${HAND_SVG(13)}</span><i class="cd" style="${cdStyle(C.S.steal.t)}"></i>`; }
   return `<button type="button" class="${cls}" data-inv="${i}" aria-label="인벤토리 ${i + 1}번 칸${meltable && meltSet.has(i) ? ' 선택됨' : ''}">${inner}</button>`;
 }
 // 지금 가진 조각으로 강화할 수 있는 무기나 기지가 있는가
@@ -1404,10 +1408,10 @@ function bossSvg(t) {
       g = `<polygon points="${-r},${-r * 0.8} ${r},${-r * 0.8} ${r},${r * 0.1} 0,${r} ${-r},${r * 0.1}" ${a}/><path d="M${(cx + Math.cos(a0) * R).toFixed(1)} ${(cy + Math.sin(a0) * R).toFixed(1)}A${R} ${R} 0 0 1 ${(cx + Math.cos(a1) * R).toFixed(1)} ${(cy + Math.sin(a1) * R).toFixed(1)}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round"/>`;
       break;
     }
-    case 'thief': { const pts = []; for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.5 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.2}" ${b}/>`; break; }
+    case 'jumble': g = `<polygon points="${shPts(JUMBLE_SH, r).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" ${a}/><path d="${mixArrows(0, 0, r * 0.4, 0.4)}" ${b} stroke-linecap="round" stroke-linejoin="round"/>`; break;
     case 'corrode': { const pts = []; for (let i = 0; i < 16; i++) { const an = i * Math.PI / 8, q = (i >> 1) % 2 ? r * 0.78 : r; pts.push((Math.cos(an) * q).toFixed(1) + ',' + (Math.sin(an) * q).toFixed(1)); } g = `<polygon points="${pts.join(' ')}" ${a}/><circle r="${r * 0.4}" ${b}/>`; break; }
     case 'charge': g = `<polygon points="${-r},${-r * 0.8} 0,${-r * 0.3} ${r},${-r * 0.8} 0,${r}" ${a}/><path d="M${-r * 0.36} ${-r * 0.12}L0 ${r * 0.16}L${r * 0.36} ${-r * 0.12}M${-r * 0.26} ${r * 0.24}L0 ${r * 0.46}L${r * 0.26} ${r * 0.24}" ${b}/>`; break;
-    case 'clock': g = `<circle r="${r}" ${a}/>` + [0, 1, 2, 3].map(k => { const an = k * Math.PI / 2, c = Math.cos(an), s_ = Math.sin(an); return `<path d="M${(c * r * 0.72).toFixed(1)} ${(s_ * r * 0.72).toFixed(1)}L${(c * r * 0.9).toFixed(1)} ${(s_ * r * 0.9).toFixed(1)}" ${b}/>`; }).join('') + `<path d="M0 0L0 ${-r * 0.62}M0 0L${r * 0.4} ${r * 0.14}" ${b} stroke-linecap="round"/>`; break;
+    case 'stone': g = `<polygon points="${shPts(STONE_SH, r).map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}" ${a}/><path d="${STONE_CRACK.map(c => c.map((q, j) => (j ? 'L' : 'M') + (q[0] * r).toFixed(1) + ' ' + (q[1] * r).toFixed(1)).join('')).join('')}" ${b} stroke-linecap="round" stroke-linejoin="round"/>`; break;
     case 'gold': { const c = theme.v.gold; g = `<polygon points="${-r * 0.5},${-r * 0.62} ${r * 0.5},${-r * 0.62} ${r},${-r * 0.12} 0,${r} ${-r},${-r * 0.12}" fill="${c}" fill-opacity=".45" stroke="${c}" stroke-width="3" stroke-linejoin="round"/><path d="M${-r} ${-r * 0.12}H${r}M${-r * 0.5} ${-r * 0.62}L${-r * 0.24} ${-r * 0.12}L0 ${-r * 0.62}L${r * 0.24} ${-r * 0.12}L${r * 0.5} ${-r * 0.62}M${-r * 0.24} ${-r * 0.12}L0 ${r}L${r * 0.24} ${-r * 0.12}" fill="none" stroke="${c}" stroke-width="1.6" stroke-opacity=".7"/>`; break; }
     case 'scale': { const hw = r * 0.82, ink = theme.v.ink; g = `<g transform="rotate(-11)"><polygon points="0,${-r} ${-hw},0 0,${r}" fill="${SC_HV}" fill-opacity=".95" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><polygon points="0,${-r} ${hw},0 0,${r}" fill="${SC_LT}" fill-opacity=".22" stroke="${SC_LT}" stroke-opacity=".6" stroke-width="2" stroke-linejoin="round"/></g>`; break; }
   }
@@ -1419,11 +1423,11 @@ const BOSS_HELP = {
   summon: ['지나가는 동안 졸개를 계속 불러냅니다.', '졸개가 쌓이기 전에 범위 공격 무기로 쓸어내세요.'],
   jammer: ['무기 칸 하나를 잠가 한동안 쓰지 못하게 합니다. 어느 칸인지 미리 알려 줍니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
   shield: ['방패로 정면에서 오는 공격을 막습니다.', '옆 레인에 있는 무기로 공격하세요.'],
-  thief: ['인벤토리의 물건 하나를 훔쳐 갑니다. 훔칠 칸을 미리 알려 줍니다.', '예고된 칸의 물건을 옮기거나 사용해서 비워 두세요.'],
+  jumble: [`판의 두 줄을 골라 깜빡여 알린 뒤(${C.AB_WARN}초) 그 줄의 블록을 모두 새 블록으로 바꿉니다.`, '예고된 줄에 기대지 않게 다른 줄로 이어 두고, 바뀐 뒤 다시 이으세요.'],
   corrode: ['예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
   charge: ['천천히 내려오다 멈춰서 다른 레인을 깜빡여 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진합니다.', '예고된 레인으로 무기를 옮겨 모으세요.'],
-  clock: ['살아 있는 동안 웨이브 시간이 빨리 흘러 다음 웨이브와 보스가 일찍 옵니다.', '가장 먼저 쓰러뜨리세요.'],
-  gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 4초마다 레인을 옮깁니다(옮길 레인을 화살표로 4초 전에 알림).', '옮겨 가는 레인을 보고 무기를 모으세요. 늘 맞히는 저격포가 잘 맞습니다.'],
+  stone: [`판의 두 칸을 골라 알린 뒤(${C.AB_WARN}초) 그 칸의 블록을 돌로 굳힙니다. 돌은 옮길 수 없고 이어지지 않으며, 그 웨이브가 끝날 때까지 풀리지 않습니다.`, '예고된 칸의 블록은 빼 두세요. 오래 살려 두면 돌이 계속 쌓이니 먼저 쓰러뜨리세요.'],
+  gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 있는 동안 판에 황금 블록이 생깁니다. 황금 블록은 어느 무기에나 이어집니다.', `황금 블록을 무기에 이을수록 황금체에게 주는 피해가 커집니다(하나마다 +${Math.round(C.GOLD.blkDmg * 100)}%).`],
   scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
 };
 function bossCard(t) {
@@ -2248,13 +2252,13 @@ function enemyPath(e) {
     case 'shield':                                                             // 아래가 뾰족한 방패
       ctx.moveTo(x - r, y - r * 0.8); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x + r, y + r * 0.1); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y + r * 0.1); ctx.closePath();
       break;
-    case 'thief':                                                              // 별
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.5 : r;
-        if (i) ctx.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); else ctx.moveTo(x + Math.cos(a) * q, y + Math.sin(a) * q);
-      }
+    case 'jumble':                                                             // 바람개비 (날개 넷)
+    case 'stone': {                                                            // 울퉁불퉁한 돌
+      const P = shPts(e.type === 'jumble' ? JUMBLE_SH : STONE_SH, r);
+      for (let i = 0; i < P.length; i++) { if (i) ctx.lineTo(x + P[i][0], y + P[i][1]); else ctx.moveTo(x + P[i][0], y + P[i][1]); }
       ctx.closePath();
       break;
+    }
     case 'scale':                                                              // 큰 마름모 (두 쪽)
       ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.82, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.82, y); ctx.closePath();
       break;
@@ -2356,21 +2360,45 @@ function drawChargeMark(e, col) {
   ctx.moveTo(x - r * 0.36, y - r * 0.12); ctx.lineTo(x, y + r * 0.16); ctx.lineTo(x + r * 0.36, y - r * 0.12);
   ctx.moveTo(x - r * 0.26, y + r * 0.24); ctx.lineTo(x, y + r * 0.46); ctx.lineTo(x + r * 0.26, y + r * 0.24); ctx.stroke();
 }
-// 시계체: 눈금과 두 바늘. 웨이브를 빠르게 하는 동안에는 바늘이 빨리 돌고, 둘레로 시간이 일그러지듯 호가 번져 나간다
-function drawClockFace(e, col) {
-  const x = e.x, y = e.y, r = e.r, now = performance.now(), on = C.S.clockOn;
-  ctx.lineWidth = 2; ctx.strokeStyle = rgba(col, 0.85); ctx.beginPath();
-  for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, q = i % 3 ? 0.8 : 0.68; ctx.moveTo(x + Math.cos(a) * r * q, y + Math.sin(a) * r * q); ctx.lineTo(x + Math.cos(a) * r * 0.9, y + Math.sin(a) * r * 0.9); }
-  ctx.stroke();
-  const am = now * (on ? 0.011 : 0.0011) + e.born * 3, ah = am / 12 + 1.3;
-  ctx.lineCap = 'round'; ctx.strokeStyle = col; ctx.beginPath();
-  ctx.lineWidth = 4; ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(ah) * r * 0.44, y - Math.cos(ah) * r * 0.44); ctx.stroke();
-  ctx.beginPath(); ctx.lineWidth = 2.6; ctx.moveTo(x, y); ctx.lineTo(x + Math.sin(am) * r * 0.7, y - Math.cos(am) * r * 0.7); ctx.stroke();
-  ctx.lineCap = 'butt'; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
-  if (on) for (let i = 0; i < 3; i++) {
-    const u = (now / 1400 + i / 3) % 1, a0 = hash(e.born + i * 7 + Math.floor(now / 1400 + i / 3)) * 6.28 + u * 1.2;
-    ctx.beginPath(); ctx.arc(x, y, r * (1.18 + 0.95 * u), a0, a0 + 1.1 + 1.6 * (1 - u));
-    ctx.lineWidth = 0.6 + 2.2 * (1 - u); ctx.strokeStyle = rgba(col, 0.42 * (1 - u) * Math.min(1, u * 6)); ctx.stroke();
+// 교란체·석화체 모양 (반지름 1 기준 [각도, 거리]). 바람개비: 날개 끝, 뒤로 휘는 날개 뒤쪽, 가운데 가까운 홈
+const JUMBLE_SH = []; for (let k = 0; k < 4; k++) { const b = k * Math.PI / 2 - Math.PI / 2; JUMBLE_SH.push([b, 1], [b + 0.62, 0.62], [b + Math.PI / 2 - 0.14, 0.3]); }
+const STONE_SH = [1, 0.84, 0.97, 0.79, 0.95, 0.87, 1, 0.82, 0.93].map((q, i) => [i * Math.PI * 2 / 9 + [0, 0.1, -0.06, 0.08, 0, -0.1, 0.05, 0.07, -0.04][i], q]);
+const STONE_CRACK = [[[-0.05, -0.1], [0.12, -0.38], [0.06, -0.62]], [[-0.05, -0.1], [-0.36, 0.06], [-0.5, 0.3]], [[-0.05, -0.1], [0.22, 0.2], [0.18, 0.46], [0.36, 0.58]]];   // 가운데에서 갈라지는 금 (반지름 1 기준 x, y)
+function shPts(sh, r) { return sh.map(([a, q]) => [Math.cos(a) * q * r, Math.sin(a) * q * r]); }
+// 섞기 화살표 둘 (가운데 x, y, 반지름 R, 돌아간 각 ph): 원을 따라 도는 두 호와 끝의 화살촉. SVG 경로 문자열 (캔버스는 Path2D 로)
+function mixArrows(x, y, R, ph) {
+  let d = '';
+  for (let k = 0; k < 2; k++) {
+    const a0 = ph + k * Math.PI, a1 = a0 + 2.1, ex = x + Math.cos(a1) * R, ey = y + Math.sin(a1) * R, tx = -Math.sin(a1), ty = Math.cos(a1), h = R * 0.42;
+    d += `M${(x + Math.cos(a0) * R).toFixed(1)} ${(y + Math.sin(a0) * R).toFixed(1)}A${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+    d += `M${(ex - tx * h + Math.cos(a1) * h * 0.6).toFixed(1)} ${(ey - ty * h + Math.sin(a1) * h * 0.6).toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}L${(ex - tx * h - Math.cos(a1) * h * 0.6).toFixed(1)} ${(ey - ty * h - Math.sin(a1) * h * 0.6).toFixed(1)}`;
+  }
+  return d;
+}
+// 교란체: 가운데에서 천천히 도는 섞기 화살표. 판의 줄을 예고하는 동안에는 빨리 돌고, 바람개비 둘레로 옅은 바람 자국이 흐른다
+function drawJumbleMark(e, col) {
+  const x = e.x, y = e.y, r = e.r, now = performance.now(), b = C.S.m3, on = !!(b && b.jw);
+  const ph = now * (on ? 0.0042 : 0.0009) + e.born * 3;
+  ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = col;
+  ctx.stroke(new Path2D(mixArrows(x, y, r * 0.36, ph)));
+  if (on && !RM.matches) for (let i = 0; i < 3; i++) {
+    const u = (now / 900 + i / 3) % 1, a0 = hash(e.born + i * 5 + Math.floor(now / 900 + i / 3)) * 6.28 - u * 1.6;
+    ctx.beginPath(); ctx.arc(x, y, r * (1.08 + 0.6 * u), a0, a0 - 0.9 - 0.8 * (1 - u), true);
+    ctx.lineWidth = 0.6 + 2 * (1 - u); ctx.strokeStyle = rgba(col, 0.4 * (1 - u) * Math.min(1, u * 6)); ctx.stroke();
+  }
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+}
+// 석화체: 몸에 난 금. 칸을 굳히려 할 때(예고) 금 사이로 옅은 빛이 새고, 둘레에서 돌가루가 떨어진다
+function drawStoneMark(e, col) {
+  const x = e.x, y = e.y, r = e.r, now = performance.now(), b = C.S.m3, on = !!(b && b.sw);
+  const P = new Path2D(); for (const c of STONE_CRACK) c.forEach((q, j) => j ? P.lineTo(x + q[0] * r, y + q[1] * r) : P.moveTo(x + q[0] * r, y + q[1] * r));
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (on) { const pu = 0.5 + 0.5 * Math.sin(now / 160); ctx.lineWidth = 5; ctx.strokeStyle = rgba(TC.stoneL, 0.25 + 0.3 * pu); ctx.stroke(P); }
+  ctx.lineWidth = 2.2; ctx.strokeStyle = col; ctx.stroke(P);
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+  if (on && !RM.matches) for (let i = 0; i < 5; i++) {           // 돌가루: 몸 아래쪽에서 떨어지며 옅어진다
+    const per = 700 + 300 * hash(i * 3.7), u = ((now + hash(i * 1.3) * per) % per) / per, h = hash(i * 9.1 + Math.floor((now + hash(i * 1.3) * per) / per));
+    ctx.fillStyle = rgba(TC.stone, 0.7 * (1 - u)); ctx.fillRect(x + (h - 0.5) * r * 1.4, y + r * 0.5 + u * r * 0.9, 2.2, 2.2);
   }
 }
 // 돌격체: 예고하는 레인을 아래로 흐르는 갈매기표와 옅은 띠로 물들이고, 돌진할 때는 지나온 자리에 옅어지는 잔상을 남긴다 (화면용 기록은 적 객체에)
@@ -2499,38 +2527,6 @@ function drawGoldAmb(S, H, now) {
     const tw = 0.5 + 0.5 * Math.sin(t * (1.5 + 2 * h3) + i * 2.3), al = a * (0.25 + 0.55 * tw) * Math.min(1, (H + 20 - y) / 60);
     if (i % 4 === 0) twinkle(x, y, (2.5 + 2.5 * h1) * (0.6 + 0.4 * tw), col, al);
     else { ctx.fillStyle = rgba(col, al); ctx.fillRect(x - 1, y - 1, 1.6 + h2, 1.6 + h2); }
-  }
-}
-// 황금체가 레인을 옮기기 전 (GOLD.warn 초): 옮겨 갈 자리에 옅은 보석 윤곽이 차오르고, 그쪽으로 흐르는 화살표. 옮기는 동안에는 지나온 자리에 옅은 잔상
-function drawGoldWarn(e, H, now) {
-  const g = e.gd, G = C.GOLD, light = theme.scheme === 'light';
-  if (g.to >= 0) {
-    const k = Math.min(1, Math.max(0, 1 - g.mv / G.warn)), tx = (g.to + 0.5) * C.LW, dir = Math.sign(tx - e.x) || 1;
-    const ty = e.y + e.speed * H * Math.max(0, g.mv), L = C.LW, x0 = g.to * L;
-    const band = ctx.createLinearGradient(0, ty - e.r * 2.2, 0, ty + e.r * 2.6), ba = (light ? 0.12 : 0.1) * k;
-    band.addColorStop(0, rgba(TC.goldB, 0)); band.addColorStop(0.45, rgba(TC.goldB, ba)); band.addColorStop(1, rgba(TC.goldB, 0));
-    ctx.fillStyle = band; ctx.fillRect(x0 + 4, ty - e.r * 2.2, L - 8, e.r * 4.8);
-    const o = { type: 'gold', x: tx, y: ty, r: e.r * (0.86 + 0.14 * k) };
-    enemyPath(o); ctx.fillStyle = rgba(TC.goldB, 0.1 + 0.14 * k); ctx.fill();
-    ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(TC.gold, 0.2 + 0.5 * k); ctx.stroke();
-    let a = e.x + dir * (e.r + 8), b = tx - dir * (e.r * 0.9 + 6), span = (b - a) * dir, dy = 0;
-    if (span < 40) { a = e.x + dir * (e.r * 0.32 + 6); b = tx - dir * (e.r * 0.3 + 4); span = (b - a) * dir; dy = e.r * 0.74; }   // 바로 옆 레인: 두 보석 아래쪽 사이로
-    if (span > 10) {
-      ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      for (let i = 0; i < 3; i++) {
-        const u = ((now / 520) + i / 3) % 1, px = a + dir * span * u, py = e.y + dy + (ty - e.y) * u, al = (0.25 + 0.7 * k) * Math.min(1, u * 4, (1 - u) * 5);
-        ctx.strokeStyle = rgba(TC.gold, al); ctx.beginPath();
-        ctx.moveTo(px - dir * 7, py - 8); ctx.lineTo(px + dir * 3, py); ctx.lineTo(px - dir * 7, py + 8); ctx.stroke();
-      }
-      ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
-    }
-  }
-  const tr = e._tr || (e._tr = []), cx = (e.lane + 0.5) * C.LW;
-  if (Math.abs(e.x - cx) > 0.5) tr.push({ x: e.x, y: e.y, t: now });
-  while (tr.length && now - tr[0].t > 320) tr.shift();
-  for (let i = 0; i < tr.length; i += 2) {
-    const q = tr[i], u = 1 - (now - q.t) / 320;
-    enemyPath({ type: 'gold', x: q.x, y: q.y, r: e.r * (0.8 + 0.2 * u) }); ctx.fillStyle = rgba(TC.goldB, 0.2 * u * u); ctx.fill();
   }
 }
 /* ---------- 보급 상자 (T11③) ---------- */
@@ -2706,10 +2702,10 @@ function drawEnemy0(e) {
     ctx.lineWidth = 6; ctx.strokeStyle = rgba(col, 0.9); ctx.stroke();
     ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
   }
-  if (e.type === 'thief') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.2, 0, Math.PI * 2); ctx.stroke(); }
+  if (e.type === 'jumble') drawJumbleMark(e, col);
   if (e.type === 'corrode') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.4, 0, Math.PI * 2); ctx.stroke(); }
   if (e.type === 'charge') drawChargeMark(e, col);
-  if (e.type === 'clock') drawClockFace(e, col);
+  if (e.type === 'stone') drawStoneMark(e, col);
   if (e.elite) drawElite(e, col);
   drawStatus(e, iced);
   if (e.hp < e.maxHp) {
@@ -5197,11 +5193,13 @@ function aimBeam(g, x0, y0, tx, ty, c, rem, nowW, out, H) {
   g.font = '17px "Do Hyeon", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,.75)';
   const tt = Math.max(0, rem).toFixed(1); g.strokeText(tt, nx, ny); g.fillStyle = '#fff'; g.fillText(tt, nx, ny);
 }
-// 훔칠 인벤토리 칸의 가운데를 전장 좌표로 (전장 아래로 벗어난 값). 칸이 화면에 없으면 null
-function stealAim(i) {
-  const el = elB.querySelector(`[data-inv="${i}"]`); if (!el) return null;
-  const r = el.getBoundingClientRect(), f = cv.getBoundingClientRect(); if (!r.width || !f.width) return null;
-  return [(r.left + r.width / 2 - f.left) / sc, (r.top + r.height / 2 - f.top) / sc];
+// 연결 판 윗변(예고된 칸들의 가로 가운데)을 전장 좌표로 (전장 아래로 벗어난 값). 판이 화면에 없으면 null.
+// 선은 판 위에서 멈춘다 (블록을 가리지 않게. 어느 칸인지는 판이 직접 보여 준다)
+function boardAim(cells) {
+  const b = C.S.m3; if (!b || !m3cv || !elB.contains(m3cv) || !cells.length) return null;
+  const r = m3cv.getBoundingClientRect(), f = cv.getBoundingClientRect(); if (!r.width || !f.width) return null;
+  let x = 0; for (const i of cells) x += (i % b.C + 0.5) * m3cw;
+  return [(r.left + x / cells.length - f.left) / sc, (r.top + 2 - f.top) / sc];
 }
 // 전장 canvas 밖으로 나간 예고선의 나머지를 화면 전체를 덮는 겹 canvas에 그린다 (같은 좌표계, 전장 아래만)
 function drawAimOut(a, nowW, H) {
@@ -5331,15 +5329,16 @@ function draw() {
   const nowW = performance.now();
   for (const m of S.mines) drawMine(m);
   if (S.pendingBoss) drawSummon(S.pendingBoss, H);
-  let aimOut = null;                         // 전장 아래로 이어지는 예고선 (약탈: 훔칠 인벤토리 칸까지)
-  for (const e of S.enemies) {              // 봉쇄, 약탈, 부식 예고: 보스에서 대상 칸까지 굵은 점선 빔과 맥동하는 표시
+  let aimOut = null;                         // 전장 아래로 이어지는 예고선 (교란·석화: 판까지)
+  for (const e of S.enemies) {              // 봉쇄, 교란, 석화, 부식 예고: 보스에서 대상 칸까지 굵은 점선 빔과 맥동하는 표시
     if (e.dead || !e.boss || e.y <= 0) continue;
     let tx = -1, ty = H - 24, c = '', rem = 0, out = false;
     if (e.type === 'jammer') { for (const j of Object.keys(S.locks)) if (S.locks[j].w > 0) { tx = (+j + 0.5) * C.LW; c = '255,61,90'; rem = S.locks[j].w; break; } }
     else if (e.type === 'corrode' && S.corr) { tx = (S.corr.k + 0.5) * C.LW; c = '200,90,255'; rem = S.corr.t; }
-    else if (e.type === 'thief' && S.steal) {
-      c = '255,79,163'; rem = S.steal.t;
-      const a = stealAim(S.steal.i);
+    else if ((e.type === 'jumble' && S.m3 && S.m3.jw) || (e.type === 'stone' && S.m3 && S.m3.sw)) {   // 판까지: 예고된 줄(칸)들의 가운데
+      const b = S.m3, J = e.type === 'jumble', cells = J ? [2] : b.sw.map(w => w.i);
+      c = J ? '255,79,163' : '224,120,92'; rem = J ? b.jw.t : Math.min(...b.sw.map(w => w.t));
+      const a = boardAim(cells);
       if (a) { tx = a[0]; ty = a[1]; out = true; } else tx = W / 2;
     }
     if (tx < 0) continue;
@@ -5348,7 +5347,6 @@ function draw() {
   }
   drawAimOut(aimOut, nowW, H);
   for (const e of S.enemies) if (e.type === 'charge' && !e.dead) drawCharge(e, H, nowW);   // 돌격체: 예고 레인과 돌진 잔상 (몸 아래에)
-  for (const e of S.enemies) if (e.gd && !e.dead) drawGoldWarn(e, H, nowW);              // 황금체: 옮겨 갈 레인 예고와 잔상
   if (S.crate) crateShadow(S.crate.x, S.crate.y, crateAlt(S.crate, nowW, crSd(S.crate.id))[0], 1);   // 날거나 떨어지는 보급 상자의 그림자 (떨어질 자리)
   let dsvP = null;                           // 용해를 찍은 무기의 웅덩이 (녹기 시작하는 적)
   for (const p of S.pools) if (p.acid && p.st.dsv && p.r >= 1) (dsvP || (dsvP = [])).push(p);
@@ -5492,8 +5490,8 @@ function hud() {
 // 블록을 이웃 칸 쪽으로 밀면 두 블록이 자리를 바꾼다 (끌기 한 번에 한 번).
 const M3TOP = 6;                                  // 열 위쪽의 무기 색 띠
 let m3cv = null, m3g = null, m3b = null, m3t = null, m3cw = 1, m3ch = 1;
-const m3vis = new Map(), m3ic = {};
-function m3Reset() { m3vis.clear(); m3b = null; m3t = null; }
+const m3vis = new Map(), m3ic = {}, m3fx = [];   // m3fx: 판 위 연출 (교란으로 흩어지는 블록, 석화 돌가루, 황금 반짝임)
+function m3Reset() { m3vis.clear(); m3b = null; m3t = null; m3fx.length = 0; }
 function m3Mount() {
   if (m3cv && elB.contains(m3cv)) return;
   elB.classList.remove('melting'); elB.classList.add('m3on');
@@ -5535,6 +5533,7 @@ function m3Try(i, j) {
   const b = C.S.m3, x = b.g[i], y = b.g[j];
   const r = C.m3Swap(i, j);
   if (r.ok) { Snd.play('tap'); for (const o of [x, y]) { const v = m3vis.get(o.id); if (v) v.vy = 6; } return true; }
+  if (r.stone) { Snd.play('stonetap'); const now = performance.now(); for (const o of [x, y]) { const v = o && o.st && m3vis.get(o.id); if (v) v.sh = now; } }   // 굳은 칸: 움찔하고 안 움직인다
   return false;
 }
 function m3RR(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
@@ -5548,6 +5547,71 @@ function m3Block(g, x, y, R, s) {              // 무기 블록 (무기 색 테�
   g.fillStyle = theme.v.panel; g.fill(); g.fillStyle = rgba(col, 0.14); g.fill(); g.lineWidth = 2; g.strokeStyle = col; g.stroke();
   const im = m3Icon(s); if (im) g.drawImage(im, x - h * 0.72, y - h * 0.72, h * 1.44, h * 1.44);
 }
+// 황금 블록 (황금체): 금빛 면과 보석 무늬. 비스듬한 반짝임이 블록마다 다른 때에 천천히 지나간다
+function m3Gold(g, x, y, R, id, now) {
+  const h = R * 1.05, light = theme.scheme === 'light';
+  m3RR(g, x - h, y - h, h * 2, h * 2, 7);
+  const f = g.createLinearGradient(x - h, y - h, x + h, y + h);
+  f.addColorStop(0, TC.goldA); f.addColorStop(1, TC.goldB);
+  g.fillStyle = f; g.fill(); g.lineWidth = 2; g.strokeStyle = TC.gold; g.stroke();
+  const q = h * 0.5;
+  g.beginPath();   // 보석 (황금체 몸과 같은 모양)
+  g.moveTo(x - q * 0.5, y - q * 0.62); g.lineTo(x + q * 0.5, y - q * 0.62); g.lineTo(x + q, y - q * 0.12); g.lineTo(x, y + q); g.lineTo(x - q, y - q * 0.12); g.closePath();
+  g.fillStyle = rgba('#ffffff', light ? 0.55 : 0.45); g.fill(); g.lineWidth = 1.6; g.strokeStyle = light ? TC.gold : '#9a6a00'; g.lineJoin = 'round'; g.stroke(); g.lineJoin = 'miter';   // 어두운 테마의 금색은 밝아서 보석 선은 짙은 호박색
+  if (RM.matches) return;
+  const per = 2600 + 900 * hash(id * 1.7), u = ((now + hash(id * 3.3) * per) % per) / per;
+  if (u < 0.42) {                                // 반짝임 띠: 왼쪽 위에서 오른쪽 아래로
+    const p = u / 0.42, c = -h * 1.6 + p * h * 3.2;
+    g.save(); m3RR(g, x - h, y - h, h * 2, h * 2, 7); g.clip();
+    const s = g.createLinearGradient(x + c - h * 0.5, y + c - h * 0.5, x + c + h * 0.5, y + c + h * 0.5);
+    s.addColorStop(0, 'rgba(255,255,255,0)'); s.addColorStop(0.5, `rgba(255,255,255,${((light ? 0.75 : 0.6) * Math.sin(Math.PI * p)).toFixed(3)})`); s.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = s; g.fillRect(x - h, y - h, h * 2, h * 2); g.restore();
+  }
+}
+// 돌 (석화체): 블록마다 조금씩 다른 울퉁불퉁한 돌, 갈라진 금, 왼쪽 위의 밝은 면. a: 짙기 (예고 중에는 옅게)
+function m3StonePath(g, x, y, h, id) {
+  const rot = hash(id * 2.9) * 6.28; g.beginPath();
+  STONE_SH.forEach(([an, q], i) => { const qq = h * (0.9 + 0.1 * q) * (0.96 + 0.08 * hash(id + i * 1.1)), a = an + rot, px = x + Math.cos(a) * qq * 1.08, py = y + Math.sin(a) * qq; if (i) g.lineTo(px, py); else g.moveTo(px, py); });
+  g.closePath();
+}
+function m3Cracks(g, x, y, h, id, k) {           // 금: 가운데 가까이에서 두세 갈래 (k: 0~1 뻗은 정도)
+  const n = 2 + (hash(id * 4.1) > 0.5 ? 1 : 0), cx = x + (hash(id * 5.7) - 0.5) * h * 0.3, cy = y + (hash(id * 6.1) - 0.5) * h * 0.3;
+  g.beginPath();
+  for (let j = 0; j < n; j++) {
+    const a = j * 6.28 / n + hash(id + j * 3.3) * 1.2; let px = cx, py = cy; g.moveTo(px, py);
+    for (let m = 1; m <= 3; m++) { const L = h * 0.24 * k, aa = a + (hash(id * 8.9 + j * 5 + m) - 0.5) * 0.9; px += Math.cos(aa) * L; py += Math.sin(aa) * L; g.lineTo(px, py); }
+  }
+}
+function m3Stone(g, x, y, R, id, a) {
+  const h = R * 1.05, a0 = g.globalAlpha;
+  g.globalAlpha = a0 * a;
+  m3StonePath(g, x, y, h, id);
+  const f = g.createLinearGradient(x - h, y - h, x + h, y + h);
+  f.addColorStop(0, TC.stoneL); f.addColorStop(0.45, TC.stone); f.addColorStop(1, TC.stoneD);
+  g.fillStyle = f; g.fill(); g.lineWidth = 1.6; g.strokeStyle = rgba(TC.stoneD, 0.9); g.stroke();
+  m3Cracks(g, x, y, h, id, 1); g.lineWidth = 1.3; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = rgba(TC.stoneD, 0.85); g.stroke();
+  g.beginPath(); g.arc(x - h * 0.18, y - h * 0.16, h * 0.55, Math.PI * 1.05, Math.PI * 1.45); g.lineWidth = 2; g.strokeStyle = rgba(TC.stoneL, 0.7); g.stroke();
+  g.lineCap = 'butt'; g.lineJoin = 'miter';
+  g.globalAlpha = a0;
+}
+function m3Star(g, x, y, s, col, a) {           // 네 갈래 작은 별 (판 캔버스)
+  if (s <= 0 || a <= 0) return;
+  g.fillStyle = rgba(col, a); g.beginPath();
+  g.moveTo(x, y - s); g.quadraticCurveTo(x, y, x + s, y); g.quadraticCurveTo(x, y, x, y + s); g.quadraticCurveTo(x, y, x - s, y); g.quadraticCurveTo(x, y, x, y - s); g.fill();
+}
+// core 가 남긴 판 사건을 연출로 바꾼다
+function m3Ev(b, now) {
+  for (const ev of b.ev) {
+    if (ev.k === 'jumble') for (const o of ev.old) {          // 바뀌는 블록: 제자리에서 흩어지며 옅어진다 (블록마다 방향과 빠르기가 조금씩 다르게)
+      const v = m3vis.get(o.id), h1 = hash(o.id * 1.7), h2 = hash(o.id * 3.1);
+      m3fx.push({ k: 'ghost', s: o.s, x: v ? v.x : o.i % b.C, y: v ? v.y : Math.floor(o.i / b.C), dx: (h1 - 0.5) * 0.6, dy: (h2 - 0.5) * 0.5 - 0.12, rot: (h1 - 0.5) * 0.7, t0: now, d: 380 + 200 * h2 });
+    } else if (ev.k === 'stone') { for (let k = 0; k < 8; k++) m3fx.push({ k: 'dust', i: ev.i, sd: hash(ev.i * 7.7 + k * 2.3 + (now % 97)), t0: now + k * 22, d: 560 }); }
+    else if (ev.k === 'gold') { for (let k = 0; k < 5; k++) m3fx.push({ k: 'glint', i: ev.i, sd: hash(ev.i * 5.3 + k * 1.9 + (now % 89)), t0: now + k * 80, d: 620 }); }
+  }
+  b.ev.length = 0;
+  if (m3fx.length > 90) m3fx.splice(0, m3fx.length - 90);
+}
+
 // 연결: 무기 칸(위)에서 시작해 이어진 같은 종류 블록 사이에 물길을 그린다. 2개 이상이면 진하게 흐르고, 1개면 흐릿한 점선으로 '하나 더'를 알린다
 function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now) {
   const L = C.pipeLinks(), N = b.C;
@@ -5591,24 +5655,85 @@ function m3Draw(dt) {
       g.fillStyle = theme.v.panel; g.fill(); g.lineWidth = 1; g.strokeStyle = theme.v.line; g.stroke();
     }
   }
-  const now = performance.now();
+  const now = performance.now(), AW = C.AB_WARN, jw = b.jw, sw = b.sw, rm = RM.matches;
+  if (b.ev.length) m3Ev(b, now);
   m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now);   // 무기와 이어진 블록 아래에 물길
+  if (jw) for (const r of jw.rows) {             // 교란 예고: 그 줄에 깜빡이는 옅은 띠 (서서히 나타나고 가장자리는 흐리게)
+    const fa = Math.min(1, (AW - jw.t) / 0.35), pu = rm ? 0.6 : 0.5 + 0.5 * Math.sin(now / 140), a = (0.16 + 0.16 * pu) * fa, y0 = M3TOP + r * ch;
+    const gr = g.createLinearGradient(0, y0 - ch * 0.12, 0, y0 + ch * 1.12);
+    gr.addColorStop(0, rgba(ECOL.jumble, 0)); gr.addColorStop(0.3, rgba(ECOL.jumble, a)); gr.addColorStop(0.7, rgba(ECOL.jumble, a)); gr.addColorStop(1, rgba(ECOL.jumble, 0));
+    g.fillStyle = gr; g.fillRect(0, y0 - ch * 0.12, rc.width, ch * 1.24);
+  }
   const k = 1 - Math.exp(-dt * 18), seen = new Set();
   g.save(); g.beginPath(); g.rect(0, M3TOP, rc.width, rc.height - M3TOP); g.clip();
   for (let i = 0; i < b.g.length; i++) {
     const o = b.g[i]; if (!o) continue;
     const tx = i % N, ty = Math.floor(i / N);
     let v = m3vis.get(o.id);
-    if (!v) { v = { x: tx + (o.fx || 0), y: ty + (o.fy || 0), vy: 3 }; m3vis.set(o.id, v); }   // 새 블록: 판 밖(위, 아래, 옆)에서 들어온다
+    if (!v) {
+      if (o.jz) v = { x: tx, y: ty, vy: 0, a0: now + (rm ? 0 : 40 + hash(o.id * 2.3) * 200) };   // 교란으로 새로 생긴 블록: 제자리에서 조금씩 다른 때에 떠오른다
+      else v = { x: tx + (o.fx || 0), y: ty + (o.fy || 0), vy: 3 };   // 새 블록: 판 밖(위, 아래, 옆)에서 들어온다
+      v.s = o.s; m3vis.set(o.id, v);
+    }
+    if (v.s !== o.s) { if (o.s === 'gold') { v.ps = v.s; v.gt = now; } v.s = o.s; }   // 황금 블록이 됨
+    if (o.st && !v.st) { v.st = 1; v.stt = now; }                                       // 돌로 굳음
     v.x += (tx - v.x) * k;
     if (v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }   // 아래로는 떨어진다
     else { v.y += (ty - v.y) * k; v.vy = 0; }
     seen.add(o.id);
-    m3Block(g, cx(v.x), cy(v.y), Rb, o.s);
+    let x = cx(v.x), y = cy(v.y), R = Rb, al = 1;
+    if (v.a0) { const u = Math.max(0, Math.min(1, (now - v.a0) / 280)); al = u; R = Rb * (0.8 + 0.2 * (1 - (1 - u) * (1 - u))); if (u >= 1) v.a0 = 0; }
+    if (jw && !o.st && !rm && jw.rows.indexOf(ty) >= 0) {   // 바뀔 줄의 블록은 들썩인다 (때가 다가올수록 크게)
+      const q = 1 - jw.t / AW; x += Math.sin(now / 52 + o.id * 1.3) * 1.8 * q; y += Math.cos(now / 67 + o.id * 2.1) * 1.3 * q;
+    }
+    if (v.sh) { const u = (now - v.sh) / 260; if (u >= 1) v.sh = 0; else x += Math.sin(u * 22) * 2.6 * (1 - u); }
+    if (al <= 0) continue;
+    g.globalAlpha = al;
+    if (o.st) {
+      const u = rm ? 1 : Math.min(1, (now - v.stt) / 420);
+      if (u < 1) { g.globalAlpha = al * (1 - u); if (o.s === 'gold') m3Gold(g, x, y, R, o.id, now); else m3Block(g, x, y, R, o.s); g.globalAlpha = al; }
+      m3Stone(g, x, y, R * (1.06 - 0.06 * u), o.id, u * (2 - u));
+    } else if (o.s === 'gold') {
+      const u = v.gt && !rm ? Math.min(1, (now - v.gt) / 560) : 1;
+      if (u < 1 && v.ps && v.ps !== 'gold') { g.globalAlpha = al * (1 - u); m3Block(g, x, y, R, v.ps); g.globalAlpha = al * u; }
+      m3Gold(g, x, y, R * (1 + 0.1 * Math.sin(Math.PI * u)), o.id, now);
+    } else m3Block(g, x, y, R, o.s);
+    g.globalAlpha = 1;
+  }
+  if (sw) for (const w of sw) {                  // 석화 예고: 그 칸에 돌이 옅게 번지고 금이 조금씩 뻗는다 (칸에 건다: 들어온 블록이 굳는다)
+    const q = 1 - w.t / AW, fa = Math.min(1, (AW - w.t) / 0.3), pu = rm ? 0.5 : 0.5 + 0.5 * Math.sin(now / 150), x = cx(w.i % N), y = cy(Math.floor(w.i / N)), o = b.g[w.i], id = o ? o.id : w.i, h = Rb * 1.05;
+    m3RR(g, x - h - 2, y - h - 2, h * 2 + 4, h * 2 + 4, 8); g.fillStyle = rgba(ECOL.stone, (0.1 + 0.1 * pu) * fa); g.fill();
+    g.globalAlpha = fa; m3Stone(g, x, y, Rb, id, 0.2 + 0.4 * q * q); g.globalAlpha = 1;
+    m3Cracks(g, x, y, h, id + 0.5, 0.25 + 0.75 * q); g.lineWidth = 1.4; g.lineCap = 'round'; g.strokeStyle = rgba(TC.stoneD, 0.75 * fa); g.stroke(); g.lineCap = 'butt';
+  }
+  for (let n = m3fx.length - 1; n >= 0; n--) {   // 연출
+    const f = m3fx[n], u = (now - f.t0) / f.d;
+    if (u >= 1) { m3fx.splice(n, 1); continue; }
+    if (u < 0) continue;
+    if (f.k === 'ghost') {
+      const e = 1 - (1 - u) * (1 - u);
+      g.save(); g.translate(cx(f.x + f.dx * e), cy(f.y + f.dy * e)); g.rotate(f.rot * e); g.globalAlpha = Math.pow(1 - u, 1.6);
+      if (f.s === 'gold') m3Gold(g, 0, 0, Rb * (1 - 0.3 * e), 0, now); else m3Block(g, 0, 0, Rb * (1 - 0.3 * e), f.s);
+      g.restore();
+    } else if (f.k === 'dust') {
+      const a = f.sd * 6.28, d = Rb * (0.6 + 0.9 * u) * (0.7 + 0.6 * hash(f.sd * 9)), x = cx(f.i % N) + Math.cos(a) * d, y = cy(Math.floor(f.i / N)) + Math.sin(a) * d * 0.7 + u * u * Rb * 0.8;
+      g.fillStyle = rgba(hash(f.sd * 3) > 0.5 ? TC.stone : TC.stoneD, 0.8 * (1 - u)); const z = 1.4 + 2 * hash(f.sd * 5) * (1 - u * 0.5); g.fillRect(x - z / 2, y - z / 2, z, z);
+    } else if (f.k === 'glint') {
+      const x = cx(f.i % N) + (f.sd - 0.5) * Rb * 2, y = cy(Math.floor(f.i / N)) + (hash(f.sd * 7) - 0.5) * Rb * 2 - u * Rb * 0.4;
+      m3Star(g, x, y, (2.5 + 3 * hash(f.sd * 11)) * Math.sin(Math.PI * u), theme.scheme === 'light' ? TC.gold : TC.goldA, 0.9 * Math.sin(Math.PI * u));
+    }
   }
   g.restore();
   for (const id of m3vis.keys()) if (!seen.has(id)) m3vis.delete(id);
+  if (jw || sw) {                                // 남은 시간 (교란: 줄 오른쪽 끝, 석화: 칸 오른쪽 위)
+    g.font = '11px "Do Hyeon", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const tag = (x, y, t, col) => { const tt = Math.max(0, t).toFixed(1), w = g.measureText(tt).width + 8; m3RR(g, x - w / 2, y - 7, w, 14, 7); g.fillStyle = rgba(col, 0.92); g.fill(); g.fillStyle = '#fff'; g.fillText(tt, x, y + 0.5); };
+    if (jw) for (const r of jw.rows) tag(rc.width - 16, M3TOP + r * ch + 9, jw.t, ECOL.jumble);
+    if (sw) for (const w of sw) tag(cx(w.i % N) + cw * 0.3, M3TOP + Math.floor(w.i / N) * ch + 9, w.t, ECOL.stone);
+    g.textBaseline = 'alphabetic';
+  }
 }
+
 
 /* ---------- 진행 ---------- */
 let last = 0, acc = 0, lightAt = 0;

@@ -418,9 +418,9 @@ b { font-weight: 600; }
 @keyframes gflash { 0% { background: #ffd9a8; box-shadow: 0 0 10px 3px #ff9f5a; } 100% { background: transparent; box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { .meltfx, .gbar.flash { display: none; animation: none; } }
 
-/* 보스 능력: 봉쇄(잠금), 부식(강화 단계 감소), 약탈(물건 도난) 예고와 발동 */
-.slot.warn-lock, .slot.warn-corr, .cell.warn-steal { border-style: solid; border-width: 2px; border-color: var(--ab); animation: abblink .5s linear infinite; }
-.slot.warn-lock { --ab: #ff3d5a; } .slot.warn-corr { --ab: #c04bff; } .cell.warn-steal { --ab: #ff4fa3; }
+/* 보스 능력: 봉쇄(잠금), 부식(강화 단계 감소) 예고와 발동. 교란·석화는 판 캔버스에 그린다 */
+.slot.warn-lock, .slot.warn-corr { border-style: solid; border-width: 2px; border-color: var(--ab); animation: abblink .5s linear infinite; }
+.slot.warn-lock { --ab: #ff3d5a; } .slot.warn-corr { --ab: #c04bff; }
 @keyframes abblink {
   0%, 100% { background: color-mix(in srgb, var(--ab) 14%, var(--shade)); box-shadow: 0 0 0 0 var(--ab); }
   50% { background: color-mix(in srgb, var(--ab) 62%, var(--panel)); box-shadow: 0 0 0 3px var(--ab), inset 0 0 0 2px #fff; }
@@ -432,7 +432,6 @@ b { font-weight: 600; }
 .abic { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; color: #fff; background: var(--ab); border: 1.5px solid #fff; animation: abpop .5s ease-in-out infinite alternate; }
 .slot .abic { right: 2px; top: 2px; min-width: 26px; height: 22px; padding: 0 4px; border-radius: 11px; }
 .slot .abic b { font: 15px var(--font-display); line-height: 1; }
-.cell .abic.st { right: -4px; top: -6px; width: 20px; height: 20px; border-radius: 50%; }
 @keyframes abpop { from { transform: scale(.9); } to { transform: scale(1.12); } }
 /* 줄어드는 막대: 3초에 걸쳐 비워진다 (길이와 시작 위치는 화면을 다시 그릴 때 남은 시간에 맞춘다) */
 .cd { position: absolute; z-index: 1; pointer-events: none; left: 3px; right: 3px; bottom: 3px; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0, 0, 0, .5); border: 1px solid #fff; }
@@ -443,7 +442,7 @@ b { font-weight: 600; }
 #abChips { position: absolute; left: 8px; right: 8px; top: 46px; z-index: 3; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #abChips:empty { display: none; }
 .abchip { position: relative; display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 12px 7px 5px; overflow: hidden; border: 1.5px solid var(--ab); border-radius: 999px; background: var(--toast); color: var(--ink); font-size: 12px; line-height: 16px; white-space: nowrap; }
-.abchip.lock { --ab: #ff3d5a; } .abchip.corr { --ab: #c04bff; } .abchip.steal { --ab: #ff4fa3; }
+.abchip.lock { --ab: #ff3d5a; } .abchip.corr { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; }
 .abchip .aic { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ab); color: #fff; display: flex; align-items: center; justify-content: center; }
 .abchip .aic b { font: 12px var(--font-display); }
 .abchip .atx { overflow: hidden; text-overflow: ellipsis; }
@@ -456,7 +455,7 @@ b { font-weight: 600; }
 @keyframes abhit { 0% { opacity: 1; transform: scale(1.12); } 100% { opacity: 0; transform: scale(1); } }
 @keyframes abhitic { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .slot.warn-lock, .slot.warn-corr, .cell.warn-steal { animation: none; background: color-mix(in srgb, var(--ab) 40%, var(--panel)); box-shadow: 0 0 0 2px var(--ab); }
+  .slot.warn-lock, .slot.warn-corr { animation: none; background: color-mix(in srgb, var(--ab) 40%, var(--panel)); box-shadow: 0 0 0 2px var(--ab); }
   .abic { animation: none; }
   .abhit i { animation: abfade .6s linear forwards; } .abhit span { animation: abfade .6s linear forwards; transform: translate(-50%, -50%); }
   @keyframes abfade { to { opacity: 0; } }

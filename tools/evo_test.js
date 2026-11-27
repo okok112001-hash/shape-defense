@@ -960,14 +960,13 @@ function scene(type, lines, secs, opt) {
   { const S = game(2); S.pacts = ['hunt']; S.hp = S.maxHp = 1e9; const bw = []; let wn = 0;
     run(S, 7 * WT + 5, () => { if (S.wn !== wn) { wn = S.wn; if (S.wave.boss) bw.push(wn); } });
     assert.deepStrictEqual(bw, [4, 6, 8], '사냥철 보스 웨이브 ' + bw); }
-  // (f) 시계체: 화면에 있는 동안 웨이브 시계가 1.5배, 쓰러지면 그대로
-  {
-    const S = game(4); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.bossOnly = 'clock'; S.nextBoss = WT;
+  // (f) 교란체·석화체 (T12 O2): 판이 없는 예전 방식에서는 능력이 없는 보스다 (웨이브 시계는 보통 빠르기)
+  for (const bt of ['jumble', 'stone']) {
+    const S = game(4); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.bossOnly = bt; S.nextBoss = WT;
     run(S, WT + Core.WARN_T + 1);
-    const c = S.enemies.find((e) => e.type === 'clock'); assert(c && S.clockOn);
-    const a0 = S.wt, t0 = S.t; run(S, t0 + 2); assert(Math.abs((S.wt - a0) / (S.t - t0) - Core.CLOCK_MUL) < 0.02, '시계 1.5배');
-    c.dead = true; S.enemies = S.enemies.filter((e) => !e.dead); run(S, S.t + 0.1);
-    const a1 = S.wt, t1 = S.t; run(S, t1 + 2); assert(!S.clockOn && Math.abs((S.wt - a1) / (S.t - t1) - 1) < 0.02, '시계 보통');
+    const c = S.enemies.find((e) => e.type === bt); assert(c && c.y > 0, bt + ' 등장');
+    const a0 = S.wt, t0 = S.t; run(S, t0 + 12); assert(Math.abs((S.wt - a0) / (S.t - t0) - 1) < 0.02, bt + ' 시계 보통');
+    assert(!S.m3 && c.abT == null, bt + ' 능력 없음');
   }
   // (g) 돌격체: 걷다가 멈춰 다른 레인을 예고하고, 그 레인으로 옮겨 가며 빠르게 내려온다
   {
@@ -988,7 +987,7 @@ function scene(type, lines, secs, opt) {
     assert.strictEqual(c.lane, ph1.to); assert(Math.abs(c.x - (ph1.to + 0.5) * Core.LW) < 1e-6, '목표 레인 가운데');
     assert(y1 - ph2.y > Core.H * 0.1, '빠르게 돌진 ' + (y1 - ph2.y));
   }
-  ok('웨이브와 보스 (20초 웨이브, 3웨이브마다 보스, 무작위 보스, 재화 고정, 종류, 사냥철, 시계체, 돌격체)');
+  ok('웨이브와 보스 (20초 웨이브, 3웨이브마다 보스, 무작위 보스, 재화 고정, 종류, 사냥철, 교란체·석화체는 판 없이 능력 없음, 돌격체)');
 }
 
 /* 13. 황금체와 티켓 (T11②, 사용자 수정: 보스 중 하나) */
@@ -1004,7 +1003,7 @@ function scene(type, lines, secs, opt) {
   }
   assert(nG / nB > 0.06 && nG / nB < 0.18, '황금체 비율 ' + nG + '/' + nB);
   console.log(`    황금체 ${nG}/${nB} (천칭을 뺀 보스)`);
-  // (b) 티켓을 쓰면 다음 보스가 황금체. 보스 웨이브라 일반 적도 나온다. 체력 거대체 x1.5, 나타난 뒤 15초에 기지, 2초마다 1~2레인과 0.7초 전 예고
+  // (b) 티켓을 쓰면 다음 보스가 황금체. 보스 웨이브라 일반 적도 나온다. 체력 거대체 x1.5, 나타난 뒤 15초에 기지, 레인을 옮기지 않는다 (T12 O2)
   {
     const S = game(21); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.cheat = {};
     run(S, 5); assert(Core.useTicket(Core.test.ticket()).ok); delete S.cheat; assert.strictEqual(S.gT, 1);
@@ -1015,20 +1014,14 @@ function scene(type, lines, secs, opt) {
     const e = gold(S); assert(e && e.boss && e.type === 'gold', '황금체 등장');
     assert(Math.abs(e.maxHp / (Core.ENEMIES.giant.hp * BAL.hpMul(e.born) * BAL.bossHp) - G.hp) < 1e-9, '체력 거대체 x1.5');
     assert(Math.abs(e.gd.G / Core.waveGold(e.born) - G.waves) < 1e-9);
-    const t0 = e.born, moves = []; let lane = e.lane, warnAt = null, tHit = null, others = 0;
+    const t0 = e.born, lane = e.lane, x0 = e.x; let moved = false, tHit = null, others = 0;
     run(S, t0 + 17, () => {
       if (S.enemies.some((o) => !o.boss)) others++;
-      if (!e.dead && e.gd.to >= 0 && warnAt == null) warnAt = S.t;
-      if (!e.dead && e.lane !== lane) { moves.push({ t: S.t, d: Math.abs(e.lane - lane), w: warnAt }); lane = e.lane; warnAt = null; }
+      if (!e.dead && (e.lane !== lane || Math.abs(e.x - x0) > 1e-6)) moved = true;
       if (e.dead && tHit == null) tHit = S.t;
     });
     assert(others > 0, '보스 웨이브의 일반 적');
-    assert(moves.length >= 3 && moves.length <= 4, '옮긴 횟수 ' + moves.length);
-    moves.forEach((m, i) => {
-      assert(m.d >= 1 && m.d <= 2, '1~2레인');
-      assert(Math.abs(m.t - t0 - G.move * (i + 1)) < DT * 1.5, '4초마다 ' + (m.t - t0));
-      assert(m.w != null && Math.abs(m.t - m.w - G.warn) < (i === 0 ? 0.2 : DT * 1.5), '4초 전 예고 ' + (m.t - m.w));
-    });
+    assert(!moved, '레인을 옮기지 않음');
     assert(tHit != null && Math.abs(tHit - t0 - G.T) < 0.15, '15초에 기지 ' + (tHit - t0));
     assert(!S.inv.some(Boolean) && S.bossKills === 0, '닿으면 보상 없음');
   }
@@ -1074,7 +1067,7 @@ function scene(type, lines, secs, opt) {
     assert.deepStrictEqual(seq.slice(0, 4), ['gold', 'scale', 'gold', seq[3]], '차례 ' + seq);
     assert(seq[3] !== 'gold' && S.gT === 0);
   }
-  ok('황금체 (보스 중 하나, 티켓, 체력 거대체 x1.5, 2초마다 1~2레인과 예고, 15초, 맞힌 만큼 재화와 동전, 처치하면 전설 파츠)');
+  ok('황금체 (보스 중 하나, 티켓, 체력 거대체 x1.5, 레인 고정, 15초, 맞힌 만큼 재화와 동전, 처치하면 전설 파츠)');
 }
 
 /* 14. 보급 상자 (T11③) */
@@ -1152,6 +1145,106 @@ function scene(type, lines, secs, opt) {
   { const S = game(64); S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9; S.slots[2] = null; let seen = 0; run(S, 600, () => { if (S.crate) seen++; }); assert(!seen); }
   { CFG.waves = false; const S = game(65); S.hp = S.maxHp = 1e9; let seen = 0; run(S, 400, () => { if (S.crate) seen++; }); CFG.waves = true; assert(!seen); }
   ok('보급 상자 (1분 뒤, 보스 웨이브 없음, 약 2분에 하나, 5초 비행, 떨구면 그 자리 10초, 체력 거대체 x0.5, 재화·조각·파츠, 처치 아님)');
+}
+
+/* 15. 연결 모드 (T12): 웨이브 단위 난이도(O1), 교란체·석화체·황금 블록(O2) */
+{
+  const DT = 1 / 30, P = Core.PREP, AW = Core.AB_WARN;
+  const pipe = (sd, flags) => { Core.seed(sd); Core.test.newGame(Object.assign({ god: true }, flags || {}), 520, 'pipe'); return Core.S; };
+  const run = (S, T, each) => { const t1 = S.t + T; while (S.t < t1) { Core.step(DT); if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (each && each() === false) break; } };
+  // (a) 웨이브 n 의 난이도 시간 = 30n - 15 (웨이브 안에서 고정), 적은 30초 동안 나오고, 정비는 30초, 보스는 4·7·10, 사냥철이면 2웨이브마다
+  {
+    const S = pipe(31), seen = new Set(), bw = []; let wn = 0, lastSpawn = 0, rest = null;
+    run(S, 600, () => {
+      if (S.wn !== wn) { wn = S.wn; if (S.wave.boss) bw.push(wn); assert(Math.abs(Core.tD() - (P.span * wn - P.span / 2)) < 1e-9, '난이도 시간 ' + wn); }
+      for (const e of S.enemies) {
+        if (seen.has(e)) continue; seen.add(e);
+        if (e.boss || e.cr || e.elite) continue;
+        assert(Math.abs(e.maxHp / (Core.ENEMIES[e.type].hp * BAL.hpMul(P.span * S.wn - P.span / 2)) - 1) < 1e-9, '체력은 웨이브 난이도 시간');
+        lastSpawn = Math.max(lastSpawn, S.wt - S.wave.t0);
+      }
+      if (S.prep.phase === 'wave' && S.wt - S.wave.t0 > 2) { for (const e of S.enemies) e.dead = true; S.enemies = []; }   // 바로 잡는다 (등장이 끝날 때까지 웨이브는 이어진다)
+      if (S.prep.phase === 'rest') { if (rest == null) rest = S.prep.left; Core.prepGo(); }
+      return S.wn < 11;
+    });
+    assert(lastSpawn > P.spawnT - 1 && lastSpawn <= P.spawnT + 1e-6, '30초 동안 나온다 ' + lastSpawn);
+    assert(Math.abs(rest - P.T) < 1e-6 && P.T === 30, '정비 30초');
+    assert.deepStrictEqual(bw, [4, 7, 10], '보스 웨이브 ' + bw);
+    const H = pipe(32); H.pacts = ['hunt']; const hb = []; let hn = 0;
+    run(H, 900, () => { if (H.wn !== hn) { hn = H.wn; if (H.wave.boss) hb.push(hn); } for (const e of H.enemies) e.dead = true; H.enemies = []; H.pendingBoss = null; if (H.prep.phase === 'rest') Core.prepGo(); return H.wn < 9; });
+    assert.deepStrictEqual(hb, [4, 6, 8], '사냥철 ' + hb);
+    // 테스트 모드의 시간 건너뛰기는 웨이브 번호를 올린다
+    const T = pipe(33); run(T, 1); const w0 = T.wn; assert(Core.test.addTime(60)); assert.strictEqual(T.wn, w0 + 2);
+  }
+  // 보스를 불러 나타나게 한다 (체력을 크게 해 쓰러지지 않게)
+  const summon = (S, type) => {
+    S.bossOnly = type; S.spawnAcc = -1e9; run(S, 0.2); assert(Core.test.boss()); run(S, Core.WARN_T + 0.1);
+    const e = S.enemies.find((o) => o.type === type); assert(e, type + ' 등장'); e.hp = e.maxHp = 1e15; return e;
+  };
+  // (b) 교란체: 화면에 들어온 뒤 JUMBLE.first 초에 판의 두 줄을 예고, AB_WARN 초 뒤 그 줄 블록이 모두 새 블록. 다른 줄은 그대로. 쓰러지면 예고가 사라진다
+  {
+    const S = pipe(41), b = S.m3, J = Core.JUMBLE, e = summon(S, 'jumble');
+    let jw = null; run(S, J.first + 0.5, () => { if (b.jw) { jw = b.jw; return false; } });
+    assert(jw && jw.rows.length === 2 && jw.rows[0] !== jw.rows[1] && Math.abs(jw.t - AW) < 0.1, '두 줄 예고');
+    const ids = b.g.map((o) => o.id); b.ev.length = 0;
+    run(S, AW + 0.1, () => { if (!b.jw) return false; });
+    for (let i = 0; i < b.g.length; i++) { const r = Math.floor(i / b.C); if (jw.rows.includes(r)) assert(b.g[i].id !== ids[i], '바뀐 줄'); else assert.strictEqual(b.g[i].id, ids[i], '그대로인 줄'); }
+    assert(b.ev.some((v) => v.k === 'jumble' && v.old.length === 10), '판 사건');
+    run(S, J.every, () => { if (b.jw) return false; }); assert(b.jw, '다시 예고');
+    e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(!b.jw, '쓰러지면 예고 끝');
+  }
+  // (c) 석화체: 칸 두 개 예고 -> 그 칸에 그때 있는 블록이 굳는다. 굳은 칸은 옮길 수 없고 연결에 들지 않으며 그 너머로 이어지지 않는다. 쌓이고, 새 웨이브(새 판)에서 풀린다
+  {
+    const S = pipe(42), b = S.m3, ST = Core.STONE, e = summon(S, 'stone');
+    let sw = null; run(S, ST.first + 0.5, () => { if (b.sw) { sw = b.sw.map((w) => w.i); return false; } });
+    assert(sw && sw.length === 2 && sw[0] !== sw[1], '두 칸 예고');
+    const i0 = sw[0], N = b.C, nb = [i0 - N, i0 + N, i0 % N ? i0 - 1 : -1, i0 % N < N - 1 ? i0 + 1 : -1].find((j) => j >= 0 && j < b.g.length && !sw.includes(j) && b.g[j].s !== b.g[i0].s);
+    if (nb != null) { const inId = b.g[nb].id; assert(Core.m3Swap(i0, nb).ok); run(S, AW + 0.1); assert(b.g[i0].id === inId && b.g[i0].st, '들어온 블록이 굳는다'); assert(!b.g[nb].st, '빠져나간 블록은 그대로'); }
+    else run(S, AW + 0.1);
+    for (const i of sw) assert(b.g[i].st, '굳음');
+    const j = [i0 - N, i0 + N, i0 % N ? i0 - 1 : -1, i0 % N < N - 1 ? i0 + 1 : -1].find((q) => q >= 0 && q < b.g.length && !b.g[q].st && b.g[q].s !== b.g[i0].s);
+    if (j != null) { const r = Core.m3Swap(i0, j); assert(!r.ok && r.stone, '굳은 칸은 옮길 수 없다'); }
+    run(S, ST.every + 0.5); assert.strictEqual(b.g.filter((o) => o.st).length, 4, '쌓인다');
+    // 연결: 0번 무기 열을 그 무기 블록으로 채우고 2행을 굳히면 연결 수는 2 (0, 1행)
+    const t0 = S.slots[0].type; for (let r = 0; r < b.R; r++) b.g[r * N] = { s: t0, id: 9000 + r };
+    for (let r = 0; r < b.R; r++) for (let c = 1; c < N; c++) if (b.g[r * N + c].s === t0) b.g[r * N + c].s = S.slots[1].type === t0 ? S.slots[2].type : S.slots[1].type;
+    assert.strictEqual(Core.pipeLinks()[0][0], 5); b.g[2 * N].st = 1; assert.strictEqual(Core.pipeLinks()[0][0], 2, '굳은 칸 너머로 안 이어짐');
+    b.g[0].st = 1; assert.strictEqual(Core.pipeLinks()[0][0], 0, '0행이 굳으면 꺼짐');
+    e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); S.spawnAcc = 0; run(S, P.spawnT + 1, () => { for (const o of S.enemies) o.dead = true; S.enemies = []; if (S.prep.phase === 'rest') return false; });
+    assert.strictEqual(S.prep.phase, 'rest'); assert(b.g.some((o) => o.st), '정비 중에도 그대로'); Core.prepGo(); assert(!b.g.some((o) => o.st) && !b.sw, '새 판에서 풀림');
+  }
+  // (d) 황금 블록: 황금체가 있는 동안 GOLD.blk0 초, 그 뒤 GOLD.blk 초마다 블록 하나가 황금. 어느 무기 줄에나 이어지고, 이어진 황금 블록 하나마다 황금체에게 주는 피해 +blkDmg
+  {
+    const G = Core.GOLD, S = pipe(43), b = S.m3;
+    S.spawnAcc = -1e9; run(S, 0.2); assert(Core.test.gold()); run(S, Core.WARN_T + 0.05);
+    const e = S.enemies.find((o) => o.gd); assert(e); const lane = e.lane, x0 = e.x;
+    const nG = () => b.g.filter((o) => o.s === 'gold').length;
+    run(S, G.blk0 + 0.1); assert.strictEqual(nG(), 1, '첫 황금 블록');
+    run(S, G.blk * 2); assert.strictEqual(nG(), 3, '2.5초마다');
+    assert(e.lane === lane && Math.abs(e.x - x0) < 1e-9, '레인을 옮기지 않음');
+    // 만능: 무기 칸 아래가 황금이어도 이어진다
+    const N = b.C, ty = S.slots[1].type, other = S.slots[3].type;
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: other, id: 8000 + i };
+    b.g[1] = { s: 'gold', id: 8100 }; b.g[1 + N] = { s: ty, id: 8101 }; b.g[1 + 2 * N] = { s: 'gold', id: 8102 };
+    let L = Core.pipeLinks(); assert.deepStrictEqual([L[1][0], L[1][2]], [3, 2], '황금은 어느 줄에나');
+    assert.deepStrictEqual([L[3][0], L[3][2]], [24, 2], '같은 황금을 다른 무기 줄도 쓴다'); assert.strictEqual(L[0][0], 0);
+  }
+  // (e) 황금 블록 피해: 같은 시드, 같은 연결 수(3)에서 황금 둘이 이어진 저격포는 황금체에게 1 + 2 x blkDmg 배
+  {
+    const G = Core.GOLD, got = [];
+    for (const au of [0, 2]) {
+      const S = pipe(44), b = S.m3, N = b.C;
+      for (let k = 0; k < 5; k++) S.slots[k] = null; put('rail', 2, 30);
+      S.spawnAcc = -1e9; run(S, 0.2); assert(Core.test.gold()); run(S, Core.WARN_T + 0.05);
+      const e = S.enemies.find((o) => o.gd); e.hp = e.maxHp = 1e15; e.gd.bt = 1e9; const g0 = e.gd.got;
+      for (let i = 0; i < b.g.length; i++) b.g[i] = { s: 'pulse', id: 7000 + i };
+      for (let r = 0; r < 3; r++) b.g[2 + r * N] = { s: r >= 1 && au ? 'gold' : 'rail', id: 7100 + r };
+      run(S, 4); const L = Core.pipeLinks(); assert.deepStrictEqual([L[2][0], L[2][2]], [3, au]);
+      got.push(e.gd.got - g0);
+    }
+    assert(got[0] > 0 && Math.abs(got[1] / got[0] - (1 + 2 * G.blkDmg)) < 1e-6, '황금 피해 ' + got[1] / got[0]);
+  }
+  ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 
 /* 10. 스트레스: 무기 종류마다 다섯 자루를 모두 진화시키고 20분 */

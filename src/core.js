@@ -510,18 +510,24 @@ const ENEMIES = {
   summon: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 50, boss: true, name: '소환체', hint: '졸개를 계속 불러냅니다', tip: ['졸개를 계속 소환', '범위 공격 추천'] },
   jammer: { hp: 340, speed: 0.027, r: 52, leak: 22, gold: 55, boss: true, name: '봉쇄체', hint: '무기 칸을 잠급니다. 무기를 다른 칸으로 옮겨 피하세요', tip: ['무기 칸을 잠금', '무기를 옮기세요'] },
   shield: { hp: 300, speed: 0.027, r: 52, leak: 22, gold: 55, boss: true, name: '방패체', hint: '정면 공격을 막습니다. 옆 레인의 무기로 공격하세요', tip: ['정면 공격 막음', '옆 레인 무기로'] },
-  thief:  { hp: 320, speed: 0.030, r: 48, leak: 15, gold: 55, boss: true, name: '약탈체', hint: '인벤토리의 물건을 훔쳐 갑니다. 예고된 칸의 물건을 옮기거나 써서 피하세요', tip: ['물건을 훔침', '예고 칸 비우기'] },
   corrode: { hp: 340, speed: 0.026, r: 52, leak: 22, gold: 60, boss: true, name: '부식체', hint: '예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다. 무기를 옮겨 피하세요', tip: ['강화 단계 -5', '예고 칸 무기 이동'] },
 };
 // T11 에 더한 보스. 열거되지 않는 속성으로 둔다 (벤치의 보정 캐시가 ENEMIES 전체를 해시하므로, 넣어도 예전 캐시가 그대로 맞게. 도움말은 BOSS_IDS 를 쓴다)
 Object.defineProperty(ENEMIES, 'charge', { enumerable: false, value: { hp: 280, speed: 0.022, r: 50, leak: 22, gold: 55, boss: true, name: '돌격체',
   hint: '멈췄다가 예고한 레인으로 돌진합니다. 그 레인에 무기를 모으세요', tip: ['예고한 레인으로 돌진', '그 레인에 무기 모으기'] } });
-Object.defineProperty(ENEMIES, 'clock', { enumerable: false, value: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 55, boss: true, name: '시계체',
-  hint: '살아 있는 동안 웨이브가 빨리 흐릅니다. 빨리 쓰러뜨리세요', tip: ['웨이브가 빨라짐', '빨리 쓰러뜨리기'] } });
+// T12 O2: 약탈체 -> 교란체, 시계체 -> 석화체. 둘 다 연결 판에 거는 능력이라 판이 없는 예전 방식(도구)에서는 능력이 없는 보스다
+Object.defineProperty(ENEMIES, 'jumble', { enumerable: false, value: { hp: 320, speed: 0.030, r: 48, leak: 15, gold: 55, boss: true, name: '교란체',
+  hint: '판의 두 줄을 새 블록으로 바꿉니다. 예고된 줄에 기대지 마세요', tip: ['판 두 줄을 바꿈', '예고된 줄 피하기'] } });
+Object.defineProperty(ENEMIES, 'stone', { enumerable: false, value: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 55, boss: true, name: '석화체',
+  hint: '판의 칸을 돌로 굳힙니다. 굳은 칸은 이 웨이브 동안 풀리지 않습니다', tip: ['판 칸을 돌로', '빨리 쓰러뜨리기'] } });
 // 보스는 처음부터 무작위 (같은 보스가 연달아 나오지 않음). 10번째마다는 천칭
-const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'thief', 'corrode', 'charge', 'clock', 'gold'];
+const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'jumble', 'corrode', 'charge', 'stone', 'gold'];
 const CHG_WAIT = 10, CHG_FIRST = 6, CHG_WARN = 4, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
-const CLOCK_MUL = 1.5;   // 시계체가 살아 있는 동안 웨이브 시간이 흐르는 빠르기
+// 교란체: 화면에 들어온 뒤 first 초, 그 뒤 every 초마다 판의 줄 rows 개를 골라 예고(AB_WARN) 뒤 그 줄 블록을 모두 새 블록으로 바꾼다 (굳은 칸은 그대로)
+const JUMBLE = { first: 5, every: 10, rows: 2 };
+// 석화체: 화면에 들어온 뒤 first 초, 그 뒤 every 초마다 판의 칸 n 개를 골라 예고(AB_WARN) 뒤 그 칸에 있는 블록을 돌로 굳힌다.
+// 예고는 칸에 건다 (예고 중에 블록을 빼면 그 자리에 들어온 블록이 굳는다). 굳은 칸은 옮길 수 없고 연결에 들지 않으며 웨이브가 끝날 때(새 판)까지 그대로다
+const STONE = { first: 4, every: 8, n: 2 };
 
 /* ---------- 웨이브 (T11) ---------- */
 // 웨이브마다 세기(적 체력의 합)는 예전 연속 등장으로 같은 시간 동안 나왔을 양과 같다. 종류는 구성과 자리만 바꾼다.
@@ -542,13 +548,15 @@ const SWARM_GRP = 4;                                           // 보통 무리 
 // 천칭: 10번째 보스마다 일반 선택 대신 나온다. 체력은 같은 시점 거대체의 2.2배, 속도는 거대체와 같다.
 // 열거되지 않는 속성으로 둔다 (벤치가 ENEMIES 전체를 해시해 보정 캐시를 만들기 때문, 그리고 도움말의 일반 보스 목록에서 빼기 위해)
 // 황금체 (T11②, 사용자 수정 2026-11-19): 보스 중 하나. 보스 웨이브에 다른 보스처럼 나오고 (일반 적도 함께), 황금 티켓을 쓰면 다음 보스가 황금체가 된다.
-// 나타난 뒤 T초 동안 꾸준히 내려와 기지에 닿는다 (거대체만큼 기지 피해). move초마다 1~2레인 옮기고, warn초 전에 예고한다.
+// 나타난 뒤 T초 동안 한 레인에서 꾸준히 내려와 기지에 닿는다 (거대체만큼 기지 피해).
+// 연결 모드 (T12 O2): 나타난 뒤 blk0 초, 그 뒤 blk 초마다 판의 블록 하나가 황금 블록이 된다. 황금 블록은 어느 무기 줄에나 이어지는 만능 블록이고 (웨이브 끝까지 남는다),
+// 이어진 황금 블록 하나마다 그 무기가 황금체에게 주는 피해(= 받는 재화)가 +blkDmg 씩 늘어난다.
 // 체력은 그 시점 거대체의 hp배. 맞힐 때마다 깎은 체력만큼 재화 (다 깎으면 보통 웨이브 waves개치), 처치하면 보스 보상 대신 전설 파츠.
-// coin: 다 깎았을 때 튀는 동전 수 (동전 하나 = 받는 재화의 1/coin. 화면은 받은 양만큼 동전을 터뜨린다). ticket: 보스 보상이 파츠 대신 황금 티켓이 될 확률. side: 레인을 옮기는 빠르기(px/초)
-const GOLD = { T: 15, move: 4, warn: 4, hp: 1.5, waves: 5, coin: 150, ticket: 0.04, side: 480 };
+// coin: 다 깎았을 때 튀는 동전 수 (동전 하나 = 받는 재화의 1/coin. 화면은 받은 양만큼 동전을 터뜨린다). ticket: 보스 보상이 파츠 대신 황금 티켓이 될 확률
+const GOLD = { T: 15, hp: 1.5, waves: 5, coin: 150, ticket: 0.04, blk0: 1, blk: 2.5, blkDmg: 0.5 };
 // 체력 배수 GOLD.hp 와 속도는 나타날 때 정한다 (appearBoss)
 Object.defineProperty(ENEMIES, 'gold', { enumerable: false, value: { hp: ENEMIES.giant.hp, speed: 0, r: 44, leak: ENEMIES.giant.leak, gold: 0, boss: true, name: '황금체',
-  hint: '맞힐 때마다 재화가 나옵니다. 쓰러뜨리면 전설 파츠', tip: ['맞힐 때마다 재화', '처치하면 전설 파츠'] } });
+  hint: '맞힐 때마다 재화가 나옵니다. 황금 블록을 무기에 이으면 피해가 커집니다', tip: ['맞힐 때마다 재화', '황금 블록 잇기'] } });
 // 보급 상자 (T11③): 1분 뒤부터 보스 아닌 웨이브의 등장 시간 안에 p 확률로 날아온다 (2분에 그런 웨이브가 4개라 기대값 2분에 하나. 황금체가 보스로 바뀌어 0.28 -> 0.25).
 // fly 초 동안 전장을 가로질러 날다가 누르면 그 자리에 fall 초 동안 떨어져 stay 초 머문다. 날 때는 맞지 않고, 떨어진 뒤에는 적처럼 맞는다 (움직이지 않음).
 // 체력은 그 시점 거대체의 hp 배. 깨면 셋 중 하나: 재화(보통 웨이브 waves 개치) / 강화 조각(생성 gens 번치 묶음) / 파츠(partN 번 뽑아 가장 좋은 것, 최소 희귀)
@@ -600,11 +608,11 @@ function newGame(h, mode) {
     inv: new Array(CFG.invSize).fill(null),
     enemies: [], bullets: [], shells: [], pools: [], beams: [], mines: [], fx: [], snd: [], abfx: [], drops: [], rewq: [], crafts: 0, melt: 0,
     spawnAcc: 0, nextBoss: CFG.waves ? CFG.bossWaves * CFG.waveT : CFG.bossEvery, bossN: 0, pendingBoss: null,
-    wt: 0, wn: 0, wEnd: 0, wave: null, wLast: null, wTick: 0, clockOn: false,   // 웨이브: 웨이브 시계(시계체가 빠르게 돌린다), 번호, 이번 웨이브가 끝나는 웨이브 시각, 이번 웨이브, 지난 종류, 남은 초읽기
+    wt: 0, wn: 0, wEnd: 0, wave: null, wLast: null, wTick: 0,   // 웨이브: 웨이브 시계, 번호, 이번 웨이브가 끝나는 웨이브 시각, 이번 웨이브, 지난 종류, 남은 초읽기
     gT: 0,                                        // 황금 티켓을 쓴 수: 다음 보스부터 차례로 황금체
     crate: null, crQ: 0, crN: 0,                  // 보급 상자: 날거나 떨어지는 중인 상자 (떨어진 뒤에는 적 목록의 e.cr), 날아오기까지 남은 초, 깬 수
     pendingAug: null, over: false, hitFlash: 0, maxLv: 0,
-    shards: 0, locks: {}, steal: null, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 약탈 예고, 부식 예고
+    shards: 0, locks: {}, corr: null, notes: [], lastBoss: null,   // 보스 능력: 잠긴 칸, 부식 예고 (판에 거는 능력은 판 S.m3 에: jw 교란 예고, sw 석화 예고)
     pacts: [], pendingPact: null, bloodN: 0,     // 천칭의 거래: 받은 것, 제안 중인 것, 피의 계약의 처치 수
     evq: [],                                      // 화면에 알릴 진화 사건 (진화가 풀림)
   };
@@ -629,8 +637,8 @@ function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null
   for (const w of S.slots.concat(S.inv)) if (w && w.kind === 'w' && w.augs.some(gone)) { w.augs = w.augs.map(a => gone(a) ? null : a); dirty(w); }
   if (S.pendingAug && S.pendingAug.options.some(gone)) { S.pendingAug.options = S.pendingAug.options.filter(a => !gone(a)); if (!S.pendingAug.options.length) S.pendingAug = null; }
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
-  if (!S.locks) S.locks = {}; if (!S.steal) S.steal = null; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
-  if (S.wt == null) { S.wt = 0; S.wn = 0; S.wEnd = 0; S.wave = null; S.wLast = null; S.wTick = 0; S.clockOn = false; }
+  if (!S.locks) S.locks = {}; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
+  if (S.wt == null) { S.wt = 0; S.wn = 0; S.wEnd = 0; S.wave = null; S.wLast = null; S.wTick = 0; }
   if (S.gT == null) S.gT = 0;
   syncMaxHp(); }
 function setH(h) {
@@ -1093,7 +1101,7 @@ function skipPact() { S.pendingPact = null; }
 
 /* ---------- 효과 표시용 ---------- */
 const WARN_T = 3;   // 보스 등장 예고(소환진) 시간(초)
-const AB_WARN = 4;  // 보스 능력 예고 시간(초): 봉쇄체 칸 잠금, 약탈체 훔치기, 부식체
+const AB_WARN = 4;  // 보스 능력 예고 시간(초): 봉쇄체 칸 잠금, 교란체 판 줄, 석화체 판 칸, 부식체
 function snd(name) { if (S.snd && S.snd.length < 24) S.snd.push(name); }
 // 보스 능력이 발동한 순간을 화면에 알린다 (번쩍임용)
 function abfx(kind, i) { if (S.abfx && S.abfx.length < 8) S.abfx.push({ kind, i }); }
@@ -1173,19 +1181,16 @@ function waveGold(t) {
 function goldInit(e) {
   e.hp *= GOLD.hp; e.maxHp *= GOLD.hp;
   e.speed = Math.max(0.01, 1 - (e.y + e.r * 0.3) / H) / GOLD.T;
-  e.gd = { G: waveGold(S.t) * GOLD.waves, mv: GOLD.move, to: -1, got: 0, acc: 0 };
+  e.gd = { G: waveGold(S.t) * GOLD.waves, bt: GOLD.blk0, got: 0, acc: 0 };
 }
-// 황금체의 움직임: GOLD.move 초마다 1~2레인 옮긴다. GOLD.warn 초 전에 옮길 레인을 정해 예고한다 (화면은 gd.to 와 gd.mv 로 화살표를 그린다)
-function goldMove(e, dt) {
-  const g = e.gd;
-  g.mv -= dt;
-  if (g.to < 0 && g.mv <= GOLD.warn) {
-    const ls = []; for (let k = 0; k < LANES; k++) { const d = Math.abs(k - e.lane); if (d >= 1 && d <= 2) ls.push(k); }
-    g.to = pick(ls, rndS); snd('goldwarn');
-  }
-  if (g.to >= 0 && g.mv <= 0) { e.lane = g.to; g.to = -1; g.mv += GOLD.move; }
-  const tx = (e.lane + 0.5) * LW, dx = tx - e.x, mv = GOLD.side * dt;
-  if (dx) e.x = Math.abs(dx) <= mv ? tx : e.x + Math.sign(dx) * mv;
+// 황금 블록 (연결 모드): GOLD.blk 초마다 판의 보통 블록 하나(굳은 칸, 이미 황금인 블록 빼고)를 황금 블록으로 바꾼다
+function goldBlk(e, dt) {
+  const b = S.m3, g = e.gd;
+  if (!b || !S.prep || S.prep.phase !== 'wave' || (g.bt -= dt) > 0) return;
+  g.bt += GOLD.blk;
+  const c = []; for (let i = 0; i < b.g.length; i++) { const o = b.g[i]; if (o && !o.st && o.s !== 'gold') c.push(i); }
+  if (!c.length) return;
+  const i = pick(c, rndS); b.g[i].s = 'gold'; b.ev.push({ k: 'gold', i }); snd('goldblk');
 }
 // 황금체가 받은 피해만큼 재화 (다 깎으면 gd.G, 무기의 재화 보너스와 기지의 재화 획득을 곱한다).
 // 화면용 동전: 받은 재화가 동전 하나 몫(gd.G / GOLD.coin)만큼 모일 때마다 그 수만큼 한 번에 터뜨린다 (큰 한 방은 한꺼번에 많이, 자주 때리는 무기는 조금씩. 몫이 시간에 따라 커지므로 후반에도 수가 같다). 한 프레임에 하나로 합친다
@@ -1225,7 +1230,7 @@ function dropCrate() {
   return { ok: true };
 }
 function crateStep(dt) {
-  if (S.crQ > 0 && (S.crQ -= dt * (S.clockOn ? CLOCK_MUL : 1)) <= 0) { S.crQ = 0; spawnCrate(); }   // 웨이브 시계로 센다 (시계체가 있어도 등장 시간 안)
+  if (S.crQ > 0 && (S.crQ -= dt) <= 0) { S.crQ = 0; spawnCrate(); }   // 등장 시간 안
   const c = S.crate;
   if (c && c.ph === 'fly') {
     crateFly(c, dt);
@@ -1259,15 +1264,13 @@ function waveSpawn(wv) {
   if (type === 'swarm') for (let k = 0; k < wv.grp; k++) one(lane, (lane + 0.5) * LW + (rndS() - 0.5) * 56, -10 - k * 24);
   else one(lane);
 }
-// 웨이브 진행: 웨이브 시계는 시계체가 살아 있으면 빨리 간다 (적 체력 곡선은 실제 시간 S.t 를 따른다).
-// S.spawnAcc 는 등장 몫이다. 도구가 -1e9 로 두면(예전부터의 관례) 웨이브가 와도 적이 나오지 않는다
+// 웨이브 진행. S.spawnAcc 는 등장 몫이다. 도구가 -1e9 로 두면(예전부터의 관례) 웨이브가 와도 적이 나오지 않는다
 function waveStep(dt) {
   if (S.prep) { prepStep(dt); return; }
-  const mul = S.clockOn ? CLOCK_MUL : 1;
-  S.wt += dt * mul;
+  S.wt += dt;
   if (S.wt >= S.wEnd) startWave();
   const wv = S.wave;
-  if (wv && S.wt - wv.t0 < CFG.waveSpawnT) S.spawnAcc += wv.rate * dt * mul;
+  if (wv && S.wt - wv.t0 < CFG.waveSpawnT) S.spawnAcc += wv.rate * dt;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
   if (S.wTick > 0 && S.wEnd - S.wt <= S.wTick) { S.wTick--; if (S.spawnAcc > -1e6) snd('tick'); }   // 다음 웨이브 3초 전부터 초읽기
 }
@@ -1359,7 +1362,6 @@ function kill(e, st) {
     }
     if (e.type === 'scale') offerPact();
     if (e.type === 'split') for (let k = 0; k < 3; k++) spawn('heavy', e.lane, e.x + (k - 1) * 46, e.y - k * 14);
-    if (e.type === 'thief') { S.steal = null; S.invDirty = true; }   // 훔친 물건은 돌아오지 않는다
     if (e.type === 'corrode') { S.corr = null; S.slotDirty = true; }
   }
 }
@@ -1374,6 +1376,7 @@ function dot(e, amt, st, vap) {
   if (e.vulnT > 0) amt *= 1 + e.vulnPct;        // 취약: 받는 피해 증가
   if (e.cor > 0) amt *= 1 + e.cor * e.corV;     // 부식 겹 (T10e)
   if (e.dmgMul) amt *= e.dmgMul;                // 천칭: 단단할 때 0.5배, 연약할 때 1.5배
+  if (e.gd && st && st.w && st.w.au) amt *= 1 + GOLD.blkDmg * st.w.au;   // 황금 블록이 이어진 무기
   if (vap && st.vap && !e.boss && (e.hp - amt) / e.maxHp <= st.vap) { if (amt < e.hp) vaporize(e); amt = Math.max(amt, e.hp); }   // 소멸: 용융선으로 체력 15% 이하
   credit(st, amt, e); e.hp -= amt;
   e.dAcc = (e.dAcc || 0) + amt;
@@ -1399,6 +1402,7 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   if (e.vulnT > 0) d *= 1 + e.vulnPct;        // 취약: 받는 피해 증가
   if (e.cor > 0) d *= 1 + e.cor * e.corV;     // 부식 겹 (T10e)
   if (e.dmgMul) d *= e.dmgMul;                // 천칭
+  if (e.gd && st.w && st.w.au) d *= 1 + GOLD.blkDmg * st.w.au;   // 황금 블록이 이어진 무기
   if (!fixed) {
   if (st.vap && !e.boss && (e.hp - d) / e.maxHp <= st.vap) { if (d < e.hp) vaporize(e); d = Math.max(d, e.hp); }   // 소멸: 빔에 체력 15% 이하가 된 일반 적은 증발
   if (e.type === 'shield' && st.w) {         // 방패체: 같은 레인의 무기가 쏜 공격은 대부분 막힌다
@@ -2402,19 +2406,14 @@ function mineBlast(m) {
 
 /* ---------- 보스 능력 ---------- */
 function note(text) { if (S.notes.length < 6) S.notes.push(text); }
-function itemName(it) {
-  if (it.kind === 'w') return WEAPONS[it.type].name + (it.evo ? ' ★+' : ' +') + it.lv;
-  if (it.kind === 'p') return PARTS[it.id].name;
-  if (it.kind === 't') return '황금 티켓';
-  return '강화 조각 ' + it.n + '개';
-}
+function boardOn() { return S.m3 && S.prep && S.prep.phase === 'wave' ? S.m3 : null; }   // 웨이브 중인 연결 판 (판에 거는 보스 능력용)
 function bossStep(dt) {
   const alive = {};
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i];
     if (!e.boss || e.dead || e.cr) continue;
     alive[e.type] = e;
-    if (e.gd) { goldMove(e, dt); continue; }  // 황금 적: 나오자마자 레인 옮기기 시계가 돈다
+    if (e.gd) { goldBlk(e, dt); continue; }   // 황금 적: 나오자마자 황금 블록 시계가 돈다
     if (e.y <= 0) continue;                  // 화면에 들어온 뒤에만 능력을 쓴다
     switch (e.type) {
       case 'summon':
@@ -2434,16 +2433,31 @@ function bossStep(dt) {
         }
         break;
       }
-      case 'thief':
-        e.abT = (e.abT == null ? 9 : e.abT) - dt;
+      case 'jumble': {                       // 교란체: 판의 줄 JUMBLE.rows 개를 예고한다 (판이 없으면 능력이 없다)
+        const b = boardOn(); if (!b) break;
+        e.abT = (e.abT == null ? JUMBLE.first : e.abT) - dt;
         if (e.abT <= 0) {
-          e.abT += 9;
-          if (!S.steal) {
-            const c = []; for (let k = 0; k < S.inv.length; k++) if (S.inv[k]) c.push(k);
-            if (c.length) { S.steal = { i: pick(c, rndS), t: AB_WARN }; S.invDirty = true; snd('alert'); }
+          e.abT += JUMBLE.every;
+          if (!b.jw) {
+            const rs = []; for (let r = 0; r < b.R; r++) rs.push(r);
+            const rows = []; while (rows.length < Math.min(JUMBLE.rows, b.R)) rows.push(rs.splice(Math.floor(rndS() * rs.length), 1)[0]);
+            b.jw = { rows: rows.sort((x, y) => x - y), t: AB_WARN }; snd('alert');
           }
         }
         break;
+      }
+      case 'stone': {                        // 석화체: 판의 칸 STONE.n 개를 예고한다 (이미 굳었거나 예고된 칸은 빼고)
+        const b = boardOn(); if (!b) break;
+        e.abT = (e.abT == null ? STONE.first : e.abT) - dt;
+        if (e.abT <= 0) {
+          e.abT += STONE.every;
+          const w = b.sw || (b.sw = []), c = [];
+          for (let i = 0; i < b.g.length; i++) if (b.g[i] && !b.g[i].st && !w.some(q => q.i === i)) c.push(i);
+          for (let k = 0; k < STONE.n && c.length; k++) w.push({ i: c.splice(Math.floor(rndS() * c.length), 1)[0], t: AB_WARN });
+          if (w.length) snd('alert');
+        }
+        break;
+      }
       case 'scale':                          // 4초마다 단단함(피해 x0.5, 속도 x0.6) <-> 연약함(피해 x1.5, 속도 x1.3)
         e.sc.t -= dt;
         if (e.sc.t <= 0) {
@@ -2480,7 +2494,6 @@ function bossStep(dt) {
         break;
     }
   }
-  S.clockOn = !!(alive.clock && alive.clock.y > 0);   // 시계체: 화면에 들어온 뒤부터 웨이브 시계를 빠르게
   // 봉쇄: 경고 3초, 잠금 5초. 봉쇄체가 없으면 모두 풀린다
   if (!alive.jammer) { if (Object.keys(S.locks).length) { S.locks = {}; S.slotDirty = true; } }
   else for (const k of Object.keys(S.locks)) {
@@ -2488,18 +2501,27 @@ function bossStep(dt) {
     if (lk.w > 0) { lk.w -= dt; if (lk.w <= 0) { lk.w = 0; lk.l = 5; S.slotDirty = true; abfx('lock', +k); snd('hitlock'); } }
     else { lk.l -= dt; if (lk.l <= 0) { delete S.locks[k]; S.slotDirty = true; } }
   }
-  // 약탈: 예고한 칸에 그때 있는 물건을 가져간다
-  if (S.steal) {
-    const th = alive.thief;
-    if (!th) { S.steal = null; S.invDirty = true; }
-    else {
-      S.steal.t -= dt;
-      if (S.steal.t <= 0) {
-        const it = S.inv[S.steal.i];
-        abfx('steal', S.steal.i);
-        if (it) { S.inv[S.steal.i] = null; note('<b>약탈체</b>가 <b>' + itemName(it) + '</b>을(를) 훔쳐 갔습니다.'); snd('hitsteal'); }
-        S.steal = null; S.invDirty = true;
+  const b = S.m3;
+  // 교란: 예고한 줄의 블록을 모두 새 블록으로 (굳은 칸은 그대로). 교란체가 없어지면 예고도 사라진다
+  if (b && b.jw) {
+    if (!alive.jumble) b.jw = null;
+    else if ((b.jw.t -= dt) <= 0) {
+      const old = [];
+      for (const r of b.jw.rows) for (let c = 0; c < b.C; c++) {
+        const i = r * b.C + c, o = b.g[i]; if (!o || o.st) continue;
+        old.push({ i, s: o.s, id: o.id }); b.g[i] = { s: m3Rand(b), id: ++b.id, jz: 1 };
       }
+      b.ev.push({ k: 'jumble', rows: b.jw.rows, old }); b.jw = null; snd('hitjumble');
+    }
+  }
+  // 석화: 예고한 칸에 그때 있는 블록이 굳는다. 석화체가 없어지면 남은 예고는 사라진다 (이미 굳은 칸은 웨이브 끝까지)
+  if (b && b.sw) {
+    if (!alive.stone) b.sw = null;
+    else {
+      let hit = false;
+      for (const w of b.sw) if ((w.t -= dt) <= 0) { const o = b.g[w.i]; if (o && !o.st) { o.st = 1; b.ev.push({ k: 'stone', i: w.i }); hit = true; } }
+      b.sw = b.sw.filter(w => w.t > 0); if (!b.sw.length) b.sw = null;
+      if (hit) snd('hitstone');
     }
   }
   // 부식: 예고한 칸의 무기 강화 단계를 5 낮춘다. 0 아래로 내려가면 무기가 파괴된다
@@ -2541,7 +2563,7 @@ function step(dt) {
   // 적 등장
   if (CFG.waves) waveStep(dt);
   else {                                     // 예전 연속 등장 (밸런스 도구)
-    S.spawnAcc += BAL.spawnRate(S.t) * dt * (S.clockOn ? CLOCK_MUL : 1);
+    S.spawnAcc += BAL.spawnRate(S.t) * dt;
     while (S.spawnAcc >= 1) { S.spawnAcc -= 1; spawnWave(); }
     if (S.t >= S.nextBoss) { S.nextBoss += bossInterval(); spawnBoss(); }
   }
@@ -2554,6 +2576,7 @@ function step(dt) {
   const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결: 칸마다 연결 수
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
+    w.au = pl ? pl[i][2] : 0;                                // 이어진 황금 블록 수 (황금체에게 주는 피해)
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
     if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 2개 이상 이어지지 않은 무기는 쏘지 않는다
     w.cd -= pl ? dt * pipeRate(pl[i][0]) : dt;
@@ -2824,36 +2847,40 @@ function m3Fill(b, fy) {   // 판을 새로 채운다 (아무렇게나 깐다)
   m3Pool(b);
   b.g = new Array(b.R * b.C).fill(null);
   for (let i = 0; i < b.g.length; i++) b.g[i] = { s: m3Rand(b), id: ++b.id, fy };
+  b.jw = null; b.sw = null;   // 판에 걸린 보스 능력 예고도 새 판과 함께 사라진다 (굳은 칸, 황금 블록도)
 }
 function m3New() {
   const b = { mode: 'pipe', R: 5, C: LANES, g: null, id: 0, ev: [] };
   m3Fill(b);
   return b;
 }
-// 이웃한 두 블록 맞바꾸기 (조건 없음, 같은 종류끼리는 안 바뀜)
+// 이웃한 두 블록 맞바꾸기 (같은 종류끼리, 굳은 칸(석화체)은 안 바뀜)
 function m3Swap(i, j) {
   const b = S && S.m3; if (!b || S.over) return { ok: false };
   const N = b.C, n = b.R * N;
   if (i < 0 || j < 0 || i >= n || j >= n || Math.abs(Math.floor(i / N) - Math.floor(j / N)) + Math.abs(i % N - j % N) !== 1) return { ok: false };
   if (!b.g[i] || !b.g[j] || b.g[i].s === b.g[j].s) return { ok: false };
+  if (b.g[i].st || b.g[j].st) return { ok: false, stone: true };
   const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x; return { ok: true };
 }
-// 연결: 칸마다 [연결 수, 연결된 판 칸 번호들]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록
+// 연결: 칸마다 [연결 수, 연결된 판 칸 번호들, 그중 황금 블록 수]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록.
+// 황금 블록(황금체)은 어느 무기 종류로도 친다. 굳은 칸(석화체)은 연결에 들지 않고 그 너머로 이어지지도 않는다
 const PIPE = { need: 2, bonus: 0.05 };
 function pipeLinks() {
   const b = S.m3, N = b.C, R = b.R, out = [];
   for (let k = 0; k < LANES; k++) {
-    const w = S.slots[k], g0 = b.g[k];
-    if (!w || !g0 || g0.s !== w.type) { out.push([0, []]); continue; }
+    const w = S.slots[k], t = w && w.type, ok = (o) => !!o && !o.st && (o.s === t || o.s === 'gold');
+    if (!w || !ok(b.g[k])) { out.push([0, [], 0]); continue; }
     const seen = new Set([k]), q = [k];
     while (q.length) {
       const i = q.pop(), r = Math.floor(i / N), c = i % N;
       for (const j of [r > 0 ? i - N : -1, r < R - 1 ? i + N : -1, c > 0 ? i - 1 : -1, c < N - 1 ? i + 1 : -1]) {
-        if (j < 0 || seen.has(j) || !b.g[j] || b.g[j].s !== w.type) continue;
+        if (j < 0 || seen.has(j) || !ok(b.g[j])) continue;
         seen.add(j); q.push(j);
       }
     }
-    out.push([seen.size, [...seen]]);
+    let au = 0; for (const i of seen) if (b.g[i].s === 'gold') au++;
+    out.push([seen.size, [...seen], au]);
   }
   return out;
 }
@@ -2885,9 +2912,9 @@ function prepStep(dt) {
     return;
   }
   if (!S.wave) { S.wEnd = S.wt; startWave(); }
-  const mul = S.clockOn ? CLOCK_MUL : 1, wv = S.wave;
-  S.wt += dt * mul;
-  if (S.wt - wv.t0 < PREP.spawnT) S.spawnAcc += wv.rate * dt * mul;
+  const wv = S.wave;
+  S.wt += dt;
+  if (S.wt - wv.t0 < PREP.spawnT) S.spawnAcc += wv.rate * dt;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
   if (S.wt - wv.t0 >= PREP.spawnT && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
     P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
@@ -3014,7 +3041,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
-  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, CLOCK_MUL, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
+  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   m3Swap, PREP, prepGo, PIPE, pipeLinks, pipeRate, tD: () => tD(),
   test,
