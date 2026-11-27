@@ -1274,13 +1274,13 @@ function waveStep(dt) {
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
   if (S.wTick > 0 && S.wEnd - S.wt <= S.wTick) { S.wTick--; if (S.spawnAcc > -1e6) snd('tick'); }   // 다음 웨이브 3초 전부터 초읽기
 }
-function spawnBoss() {
-  // 처음부터 무작위 (같은 보스가 연달아 나오지 않음). S.bossOnly 가 있으면 그 보스만 (벤치의 보스 시나리오는 거대체)
-  const isScale = (S.bossN + 1) % SCALE_EVERY === 0;   // 10번째, 20번째... 보스는 천칭
-  const tk = !isScale && !S.bossOnly && S.gT > 0;      // 황금 티켓: 이번 보스는 황금체
+function spawnBoss(force) {
+  // 처음부터 무작위 (같은 보스가 연달아 나오지 않음). S.bossOnly 가 있으면 그 보스만 (벤치의 보스 시나리오는 거대체). force: 테스트 모드에서 고른 보스
+  const isScale = !force && (S.bossN + 1) % SCALE_EVERY === 0;   // 10번째, 20번째... 보스는 천칭
+  const tk = !force && !isScale && !S.bossOnly && S.gT > 0;      // 황금 티켓: 이번 보스는 황금체
   if (tk) S.gT--;
-  const type = isScale ? 'scale' : S.bossOnly || (tk ? 'gold' : pick(BOSS_IDS.filter(t => t !== S.lastBoss), rndS));
-  if (!isScale) S.lastBoss = type;
+  const type = force || (isScale ? 'scale' : S.bossOnly || (tk ? 'gold' : pick(BOSS_IDS.filter(t => t !== S.lastBoss), rndS)));
+  if (type !== 'scale') S.lastBoss = type;
   const lane = 1 + Math.floor(rndS() * 3);
   // 예고(WARN_T초) 동안 등장 자리가 고정된다. 예고가 끝나면 그 자리에 나타난다 (위에서 걸어 들어오지 않는다)
   S.pendingBoss = { type, lane, t: WARN_T, x: (lane + 0.5) * LW, y: BAL.bossY };
@@ -2991,10 +2991,10 @@ const test = {
     if (!CFG.waves) while (S.nextBoss <= S.t) S.nextBoss += bossInterval();   // 웨이브 방식은 웨이브 시계가 따로라 보스 순서가 그대로다
     return true;
   },
-  // 보스 부르기: 다음 보스를 지금 예고한다 (다음 정기 보스는 지금부터 한 주기 뒤)
-  boss() {
-    if (!testIdle() || S.pendingBoss) return false;
-    spawnBoss(); nextBossTest();
+  // 보스 부르기: 다음 보스를 지금 예고한다 (다음 정기 보스는 지금부터 한 주기 뒤). type 을 주면 그 보스 (BOSS_IDS 또는 'scale')
+  boss(type) {
+    if (!testIdle() || S.pendingBoss || (type != null && type !== 'scale' && BOSS_IDS.indexOf(type) < 0)) return false;
+    spawnBoss(type || null); nextBossTest();
     return true;
   },
   // 다음 웨이브: 쉬는 시간을 건너뛰고 지금 시작한다

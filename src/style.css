@@ -945,6 +945,7 @@ b { font-weight: 600; }
 .tchk.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--panel-2)); }
 .tchk.on .tbox { background: var(--accent); border-color: var(--accent); }
 .twp { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tbp { margin-top: 6px; } .tbp svg { width: 28px; height: 28px; }   /* 테스트: 부를 보스 고르기 */
 .twb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; height: 50px; min-width: 0; border: 1.5px solid var(--line); border-radius: 5px; background: var(--panel-2); }
 .twb small { font-size: 11px; line-height: 1.1; white-space: nowrap; }
 .twb.off { opacity: .42; }
@@ -962,3 +963,4 @@ b { font-weight: 600; }
 #genHave.cbump { animation: cbump .24s ease-out; }
 @keyframes cbump { 0% { transform: scale(1); } 35% { transform: scale(1.2); filter: brightness(1.25); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { #genHave.cbump { animation: none; } }
+.testm .btn.on { border-color: var(--accent); color: var(--accent-ink); }   /* 테스트: 열린 보스 고르기 */
