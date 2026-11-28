@@ -960,8 +960,8 @@ function scene(type, lines, secs, opt) {
   { const S = game(2); S.pacts = ['hunt']; S.hp = S.maxHp = 1e9; const bw = []; let wn = 0;
     run(S, 7 * WT + 5, () => { if (S.wn !== wn) { wn = S.wn; if (S.wave.boss) bw.push(wn); } });
     assert.deepStrictEqual(bw, [4, 6, 8], '사냥철 보스 웨이브 ' + bw); }
-  // (f) 교란체·석화체 (T12 O2): 판이 없는 예전 방식에서는 능력이 없는 보스다 (웨이브 시계는 보통 빠르기)
-  for (const bt of ['jumble', 'stone']) {
+  // (f) 교란체·석화체 (T12 O2), 망령체 (T13a): 판이 없는 예전 방식에서는 능력이 없는 보스다 (웨이브 시계는 보통 빠르기)
+  for (const bt of ['jumble', 'stone', 'ghost']) {
     const S = game(4); S.hp = S.maxHp = 1e9; S.slots[2] = null; S.bossOnly = bt; S.nextBoss = WT;
     run(S, WT + Core.WARN_T + 1);
     const c = S.enemies.find((e) => e.type === bt); assert(c && c.y > 0, bt + ' 등장');
@@ -987,7 +987,7 @@ function scene(type, lines, secs, opt) {
     assert.strictEqual(c.lane, ph1.to); assert(Math.abs(c.x - (ph1.to + 0.5) * Core.LW) < 1e-6, '목표 레인 가운데');
     assert(y1 - ph2.y > Core.H * 0.1, '빠르게 돌진 ' + (y1 - ph2.y));
   }
-  ok('웨이브와 보스 (20초 웨이브, 3웨이브마다 보스, 무작위 보스, 재화 고정, 종류, 사냥철, 교란체·석화체는 판 없이 능력 없음, 돌격체)');
+  ok('웨이브와 보스 (20초 웨이브, 3웨이브마다 보스, 무작위 보스, 재화 고정, 종류, 사냥철, 교란체·석화체·망령체는 판 없이 능력 없음, 돌격체)');
 }
 
 /* 13. 황금체와 티켓 (T11②, 사용자 수정: 보스 중 하나) */
@@ -1296,6 +1296,65 @@ function scene(type, lines, secs, opt) {
     e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(Core.sealAt(b) < 0 && !w0.sz && !w1.sz, '쓰러지면 사라짐');
   }
   ok('봉쇄 블록 (봉쇄체, 연결 판): 이어진 무기는 쏘지 않음, 블록과 함께 옮겨짐, 시간이 되면 사라졌다 다시');
+  // (h) 망령 블록 (망령체, T13a): 부식·봉쇄 블록과 같은 방식. 망령 블록과 이어진 무기의 공격은 피해 대신 같은 양만큼 회복(최대 체력까지).
+  //     회복은 피해 기록·처치에 들지 않고 부가 효과도 없다. 떼면 바로 피해로 돌아온다. dur 초 뒤 사라지고 gap 초 뒤 다시. 쓰러지면 사라진다
+  {
+    const GH = Core.GHOST, S = pipe(47), b = S.m3, N = b.C;
+    for (let k = 0; k < 5; k++) S.slots[k] = null;
+    const w0 = put('blaster', 0, 40), w1 = put('pulse', 1, 20);
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: 'shotgun', id: 4000 + i };
+    for (const i of [0, N, 2 * N]) b.g[i] = { s: 'blaster', id: 4100 + i };
+    for (const i of [1, 1 + N]) b.g[i] = { s: 'pulse', id: 4200 + i };
+    const e = summon(S, 'ghost'); e.speed = 0; e.x = 450; e.lane = 4;
+    run(S, 8, () => Core.ghostAt(b) < 0); const gi = Core.ghostAt(b);
+    assert([N, 2 * N, 1 + N].includes(gi), '이어진 블록 (0행 아님) ' + gi);
+    assert(Math.abs(b.g[gi].gh - GH.dur) < 0.1 && b.ev.some((v) => v.k === 'ghost' && v.i === gi), '망령 블록 ' + b.g[gi].gh);
+    assert(Core.rustAt(b) < 0 && Core.sealAt(b) < 0, '다른 블록 능력은 없음');
+    delete b.g[gi].gh; b.g[2 * N].gh = 5; run(S, 0.05);
+    assert(w0.gz === 1 && !w1.gz, '이어진 무기만');
+    assert(Core.stats(w0).color === GH.col && Core.stats(w1).color !== GH.col, '창백한 탄');
+    const st0 = Core.stats(w0); st0.slow = 0.5; st0.knock = 30; st0.splash = 1;   // 부가 효과가 붙지 않는지 보려고 (사본을 버리면 사라진다)
+    const clean = () => { for (const o of S.enemies) if (o !== e && o !== f) o.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); };
+    const f = foe(50, 400, 1e9); f.hp = 4e8; f.maxHp = 1e9; f.r = 19;
+    const k0 = S.kills, dl0 = S.dealt || 0, wd0 = w0.dealt || 0; let y0 = f.y, hp0 = f.hp;
+    run(S, 2, () => { clean(); });
+    assert(f.hp > hp0 && f.hp <= f.maxHp, '회복 ' + (f.hp - hp0));
+    assert(S.kills === k0 && (S.dealt || 0) === dl0 && (w0.dealt || 0) === wd0, '피해 기록·처치에 들지 않음');
+    assert(f.slowT === 0 && f.y === y0 && f.hl > 0, '부가 효과 없음, 회복 빛');
+    assert(S.fx.some((x) => x.k === 'num' && x.c === 4), '+숫자');
+    f.hp = f.maxHp - 1; run(S, 1, () => { clean(); }); assert(f.hp <= f.maxHp, '최대 체력까지');
+    assert(Core.m3Swap(2 * N, 2 * N + 1).ok); run(S, 0.05);
+    assert.strictEqual(Core.ghostAt(b), 2 * N + 1, '블록과 함께 옮겨짐'); assert(!w0.gz && Core.stats(w0).color !== GH.col && !Core.stats(w0).slow, '떼면 풀림');
+    hp0 = f.hp; run(S, 1.5, () => { clean(); }); assert(f.hp < hp0, '떼면 바로 피해 ' + (hp0 - f.hp));
+    b.ev.length = 0; run(S, 5, () => Core.ghostAt(b) >= 0); assert(Core.ghostAt(b) < 0 && b.ev.some((v) => v.k === 'ghostEnd'), '시간이 다 되면 사라짐');
+    const t0 = S.t; run(S, GH.gap + 1, () => Core.ghostAt(b) < 0); assert(Core.ghostAt(b) >= 0 && Math.abs(S.t - t0 - GH.gap) < 0.1, '쉬었다 다시 ' + (S.t - t0));
+    // 부식·봉쇄 블록은 망령 블록을 고르지 않는다 (사냥철에 둘이 함께): 망령 블록만 남은 판에서 부식체는 걸 블록이 없다
+    const gj = Core.ghostAt(b); b.g[gj].gh = 1e6;
+    for (let i = b.C; i < b.g.length; i++) if (i !== gj) b.g[i].st = 1;
+    const rc = summon(S, 'corrode'); rc.speed = 0; rc.x = 350; rc.lane = 3; run(S, 3);
+    assert(Core.rustAt(b) < 0 && Core.ghostAt(b) === gj, '부식은 망령 블록에 걸리지 않음');
+    rc.dead = true; e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(Core.ghostAt(b) < 0 && !w0.gz && !w1.gz, '쓰러지면 사라짐');
+  }
+  // (i) 황금체 + 망령체: 망령 블록으로 채운 체력을 다시 깎아도 재화는 한 번 (지금까지 깎인 가장 낮은 체력 아래로 깎은 몫만)
+  {
+    const S = pipe(48), b = S.m3, N = b.C;
+    for (let k = 0; k < 5; k++) S.slots[k] = null;
+    const wa = put('rail', 0, 40), wb = put('rail', 2, 40);
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: 'shotgun', id: 3000 + i };
+    for (const i of [0, N, 2 * N]) b.g[i] = { s: 'rail', id: 3100 + i };
+    for (const i of [2, 2 + N]) b.g[i] = { s: 'rail', id: 3200 + i };
+    const gh = summon(S, 'ghost'); gh.speed = 0; gh.y = -400;   // 화면 밖: 능력은 쓰지 않고 살아만 있다
+    for (const o of b.g) delete o.gh; b.g[2 * N].gh = 1e6;
+    S.bossOnly = null; assert(Core.test.gold()); run(S, Core.WARN_T + 0.1);
+    const g = S.enemies.find((o) => o.gd); assert(g, '황금체'); g.speed = 0; g.gd.bt = 1e9; g.hp = g.maxHp = 2e5; g.gd.lo = null;
+    const got0 = g.gd.got, d0 = wb.dealt || 0;
+    run(S, 30, () => { for (const o of S.enemies) if (o !== g && o !== gh) o.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); });
+    assert(wa.gz === 1 && !wb.gz && !g.dead, '한 자루만 망령');
+    const deep = g.maxHp - g.gd.lo, dealt = (wb.dealt || 0) - d0, got = g.gd.got - got0;
+    assert(dealt > deep * 1.5, '채운 체력을 다시 깎음 ' + dealt + ' ' + deep);
+    assert(Math.abs(got - deep / g.maxHp * g.gd.G) < 1e-6 * g.gd.G, '재화는 깎인 가장 낮은 체력까지 ' + got + ' ' + deep / g.maxHp * g.gd.G);
+  }
+  ok('망령 블록 (망령체, 연결 판): 이어진 무기는 회복(부가 효과·처치·재화 없음), 떼면 피해, 시간이 되면 사라졌다 다시, 황금체 재화 한 번');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 

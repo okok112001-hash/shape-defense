@@ -10,7 +10,7 @@
      DRAW_TEAM=tesla python tools/draw_bench.py paper index.html none none none    # 전격기 다섯 자루 (같은 조합, T5b). rail, acid 도 같다 (T5c, T5d)
      DRAW_FLING=1 python tools/draw_bench.py paper index.html none none none     # 큰 한 방에 쓰러지는 적(fling) 40개를 늘 띄워 둔다 (T10c. 기준 html 은 fling 을 그리지 않아 그 비용이 빠진다)
      DRAW_TEAM=acid DRAW_RAIN=1 python tools/draw_bench.py paper index.html none none none   # 폭우가 그치면 0.5초 뒤 다시 내린다 (T10d. 고이는 웅덩이가 늘 있고, 마르는 묶음과 겹친다)
-     DRAW_T11=1 python tools/draw_bench.py paper index.html none none none      # 정예(적 절반)와 돌격체·석화체·교란체 (T11, T12. 기준 html 이 그 보스를 모르면 같은 자리에 거대체)
+     DRAW_T11=1 python tools/draw_bench.py paper index.html none none none      # 정예(적 절반)와 돌격체·석화체·교란체·망령체, 망령 회복 빛 6명 (T11, T12, T13a. 기준 html 이 그 보스를 모르면 같은 자리에 거대체)
      DRAW_GOLD=1 python tools/draw_bench.py paper index.html none none none     # 황금체(전장의 금빛. T12 전에는 레인 옮김과 예고도)와 동전 (0.1초마다 하나, 1초마다 20개 한꺼번에. T11②. 기준 html 은 같은 자리에 거대체 하나)
      DRAW_CRATE=1 python tools/draw_bench.py paper index.html none none none    # 보급 상자: 늘 하나가 날고, 떨어진 상자 하나가 맞고, 1.5초마다 깨짐 효과(재화 동전) (T11③. 기준 html 은 같은 자리에 거대체 하나)
    읽는 법: 첫 측정은 준비(JIT, 스프라이트 생성) 때문에 늘 느리니 버리고, 나머지 평균을 기준과 비교한다. 잡음이 +-10% 쯤이다.
@@ -26,6 +26,8 @@ INIT = '''
 })();
 '''
 FOE = '''() => { const S = Core.S; S.spawnAcc = -1e9; S.nextBoss = 1e9; S.enemies.length = 0; const H = Core.H;
+  if (S.m3) { const b = S.m3, own = S.slots.map(w => w && w.type), rest = Object.keys(Core.WEAPONS).filter(t => own.indexOf(t) < 0), same = own.every(t => t === own[0]);   // 연결 모드: 판이 무작위면 무기가 꺼져 측정이 흔들리므로
+    for (let k = 0; k < b.C; k++) for (let r = 0; r < b.R; r++) { const o = b.g[r * b.C + k]; o.s = r < (same ? 1 : 3) && own[k] ? own[k] : rest[(r + k) % rest.length]; o.st = 0; } }   // 무기마다 3칸을 이어 보통 공속 (같은 무기 다섯이면 0행만, 다섯이 한 줄로 이어져 1.5배)
   const add = (type, x, y) => { const d = Core.ENEMIES[type]; S.enemies.push({ type, lane: Math.max(0, Math.min(4, Math.floor(x / 100))), x, y, r: d.r, hp: 1e15, maxHp: 1e15, speed: 0, leak: d.leak, gold: 0, boss: false, born: S.t,
     slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0, fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9 }); };
   for (let i = 0; i < 20; i++) add(i % 5 === 4 ? 'heavy' : 'basic', 50 + (i % 5) * 100 + ((i * 37) % 30 - 15), H - 60 - ((i * 53) % 9) * 38); }'''
@@ -67,7 +69,9 @@ window.__game = {'''
               const add = (type, x, y) => { const d = Core.ENEMIES[type]; const e = { type, lane: Math.floor(x / 100), x, y, r: d.r, hp: 1e15, maxHp: 1e15, speed: 0, leak: d.leak, gold: 0, boss: true, born: S.t - 1,
                 slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0, fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9 };
                 if (type === 'charge') e.ch = { ph: 0, t: 0.3, to: e.lane }; S.enemies.push(e); };
-              add(nw ? 'charge' : 'giant', 150, H * 0.22); add(Core.STONE ? 'stone' : nw ? 'clock' : 'giant', 350, H * 0.3); add(Core.STONE ? 'jumble' : nw ? 'thief' : 'giant', 250, H * 0.42); }''')   # T12: 시계체 -> 석화체, 약탈체 -> 교란체 (예전 html 은 그 자리에 시계체·약탈체)
+              add(nw ? 'charge' : 'giant', 150, H * 0.22); add(Core.STONE ? 'stone' : nw ? 'clock' : 'giant', 350, H * 0.3); add(Core.STONE ? 'jumble' : nw ? 'thief' : 'giant', 250, H * 0.42);
+              add(Core.GHOST ? 'ghost' : 'giant', 50, H * 0.5);   // T13a: 망령체 (예전 html 은 그 자리에 거대체)
+              if (Core.GHOST) { const o = Core.step; Core.step = (dt) => { o(dt); let n = 0; for (const e of Core.S.enemies) if (!e.boss && n++ < 6) e.hl = 0.3; }; } }''')   # T12: 시계체 -> 석화체, 약탈체 -> 교란체 (예전 html 은 그 자리에 시계체·약탈체). T13a: 일반 적 6명이 늘 망령 회복 빛
         if os.environ.get('DRAW_GOLD'):         # T11②: 황금체 하나와 동전. 예전 html 은 황금 적을 모르므로 같은 자리에 거대체 하나
             await pg.evaluate('''() => { const S = Core.S, nw = !!Core.GOLD, H = Core.H, d = Core.ENEMIES[nw ? 'gold' : 'giant'];
               const e = { type: nw ? 'gold' : 'giant', lane: 2, x: 250, y: H * 0.3, r: d.r, hp: 1e15, maxHp: 2e15, speed: 0, leak: d.leak, gold: 0, boss: true, born: S.t - 1,

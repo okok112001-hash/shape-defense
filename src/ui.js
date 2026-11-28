@@ -21,7 +21,7 @@ const GR = C.GRADES;
 const GHEX = ['#aab6cc', '#5cb8ff', '#c48bff', '#ffa63d'];   // 등급 색 (테마를 바꾸면 값만 바뀐다)
 const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f0508c', giant: '#ff3d3d', split: '#ff3d3d',
   summon: '#ff5fd0', jammer: '#ff2e63', shield: '#ff6b8a', jumble: '#ff4fa3', corrode: '#d04cff', scale: '#8f9bb5',
-  charge: '#ff4d2e', stone: '#e0785c', gold: '#ffd84a' };
+  charge: '#ff4d2e', stone: '#e0785c', gold: '#ffd84a', ghost: '#3fc6d6' };
 const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
 const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
@@ -36,6 +36,7 @@ const BLUE_V = {
   hatch: 'rgba(255, 255, 255, .07)', sheen: 'rgba(255, 244, 214, .55)', melt: '#ffb37a', 'melt-fill': '#ff9f5a', ember: '#ff3d2e',
   gold: '#ffd84a', 'on-gold': '#1c1503',   // 황금체와 티켓 (전설 등급의 주황과 헷갈리지 않는 노란 금색), 그 위 글자
   crate: '#d9ad74',                          // 보급 상자 (나무색. 도움말 글자)
+  ghost: '#7fe3ec',                          // 망령체 (도움말 글자. 등급 파랑·--ok 초록과 다른 청록)
 };
 const BLUE_CV = {
   grid: 'rgba(150,190,255,.10)', lane: 'rgba(150,190,255,.32)', base: 'rgba(122,240,193,.8)', turret: '#7af0c1',
@@ -44,6 +45,7 @@ const BLUE_CV = {
   gold: '#ffd84a', goldA: '#fff3b0', goldB: '#ffc928',   // 황금: 선과 글자, 몸의 밝은 쪽, 어두운 쪽
   crate: '#c39561', crateD: '#6e4a26', crateL: '#ecd2a6', wing: '#f7f3ea',   // 보급 상자: 나무, 짙은 나뭇결과 테두리, 밝은 면, 날개
   stone: '#b8ab95',   // 굳은 칸(석화체): 테두리, 돌 그림, 빗금 (일반 등급의 푸른 회색과 다른 따뜻한 회갈색)
+  ghost: '#8feaf2', ghostN: '170,240,246', ghostB: '#c4f7fb',   // 망령 (T13a): 판의 안개와 테두리, 회복 숫자, 이어진 무기의 탄·빔 (창백한 청록)
 };
 // 밝은 테마는 무기 색을 더 어둡게 (바탕과 겹쳐 보이지 않도록)
 const LIGHT_WC = { blaster: '#0a9fc4', shotgun: '#d99400', laser: '#d8409f', pulse: '#12a579', mortar: '#e56a1f', tesla: '#7257e0', rail: '#4a5568', acid: '#5f9e12' };
@@ -54,36 +56,39 @@ const THEMES = [
       accent: '#e09a00', 'accent-ink': '#8a5600', 'on-accent': '#1c1503', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#6b7688', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#d9dee6',
       shade: 'rgba(30, 50, 90, .07)', overlay: 'rgba(28, 39, 64, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b' }),
+      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
     cv: { grid: 'rgba(30,50,90,.09)', lane: 'rgba(30,50,90,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '28,39,64',
       bossTxt: '#a01c1c', bossLine: 'rgba(28,39,64,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
       gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
-      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#83745f' },
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#83745f',
+      ghost: '#128fa0', ghostN: '12,128,143', ghostB: '#5fb0bd' },
     wc: LIGHT_WC },
   { id: 'sand', name: '모래', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#f3ecdd', panel: '#fffaf0', 'panel-2': '#e9dfc9', line: 'rgba(80,55,20,.24)', ink: '#3a2f1f', dim: '#76664d',
       accent: '#0e7a73', 'accent-ink': '#0a5f59', 'on-accent': '#fffaf0', ok: '#2a8a4a', danger: '#c93a2e',
       g0: '#77705f', g1: '#1f7fe0', g2: '#8a4be0', g3: '#d9740a', backdrop: '#e4d9c1',
       shade: 'rgba(80, 55, 20, .07)', overlay: 'rgba(58, 47, 31, .55)', toast: 'rgba(255, 250, 240, .97)', shadow: '#fffaf0',
-      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b' }),
+      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
     cv: { grid: 'rgba(80,55,20,.09)', lane: 'rgba(80,55,20,.26)', base: 'rgba(42,138,74,.9)', turret: '#2a8a4a',
       dmgStroke: '255,250,240', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '58,47,31',
       bossTxt: '#a01c1c', bossLine: 'rgba(58,47,31,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
       gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
-      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#83745f' },
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#83745f',
+      ghost: '#128fa0', ghostN: '12,128,143', ghostB: '#5fb0bd' },
     wc: LIGHT_WC },
   { id: 'sky', name: '하늘', scheme: 'light',
     v: Object.assign({}, BLUE_V, { bg: '#e3effb', panel: '#ffffff', 'panel-2': '#d3e4f6', line: 'rgba(22,48,79,.22)', ink: '#16304f', dim: '#52708f',
       accent: '#c2255c', 'accent-ink': '#a01b49', 'on-accent': '#ffffff', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#66768c', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#cfe1f3',
       shade: 'rgba(22, 48, 79, .07)', overlay: 'rgba(22, 48, 79, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b' }),
+      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
     cv: { grid: 'rgba(22,48,79,.09)', lane: 'rgba(22,48,79,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '22,48,79',
       bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
       gold: '#9a7300', goldA: '#ffe680', goldB: '#e8b400',
-      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#83745f' },
+      crate: '#c08a52', crateD: '#5e3a18', crateL: '#e8c793', wing: '#ffffff', stone: '#83745f',
+      ghost: '#128fa0', ghostN: '12,128,143', ghostB: '#5fb0bd' },
     wc: LIGHT_WC },
   { id: 'navy', name: '짙은 남색',
     v: Object.assign({}, BLUE_V, { bg: '#0e1c3a', panel: '#13264d', 'panel-2': '#1a3263', line: 'rgba(150,190,255,.18)', dim: '#93a8cf',
@@ -220,6 +225,7 @@ const Snd = (function () {
     hitjumble: [250, () => { for (let i = 0; i < 6; i++) hiss(0.035, 0.09, 1400 + 380 * ((i * 5) % 6), 2.2, 'bandpass', i * 0.045); tone('triangle', 520, 300, 0.2, 0.04, 0.02); }],   // 교란: 패를 섞는 사르륵
     hitstone: [200, () => { tone('sine', 110, 52, 0.28, 0.16); hiss(0.3, 0.12, 700, 0.9, 'bandpass', 0.01); hiss(0.12, 0.06, 3200, 1.5, 'highpass', 0.05); }],   // 석화: 묵직하게 굳고 돌가루
     stonetap: [120, () => { tone('triangle', 180, 120, 0.07, 0.07); hiss(0.04, 0.05, 1600, 2, 'bandpass'); }],                                       // 굳은 칸은 안 움직임: 딱
+    hitghost: [250, () => { tone('sine', 620, 880, 0.5, 0.06); tone('sine', 932, 660, 0.55, 0.04, 0.08); hiss(0.6, 0.05, 1200, 0.6, 'bandpass', 0.02); }],              // 망령: 서늘하게 오르내리는 두 음과 바람 소리
     hitcorr: [200, () => { hiss(0.35, 0.16, 900, 1.2, 'bandpass'); tone('sawtooth', 160, 60, 0.35, 0.09); }],                                         // 녹아내리는 지글 소리
     wave: [500, () => { seq('triangle', [523, 784], 0.16, 0.07, 0.09); hiss(0.25, 0.025, 1800, 0.7, 'lowpass'); }],                                  // 웨이브 시작: 가볍게 올라가는 두 음 (보스 경보보다 작게)
     tick: [300, () => { tone('square', 1760, 1760, 0.016, 0.022); tone('triangle', 880, 880, 0.035, 0.035); }],                                     // 다음 웨이브 초읽기: 작은 똑딱
@@ -287,6 +293,7 @@ function applyTheme(th, save) {
   TC = Object.assign({ bg: th.v.bg }, th.cv);
   const tm = document.querySelector('meta[name="theme-color"]'); if (tm) tm.setAttribute('content', th.v.bg);   // 주소창, 상태 표시줄 색
   for (const t in WC0) C.WEAPONS[t].color = (th.wc && th.wc[t]) || WC0[t];   // 무기 색이 바뀌면 캐시된 능력치를 버린다
+  C.GHOST.col = TC.ghostB;                    // 망령 블록과 이어진 무기의 탄·빔 색
   const S = C.S;
   if (S) { for (const w of S.slots) if (w) C.dirty(w); for (const it of S.inv) if (it && it.kind === 'w') C.dirty(it); }
   if (save) { try { localStorage.setItem(THEME_KEY, th.id); } catch (e) { /* 무시 */ } }
@@ -429,8 +436,8 @@ function renderWeapons() {
     const mine = sel && sel.from === 'slot' && sel.k === k;
     const lk = S.locks && S.locks[k], cr = S.corr && S.corr.k === k, closed = C.isClosed(k);
     const ev = w && w.evo && !closed ? evoSlotHtml(w, now) : null;   // 진화하는 중
-    const rz = !!w && !!w.rz && !closed, sz = !!w && !!w.sz && !closed;   // 부식 블록과 이어짐: 0강으로 친다 / 봉쇄 블록과 이어짐: 쏘지 않는다
-    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (sz ? ' sealed' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
+    const rz = !!w && !!w.rz && !closed, sz = !!w && !!w.sz && !closed, gz = !!w && !!w.gz && !closed;   // 부식 블록과 이어짐: 0강으로 친다 / 봉쇄 블록과 이어짐: 쏘지 않는다 / 망령 블록과 이어짐: 적을 회복시킨다
+    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (sz ? ' sealed' : '') + (gz ? ' ghosted' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
       (lk ? (lk.l > 0 ? ' locked' : ' warn-lock') : '') + (cr ? ' warn-corr' : '');
     // 남는 빛의 숨 위상: 진화가 끝난 때부터 (다시 그려도 이어진다)
     const st = w && w.evo ? `--wc:${C.WEAPONS[w.type].color};--eb:-${(((now - (evoBorn.get(w) || 0)) / 1000) % 8.8).toFixed(2)}s${ev ? ev.style : ''}` : '';
@@ -444,6 +451,7 @@ function renderWeapons() {
         (upmode ? '<span class="upcue"><i></i><i></i></span>' : '') + (w.evo && C.skillPoints(w).left > 0 ? '<i class="skdot" aria-label="남은 스킬 포인트"></i>' : '') + (ev ? ev.ring : '');
     } else h += '<span class="plus">+</span>';
     if ((lk && lk.l > 0) || sz) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
+    if (gz) h += `<span class="ghic">${GHOST_SVG(15)}</span>`;
     if (wl) h += `<span class="abic lk">${LOCK_SVG(18)}</span><i class="cd" style="${cdStyle(lk.w)}"></i>`;
     if (cr) h += `<span class="abic cr"><b>-5</b></span><i class="cd" style="${cdStyle(S.corr.t)}"></i>`;
     h += '</button>';
@@ -452,9 +460,10 @@ function renderWeapons() {
   elW.classList.toggle('upmode', upmode);     // 강화 모드인 상태를 눈으로 알 수 있게
 }
 // 보스 능력 예고: 칸 표시에 쓰는 도우미
-const AB_COL = { lock: '#ff3d5a', corr: '#c04bff' };
+const AB_COL = { lock: '#ff3d5a', corr: '#c04bff', ghost: '#1fa9bb' };
 const LOCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
 const MIX_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h4c3 0 5 10 9 10h4M3 17h4c1.400 0 2.500-1.300 3.400-3M13.600 10c.9-1.700 2-3 3.400-3h3M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>`;   // 교란: 섞기
+const GHOST_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path fill-rule="evenodd" fill="currentColor" d="M4.500 21V10.500a7.500 7.500 0 0 1 15 0V21l-2.500-2-2.500 2-2.500-2-2.500 2-2.500-2zM9.200 8.600a1.300 1.700 0 1 0 0 3.400 1.300 1.700 0 1 0 0-3.400zM14.800 8.600a1.300 1.700 0 1 0 0 3.400 1.300 1.700 0 1 0 0-3.400z"/></svg>`;   // 망령: 둥근 머리, 물결 옷자락, 두 눈
 const ROCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path d="M5 18.500 3.500 12 7 6.500l6-2 5.500 3 2 6.500-3 4.500z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 7.500 11 12l-3 3M11 12l4.500 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;   // 석화: 돌
 // 줄어드는 막대: 애니메이션 길이와 시작 위치를 남은 시간에 맞춘다. 화면을 다시 그려도 끊기지 않고 이어진다
 function cdStyle(rem, T0) {
@@ -474,6 +483,8 @@ function abList() {
   if (ri >= 0) out.push({ kind: 'rust', i: b.g[ri].id, rem: b.g[ri].ru, T: C.RUST.dur, nm: C.ENEMIES.corrode.name, txt: '부식 블록과 이은 무기는 0강' });
   const si = b ? C.sealAt(b) : -1;   // 봉쇄 블록
   if (si >= 0) out.push({ kind: 'seal', i: b.g[si].id, rem: b.g[si].sl, T: C.SEAL.dur, nm: C.ENEMIES.jammer.name, txt: '봉쇄 블록과 이은 무기는 못 쏨' });
+  const gi = b ? C.ghostAt(b) : -1;   // 망령 블록
+  if (gi >= 0) out.push({ kind: 'ghb', i: b.g[gi].id, rem: b.g[gi].gh, T: C.GHOST.dur, nm: C.ENEMIES.ghost.name, txt: '망령 블록과 이은 무기는 적을 회복' });
   return out;
 }
 const chipsEl = document.createElement('div'); chipsEl.id = 'abChips'; wrap.insertBefore(chipsEl, toastEl);   // 보스 체력 막대 바로 아래
@@ -481,7 +492,7 @@ function updateChips() {
   const L = abList(), key = L.map(a => a.kind + a.i).join('|');
   if (key === abKey) return;
   abKey = key;
-  chipsEl.innerHTML = L.map(a => `<div class="abchip ${a.kind}" role="status"><span class="aic">${a.kind === 'lock' || a.kind === 'seal' ? LOCK_SVG(14) : a.kind === 'jumble' ? MIX_SVG(14) : a.kind === 'stone' ? ROCK_SVG(14) : a.kind === 'rust' ? '<b>+0</b>' : '<b>-5</b>'}</span><span class="atx"><b>${a.nm}</b>: ${a.txt}</span><i class="cd" style="${cdStyle(a.rem, a.T)}"></i></div>`).join('');
+  chipsEl.innerHTML = L.map(a => `<div class="abchip ${a.kind}" role="status"><span class="aic">${a.kind === 'lock' || a.kind === 'seal' ? LOCK_SVG(14) : a.kind === 'jumble' ? MIX_SVG(14) : a.kind === 'stone' ? ROCK_SVG(14) : a.kind === 'ghb' ? GHOST_SVG(14) : a.kind === 'rust' ? '<b>+0</b>' : '<b>-5</b>'}</span><span class="atx"><b>${a.nm}</b>: ${a.txt}</span><i class="cd" style="${cdStyle(a.rem, a.T)}"></i></div>`).join('');
 }
 // 발동하는 순간: 칸 위에 번쩍임
 function abHitFx(kind, i) {
@@ -1421,6 +1432,9 @@ function bossSvg(t) {
     case 'charge': g = `<polygon points="${-r},${-r * 0.8} 0,${-r * 0.3} ${r},${-r * 0.8} 0,${r}" ${a}/><path d="M${-r * 0.36} ${-r * 0.12}L0 ${r * 0.16}L${r * 0.36} ${-r * 0.12}M${-r * 0.26} ${r * 0.24}L0 ${r * 0.46}L${r * 0.26} ${r * 0.24}" ${b}/>`; break;
     case 'stone': { const f = (Q) => Q.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '), P = stonePts(0, 0, r), M = [STONE_R[0] * r, STONE_R[1] * r];
       g = `<polygon points="${f(P)}" fill="${col}" fill-opacity=".28"/><polygon points="${f([P[0], P[1], P[2], M])}" fill="#fff" fill-opacity=".3"/><polygon points="${f([P[2], P[3], P[4], M])}" fill="rgb(60,20,10)" fill-opacity=".14"/><polygon points="${f(P)}" fill="none" stroke="${col}" stroke-width="3" stroke-linejoin="round"/>`; break; }
+    case 'ghost': { const hw = r * 0.82, tp = -r * 0.12, bt = r * 0.78, f = (v) => v.toFixed(1); let d = `M${f(-hw)} ${f(bt)}V${f(tp)}A${f(hw)} ${f(hw)} 0 0 1 ${f(hw)} ${f(tp)}V${f(bt)}`;
+      for (let i = 0; i < 3; i++) { const x0 = hw - 2 * hw * i / 3, x1 = x0 - 2 * hw / 3; d += `Q${f((x0 + x1) / 2)} ${f(bt - r * 0.48)} ${f(x1)} ${f(bt)}`; }
+      g = `<path d="${d}Z" ${a}/>` + [-1, 1].map(k => `<ellipse cx="${f(k * r * 0.3)}" cy="${f(-r * 0.12)}" rx="${f(r * 0.12)}" ry="${f(r * 0.19)}" ${b}/>`).join(''); break; }
     case 'gold': { const c = theme.v.gold; g = `<polygon points="${-r * 0.5},${-r * 0.62} ${r * 0.5},${-r * 0.62} ${r},${-r * 0.12} 0,${r} ${-r},${-r * 0.12}" fill="${c}" fill-opacity=".45" stroke="${c}" stroke-width="3" stroke-linejoin="round"/><path d="M${-r} ${-r * 0.12}H${r}M${-r * 0.5} ${-r * 0.62}L${-r * 0.24} ${-r * 0.12}L0 ${-r * 0.62}L${r * 0.24} ${-r * 0.12}L${r * 0.5} ${-r * 0.62}M${-r * 0.24} ${-r * 0.12}L0 ${r}L${r * 0.24} ${-r * 0.12}" fill="none" stroke="${c}" stroke-width="1.6" stroke-opacity=".7"/>`; break; }
     case 'scale': { const hw = r * 0.82, ink = theme.v.ink; g = `<g transform="rotate(-11)"><polygon points="0,${-r} ${-hw},0 0,${r}" fill="${SC_HV}" fill-opacity=".95" stroke="${ink}" stroke-width="3" stroke-linejoin="round"/><polygon points="0,${-r} ${hw},0 0,${r}" fill="${SC_LT}" fill-opacity=".22" stroke="${SC_LT}" stroke-opacity=".6" stroke-width="2" stroke-linejoin="round"/></g>`; break; }
   }
@@ -1436,12 +1450,13 @@ const BOSS_HELP = {
   corrode: [`판의 블록 하나를 부식시킵니다. 부식 블록과 이어진 무기는 이어져 있는 동안 0강이 됩니다(증강·진화 능력은 그대로). 부식은 ${C.RUST.dur}초 뒤 사라지고, 잠시 뒤 다른 블록에 다시 생깁니다.`, '부식 블록을 밀어서 무기 줄에서 떼어 내세요. 부식은 블록과 함께 옮겨집니다.'],
   charge: ['천천히 내려오다 멈춰서 다른 레인을 깜빡여 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진합니다.', '예고된 레인으로 무기를 옮겨 모으세요.'],
   stone: [`판의 한 칸을 골라 알린 뒤(${C.AB_WARN}초) 그 칸의 블록을 돌로 굳힙니다. 돌은 옮길 수 없고 이어지지 않으며, 그 웨이브가 끝날 때까지 풀리지 않습니다.`, '예고된 칸의 블록은 빼 두세요. 오래 살려 두면 돌이 계속 쌓이니 먼저 쓰러뜨리세요.'],
+  ghost: [`판의 블록 하나를 망령 블록으로 만듭니다. 망령 블록과 이어진 무기는 이어져 있는 동안 적을 공격하는 대신 회복시킵니다(보스 자신도). 망령은 ${C.GHOST.dur}초 뒤 사라지고, 잠시 뒤 다른 블록에 다시 생깁니다.`, '망령 블록을 밀어서 무기 줄에서 떼어 내세요. 망령은 블록과 함께 옮겨집니다.'],
   gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 있는 동안 판에 황금 블록이 생깁니다. 황금 블록은 어느 무기에나 이어집니다.', `황금 블록을 무기에 이을수록 황금체에게 주는 피해가 커집니다(하나마다 +${Math.round(C.GOLD.blkDmg * 100)}%).`],
   scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
 };
 function bossCard(t) {
   const d = C.ENEMIES[t], h = BOSS_HELP[t] || [d.hint, (d.tip || [])[1] || ''];
-  return `<div class="hbc">${bossSvg(t)}<span class="hbn" style="color:${t === 'scale' ? 'var(--ink)' : t === 'gold' ? 'var(--gold)' : ECOL[t] || 'var(--ink)'}">${d.name}</span>
+  return `<div class="hbc">${bossSvg(t)}<span class="hbn" style="color:${t === 'scale' ? 'var(--ink)' : t === 'gold' ? 'var(--gold)' : t === 'ghost' ? 'var(--ghost)' : ECOL[t] || 'var(--ink)'}">${d.name}</span>
     <span class="hbr"><i>특징</i><span>${h[0]}</span></span><span class="hbr"><i>공략</i><span>${h[1]}</span></span></div>`;
 }
 // 도움말: 시작 화면이나 일시정지 화면에서
@@ -2287,6 +2302,7 @@ function enemyPath(e) {
       }
       ctx.closePath();
       break;
+    case 'ghost': ghostPath(x, y, r, e._gp || 0); break;                       // 망령: 둥근 머리, 물결치는 옷자락
     case 'crate': rrectPath(x, y, r * 0.86, r * 0.15); break;                   // 보급 상자: 모서리가 조금 둥근 네모
     case 'gold':                                                               // 보석 (위가 평평한 면, 아래가 뾰족)
       ctx.moveTo(x - r * 0.5, y - r * 0.62); ctx.lineTo(x + r * 0.5, y - r * 0.62); ctx.lineTo(x + r, y - r * 0.12); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y - r * 0.12); ctx.closePath();
@@ -2368,7 +2384,27 @@ function drawEnemy(e) {
     ctx.save(); ctx.translate(Math.sin(performance.now() / 19) * 1.3, 0); drawEnemy0(e); ctx.restore(); return;
   }
   drawEnemy0(e);
+  if (e.hl > 0) healGlow(e);
 }
+// 망령체 (T13a): 둥근 머리에서 곧게 내려와 아래 끝이 세 갈래 물결 옷자락. ph: 옷자락이 일렁이는 위상 (갈래마다 조금씩 다르게)
+function ghostPath(x, y, r, ph) {
+  const hw = r * 0.82, top = y - r * 0.12, bot = y + r * 0.78;
+  ctx.moveTo(x - hw, bot + r * 0.06 * Math.sin(ph + 2.4)); ctx.lineTo(x - hw, top); ctx.arc(x, top, hw, Math.PI, 0); ctx.lineTo(x + hw, bot + r * 0.06 * Math.sin(ph));
+  for (let i = 0; i < 3; i++) {
+    const x0 = x + hw - 2 * hw * i / 3, x1 = x0 - 2 * hw / 3, dip = r * (0.3 + 0.07 * Math.sin(ph * 0.8 + i * 2.1));
+    ctx.quadraticCurveTo((x0 + x1) / 2 + r * 0.05 * Math.sin(ph + i), bot - dip * 1.6, x1, bot + r * 0.06 * Math.sin(ph + (i + 1) * 0.8));
+  }
+  ctx.closePath();
+}
+// 망령체의 눈 (안쪽 2px 선): 천천히 떠다니고 가끔 감는다
+function drawGhostMark(e, col) {
+  const now = performance.now(), sd = (e.lane || 0) * 1.7, bl = RM.matches ? 1 : (((now / 1000 + sd) % 4.3) < 0.14 ? 0.15 : 1);
+  const dx = RM.matches ? 0 : Math.sin(now / 900 + sd) * e.r * 0.05;
+  ctx.lineWidth = 2; ctx.strokeStyle = col;
+  for (const k of [-1, 1]) { ctx.beginPath(); ctx.ellipse(e.x + k * e.r * 0.3 + dx, e.y - e.r * 0.12, e.r * 0.12, e.r * 0.19 * bl, 0, 0, Math.PI * 2); ctx.stroke(); }
+}
+// 망령 회복 (T13a): 망령 블록과 이어진 무기에 맞은 적. 몸 둘레에 옅은 청록 빛이 번졌다 사라진다
+function healGlow(e) { const q = Math.min(1, e.hl / 0.3); VX.glow(e.x, e.y, e.r * 2, TC.ghost, (VX.light ? 0.34 : 0.46) * q); }
 // 정예: 같은 모양의 바깥 윤곽을 한 겹 더
 function drawElite(e, col) { const r0 = e.r; e.r = r0 * 1.3; enemyPath(e); e.r = r0; ctx.lineWidth = 1.6; ctx.strokeStyle = rgba(col, 0.6); ctx.stroke(); }
 // 돌격체의 무늬: 안쪽에 아래를 향한 갈매기표 둘
@@ -2693,6 +2729,7 @@ function drawEnemy0(e) {
     ctx.lineWidth = 3; ctx.strokeStyle = rgba(col, 0.5); ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
   }
   if (e.type === 'jumble') jumbleSpin(e);   // 바람개비가 돈다 (몸 경로가 이 각을 쓴다)
+  if (e.type === 'ghost') e._gp = RM.matches ? 0 : performance.now() / 420 + (e.lane || 0);   // 옷자락이 일렁인다
   const r0 = e.r; if (e.flash > 0) e.r = r0 * 1.2;   // 맞는 순간 살짝 부풀어 타격감을 준다
   enemyPath(e); e.r = r0;
   ctx.fillStyle = e.flash > 0 ? TC.hit : iced ? 'rgba(160,230,255,.5)' : rgba(col, e.boss ? 0.28 : 0.2);
@@ -2715,6 +2752,7 @@ function drawEnemy0(e) {
   if (e.type === 'corrode') { ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.4, 0, Math.PI * 2); ctx.stroke(); }
   if (e.type === 'charge') drawChargeMark(e, col);
   if (e.type === 'jumble') drawJumbleMark(e, col);
+  if (e.type === 'ghost') drawGhostMark(e, col);
   if (e.elite) drawElite(e, col);
   drawStatus(e, iced);
   if (e.hp < e.maxHp) {
@@ -5049,10 +5087,10 @@ function drawFx(f, H) {
     }
     case 'num': {                           // 피해 숫자
       const y = f.y - (1 - p) * 28, al = Math.min(1, p * 2.4), big = f.c === 1;
-      const txt = (f.c === 3 ? '+' : '') + fmtDmg(f.v);
-      ctx.font = (big ? 25 : f.c === 2 ? 15 : 19) + 'px "Do Hyeon", sans-serif'; ctx.textAlign = 'center';
+      const txt = (f.c === 3 || f.c === 4 ? '+' : '') + fmtDmg(f.v);   // 4: 망령 회복
+      ctx.font = (big ? 25 : f.c === 2 ? 15 : f.c === 4 ? 17 : 19) + 'px "Do Hyeon", sans-serif'; ctx.textAlign = 'center';
       ctx.lineWidth = 3.5; ctx.strokeStyle = `rgba(${TC.dmgStroke},${0.85 * al})`; ctx.strokeText(txt, f.x, y);
-      ctx.fillStyle = `rgba(${big ? TC.dmgBig : f.c === 2 ? TC.dmg2 : f.c === 3 ? TC.dmg3 : TC.dmgN},${al})`;
+      ctx.fillStyle = `rgba(${big ? TC.dmgBig : f.c === 2 ? TC.dmg2 : f.c === 3 ? TC.dmg3 : f.c === 4 ? TC.ghostN : TC.dmgN},${al})`;
       ctx.fillText(txt, f.x, y);
       break;
     }
@@ -5477,8 +5515,8 @@ function drawPipeTags(S, H) {
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k]; if (!w) continue;
     const n = L[k][0], x = (k + 0.5) * C.LW, on = n >= C.PIPE.need, pc = Math.round((C.pipeRate(n) - 1) * 100);
-    ctx.fillStyle = w.sz ? AB_COL.lock : on ? C.WEAPONS[w.type].color : rgba(theme.v.ink || '#000', 0.45);
-    ctx.fillText(w.sz ? '봉쇄' : on ? (pc ? '공속 ' + (pc > 0 ? '+' : '') + pc + '%' : '공속 보통') : '꺼짐', x, H - 22);
+    ctx.fillStyle = w.sz ? AB_COL.lock : w.gz && on ? TC.ghost : on ? C.WEAPONS[w.type].color : rgba(theme.v.ink || '#000', 0.45);
+    ctx.fillText(w.sz ? '봉쇄' : w.gz && on ? '회복' : on ? (pc ? '공속 ' + (pc > 0 ? '+' : '') + pc + '%' : '공속 보통') : '꺼짐', x, H - 22);
   }
 }
 /* ---------- 상태 표시 ---------- */
@@ -5688,6 +5726,54 @@ function m3Seal(g, x, y, R, id, u, f, rem, now) {
     m3RR(g, bx + 0.5, by + 0.5, (bw - 1) * fr, 3.5, 1.75); g.fillStyle = rgba(col, f * u); g.fill();
   }
 }
+// 망령 블록 (망령체, T13a): 블록이 빛을 잃고 흐려지며, 창백한 청록 안개가 아래에서부터 차올라 덮는다(자리와 크기가 다른 덩이가 겹쳐 가장자리가 천천히 일렁인다).
+// 안개가 거의 덮으면 두 눈이 떠올라 천천히 떠다니고 가끔 감는다. 가는 연기 줄기가 자리와 빠르기를 달리해 위로 피어오르고 지나간 자리가 옅게 남는다.
+// 테두리는 청록으로 천천히 숨 쉰다. 떠날 때는 안개가 위로 떠오르며 옅어진다. 아래 막대는 남은 시간. u: 덮인 정도(0~1), f: 남은 정도(1 -> 0), rem: 남은 시간(초)
+function m3Ghost(g, x, y, R, id, u, f, rem, now) {
+  const h = R * 1.05, rm = RM.matches, light = theme.scheme === 'light', col = TC.ghost, pale = light ? TC.ghost : TC.ghostB;
+  const e = 1 - (1 - u) * (1 - u), lift = (1 - f) * h * 0.6;
+  g.save(); m3RR(g, x - h, y - h, h * 2, h * 2, 7); g.clip();
+  g.fillStyle = rgba(theme.v.panel, 0.55 * f * e); g.fillRect(x - h, y - h, h * 2, h * 2);   // 블록이 빛을 잃는다 (아이콘이 흐려진다)
+  for (let k = 0; k < 5; k++) {                    // 안개 덩이: 아래에서부터 조금씩 다른 때에 차오른다
+    const q = Math.max(0, Math.min(1, u * 1.6 - k * 0.12)); if (q <= 0) continue;
+    const bx = x + (hash(id * 3.3 + k * 1.7) - 0.5) * h * 1.3 + (rm ? 0 : Math.sin(now / 1300 + k * 1.9 + id) * h * 0.08);
+    const by = y + h * (0.55 - 0.75 * q * (0.6 + 0.4 * hash(id * 4.9 + k))) - lift, r = h * (0.45 + 0.3 * hash(id * 6.1 + k * 0.9)) * (0.6 + 0.4 * q);
+    const gr = g.createRadialGradient(bx, by, 0, bx, by, r * 1.2);
+    gr.addColorStop(0, rgba(pale, (light ? 0.3 : 0.24) * f)); gr.addColorStop(0.6, rgba(pale, (light ? 0.15 : 0.11) * f)); gr.addColorStop(1, rgba(pale, 0));
+    g.fillStyle = gr; m3Blob(g, bx, by, r, hash(id * 8.3 + k), now, rm); g.fill();
+  }
+  const ea = Math.max(0, Math.min(1, u * 2 - 0.9)) * f;   // 눈: 안개가 거의 덮은 뒤에 떠오른다 (밝은 테마는 짙게, 어두운 테마는 옅게 빛나게)
+  if (ea > 0) {
+    const ex = x + (hash(id * 9.7) - 0.5) * h * 0.3 + (rm ? 0 : Math.sin(now / 1100 + id) * h * 0.06), ey = y - h * 0.12 + (rm ? 0 : Math.sin(now / 1500 + id * 2) * h * 0.05) - lift;
+    const T = 3600 + 1800 * hash(id * 2.1), bl = rm ? 1 : ((now + hash(id * 5.5) * T) % T < 150 ? 0.15 : 1), ec = light ? '#0b5662' : TC.ghostB;
+    for (const k of [-1, 1]) {
+      const qx = ex + k * h * 0.27;
+      if (!light) { g.fillStyle = rgba(ec, 0.18 * ea); g.beginPath(); g.ellipse(qx, ey, h * 0.19, h * 0.24, 0, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = rgba(ec, 0.8 * ea); g.beginPath(); g.ellipse(qx, ey, h * 0.09, h * 0.14 * bl, k * 0.1, 0, Math.PI * 2); g.fill();
+    }
+  }
+  g.restore();
+  if (!rm && u >= 0.5) for (let k = 0; k < 3; k++) {   // 피어오르는 연기 줄기: 줄기마다 빠르기와 자리가 다르고, 한 번 오를 때마다 자리가 바뀐다 (위 칸까지 조금 넘친다)
+    const P = 1700 + 900 * hash(id * 4.3 + k), T = now + hash(id * 6.7 + k * 2.3) * P, n = Math.floor(T / P), t = (T % P) / P;
+    const x0 = x + (hash(id * 12.7 + k * 3.1 + n * 0.37) - 0.5) * h * 1.2, y0 = y + h * 0.45, hy = y0 - h * 1.75 * t, tl = h * (0.5 + 0.4 * t);
+    const a = Math.sin(Math.PI * t) * (light ? 0.55 : 0.5) * f * Math.min(1, (u - 0.5) * 3);
+    if (a <= 0.01) continue;
+    const gr = g.createLinearGradient(0, hy, 0, hy + tl); gr.addColorStop(0, rgba(pale, a)); gr.addColorStop(1, rgba(pale, 0));
+    g.strokeStyle = gr; g.lineWidth = 1.3 + 1.3 * (1 - t); g.lineCap = 'round'; g.beginPath();
+    for (let j = 0; j <= 6; j++) {
+      const yy = Math.min(y0, hy + tl * j / 6), xx = x0 + Math.sin((yy - y0) / h * 2.4 + n * 1.7 + k) * h * 0.13 * (0.5 + t);
+      if (j) g.lineTo(xx, yy); else g.moveTo(xx, yy);
+    }
+    g.stroke();
+  }
+  const br = rm ? 1 : 0.72 + 0.28 * Math.sin(now / 700 + id);   // 테두리: 천천히 숨 쉰다
+  m3RR(g, x - h, y - h, h * 2, h * 2, 7); g.lineWidth = 2; g.strokeStyle = rgba(col, Math.min(1, u * 1.4) * f * br); g.stroke();
+  if (rem > 0) {                                   // 남은 시간 막대
+    const bw = h * 2 - 8, bx = x - h + 4, by = y + h - 7, fr = Math.min(1, rem / C.GHOST.dur);
+    m3RR(g, bx, by, bw, 4.5, 2.25); g.fillStyle = `rgba(0,0,0,${0.5 * f * u})`; g.fill(); g.lineWidth = 1; g.strokeStyle = rgba('#ffffff', f * u); g.stroke();
+    m3RR(g, bx + 0.5, by + 0.5, (bw - 1) * fr, 3.5, 1.75); g.fillStyle = rgba(light ? col : AB_COL.ghost, f * u); g.fill();
+  }
+}
 // 보스 능력 예고 (무기 칸의 봉쇄·부식 예고와 같은 말투): 능력 색 테두리가 0.5초마다 깜빡이고(바탕이 짙어졌다 옅어짐, 바깥 고리와 안쪽 흰 선),
 // 오른쪽 위에 능력 그림 배지(커졌다 작아짐), 아래에 줄어드는 막대
 function abBlink(now) { if (RM.matches) return 0.6; const u = (now % 500) / 500; return 1 - Math.abs(1 - 2 * u); }
@@ -5725,6 +5811,9 @@ function m3Ev(b, now) {
       const o = b.g[ev.i], id = o ? o.id : 0, ox = (hash(id * 1.7) - 0.5) * 0.35, oy = (hash(id * 2.3) - 0.5) * 0.35;
       for (let k = 0; k < 6; k++) m3fx.push({ k: 'snap', i: ev.i, ox, oy, sd: hash(id * 2.9 + k * 3.1 + (now % 71)), t0: now + 330 + k * 12, d: 260 + 120 * hash(k * 4.3 + id) });
     } else if (ev.k === 'rustEnd' && !RM.matches) { for (let k = 0; k < 4; k++) m3fx.push({ k: 'fume', i: ev.i, sd: hash(ev.i * 4.1 + k * 3.7 + (now % 79)), t0: now + k * 90, d: 900 }); }
+    else if (ev.k === 'ghost' && !RM.matches) {   // 망령이 깃듦: 옅은 빛 알갱이가 둘레에서 블록 쪽으로 모여들며 스민다
+      for (let k = 0; k < 7; k++) m3fx.push({ k: 'mote', i: ev.i, sd: hash(ev.i * 3.9 + k * 2.3 + (now % 73)), t0: now + k * 45, d: 650 + 250 * hash(k * 2.7 + ev.i) });
+    } else if (ev.k === 'ghostEnd' && !RM.matches) { for (let k = 0; k < 4; k++) m3fx.push({ k: 'fume', i: ev.i, c: TC.ghost, sd: hash(ev.i * 5.3 + k * 2.9 + (now % 67)), t0: now + k * 110, d: 1100 }); }
   }
   b.ev.length = 0;
   if (m3fx.length > 90) m3fx.splice(0, m3fx.length - 90);
@@ -5734,7 +5823,7 @@ function m3Ev(b, now) {
 // 칸 바탕에는 빛 물결이 끝 블록에서 무기 쪽으로 올라간다 (공격 속도에 비례해 잦고 빠르다)
 const m3ph = [0, 0, 0, 0, 0], m3pp = [0, 0, 0, 0, 0];   // 줄마다 흐름 위치, 물결 위치 (속도가 바뀌어도 튀지 않게 쌓는다)
 function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now, dt) {
-  const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b), si = C.sealAt(b);
+  const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b), si = C.sealAt(b), gi = C.ghostAt(b);
   g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
   L.forEach(([n, cells], k) => {
     if (n < C.PIPE.need) return;
@@ -5759,7 +5848,7 @@ function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now, dt) {
     path();
     if (q > 0.05) { g.strokeStyle = rgba(col, 0.2 * q); g.lineWidth = Rb * (0.5 + 0.55 * q); g.stroke(); }   // 많이 이으면 물길 둘레가 번진다
     g.strokeStyle = rgba(col, 0.5 + 0.3 * q); g.lineWidth = Rb * (0.28 + 0.3 * q); g.stroke();
-    g.strokeStyle = sl ? rgba(AB_COL.lock, 0.95) : set.has(ri) ? rgba(ECOL.corrode, 0.95) : 'rgba(255,255,255,.75)'; g.lineWidth = Rb * (0.12 + 0.1 * q);
+    g.strokeStyle = sl ? rgba(AB_COL.lock, 0.95) : set.has(ri) ? rgba(ECOL.corrode, 0.95) : set.has(gi) ? rgba(TC.ghost, 0.95) : 'rgba(255,255,255,.75)';   // 망령 블록과 이어진 줄: 창백한 물길 g.lineWidth = Rb * (0.12 + 0.1 * q);
     g.setLineDash([2.5 + 5 * q, 9.5 - 5 * q]); g.lineDashOffset = m3ph[k]; g.stroke(); g.setLineDash([]);   // 무기 쪽으로 흐른다. 빠를수록 무늬가 길게 끌린다
   });
   g.restore();
@@ -5804,6 +5893,7 @@ function m3Draw(dt) {
     if (o.st && !v.st) { v.st = 1; v.stt = now; }                                       // 돌로 굳음
     if (o.ru > 0) { if (!v.rt || v.rx) { v.rt = now; v.rx = 0; } } else if (v.rt && !v.rx) v.rx = now;   // 부식이 묻음 / 걷힘
     if (o.sl > 0) { if (!v.lt || v.lx) { v.lt = now; v.lx = 0; } } else if (v.lt && !v.lx) v.lx = now;   // 봉쇄가 걸림 / 풀림
+    if (o.gh > 0) { if (!v.ht || v.hx) { v.ht = now; v.hx = 0; } } else if (v.ht && !v.hx) v.hx = now;   // 망령이 깃듦 / 떠남
     v.x += (tx - v.x) * k;
     if (v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }   // 아래로는 떨어진다
     else { v.y += (ty - v.y) * k; v.vy = 0; }
@@ -5835,6 +5925,11 @@ function m3Draw(dt) {
       if (f <= 0) v.lt = v.lx = 0;
       else m3Seal(g, x, y, R, o.id, rm ? 1 : Math.min(1, (now - v.lt) / 650), f, o.sl || 0, now);
     }
+    if (v.ht && !o.st && o.s !== 'gold') {       // 망령 블록: 안개가 서서히 덮고, 떠날 때는 위로 흩어지며 옅어진다
+      const f = v.hx ? (rm ? 0 : 1 - (now - v.hx) / 800) : 1;
+      if (f <= 0) v.ht = v.hx = 0;
+      else m3Ghost(g, x, y, R, o.id, rm ? 1 : Math.min(1, (now - v.ht) / 1000), f, o.gh || 0, now);
+    }
     g.globalAlpha = 1;
   }
   for (const q of wr) {                          // 블록 위: 테두리, 배지, 막대. 굳을 칸은 남은 시간이 줄수록 빗금이 짙어진다
@@ -5864,7 +5959,12 @@ function m3Draw(dt) {
       g.beginPath(); g.moveTo(x0 + Math.cos(a) * d0, y0 + Math.sin(a) * d0); g.lineTo(x0 + Math.cos(a) * d1, y0 + Math.sin(a) * d1); g.stroke();
     } else if (f.k === 'fume') {                  // 옅은 김: 커지며 올라가 흩어진다
       const x = cx(f.i % N) + (f.sd - 0.5) * Rb * 1.4 + Math.sin(u * 4 + f.sd * 9) * Rb * 0.15, y = cy(Math.floor(f.i / N)) - u * Rb * 1.1, r = Rb * (0.18 + 0.3 * u) * (0.8 + 0.4 * hash(f.sd * 3));
-      g.fillStyle = rgba(ECOL.corrode, 0.22 * Math.sin(Math.PI * u)); m3Blob(g, x, y, r, f.sd, now, false); g.fill();
+      g.fillStyle = rgba(f.c || ECOL.corrode, (f.c ? 0.3 : 0.22) * Math.sin(Math.PI * u)); m3Blob(g, x, y, r, f.sd, now, false); g.fill();
+    } else if (f.k === 'mote') {                  // 망령 알갱이: 둘레의 흩어진 자리에서 블록 가운데로 휘어 들어오며 작아지고 옅어진다
+      const a = f.sd * 6.28 + u * 1.2, d = Rb * (1.5 - 1.2 * u * u) * (0.8 + 0.4 * hash(f.sd * 7)), x = cx(f.i % N) + Math.cos(a) * d, y = cy(Math.floor(f.i / N)) + Math.sin(a) * d * 0.8;
+      const z = (1.4 + 1.6 * hash(f.sd * 11)) * (1 - 0.6 * u), al = Math.sin(Math.PI * Math.min(1, u * 1.15));
+      g.fillStyle = rgba(TC.ghost, 0.18 * al); g.beginPath(); g.arc(x, y, z * 2.6, 0, Math.PI * 2); g.fill();
+      g.fillStyle = rgba(theme.scheme === 'light' ? TC.ghost : TC.ghostB, 0.85 * al); g.beginPath(); g.arc(x, y, z, 0, Math.PI * 2); g.fill();
     } else if (f.k === 'glint') {
       const x = cx(f.i % N) + (f.sd - 0.5) * Rb * 2, y = cy(Math.floor(f.i / N)) + (hash(f.sd * 7) - 0.5) * Rb * 2 - u * Rb * 0.4;
       m3Star(g, x, y, (2.5 + 3 * hash(f.sd * 11)) * Math.sin(Math.PI * u), theme.scheme === 'light' ? TC.gold : TC.goldA, 0.9 * Math.sin(Math.PI * u));

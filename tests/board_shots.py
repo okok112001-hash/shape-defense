@@ -1,4 +1,4 @@
-"""연결 판에 거는 보스 능력(교란체, 석화체, 황금 블록) 연출을 찍는다 (T12 O2).
+"""연결 판에 거는 보스 능력(교란체, 석화체, 부식·봉쇄·망령 블록, 황금 블록) 연출을 찍는다 (T12 O2, T13a).
    실행: python tests/board_shots.py [테마=paper] [rm]   -> dist/board/<테마>_*.png
    시작 버튼으로 연결 모드 게임을 연 뒤 테스트 함수(Core.test)를 쓰려고 S.cheat 를 켠다. 보스 능력 시계(e.abT)를 당겨 기다림을 줄인다."""
 import asyncio, os, pathlib, sys
@@ -57,7 +57,23 @@ async def main():
         await shot('g_seal_hold', 1500)
         await ev("() => { const b = Core.S.m3, i = Core.sealAt(b); if (i >= 0) b.g[i].sl = 0.05; }")
         await shot('h_seal_end', 250)
-        await ev(f"() => {{ const S = Core.S, e = ({boss})('jammer'); e.dead = true; S.enemies = S.enemies.filter(o => !o.dead); S.bossOnly = null; Core.test.gold(); }}")
+        # 망령체 (T13a): 자주 쏘는 무기 하나(k)의 열을 이어 두고 그 열의 2행 블록에 망령을 건다. 다른 무기는 꺼서(0행을 그 무기 종류로) k 레인의 적이 회복만 받게 한다.
+        # 무기 칸은 청록, 물길과 탄이 창백하고, 맞은 적에 회복 빛과 +숫자
+        await ev(f"""() => {{ const S = Core.S, e = ({boss})('jammer'); e.dead = true; S.enemies = S.enemies.filter(o => !o.dead); const b = S.m3;
+            let k = -1; for (const t of ['blaster', 'acid', 'laser', 'pulse', 'shotgun', 'tesla', 'mortar', 'rail']) {{ k = S.slots.findIndex(w => w && w.type === t); if (k >= 0) break; }}
+            window._gk = k; const t = S.slots[k].type;
+            for (let c = 0; c < b.C; c++) {{ b.g[c].st = 0; b.g[c].s = t; }} for (const r of [1, 2]) {{ b.g[r * b.C + k].s = t; b.g[r * b.C + k].st = 0; }}
+            S.bossOnly = 'ghost'; S.pendingBoss = null; Core.test.boss(); }}""")
+        await pg.wait_for_timeout(3400)
+        await ev(f"""() => {{ const S = Core.S, b = S.m3, k = window._gk, e = ({boss})('ghost'); e.hp = e.maxHp = 1e15; e.speed = 0; e.abT = 1e9; e.x = k < 3 ? 450 : 50; e.lane = k < 3 ? 4 : 0;
+            for (const o of b.g) delete o.gh; const i = 2 * b.C + k; b.g[i].gh = Core.GHOST.dur; b.ev.push({{ k: 'ghost', i }});
+            S.enemies.push({{ type: 'heavy', lane: k, x: (k + 0.5) * Core.LW, y: 420, r: 27, hp: 5e8, maxHp: 1e9, speed: 0, leak: 1, gold: 0, boss: false, born: 0, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0 }}); }}""")
+        await shot('i_ghost_new', 300)
+        await shot('j_ghost_set', 900)
+        await shot('k_ghost_hold', 1800)
+        await ev("() => { const b = Core.S.m3, i = Core.ghostAt(b); if (i >= 0) b.g[i].gh = 0.05; }")
+        await shot('l_ghost_end', 400)
+        await ev(f"() => {{ const S = Core.S; for (const o of S.enemies) if (o.type === 'ghost' || (o.type === 'heavy' && o.maxHp === 1e9)) o.dead = true; S.enemies = S.enemies.filter(o => !o.dead); S.bossOnly = null; S.pendingBoss = null; Core.test.gold(); }}")
         await pg.wait_for_timeout(3300)
         await ev("() => { const e = Core.S.enemies.find(o => o.gd); e.hp = e.maxHp = 1e15; }")
         await shot('8_gold_new', 1150)

@@ -520,11 +520,14 @@ Object.defineProperty(ENEMIES, 'jumble', { enumerable: false, value: { hp: 320, 
   hint: '판의 한 줄을 새 블록으로 바꿉니다. 예고된 줄에 기대지 마세요', tip: ['판 한 줄을 바꿈', '예고된 줄 피하기'] } });
 Object.defineProperty(ENEMIES, 'stone', { enumerable: false, value: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 55, boss: true, name: '석화체',
   hint: '판의 칸 하나를 돌로 굳힙니다(무기 바로 아래 칸은 빼고). 굳은 칸은 이 웨이브 동안 풀리지 않습니다', tip: ['판 칸을 돌로', '빨리 쓰러뜨리기'] } });
+// T13a: 망령체. 연결 판에 거는 능력이라 판이 없는 예전 방식(도구)에서는 능력이 없는 보스다
+Object.defineProperty(ENEMIES, 'ghost', { enumerable: false, value: { hp: 340, speed: 0.026, r: 50, leak: 22, gold: 55, boss: true, name: '망령체',
+  hint: '판의 블록 하나를 망령 블록으로 만듭니다. 망령 블록과 이어진 무기는 적을 회복시킵니다. 줄에서 떼어 내세요', tip: ['이은 무기가 적을 회복', '망령 블록 떼기'] } });
 // 연결 판에서 능력이 바뀌는 보스의 안내 (열거되지 않게 둔다: 벤치 캐시의 해시가 그대로)
 Object.defineProperty(ENEMIES.jammer, 'pipeHint', { enumerable: false, value: '판의 블록 하나를 봉쇄합니다. 봉쇄 블록과 이어진 무기는 쏘지 못합니다. 줄에서 떼어 내세요' });
 Object.defineProperty(ENEMIES.corrode, 'pipeHint', { enumerable: false, value: '판의 블록 하나를 부식시킵니다. 부식 블록과 이어진 무기는 0강이 됩니다. 줄에서 떼어 내세요' });
 // 보스는 처음부터 무작위 (같은 보스가 연달아 나오지 않음). 10번째마다는 천칭
-const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'jumble', 'corrode', 'charge', 'stone', 'gold'];
+const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'jumble', 'corrode', 'charge', 'stone', 'ghost', 'gold'];
 const AB_FIRST = 1.5;   // 보스 능력을 처음 쓰기까지(초). 나타나자마자 곧 쓴다
 const CHG_WAIT = 10, CHG_FIRST = AB_FIRST, CHG_WARN = 4, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
 // 교란체: 화면에 들어온 뒤 first 초, 그 뒤 every 초마다 판의 줄 rows 개를 골라 예고(AB_WARN) 뒤 그 줄 블록을 모두 새 블록으로 바꾼다 (굳은 칸은 그대로)
@@ -539,6 +542,11 @@ const RUST = { first: AB_FIRST, dur: 8, gap: 4 };
 // 봉쇄체(연결 판): 부식체와 같은 방식으로 블록 하나를 봉쇄 블록으로 만든다. 봉쇄 블록과 이어진 무기는 이어져 있는 동안 쏘지 못한다 (w.sz).
 // 판이 없는 예전 방식(도구)에서는 예전 능력(예고 칸 잠금)
 const SEAL = { first: AB_FIRST, dur: 8, gap: 4 };
+// 망령체(연결 판, T13a): 같은 방식으로 블록 하나를 망령 블록으로 만든다. 망령 블록과 이어진 무기(w.gz)의 공격은 이어져 있는 동안 피해 대신 같은 양만큼
+// 적의 체력을 채운다(최대 체력까지). 회복은 피해 기록, 처치, 재화에 들지 않고 적중 부가 효과(둔화, 화상, 기절, 밀치기, 취약, 부식 겹, 폭발 등)도 없다.
+// col: 그 무기의 탄·빔 색 (화면이 테마에 맞춰 바꾼다. 무기 색처럼 능력치 사본에 들어간다)
+const GHOST = { first: AB_FIRST, dur: 8, gap: 4, col: '#c4f7fb' };
+const BOARD_EV = { ru: 'rust', sl: 'seal', gh: 'ghost' };   // 판 블록 능력의 키 -> 화면 사건 이름
 
 /* ---------- 웨이브 (T11) ---------- */
 // 웨이브마다 세기(적 체력의 합)는 예전 연속 등장으로 같은 시간 동안 나왔을 양과 같다. 종류는 구성과 자리만 바꾼다.
@@ -731,7 +739,7 @@ function stats(w) {
   s.capBig = s.cap < CAP_NONE ? s.cap * BIG_CAP : CAP_NONE;   // 간격 스킬의 큰 한 방 (T10c)
   s.jump = 140 * rg;
   s.crit = Math.min(1, s.crit);
-  s.color = d.color;
+  s.color = w.gz ? GHOST.col : d.color;   // 망령 블록과 이어진 무기: 창백한 빛
   s.type = w.type;
   s.w = w;
   Object.defineProperty(w, '_s', { value: s, writable: true, configurable: true, enumerable: false });
@@ -859,7 +867,7 @@ function moveInv(a, b) { // 인벤토리 안에서 자리 바꾸기
 }
 // 봉쇄체가 잠근 칸(잠금이 실제로 걸린 때만. 예고 중에는 아직 옮길 수 있다)
 function isLocked(k) { const lk = S.locks && S.locks[k]; return !!lk && lk.l > 0; }
-function unrust(w) { if (!w) return; if (w.rz) { w.rz = 0; dirty(w); } w.sz = 0; }   // 칸을 떠난 무기는 부식·봉쇄 블록과 이어져 있지 않다
+function unrust(w) { if (!w) return; if (w.rz || w.gz) { w.rz = 0; w.gz = 0; dirty(w); } w.sz = 0; }   // 칸을 떠난 무기는 부식·봉쇄·망령 블록과 이어져 있지 않다
 function equipWeapon(invIdx, slot) {
   const it = S.inv[invIdx];
   if (!it || it.kind !== 'w' || isLocked(slot) || isClosed(slot)) return false;
@@ -1202,7 +1210,7 @@ function goldBlk(e, dt) {
   const b = S.m3, g = e.gd;
   if (!b || !S.prep || S.prep.phase !== 'wave' || (g.bt -= dt) > 0) return;
   g.bt += GOLD.blk;
-  const c = []; for (let i = 0; i < b.g.length; i++) { const o = b.g[i]; if (o && !o.st && o.s !== 'gold' && !o.ru && !o.sl) c.push(i); }   // 부식·봉쇄 블록은 황금이 되지 않는다
+  const c = []; for (let i = 0; i < b.g.length; i++) { const o = b.g[i]; if (o && !o.st && o.s !== 'gold' && !o.ru && !o.sl && !o.gh) c.push(i); }   // 부식·봉쇄·망령 블록은 황금이 되지 않는다
   if (!c.length) return;
   const i = pick(c, rndS); b.g[i].s = 'gold'; b.ev.push({ k: 'gold', i }); snd('goldblk');
 }
@@ -1383,7 +1391,20 @@ function credit(st, amt, e) {
   const real = Math.max(0, Math.min(amt, e.hp));
   S.dealt = (S.dealt || 0) + real;
   if (st && st.w) st.w.dealt = (st.w.dealt || 0) + real;
-  if (e.gd && real > 0) goldHit(e, real, st);   // 황금 적: 맞힐 때마다 재화
+  if (e.gd && real > 0) {                       // 황금 적: 맞힐 때마다 재화. 지금까지 깎인 가장 낮은 체력(lo) 아래로 깎은 몫만 (망령 블록으로 채운 체력을 다시 깎아도 재화는 한 번)
+    const g = e.gd, lo = g.lo == null ? e.hp : g.lo, a = e.hp - real, pay = Math.max(0, Math.min(real, lo - a));
+    g.lo = Math.min(lo, a);
+    if (pay > 0) goldHit(e, pay, st);
+  }
+}
+// 망령 블록과 이어진 무기의 공격인가 (T13a). 그 공격은 피해 대신 회복이고 부가 효과가 없다
+const ghW = (st) => !!(st && st.w && st.w.gz);
+// 망령 회복: 체력을 amt 만큼 채운다(최대 체력까지). 화면용으로 회복 빛(hl)과 0.3초마다 모은 +숫자 (전투 난수는 쓰지 않는다)
+function ghostHeal(e, amt) {
+  const v = Math.max(0, Math.min(amt, e.maxHp - e.hp));
+  e.hp += v; e.hl = 0.3;
+  e.hAcc = (e.hAcc || 0) + v;
+  if (e.hAcc >= 0.5 && S.t - (e.hT == null ? -1 : e.hT) >= 0.3) { e.hT = S.t; fxNum(e.x + ((S.t * 7.3) % 1 - 0.5) * e.r, e.y - e.r * 0.5, e.hAcc, 4); e.hAcc = 0; }
 }
 function dot(e, amt, st, vap) {
   if (e.dead) return;
@@ -1391,6 +1412,7 @@ function dot(e, amt, st, vap) {
   if (e.cor > 0) amt *= 1 + e.cor * e.corV;     // 부식 겹 (T10e)
   if (e.dmgMul) amt *= e.dmgMul;                // 천칭: 단단할 때 0.5배, 연약할 때 1.5배
   if (e.gd && st && st.w && st.w.au) amt *= 1 + GOLD.blkDmg * st.w.au;   // 황금 블록이 이어진 무기
+  if (ghW(st)) { ghostHeal(e, amt); return; }   // 망령 블록과 이어진 무기: 피해 대신 회복
   if (vap && st.vap && !e.boss && (e.hp - amt) / e.maxHp <= st.vap) { if (amt < e.hp) vaporize(e); amt = Math.max(amt, e.hp); }   // 소멸: 용융선으로 체력 15% 이하
   credit(st, amt, e); e.hp -= amt;
   e.dAcc = (e.dAcc || 0) + amt;
@@ -1418,12 +1440,13 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   if (e.dmgMul) d *= e.dmgMul;                // 천칭
   if (e.gd && st.w && st.w.au) d *= 1 + GOLD.blkDmg * st.w.au;   // 황금 블록이 이어진 무기
   if (!fixed) {
-  if (st.vap && !e.boss && (e.hp - d) / e.maxHp <= st.vap) { if (d < e.hp) vaporize(e); d = Math.max(d, e.hp); }   // 소멸: 빔에 체력 15% 이하가 된 일반 적은 증발
+  if (st.vap && !e.boss && !ghW(st) && (e.hp - d) / e.maxHp <= st.vap) { if (d < e.hp) vaporize(e); d = Math.max(d, e.hp); }   // 소멸: 빔에 체력 15% 이하가 된 일반 적은 증발
   if (e.type === 'shield' && st.w) {         // 방패체: 같은 레인의 무기가 쏜 공격은 대부분 막힌다
     const sl = S.slots.indexOf(st.w);
     if (sl >= 0 && Math.abs((sl + 0.5) * LW - e.x) <= 50) d *= 0.2;
   }
   }
+  if (ghW(st)) { ghostHeal(e, d); return; }   // 망령 블록과 이어진 무기: 피해 대신 회복 (부가 효과, 폭발탄 없음)
   credit(st, d, e);
   e.hp -= d; e.flash = 0.12;
   if (!noFx) {
@@ -1519,7 +1542,7 @@ function nukeBlast(s, R, n0) {
     if (d > R + o.r * 0.5 && d <= 2 * R + o.r * 0.5) list.push(o);
   }
   capPick(list, st.capBig);
-  for (const o of list) { hit(o, st.dmg * st.nShock, st, true); if (!o.boss && !o.dead) o.y = Math.max(-o.r, o.y - st.nShockKn); }
+  for (const o of list) { hit(o, st.dmg * st.nShock, st, true); if (!o.boss && !o.dead && !ghW(st)) o.y = Math.max(-o.r, o.y - st.nShockKn); }
 }
 // 미사일: 조종점(cx, cy)을 지나 지금 표적 자리(tx, ty)로 가는 2차 곡선. 표적은 저장되지 않게 숨김 속성
 function setTarget(o, e) { Object.defineProperty(o, 'tg', { value: e, writable: true, configurable: true, enumerable: false }); }
@@ -1929,7 +1952,7 @@ function ballTick(p, dt, seen) {
     for (let i = 0, n = S.enemies.length; i < n; i++) { const o = S.enemies[i]; if (!o.dead && o.y + o.r > 0 && within(o.x - p.x, o.y - p.y, R + o.r * 0.5)) all.push(o); }
     capPick(all, st.capBig);   // 큰 한 방 (T10c)
     bigFrom(p.x, p.y, 'ball');
-    for (const o of all) { hit(o, p.boom, st, true); if (!o.boss && !o.dead) o.stunT = Math.max(o.stunT, BALL_STUN); }
+    for (const o of all) { hit(o, p.boom, st, true); if (!o.boss && !o.dead && !ghW(st)) o.stunT = Math.max(o.stunT, BALL_STUN); }
     bigFrom(null);
     fx({ k: 'ballboom', d: 0.55, x: p.x, y: p.y, r: R, c: st.color });
     snd('zap');
@@ -2116,8 +2139,7 @@ function rainTick(p, dt, seen) {
   if (list.length) bigFrom(p.x, H, 'rain');   // 비에 쓰러진 적은 녹아 가라앉는다 (화면용)
   for (let i = 0, n = list.length; i < n; i++) {
     const e = list[i]; got.add(e);
-    corrode(e, p.cv, dt);
-    if (st.rot) hide(e, 'vuW', st.w);
+    if (!ghW(st)) { corrode(e, p.cv, dt); if (st.rot) hide(e, 'vuW', st.w); }   // 망령 블록과 이어진 무기는 부식 겹을 쌓지 않는다
     dot(e, p.dps * dt, st);
   }
   bigFrom(null);
@@ -2159,7 +2181,7 @@ function slimeDrop(e) {
 
 function acidTick(p, dt, seen) {
   if (p.r < 1) return;                       // 고이기 전의 폭우 웅덩이
-  const st = p.st, cm = 1 + st.crit * (1 + st.critDmg);   // 지속 피해에는 치명타 기댓값을 반영
+  const st = p.st, cm = 1 + st.crit * (1 + st.critDmg), gh = ghW(st);   // 지속 피해에는 치명타 기댓값을 반영. gh: 망령 블록과 이어진 무기
   let got = seen.get(st.w); if (!got) seen.set(st.w, got = new Set());
   // 웅덩이 하나가 한 틱에 닿는 적은 최대 타격 수까지 (기지에 가까운 적부터). 같은 무기의 다른 웅덩이가 이번 스텝에 이미 닿은 적은 빼고 센다
   const list = CAND, m = p.r + 40; list.length = 0;
@@ -2171,14 +2193,16 @@ function acidTick(p, dt, seen) {
   capPick(list, st.cap);
   for (let i = 0, n = list.length; i < n; i++) {
     const e = list[i]; if (e.dead) continue;
+    if (!gh) {                               // 망령 블록과 이어진 무기: 부가 효과 없음
     corrode(e, p.cv, dt);                    // 부식 겹
     if (st.rot) hide(e, 'vuW', st.w);        // 부패: 이 무기의 부식이 걸린 채 죽으면 작은 웅덩이
     if (st.slime) { e.slT = 3; hide(e, 'slW', st.w); }   // 점액 흔적: 3초 동안 자국을 남긴다
     if (p.slow) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
+    }
     got.add(e);                            // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
     const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1);
     dot(e, dps * dt, st);
-    if (!e.dead && st.dsv && !e.boss && e.hp / e.maxHp <= st.dsv) dissolve(e, st);   // 용해
+    if (!e.dead && !gh && st.dsv && !e.boss && e.hp / e.maxHp <= st.dsv) dissolve(e, st);   // 용해
   }
 }
 
@@ -2350,9 +2374,9 @@ function skillStep(w, i, st, dt) {
         for (let j = 0, n = S.enemies.length; j < n; j++) {
           const e = S.enemies[j];
           if (e.dead || e.y + e.r <= 0 || !within(e.x - wx, e.y - H, R + e.r * 0.5)) continue;
-          const dx = wx - e.x, mv = e.cr ? 0 : Math.min(Math.abs(dx), e.boss ? pull * 0.5 : pull);   // 보급 상자는 끌려가지 않는다
+          const dx = wx - e.x, mv = e.cr || ghW(st) ? 0 : Math.min(Math.abs(dx), e.boss ? pull * 0.5 : pull);   // 보급 상자는 끌려가지 않는다 (망령 블록과 이어진 무기는 끌지 않는다)
           if (mv > 0) { e.x += dx > 0 ? mv : -mv; e.pullT = S.t; e.pullD = dx > 0 ? 1 : -1; }   // pullT, pullD: 화면용 (끌려가는 방향)
-          if (st.fldVuln) { e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, st.fldVuln); e.vulnT = Math.max(e.vulnT, 0.3); }
+          if (st.fldVuln && !ghW(st)) { e.vulnPct = Math.max(e.vulnT > 0 ? e.vulnPct || 0 : 0, st.fldVuln); e.vulnT = Math.max(e.vulnT, 0.3); }
           list.push(e);
         }
         if (st.fldDps && list.length) {      // 압착: 최대 타격 수까지 (기지에 가까운 적부터)
@@ -2377,7 +2401,7 @@ function skillStep(w, i, st, dt) {
             const a = ORBP[q], b = ORBP[(q + 1) % st.orbs];
             if (segDist(e.x, e.y, a[0], a[1], b[0], b[1]) > e.r * 0.6 + 6) continue;
             dot(e, cdps * dt, st);
-            if (!e.dead && !e.boss && S.t - (e.chT == null ? -9 : e.chT) >= 2) { e.stunT = Math.max(e.stunT, 0.3); e.chT = S.t; }
+            if (!e.dead && !e.boss && !ghW(st) && S.t - (e.chT == null ? -9 : e.chT) >= 2) { e.stunT = Math.max(e.stunT, 0.3); e.chT = S.t; }
           }
         }
       }
@@ -2399,7 +2423,7 @@ function poolTick(p, dt) {
   for (let i = 0, n = list.length; i < n; i++) {
     const e = list[i]; if (e.dead) continue;
     dot(e, p.dps * dt, st, melt);
-    if (melt && p.slow && !e.dead) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
+    if (melt && p.slow && !e.dead && !ghW(st)) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
   }
 }
 // 연쇄 지뢰: 밀어내고 작은 지뢰가 흩어진다
@@ -2410,7 +2434,7 @@ function mineBlast(m) {
   explode(m.x, m.y, m.R, m.dmg, st);
   if (S.fx[n0] && S.fx[n0].k === 'boom') S.fx[n0].mine = m.mini ? 2 : 1;   // 화면용 표시: 지뢰 폭발
   if (!st.mineChain) return;
-  for (let i = 0, n = S.enemies.length; i < n; i++) { const o = S.enemies[i]; if (!o.dead && !o.boss && within(o.x - m.x, o.y - m.y, m.R + o.r * 0.5)) o.y = Math.max(-o.r, o.y - 20); }
+  if (!ghW(st)) for (let i = 0, n = S.enemies.length; i < n; i++) { const o = S.enemies[i]; if (!o.dead && !o.boss && within(o.x - m.x, o.y - m.y, m.R + o.r * 0.5)) o.y = Math.max(-o.r, o.y - 20); }
   if (m.mini || S.mines.length >= 60) return;
   for (let k = 0; k < 2; k++) {
     const a = (k + rnd() * 0.8) * Math.PI, d = 40 + rnd() * 30;
@@ -2471,6 +2495,10 @@ function bossStep(dt) {
           for (let k = 0; k < STONE.n && c.length; k++) w.push({ i: c.splice(Math.floor(rndS() * c.length), 1)[0], t: AB_WARN });
           if (w.length) snd('alert');
         }
+        break;
+      }
+      case 'ghost': {                        // 망령체: 판의 블록 하나를 망령 블록으로 (판이 없으면 능력이 없다)
+        const b = boardOn(); if (b) boardAb(e, dt, b, 'gh', GHOST, 'hitghost');
         break;
       }
       case 'scale':                          // 4초마다 단단함(피해 x0.5, 속도 x0.6) <-> 연약함(피해 x1.5, 속도 x1.3)
@@ -2540,8 +2568,8 @@ function bossStep(dt) {
       if (hit) snd('hitstone');
     }
   }
-  // 부식·봉쇄 블록: 시간이 다 되거나, 굳거나, 그 보스가 없어지면 사라진다
-  if (b) for (const [k, boss, end] of [['ru', 'corrode', 'rustEnd'], ['sl', 'jammer', 'sealEnd']]) {
+  // 부식·봉쇄·망령 블록: 시간이 다 되거나, 굳거나, 그 보스가 없어지면 사라진다
+  if (b) for (const [k, boss, end] of [['ru', 'corrode', 'rustEnd'], ['sl', 'jammer', 'sealEnd'], ['gh', 'ghost', 'ghostEnd']]) {
     const i = blkAt(b, k);
     if (i >= 0) { const o = b.g[i]; if (!alive[boss] || o.st || (o[k] -= dt) <= 0) { delete o[k]; b.ev.push({ k: end, i }); } }
   }
@@ -2595,7 +2623,7 @@ function step(dt) {
 
   // 무기
   const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결: 칸마다 연결 수
-  const ri = pl ? rustAt(S.m3) : -1, si = pl ? sealAt(S.m3) : -1;   // 부식 블록, 봉쇄 블록이 있는 판 칸
+  const ri = pl ? rustAt(S.m3) : -1, si = pl ? sealAt(S.m3) : -1, gi = pl ? ghostAt(S.m3) : -1;   // 부식 블록, 봉쇄 블록, 망령 블록이 있는 판 칸
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
     w.au = pl ? pl[i][2] : 0;                                // 이어진 황금 블록 수 (황금체에게 주는 피해)
@@ -2603,6 +2631,8 @@ function step(dt) {
     if ((w.rz || 0) !== rz) { w.rz = rz; dirty(w); S.slotDirty = true; }
     const sz = si >= 0 && pl[i][1].indexOf(si) >= 0 ? 1 : 0;  // 봉쇄 블록과 이어져 있으면 쏘지 않는다
     if ((w.sz || 0) !== sz) { w.sz = sz; S.slotDirty = true; }
+    const gz = gi >= 0 && pl[i][1].indexOf(gi) >= 0 ? 1 : 0;  // 망령 블록과 이어져 있으면 공격이 피해 대신 회복 (탄 색이 바뀌므로 능력치 사본을 버린다)
+    if ((w.gz || 0) !== gz) { w.gz = gz; dirty(w); S.slotDirty = true; }
     if (sz) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
     if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 하나도 이어지지 않은 무기는 쏘지 않는다
@@ -2672,6 +2702,7 @@ function step(dt) {
         if (b.bk) bigFrom(b.x, b.y, b.bk, b.vx, b.vy);   // 거대탄, 슬러그, 용 머리: 맞아 죽은 적이 탄이 가는 쪽으로 날아간다 (T10c)
         hit(e, b.dmg, b.st, false, false, false, b.drg);
         if (b.bk) bigFrom(null);
+        if (!ghW(b.st)) {                    // 망령 블록과 이어진 무기: 밀치기, 기절, 작은 폭발, 분열 없음
         if (b.kn && !e.boss && !e.dead && !(b.slg && S.t - (e.slkT == null ? -9 : e.slkT) < 1)) {   // 슬러그는 같은 적을 1초에 한 번만 밀어낸다 (여러 자루가 겹쳐도)
           e.y = Math.max(-e.r, e.y - b.kn); if (b.slg) e.slkT = S.t;
         }
@@ -2684,6 +2715,7 @@ function step(dt) {
             bullet(b.x, b.y, base + off, b.dmg * 0.35, b.st, 240, { split: 0, rico: 0, pierce: 0, r: 3.5 }).hit.push(e);
           }
           b.split = 0;
+        }
         }
         if (b.rico > 0) {                    // 도탄: 가까운 다른 적에게 방향을 바꾼다
           let nx = null, bd = 280;
@@ -2798,6 +2830,7 @@ function step(dt) {
   for (let i = 0, n = S.enemies.length; i < n; i++) {
     const e = S.enemies[i]; if (e.dead) continue;
     if (e.flash > 0) e.flash -= dt;
+    if (e.hl > 0) e.hl -= dt;                 // 망령 회복 빛 (화면용)
     if (e.vulnT > 0) { e.vulnT -= dt; if (e.vulnT <= 0) e.vulnPct = 0; }
     if (e.cor > 0 && e.corS !== S.t && (e.corH -= dt) <= 0) { e.corH += CORR_DROP; e.corA = 0; if (--e.cor <= 0) e.corV = 0; }   // 부식: 나간 뒤 CORR_HOLD 초 유지, 그 뒤 한 겹씩
     if (e.burnT > 0) { e.burnT -= dt; dot(e, e.burnDps * dt, e.burnSt); if (e.dead) continue; if (e.burnT <= 0) e.burnDps = 0; }
@@ -2893,22 +2926,23 @@ function m3Swap(i, j) {
 function blkAt(b, k) { for (let i = 0; i < b.g.length; i++) if (b.g[i] && b.g[i][k] > 0) return i; return -1; }
 function rustAt(b) { return blkAt(b, 'ru'); }   // 부식 블록이 있는 칸 (없으면 -1)
 function sealAt(b) { return blkAt(b, 'sl'); }   // 봉쇄 블록이 있는 칸 (없으면 -1)
-// 부식·봉쇄 블록을 걸 칸: 0행, 굳은 칸, 황금 블록, 이미 걸린 블록은 빼고, 켜진 무기와 이어진 블록이 있으면 그중에서 (없으면 아무 칸)
+function ghostAt(b) { return blkAt(b, 'gh'); }  // 망령 블록이 있는 칸 (없으면 -1)
+// 부식·봉쇄·망령 블록을 걸 칸: 0행, 굳은 칸, 황금 블록, 이미 걸린 블록은 빼고, 켜진 무기와 이어진 블록이 있으면 그중에서 (없으면 아무 칸)
 function boardPick(b) {
-  const ok = (i) => { const o = b.g[i]; return i >= b.C && o && !o.st && o.s !== 'gold' && !o.ru && !o.sl; };
+  const ok = (i) => { const o = b.g[i]; return i >= b.C && o && !o.st && o.s !== 'gold' && !o.ru && !o.sl && !o.gh; };
   const on = new Set(); for (const [n, cells] of pipeLinks()) if (n >= PIPE.need) for (const i of cells) if (ok(i)) on.add(i);
   const c = [...on].sort((x, y) => x - y);
   if (!c.length) for (let i = 0; i < b.g.length; i++) if (ok(i)) c.push(i);
   return c.length ? pick(c, rndS) : -1;
 }
-// 부식체·봉쇄체: 판에 하나만. 있는 동안은 보스의 시계가 gap 에 머물고, 사라진 뒤 gap 초에 다시 건다
+// 부식체·봉쇄체·망령체: 판에 하나만. 있는 동안은 보스의 시계가 gap 에 머물고, 사라진 뒤 gap 초에 다시 건다
 function boardAb(e, dt, b, k, P, sound) {
   if (blkAt(b, k) >= 0) { e.abT = P.gap; return; }
   e.abT = (e.abT == null ? P.first : e.abT) - dt;
   if (e.abT > 0) return;
   e.abT = P.gap;
   const i = boardPick(b); if (i < 0) return;
-  b.g[i][k] = P.dur; b.ev.push({ k: k === 'ru' ? 'rust' : 'seal', i }); snd(sound);
+  b.g[i][k] = P.dur; b.ev.push({ k: BOARD_EV[k], i }); snd(sound);
 }
 // 연결: 칸마다 [연결 수, 연결된 판 칸 번호들, 그중 황금 블록 수]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록.
 // 황금 블록(황금체)은 어느 무기 종류로도 친다. 굳은 칸(석화체)은 연결에 들지 않고 그 너머로 이어지지도 않는다
@@ -3089,7 +3123,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
-  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, rustAt, sealAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
+  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   m3Swap, PREP, prepGo, PIPE, pipeLinks, pipeRate, tD: () => tD(),
   test,

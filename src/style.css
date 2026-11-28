@@ -430,6 +430,11 @@ b { font-weight: 600; }
 .slot.locked, .slot.sealed, .slot.evo.sealed { border-color: #ff3d5a; background: color-mix(in srgb, #ff3d5a 25%, var(--panel)); }   /* sealed: 봉쇄 블록과 이어진 무기 */
 .slot.locked > svg, .slot.locked > .lv, .slot.locked > .pips, .slot.sealed > svg, .slot.sealed > .lv, .slot.sealed > .pips { opacity: .35; }
 .slot .lockic { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; display: flex; color: #ff5d7a; }
+/* ghosted: 망령 블록과 이어진 무기 (공격이 적을 회복시킨다). 아이콘이 흐려지고 칸 둘레에 청록 안개가 천천히 숨 쉰다 */
+.slot.ghosted, .slot.evo.ghosted { border-color: #1fa9bb; background: color-mix(in srgb, #1fa9bb 18%, var(--panel)); animation: ghbreath 2.6s ease-in-out infinite; }
+.slot.ghosted > svg { opacity: .55; }
+.slot .ghic { position: absolute; left: 3px; top: 3px; z-index: 1; pointer-events: none; display: flex; padding: 2px; border-radius: 50%; background: #1fa9bb; color: #fff; box-shadow: 0 0 0 1.5px var(--panel); }
+@keyframes ghbreath { 0%, 100% { box-shadow: 0 0 0 0 rgba(31, 169, 187, 0), inset 0 0 6px 0 rgba(31, 169, 187, .25); } 50% { box-shadow: 0 0 7px 1px rgba(31, 169, 187, .55), inset 0 0 10px 1px rgba(31, 169, 187, .4); } }
 /* 예고 중인 칸의 아이콘 (잠금, -5, 낚아채는 손) */
 .abic { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; color: #fff; background: var(--ab); border: 1.5px solid #fff; animation: abpop .5s ease-in-out infinite alternate; }
 .slot .abic { right: 2px; top: 2px; min-width: 26px; height: 22px; padding: 0 4px; border-radius: 11px; }
@@ -444,7 +449,7 @@ b { font-weight: 600; }
 #abChips { position: absolute; left: 8px; right: 8px; top: 46px; z-index: 3; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #abChips:empty { display: none; }
 .abchip { position: relative; display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 12px 7px 5px; overflow: hidden; border: 1.5px solid var(--ab); border-radius: 999px; background: var(--toast); color: var(--ink); font-size: 12px; line-height: 16px; white-space: nowrap; }
-.abchip.lock, .abchip.seal { --ab: #ff3d5a; } .abchip.corr, .abchip.rust { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; }
+.abchip.lock, .abchip.seal { --ab: #ff3d5a; } .abchip.corr, .abchip.rust { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; } .abchip.ghb { --ab: #1fa9bb; }
 .abchip .aic { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ab); color: #fff; display: flex; align-items: center; justify-content: center; }
 .abchip .aic b { font: 12px var(--font-display); }
 .abchip .atx { overflow: hidden; text-overflow: ellipsis; }
@@ -459,6 +464,7 @@ b { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   .slot.warn-lock, .slot.warn-corr { animation: none; background: color-mix(in srgb, var(--ab) 40%, var(--panel)); box-shadow: 0 0 0 2px var(--ab); }
   .abic { animation: none; }
+  .slot.ghosted, .slot.evo.ghosted { animation: none; box-shadow: 0 0 0 2px rgba(31, 169, 187, .5); }
   .abhit i { animation: abfade .6s linear forwards; } .abhit span { animation: abfade .6s linear forwards; transform: translate(-50%, -50%); }
   @keyframes abfade { to { opacity: 0; } }
 }
