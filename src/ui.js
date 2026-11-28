@@ -1349,7 +1349,7 @@ function pvRows(id, now) {
 // 맺은 거래 보기에서 상태를 알아야 하는 거래만 한 줄 (장기전 쌓인 값, 불굴 쌓인 성공률, 외길 대상)
 function pactNow(id) {
   const S = C.S;
-  if (id === 'long') { const m = C.longMul(); return `모든 무기 피해 ${m >= 1 ? '+' : '−'}${Math.round(Math.abs(m - 1) * 100)}% (막은 웨이브 ${S.longK || 0})`; }
+  if (id === 'long') { const m = C.longMul(); return `모든 무기 피해 ${m >= 1 ? '+' : '-'}${Math.round(Math.abs(m - 1) * 100)}% (막은 웨이브 ${S.longK || 0})`; }
   if (id === 'grit') return `다음 강화 성공률 +${Math.round((S.grit || 0) * C.PACT.gritSucc * 100)}%p`;
   if (id === 'path') { const w = C.pathW(); return w ? `${C.WEAPONS[w.type].name} (${S.slots.indexOf(w) + 1}번 칸)` : ''; }
   return '';
