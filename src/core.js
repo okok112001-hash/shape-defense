@@ -3004,7 +3004,7 @@ function prepStep(dt) {
     S.pendingBoss.wb = wv.n * 10 + i;      // 웨이브 막대의 몇 번째 보스인지 (화면용. 나타나면 적에게 옮긴다)
   }
   if (S.wt - wv.t0 >= PREP.spawnT && !wv.bq.length && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
-    P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
+    P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('clear');   // 화면은 판이 가라앉은 뒤 인벤토리로 바뀐다 (ui prepSync)
   }
 }
 

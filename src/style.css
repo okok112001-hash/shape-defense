@@ -106,7 +106,13 @@ b { font-weight: 600; }
 #bottom { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
 /* 연결 판: 판의 열이 무기 칸과 딱 맞도록 좌우 여백 없이 */
 #bottom.m3on { padding: 2px 0 8px; }
-#m3cv { display: block; width: 100%; height: calc(5 * var(--cell-h) + 30px); touch-action: none; -webkit-user-select: none; user-select: none; }
+#m3cv { display: block; width: 100%; height: calc(5 * var(--cell-h) + 30px); touch-action: none; -webkit-user-select: none; user-select: none; animation: m3in .3s ease-out backwards; }   /* 웨이브 시작: 판이 옅게 나타나고 블록이 위에서 떨어진다 */
+/* 웨이브를 막고 정비로: 판이 가라앉은 자리에 인벤토리가 아래에서 살짝 떠오른다 (칸마다 다른 때, ui invRise 가 늦춤을 정한다) */
+#bottom.rise .info, #bottom.rise .cell, #bottom.rise .acts > * { animation: invrise .4s cubic-bezier(.2, .75, .3, 1) backwards; }
+@keyframes invrise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes m3in { from { opacity: 0; } }
+@keyframes invfade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #bottom.rise .info, #bottom.rise .cell, #bottom.rise .acts > * { animation: invfade .24s ease-out backwards; } #m3cv { animation: none; } }
 .info { height: 34px; font-size: 12px; line-height: 17px; color: var(--dim); overflow: hidden; }
 .info b { color: var(--ink); }
 .info .g0 { color: var(--g0); } .info .g1 { color: var(--g1); } .info .g2 { color: var(--g2); } .info .g3 { color: var(--g3); }
@@ -936,6 +942,12 @@ b { font-weight: 600; }
   border-radius: 8px; background: var(--panel); border: 1.5px solid var(--accent); box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
 }
 #prepBar[hidden] { display: none; }
+#prepBar { animation: prepin .38s cubic-bezier(.2, .75, .3, 1) backwards; }   /* 나타날 때 위에서 살짝 내려오고, 다음 웨이브로 갈 때 위로 흐려진다 (ui prepSync) */
+#prepBar.out { animation: prepout .24s ease-in forwards; pointer-events: none; }
+@keyframes prepin { from { opacity: 0; transform: translate(-50%, -12px); } }
+@keyframes prepout { to { opacity: 0; transform: translate(-50%, -8px); } }
+@media (prefers-reduced-motion: reduce) { #prepBar { animation: invfade .24s ease-out backwards; } #prepBar.out { animation: prepfade .2s ease-in forwards; } }
+@keyframes prepfade { to { opacity: 0; } }
 /* 웨이브 막대 (연결 모드, 웨이브 중): HUD 아래 가장자리. 적이 나오는 동안 차오르고, 보스 시각마다 작은 마름모 (ui waveSync) */
 #waveBar { position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; z-index: 4; pointer-events: none; background: color-mix(in srgb, var(--ink) 10%, transparent); }
 #waveBar[hidden] { display: none; }
