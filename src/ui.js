@@ -799,12 +799,12 @@ function bossRewards(list) {
   for (const r of list) {
     const it = r.item, inInv = S.inv.indexOf(it) >= 0;
     if (inInv) { incoming.add(it); if (it.kind === 'p' && it.g === 3) legSeen.add(it); }   // 전설 금빛은 도착할 때 낸다
-    const col = it.kind === 'w' ? C.WEAPONS[it.type].color : it.kind === 't' ? theme.v.gold : GHEX[it.g];
+    const col = it.kind === 'w' ? C.WEAPONS[it.type].color : it.kind === 't' ? theme.v.gold : it.kind === 's' ? '#ffc83d' : GHEX[it.g];   // s: 보급 독점의 조각 보상
     const off = (r.k - (r.n - 1) / 2) * 56;
     const x = Math.max(34, Math.min(a.width - 34, wr.left - a.left + r.x * sc + off)), y = Math.max(46, Math.min(wr.top - a.top + wr.height - 40, wr.top - a.top + r.y * sc));
     const d = document.createElement('div');
     d.className = 'rw'; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.setProperty('--c', col);
-    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : it.kind === 't' ? TICKET(34) : partIcon(it.id, 34)}</span><span class="rw-l">${r.gold ? '황금 보상' : r.crate ? '보급 상자' : '보스 보상'}</span>`;
+    d.innerHTML = `<span class="rw-ic">${it.kind === 'w' ? icon(it.type, 34) : it.kind === 't' ? TICKET(34) : it.kind === 's' ? SHARD.replace(/width="15" height="15"/, 'width="34" height="34"') : partIcon(it.id, 34)}</span><span class="rw-l">${r.gold ? '황금 보상' : r.crate ? '보급 상자' : it.kind === 's' ? '조각 +' + fmtInt(it.n) : '보스 보상'}</span>`;
     if (r.gold) d.classList.add('gold');
     d._item = it; d.dataset.until = performance.now() + 2600;
     while (rewLayer.children.length > 6) { const f = rewLayer.firstChild; incoming.delete(f._item); f.remove(); }
@@ -1344,13 +1344,16 @@ function scaleEmblem(n, sel) {
 }
 function pvRows(id, now) {
   const d = C.PACTS[id], n = now ? pactNow(id) : '';
-  return `<span class="pc-row gain"><small>얻는 것</small><span>${d.up}</span></span><span class="pc-row cost"><small>치르는 것</small><span>${d.dn}</span></span>${n ? `<span class="pc-row now"><small>지금</small><span>${n}</span></span>` : ''}`;
+  const up = id === 'loan' && !now ? `${d.up} (◆ ${fmtInt(C.loanGold())})` : d.up;   // 대출: 받을 양을 카드에
+  return `<span class="pc-row gain"><small>얻는 것</small><span>${up}</span></span><span class="pc-row cost"><small>치르는 것</small><span>${d.dn}</span></span>${n ? `<span class="pc-row now"><small>지금</small><span>${n}</span></span>` : ''}`;
 }
 // 맺은 거래 보기에서 상태를 알아야 하는 거래만 한 줄 (장기전 쌓인 값, 불굴 쌓인 성공률, 외길 대상)
 function pactNow(id) {
   const S = C.S;
   if (id === 'long') { const m = C.longMul(); return `모든 무기 피해 ${m >= 1 ? '+' : '-'}${Math.round(Math.abs(m - 1) * 100)}% (막은 웨이브 ${S.longK || 0})`; }
   if (id === 'grit') return `다음 강화 성공률 +${Math.round((S.grit || 0) * C.PACT.gritSucc * 100)}%p`;
+  if (id === 'loan' && S.loanG) return `받은 재화 ◆ ${fmtInt(S.loanG)}`;
+  if (id === 'interest' && S.intr) return `지난 이자 ◆ ${fmtInt(S.intr.v)} (웨이브 ${S.intr.n})`;
   if (id === 'path') { const w = C.pathW(); return w ? `${C.WEAPONS[w.type].name} (${S.slots.indexOf(w) + 1}번 칸)` : ''; }
   return '';
 }
@@ -1385,7 +1388,8 @@ function pactToast(r) {
     const nm = C.PARTS[r.item.id].name;
     t = r.got === 'melt' ? `<b>유물 거래</b> 인벤토리가 가득 차 전설 파츠(${nm})를 게이지 +${r.pts}로 바꿨습니다.` : `<b>유물 거래</b> 전설 파츠 <b class="g3">${nm}</b> 획득.`;
     if (r.lost) t += ` ${C.WEAPONS[r.lost.type].name} ${r.lost.evo || r.devo ? `★+${r.lost.from - 100} → ${r.devo ? '진화가 풀려 +100' : '★+' + (r.lost.to - 100)}` : `+${r.lost.from} → +${r.lost.to}`}`;
-  } else if (r.id === 'focus' && r.moved) {
+  } else if (r.id === 'loan') t += ` · 재화 ◆ +${fmtInt(r.gold)}`;
+  else if (r.id === 'focus' && r.moved) {
     t += r.moved === 'gone' ? ` · 5번 칸 무기는 사라지고 파츠는 인벤토리로${r.pts ? ` (자리가 없는 파츠는 게이지 +${r.pts})` : ''}`
       : r.moved === 'melt' ? ` · 인벤토리가 가득 차 5번 칸 무기를 분해했습니다 (게이지 +${r.pts})` : ' · 5번 칸 무기를 인벤토리로 옮겼습니다';
   }
@@ -1819,7 +1823,7 @@ function prepSync() {                     // 정비 막대와 단계가 바뀔 �
     meltMode = false; meltAllArm = false; meltSet.clear(); partSwap = null; evoK = -1; swK = -1; swT = null; skK = -1; skSel = null;
     if (was) closeW(); else renderAll();
   } else if (ph === 'rest') {
-    if (was === 'wave' && mode === 'play' && !S.over) pOut = { t0: now, n: Math.max(1, S.wn || 0), sw: 0 };   // 웨이브를 막음: 판은 가라앉은 뒤에 바꾼다
+    if (was === 'wave' && mode === 'play' && !S.over) pOut = { t0: now, n: Math.max(1, S.wn || 0), sw: 0, iv: S.intr && S.intr.n === S.wn ? S.intr.v : 0 };   // iv: 이자 거래로 받은 재화   // 웨이브를 막음: 판은 가라앉은 뒤에 바꾼다
     else renderAll();
   }
 }
@@ -6132,6 +6136,10 @@ function drawWaveEnd(H, e) {
   ctx.font = '30px "Do Hyeon", sans-serif'; ctx.strokeText(t1, x0, y); ctx.fillStyle = rgba(ink, al); ctx.fillText(t1, x0, y);
   ctx.font = '26px "Do Hyeon", sans-serif'; ctx.strokeText(t2, x0 + w1, y); ctx.fillStyle = rgba(theme.v.ok, al); ctx.fillText(t2, x0 + w1, y);
   ctx.textAlign = 'center';
+  if (pOut.iv > 0) {                             // 이자 거래: 아래에 작게, 조금 늦게 떠오른다
+    const e2 = e - 260, a2 = Math.max(0, Math.min(1, e2 / 320)) * Math.min(1, (T - e) / 650), r2 = rm ? 1 : 1 - Math.pow(1 - Math.max(0, Math.min(1, e2 / 750)), 3), y2 = y + 30 + 8 * (1 - r2), t3 = '이자 ◆ +' + fmtInt(pOut.iv);
+    ctx.font = '18px "Do Hyeon", sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = rgba(TC.bg, 0.8 * a2); ctx.strokeText(t3, W / 2, y2); ctx.fillStyle = rgba(TC.gold, a2); ctx.fillText(t3, W / 2, y2);
+  }
 }
 // 연결: 레인 아래쪽에 연결 상태 (꺼짐, 공속 -50% ~ +%)
 function drawPipeTags(S, H) {

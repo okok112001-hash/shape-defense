@@ -636,6 +636,11 @@ const PACTS = {
   fat:      { name: '비만화',        up: '적 이동 속도 -20%',                  dn: '적 체력 +25%' },
   grit:     { name: '불굴',          up: '강화에 실패할 때마다 성공률 +3%p 쌓임 (성공하면 처음부터)', dn: '강화 비용 +10%' },
   warm:     { name: '예열',          up: '모든 무기 공격 속도 +40%',            dn: '웨이브 시작 15초 동안 무기가 쏘지 않음' },
+  // T15d 재화·보상 거래 4개
+  interest: { name: '이자',          up: '웨이브를 막을 때마다 가진 재화의 10%를 이자로 받음 (한 웨이브 벌이의 절반까지)', dn: '적을 쓰러뜨려 받는 재화 -10%' },
+  loan:     { name: '대출',          up: '생성 50번 비용만큼 재화를 바로 받음',   dn: '적을 쓰러뜨려 받는 재화 -15%' },
+  supply:   { name: '보급 독점',      up: '보급 상자가 웨이브마다 나옴',          dn: '보스 보상이 파츠 대신 강화 조각' },
+  coin:     { name: '행운의 동전',    up: '보스 보상의 황금 티켓 확률 4% → 15%',   dn: '보스 보상 파츠를 한 번만 뽑음 (원래 세 번 중 가장 좋은 것)' },
 };
 const PACT_IDS = Object.keys(PACTS);
 const PACT = {   // 수치는 한곳에
@@ -646,6 +651,8 @@ const PACT = {   // 수치는 한곳에
   // long: x(longBase + longStep·k), k = 받은 뒤 막은 웨이브 수 (예전 방식은 받은 뒤 PREP.span 초마다 1). brink: 기지 체력 brinkHp 아래
   longBase: 0.75, longStep: 0.03, giantBoss: 1.5, giantMob: 0.85, sweepMob: 1.4, sweepHp: 1.3, brinkHp: 0.4, brinkDmg: 1.35, brinkHeal: 0.5,
   pathTop: 1.6, pathRest: 0.9, fatSpd: 0.8, fatHp: 1.25, gritSucc: 0.03, gritCost: 1.1, warmRate: 1.4, warmT: 15, warmOld: 1 / 6,
+  // T15d: interest 이자 (정비 시작에 재화 x intrRate, 한 번에 waveGold() x intrCap 까지), loan 대출 (생성 loanN 번의 비용 합), 처치 재화 배수 intrKill·loanKill, coin 황금 티켓 확률
+  intrRate: 0.1, intrCap: 0.5, intrKill: 0.9, loanN: 50, loanKill: 0.85, coinTicket: 0.15,
 };
 
 /* ---------- 상태 ---------- */
@@ -716,6 +723,8 @@ function setH(h) {
 function hasPact(id) { return !!S && !!S.pacts && S.pacts.indexOf(id) >= 0; }
 function isClosed(k) { return k === PACT.focusSlot && hasPact('focus'); }   // 집중: 5번 무기 칸 폐쇄
 // T15c 전투 거래. 상태가 바뀌는 것(벼랑 끝의 기지 체력, 외길의 대상, 장기전의 쌓인 수, 예열)은 pactTick 이 매 걸음 보고 바뀔 때만 능력치 사본을 버린다
+function killGoldMul() { return (hasPact('interest') ? PACT.intrKill : 1) * (hasPact('loan') ? PACT.loanKill : 1); }   // 이자·대출: 처치 재화
+function loanGold() { let v = 0; for (let k = 0; k < PACT.loanN; k++) v += BAL.genCost(S.gen + k); return v; }   // 대출: 지금부터 생성 loanN 번의 비용 합 (밀수 할인은 빼고)
 function healMul() { return hasPact('brink') ? PACT.brinkHeal : 1; }   // 벼랑 끝: 기지 회복 효과 절반 (비상 방벽은 그대로)
 function longMul() { return PACT.longBase + PACT.longStep * (S.longK || 0); }
 let pathW = null;   // 외길의 대상 무기 (저장하지 않는다. pactTick 이 매 걸음 다시 정한다)
@@ -923,8 +932,9 @@ function bossDrop() {
   const nW = weaponCount();
   const rg = subG();
   if (!S.pipe && rg() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true, rg);   // 연결 모드는 무기 없음 (교체로만): 황금 티켓 4% · 파츠 96%
-  if (CFG.waves && rg() < GOLD.ticket) return { kind: 't' };   // 파츠 대신 황금 티켓 (웨이브가 없는 측정 도구에서는 나오지 않는다)
-  return newPart(true, rg);
+  if (CFG.waves && rg() < (hasPact('coin') ? PACT.coinTicket : GOLD.ticket)) return { kind: 't' };   // 파츠 대신 황금 티켓 (웨이브가 없는 측정 도구에서는 나오지 않는다). 행운의 동전: 15%
+  if (hasPact('supply')) { let n = 0; for (let i = 0; i < CRATE.gens; i++) n += BAL.bundle(genCost(), rg); return { kind: 's', n }; }   // 보급 독점: 파츠 대신 조각 (보급 상자 조각과 같은 양)
+  return newPart(hasPact('coin') ? 1 : true, rg);   // 행운의 동전: 한 번만 뽑음 (최소 희귀는 그대로)
 }
 // 황금 티켓 사용: 다음 보스가 황금체가 된다 (여러 장이면 차례로. 천칭 차례는 건너뛴다)
 function useTicket(i) {
@@ -1214,6 +1224,7 @@ function choosePact(i) {
   const res = { ok: true, id };
   S.pacts.push(id); S.pendingPact = null;
   if (id === 'long') { S.longK = 0; S.longT = S.t; }
+  if (id === 'loan') { const v = Math.round(loanGold()); S.gold += v; S.loanG = v; res.gold = v; }   // 대출: 받는 순간
   if (id === 'focus') {                       // 5번 칸의 무기는 인벤토리로, 가득 차면 녹인다
     const k = PACT.focusSlot, w = S.slots[k];
     if (w) {
@@ -1307,7 +1318,8 @@ function startWave() {
   if (!boss || S.prep) S.wLast = v;
   const sT = spawnT(), span = S.prep ? PREP.span : CFG.waveT;   // 등장 시간, 이 웨이브가 맡는 예전 식의 구간 길이
   const t0D = S.prep ? tD() - span / 2 : S.t;                   // 그 구간이 시작하는 난이도 시간
-  S.crQ = (S.prep || !boss) && t0D >= CRATE.from && S.spawnAcc > -1e6 && rndS() < CRATE.p ? 0.5 + rndS() * (sT - CRATE.fly - 0.5) : 0;   // 보급 상자: 등장 시간 안에 날아와 사라진다
+  const sup = hasPact('supply');   // 보급 독점: 웨이브마다 (보스 웨이브도, 굴림 순서는 그대로)
+  S.crQ = (S.prep || !boss || sup) && t0D >= CRATE.from && S.spawnAcc > -1e6 && (rndS() < CRATE.p || sup) ? 0.5 + rndS() * (sT - CRATE.fly - 0.5) : 0;   // 보급 상자: 등장 시간 안에 날아와 사라진다
   const D = WAVES[v], tm = S.prep ? tD() : tD() + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;   // tm: 구간 가운데
   const ws = v === 'line' ? noSwarm(base) : D.w || base;
   const hp0 = BAL.spawnRate(tm) * span * evHp(base, SWARM_GRP);   // 예전 방식이면 이 웨이브 동안 나왔을 체력의 합
@@ -1478,7 +1490,7 @@ function kill(e, st) {
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
-  S.gold += e.gold * (1 + (st ? st.goldPct : 0) + bs.goldAll) * (e.boss && hasPact('hunt') ? 2 : 1);
+  S.gold += e.gold * (1 + (st ? st.goldPct : 0) + bs.goldAll) * (e.boss && hasPact('hunt') ? 2 : 1) * killGoldMul();
   if (hasPact('blood') && ++S.bloodN >= PACT.bloodEvery) { S.bloodN = 0; S.hp = Math.min(S.maxHp, S.hp + S.maxHp * PACT.bloodHeal * healMul()); }
   if (bs.heal && rndH() < bs.heal && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * 0.01 * healMul());   // 수리 장치: 최대 체력의 1%
   if (BIGK && !e.boss) flingFx(e);           // 큰 한 방으로 쓰러짐 (T10c)
@@ -1513,7 +1525,7 @@ function kill(e, st) {
     if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal * healMul());   // 보스를 처치하면 체력 회복
     const rn = hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
-      const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
+      const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); if (d.kind === 's') addShards(d.n); else S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
     }
     if (e.type === 'scale') offerPact();
     if (e.type === 'split') for (let k = 0; k < 3; k++) spawn('heavy', e.lane, e.x + (k - 1) * 46, e.y - k * 14);
@@ -3158,6 +3170,7 @@ function prepStep(dt) {
   }
   if (S.wt - wv.t0 >= PREP.spawnT && !wv.bq.length && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
     P.phase = 'rest'; S.invDirty = true; S.slotDirty = true; snd('clear');
+    if (hasPact('interest')) { const v = Math.floor(Math.min(Math.max(0, S.gold) * PACT.intrRate, waveGold() * PACT.intrCap)); S.gold += v; S.intr = { n: S.wn, v }; }   // 이자: 화면은 '웨이브 N 막음' 아래에 (예전 방식은 정비가 없어 이자도 없다)
     if (hasPact('long')) { S.longK = (S.longK || 0) + 1; pactDirty(); }   // 장기전: 막은 웨이브 수   // 화면은 판이 가라앉은 뒤 인벤토리로 바뀐다 (ui prepSync)
   }
 }
@@ -3288,7 +3301,7 @@ const Core = {
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
-  PACTS, PACT, PACT_IDS, hasPact, longMul, spawn, pathW: () => pathW, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
+  PACTS, PACT, PACT_IDS, hasPact, longMul, loanGold, killGoldMul, kill, startWave, spawn, pathW: () => pathW, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, PART_FIT, partFits, tD: () => tD(),
   test,
 };

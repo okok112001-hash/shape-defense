@@ -1560,7 +1560,7 @@ function scene(type, lines, secs, opt) {
   const P = Core.PACT, near = (a, b, m) => assert(Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b)), `${m}: ${a} != ${b}`);
   const take = (id) => { Core.S.pendingPact = [id]; assert(Core.choosePact(0).ok, id); };
   for (const id of ['long', 'giant', 'sweep', 'brink', 'path', 'fat', 'grit', 'warm']) assert(Core.PACTS[id] && Core.PACT_IDS.indexOf(id) >= 0, id);
-  assert.strictEqual(Core.PACT_IDS.length, 20); assert.strictEqual(Core.PACTS.glass.name, '배수진');
+  assert(Core.PACT_IDS.length >= 20); assert.strictEqual(Core.PACTS.glass.name, '배수진');
   // 장기전: x0.75, 웨이브를 막을 때마다 +3% (연결 모드), 예전 방식은 PREP.span 초마다
   {
     let S = game(21); const w = put('blaster', 0, 10), d0 = Core.stats(w).dmg; take('long');
@@ -1656,6 +1656,59 @@ function scene(type, lines, secs, opt) {
     assert(seenOff);
   }
   ok('천칭 전투 거래 8개: 장기전(x0.75 + 3%/막은 웨이브), 거인 사냥꾼, 소탕전(보스 체력, 상자 제외), 벼랑 끝(40%, 회복 절반), 외길(대상·나머지·따라 바뀜), 비만화, 불굴(쌓임·초기화·비용), 예열(공속, 15초·1/6 꺼짐)');
+}
+/* T15d. 천칭 재화·보상 거래 4개 (이자, 대출, 보급 독점, 행운의 동전) */
+{
+  const P = Core.PACT, near = (a, b, m) => assert(Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b)), `${m}: ${a} != ${b}`);
+  const take = (id) => { Core.S.pendingPact = [id]; const r = Core.choosePact(0); assert(r.ok, id); return r; };
+  for (const id of ['interest', 'loan', 'supply', 'coin']) assert(Core.PACTS[id] && Core.PACT_IDS.indexOf(id) >= 0, id);
+  assert.strictEqual(Core.PACT_IDS.length, 24);
+  const pipe = (seed) => { Core.seed(seed); Core.test.newGame({ god: true }, 520, 'pipe'); return Core.S; };
+  // 처치 재화: 이자 x0.9, 대출 x0.85 (같이면 곱)
+  const killGold = (pacts) => { const S = game(41); S.pacts = pacts; S.spawnAcc = -1e9; const e = Core.spawn('basic', 2); const g0 = S.gold; Core.kill(e); return S.gold - g0; };
+  const k0 = killGold([]); assert(k0 > 0);
+  near(killGold(['interest']) / k0, P.intrKill, '이자 처치 재화'); near(killGold(['loan']) / k0, P.loanKill, '대출 처치 재화');
+  near(killGold(['interest', 'loan']) / k0, P.intrKill * P.loanKill, '이자+대출');
+  // 이자: 웨이브를 막으면 가진 재화의 10%, 한 번에 waveGold() x0.5 까지
+  {
+    const clear = (G, pact) => {
+      const S = pipe(42); if (pact) take('interest'); Core.step(1 / 30);
+      S.wave.bq = []; S.pendingBoss = null; S.wt = S.wave.t0 + Core.PREP.spawnT + 1; S.enemies = []; S.gold = G;
+      const cap = Core.waveGold() * P.intrCap; Core.step(1 / 30);
+      assert.strictEqual(S.prep.phase, 'rest');
+      return { got: S.gold - G, cap, S };
+    };
+    const a = clear(1000, true); assert(a.cap > 100, '상한이 1000의 10% 보다 크다: ' + a.cap); near(a.got, 100, '이자 10%'); assert(a.S.intr && a.S.intr.v === 100 && a.S.intr.n === a.S.wn, '알림 값');
+    const b = clear(1e7, true); near(b.got, Math.floor(b.cap), '이자 상한');
+    const c = clear(1000, false); assert(c.got === 0 && !c.S.intr, '거래가 없으면 이자 없음');
+  }
+  // 대출: 받는 순간 생성 50번 비용의 합
+  {
+    const S = pipe(44); S.gen = 7; S.gold = 0; let want = 0; for (let k = 0; k < 50; k++) want += Core.BAL.genCost(7 + k);
+    const r = take('loan'); near(S.gold, Math.round(want), '대출 재화'); assert.strictEqual(r.gold, S.gold); assert.strictEqual(S.loanG, S.gold);
+  }
+  // 보스 보상: 황금 티켓 4% / 동전 15%, 보급 독점은 파츠 대신 조각 (티켓 그대로), 동전은 한 번 뽑기 (최소 희귀)
+  {
+    const roll = (pacts, N) => { const S = pipe(45); S.pacts = pacts; const c = { t: 0, s: 0, p: 0, r: 0, sn: 0 }; for (let i = 0; i < N; i++) { const d = Core.bossDrop(); if (d.kind === 't') c.t++; else if (d.kind === 's') { c.s++; c.sn += d.n; } else { c.p++; assert(d.g >= 1, '최소 희귀'); if (d.g === 1) c.r++; } } return c; };
+    const N = 6000, c0 = roll([], N), cc = roll(['coin'], N), cs = roll(['supply'], N), cb = roll(['supply', 'coin'], N);
+    assert(Math.abs(c0.t / N - 0.04) < 0.012 && Math.abs(cc.t / N - 0.15) < 0.02, `티켓 ${c0.t / N} ${cc.t / N}`);
+    assert(c0.r / c0.p < 0.8 && cc.r / cc.p > 0.86, `희귀 비율 ${c0.r / c0.p} ${cc.r / cc.p}`);
+    assert(cs.p === 0 && Math.abs(cs.t / N - 0.04) < 0.012 && cs.s === N - cs.t, '보급 독점: 조각, 티켓 4%');
+    assert(cb.p === 0 && Math.abs(cb.t / N - 0.15) < 0.02, '보급 독점 + 동전: 티켓 15%, 나머지 조각');
+    const g = Core.genCost(), per = cs.sn / cs.s, lo = Core.CRATE.gens * Core.BAL.bundle(g, () => 0), hi = Core.CRATE.gens * Core.BAL.bundle(g, () => 0.999999);
+    assert(per > lo && per < hi, `조각 양 ${per} (${lo}~${hi})`);
+    const S = pipe(46); S.pacts = ['supply']; S.gT = 0;
+    const sh0 = S.shards, e = Core.spawn('giant', 2); Core.kill(e);
+    const q = S.rewq[S.rewq.length - 1];
+    assert(q && (q.item.kind === 't' ? S.drops.length === 1 : S.shards > sh0 && !S.drops.length && q.item.kind === 's' && q.item.n === S.shards - sh0), '보스 처치: 조각이 바로 들어온다');
+  }
+  // 보급 독점: 등장 가능한 웨이브마다 상자 (거래가 없으면 25%)
+  {
+    const cnt = (pacts) => { const S = pipe(47); S.pacts = pacts; let n = 0, m = 0; for (let i = 0; i < 40; i++) { Core.startWave(); if (S.wn >= 2) { m++; if (S.crQ > 0) n++; } } return [n, m]; };
+    const [a, m] = cnt(['supply']), [b] = cnt([]); assert(a === m && b < m * 0.5, `상자 ${a}/${m} ${b}`);
+    const S = game(48); S.pacts = ['supply']; S.t = 600; S.wEnd = 600; S.nextBoss = 600; S.wn = 5; Core.startWave(); assert(S.wave.boss && S.crQ > 0, '예전 방식 보스 웨이브에도');
+  }
+  ok('천칭 재화·보상 거래 4개: 이자(10%, 웨이브 재화 x0.5 상한, 처치 x0.9), 대출(생성 50번 비용, 처치 x0.85), 보급 독점(웨이브마다 상자, 보스 보상 조각), 행운의 동전(티켓 15%, 한 번 뽑기)');
 }
 Core.seed(null);
 console.log(`\n${n} 묶음 통과`);
