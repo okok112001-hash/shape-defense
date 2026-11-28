@@ -1081,9 +1081,9 @@ function skipAug(force) { if (!force && hasPact('sage')) return false; S.pending
 // 정비 때 진화하지 않은 lv 강 이상 무기를 재화를 내고 다른 종류로 바꾼다 (지금과 다른 7종, 이미 장착한 종류도 된다).
 // 새 무기(newWeapon)에 강화 단계 −loss 와 파츠를 옮긴다 (맞지 않는 파츠는 플레이어가 옮긴다). 처치·피해 기록은 새 무기라 0부터.
 // 증강은 비우고, 새 단계까지 augEvery 강마다(5, 10, …) 그 단계 기준의 rollAugs 로 차례로 다시 고른다 (보통으로 그 단계까지 올린 무기와 기대값이 같다).
-// hi = 새 단계라 다시 올리면 그 위에서 증강을 받는다. 비용은 보통 웨이브 waves 개치 재화 (waveGold. 보급 상자 3개치·황금체 5개치와 같은 말투, 웨이브가 지나도 무게가 같다)
-const SWAP = { lv: 30, loss: 10, waves: 1 };
-function swapCost() { return Math.max(1, Math.round(waveGold(S.t) * SWAP.waves)); }
+// hi = 새 단계라 다시 올리면 그 위에서 증강을 받는다. 비용은 재화 고정 cost (사용자 결정 2026-11-28: 진화 비용처럼 고정)
+const SWAP = { lv: 30, loss: 10, cost: 3000 };
+function swapCost() { return SWAP.cost; }
 function canSwap(slot, type) {
   const w = S && S.slots[slot];
   const o = { ok: false, reason: '', cost: S ? swapCost() : 0, have: S ? goldCount() : 0 };

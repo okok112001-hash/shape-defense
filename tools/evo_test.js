@@ -1376,18 +1376,18 @@ function scene(type, lines, secs, opt) {
     assert(S2.kills > 0 && !S2.kl && S2.lkW == null, '예전 방식은 기록 없음');
   }
   ok('배속 추천 (T13d): 100강이면 웨이브 20초에 뜸, 기지 피해·느린 처치·정비 중이면 안 뜸, 예전 방식은 없음');
-  // (j) 무기 교체 (T13f): 진화 전·30강 이상·정비 때만, 비용 = 보통 웨이브 1개치 재화, 강화 −10, hi = 새 단계, 파츠 유지,
+  // (j) 무기 교체 (T13f): 진화 전·30강 이상·정비 때만, 비용 재화 3000 고정, 강화 −10, hi = 새 단계, 파츠 유지,
   //     증강은 비우고 새 단계 ÷ 5 번(5, 10, … 단계 기준) 차례로 다시 고른다. 고르는 동안 웨이브 시작·다른 일 안 됨, 저장·불러오기에도 이어짐
   {
     const SW = Core.SWAP, S = pipe(5); Core.step(DT); Core.test.addTime(450);
     const toRest = (S) => { S.wt = S.wave.t0 + P.spawnT; S.wave.bq = []; S.pendingBoss = null; S.enemies = []; Core.step(DT); assert.strictEqual(S.prep.phase, 'rest'); };
     const w = S.slots[0], to = WEAPON_IDS.find((t) => t !== w.type);
-    assert.deepStrictEqual([SW.lv, SW.loss, SW.waves], [30, 10, 1]);
+    assert.deepStrictEqual([SW.lv, SW.loss, SW.cost], [30, 10, 3000]);
     w.lv = 29; Core.dirty(w); assert.strictEqual(Core.canSwap(0, to).reason, 'lv', '29강은 안 됨');
     w.lv = 33; w.hi = 35; Core.dirty(w); assert.strictEqual(Core.canSwap(0, to).reason, 'busy', '웨이브 중에는 안 됨');
     toRest(S); S.gold = 1e9;
     const cost = Core.canSwap(0, to).cost;
-    assert(cost > 0 && cost === Math.round(Core.waveGold(S.t) * SW.waves), '비용 = 보통 웨이브 1개치 재화 ' + cost);
+    assert(cost === 3000 && Core.swapCost() === 3000, '비용 3000 고정 ' + cost);
     assert(Core.canSwap(0, to).ok && Core.canSwap(0).ok, '정비 때 33강');
     assert.strictEqual(Core.canSwap(0, w.type).reason, 'type', '같은 종류는 안 됨'); assert.strictEqual(Core.canSwap(0, 'nope').reason, 'type');
     assert.strictEqual(Core.swapWeapon(0).reason, 'type', '종류를 골라야 함'); assert.strictEqual(Core.canSwap(4 + 1, to).reason, 'none');
@@ -1432,7 +1432,7 @@ function scene(type, lines, secs, opt) {
     // 예전 방식(정비 없음, 도구)에서는 교체 없음
     Core.seed(3); Core.newGame(520); const S3 = Core.S; S3.slots[2].lv = 50; S3.gold = 1e9; assert.strictEqual(Core.canSwap(2, 'laser').reason, 'busy', '예전 방식은 교체 없음');
   }
-  ok('무기 교체 (T13f): 진화 전·30강·정비 때만, 비용 웨이브 1개치, 강화 −10, hi, 파츠 유지, 증강 새 단계÷5번(단계별), 저장·불러오기, 건너뛰기');
+  ok('무기 교체 (T13f): 진화 전·30강·정비 때만, 비용 3000, 강화 −10, hi, 파츠 유지, 증강 새 단계÷5번(단계별), 저장·불러오기, 건너뛰기');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 

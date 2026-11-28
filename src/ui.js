@@ -960,7 +960,7 @@ function fgSwap(w, k) {
   if (w.evo) return '';
   if (w.lv < C.SWAP.lv) return `<button type="button" class="btn fg-wide lock" disabled><span class="fl">교체</span><span class="fd">${C.SWAP.lv}강부터 재화를 내고<br>다른 무기로 바꿀 수 있습니다</span></button>`;
   const c = C.canSwap(k);
-  return `<button type="button" class="btn fg-wide swb${c.reason === 'gold' ? ' off' : ''}" data-act="swOpen"><span class="fl">교체</span><span class="fd">다른 무기로 바꿉니다, 강화 −${C.SWAP.loss}<br>재화 <b>◆ ${fmtInt(c.cost)}</b></span></button>`;
+  return `<button type="button" class="btn fg-wide swb${c.reason === 'gold' ? ' off' : ''}" data-act="swOpen"><span class="fl">교체</span><span class="fd">다른 무기로 바꿉니다, 강화 −${C.SWAP.loss}<br>비용 <b>◆ ${fmtInt(c.cost)}</b></span></button>`;
 }
 function wmHtml(w) {
   const S = C.S, st = C.stats(w), d = C.WEAPONS[w.type];
@@ -1026,14 +1026,14 @@ function evoHtml() {
 // 무기 교체 창 (T13f): 바꿀 종류를 누르고 '교체한다'. 지금 종류는 같은 자리에 흐리게 (고를 수 없음)
 function swHtml() {
   const w = C.S.slots[swK], d = C.WEAPONS[w.type], c = C.canSwap(swK, swT), nd = swT ? C.WEAPONS[swT] : null;
-  const lv = w.lv - C.SWAP.loss, n = Math.floor(lv / C.CFG.augEvery), ok = !!nd && c.ok, short = c.reason === 'gold';
+  const lv = w.lv - C.SWAP.loss, ok = !!nd && c.ok, short = c.reason === 'gold';
   return `<div class="modal evom swm"><h2>무기 교체</h2>
     <div class="evo-w"><span class="evo-ic" style="--wc:${d.color}">${icon(w.type, 40)}</span><span class="evo-arr">${ARROW}</span><span class="evo-ic${nd ? ' on' : ' q'}"${nd ? ` style="--wc:${nd.color}"` : ''}>${nd ? icon(swT, 40) : '?'}</span>
       <div class="evo-nm"><b style="color:${nd ? nd.color : 'var(--dim)'}">${nd ? nd.name : '무기를 고르세요'}</b><span>+${w.lv} → +${lv}</span>${nd ? `<span>${ROLE_LINE[swT]}</span>` : ''}</div></div>
     <div class="sw-grid">${C.WEAPON_IDS.map(t => `<button type="button" class="sw-t${t === swT ? ' on' : ''}" data-swt="${t}" style="--wc:${C.WEAPONS[t].color}"${t === w.type ? ' disabled' : ''}>${icon(t, 28)}<small>${t === w.type ? '지금 무기' : C.WEAPONS[t].name}</small></button>`).join('')}</div>
-    <div class="evo-cost${short ? ' short' : ''}"><i class="gem">◆</i><b>재화 ${fmtInt(c.cost)}</b><span>보유 <b>${fmtInt(c.have)}</b></span></div>
-    <ul class="evo-list"><li>강화 −${C.SWAP.loss}, 파츠는 그대로</li><li>증강은 비우고, 새 무기의 증강을 ${n}번 다시 고릅니다</li></ul>
-    ${short ? `<p class="warn">재화가 ${fmtInt(c.cost - c.have)} 모자랍니다.</p>` : ''}
+    <div class="evo-cost${short ? ' short' : ''}"><i class="gem">◆</i><b>비용 ${fmtInt(c.cost)}</b><span>보유 <b>${fmtInt(c.have)}</b></span></div>
+    <ul class="evo-list"><li>강화 −${C.SWAP.loss}, 파츠는 그대로</li><li>기존 증강은 사라지고, 새 증강을 선택하게 됩니다</li></ul>
+    ${short ? `<p class="warn">◆ ${fmtInt(c.cost - c.have)} 모자랍니다.</p>` : ''}
     <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="swOk"${ok ? '' : ' disabled'}>교체한다</button><button type="button" class="btn" data-act="swClose">닫기</button></div></div>`;
 }
 /* ---------- 스킬 그림 ---------- */
@@ -2231,7 +2231,7 @@ function act(name) {
     case 'swOk': {
       if (swK < 0 || !swT) return;
       const k = swK, r = C.swapWeapon(k, swT);
-      if (!r.ok) { if (r.reason === 'gold') say(`재화가 부족합니다. ${fmtInt(r.cost)}이 필요합니다.`, true); return; }
+      if (!r.ok) { if (r.reason === 'gold') say(`◆ ${fmtInt(r.cost - r.have)} 모자랍니다.`, true); return; }
       swK = -1; swT = null; fK = k; lastUp = { at: performance.now(), ok: true };   // 대장간의 그 무기 칩이 반짝인다
       Snd.play('swap'); renderAll();            // 증강 다시 고르기 창이 이어서 뜬다
       return;
