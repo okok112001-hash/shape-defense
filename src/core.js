@@ -517,17 +517,18 @@ Object.defineProperty(ENEMIES, 'charge', { enumerable: false, value: { hp: 280, 
   hint: '멈췄다가 예고한 레인으로 돌진합니다. 그 레인에 무기를 모으세요', tip: ['예고한 레인으로 돌진', '그 레인에 무기 모으기'] } });
 // T12 O2: 약탈체 -> 교란체, 시계체 -> 석화체. 둘 다 연결 판에 거는 능력이라 판이 없는 예전 방식(도구)에서는 능력이 없는 보스다
 Object.defineProperty(ENEMIES, 'jumble', { enumerable: false, value: { hp: 320, speed: 0.030, r: 48, leak: 15, gold: 55, boss: true, name: '교란체',
-  hint: '판의 두 줄을 새 블록으로 바꿉니다. 예고된 줄에 기대지 마세요', tip: ['판 두 줄을 바꿈', '예고된 줄 피하기'] } });
+  hint: '판의 한 줄을 새 블록으로 바꿉니다. 예고된 줄에 기대지 마세요', tip: ['판 한 줄을 바꿈', '예고된 줄 피하기'] } });
 Object.defineProperty(ENEMIES, 'stone', { enumerable: false, value: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 55, boss: true, name: '석화체',
-  hint: '판의 칸을 돌로 굳힙니다. 굳은 칸은 이 웨이브 동안 풀리지 않습니다', tip: ['판 칸을 돌로', '빨리 쓰러뜨리기'] } });
+  hint: '판의 칸 하나를 돌로 굳힙니다(무기 바로 아래 칸은 빼고). 굳은 칸은 이 웨이브 동안 풀리지 않습니다', tip: ['판 칸을 돌로', '빨리 쓰러뜨리기'] } });
 // 보스는 처음부터 무작위 (같은 보스가 연달아 나오지 않음). 10번째마다는 천칭
 const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'jumble', 'corrode', 'charge', 'stone', 'gold'];
-const CHG_WAIT = 10, CHG_FIRST = 6, CHG_WARN = 4, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
+const AB_FIRST = 1.5;   // 보스 능력을 처음 쓰기까지(초). 나타나자마자 곧 쓴다
+const CHG_WAIT = 10, CHG_FIRST = AB_FIRST, CHG_WARN = 4, CHG_DASH = 0.9, CHG_SPD = 9, CHG_SIDE = 600;   // 돌격체: 걷는 시간, 첫 돌진까지, 예고(멈춤), 돌진 시간, 돌진 속도 배수, 옆으로 옮기는 속도(px/초)
 // 교란체: 화면에 들어온 뒤 first 초, 그 뒤 every 초마다 판의 줄 rows 개를 골라 예고(AB_WARN) 뒤 그 줄 블록을 모두 새 블록으로 바꾼다 (굳은 칸은 그대로)
-const JUMBLE = { first: 5, every: 10, rows: 2 };
+const JUMBLE = { first: AB_FIRST, every: 10, rows: 1 };
 // 석화체: 화면에 들어온 뒤 first 초, 그 뒤 every 초마다 판의 칸 n 개를 골라 예고(AB_WARN) 뒤 그 칸에 있는 블록을 돌로 굳힌다.
 // 예고는 칸에 건다 (예고 중에 블록을 빼면 그 자리에 들어온 블록이 굳는다). 굳은 칸은 옮길 수 없고 연결에 들지 않으며 웨이브가 끝날 때(새 판)까지 그대로다
-const STONE = { first: 4, every: 8, n: 2 };
+const STONE = { first: AB_FIRST, every: 8, n: 1 };
 
 /* ---------- 웨이브 (T11) ---------- */
 // 웨이브마다 세기(적 체력의 합)는 예전 연속 등장으로 같은 시간 동안 나왔을 양과 같다. 종류는 구성과 자리만 바꾼다.
@@ -574,7 +575,7 @@ const PACTS = {
   overheat: { name: '과열',          up: '모든 무기 공격 속도 +25%',           dn: '모든 강화 성공률 -8%p' },
   greed:    { name: '탐욕',          up: '재화 획득 +40%',                   dn: '적 체력 +15%' },
   rush:     { name: '속전속결',       up: '적 체력 -20%',                    dn: '적 이동 속도 +18%' },
-  hunt:     { name: '사냥철',        up: '보스 처치 보상 2배',                dn: '보스가 2웨이브마다 등장' },
+  hunt:     { name: '사냥철',        up: '보스 처치 보상 2배',                dn: '보스가 웨이브마다 2번 등장' },
   forge:    { name: '용광로의 축복',   up: '용해로 제작 비용 −40%',          dn: '생성에서 파츠가 나오지 않음' },
   focus:    { name: '집중',          up: '남은 무기 피해 +45%',               dn: '5번 무기 칸 영구 폐쇄' },
   gamble:   { name: '도박사',        up: '모든 강화 성공률 +15%p',            dn: '강화 실패 시 10% 확률로 1단계 하락' },
@@ -586,7 +587,7 @@ const PACTS = {
 const PACT_IDS = Object.keys(PACTS);
 const PACT = {   // 수치는 한곳에
   glassDmg: 1.15, glassHp: 0.7, heatRate: 1.25, heatSucc: -0.08, minSucc: 0.03, greedGold: 0.4, greedHp: 1.15, rushHp: 0.8, rushSpd: 1.18,
-  huntEvery: 45, huntWaves: 2, forgeMul: 0.6, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
+  huntEvery: 45, huntWaves: 2, huntAt: [30, 60], forgeMul: 0.6, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
   bloodEvery: 20, bloodHeal: 0.02, bloodDmg: 1.5, smuggleCost: 0.75, smuggleMiss: 0.08,
 };
 
@@ -626,7 +627,7 @@ function pipeSetup() {   // 연결 모드: 정비 시간 구조, 겹치지 않�
   S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
   const ids = WEAPON_IDS.slice(), r = subG();
   for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
-  S.pipe = true; S.nextW = 1 + CFG.bossWaves;
+  S.pipe = true;
   S.m3 = m3New();
 }
 function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null); if (!S.snd) S.snd = []; if (!S.abfx) S.abfx = []; if (!S.beams) S.beams = []; if (!S.mines) S.mines = []; if (!S.melt) S.melt = 0; if (!S.rewq) S.rewq = []; if (!S.crafts) S.crafts = 0; if (!S.base) S.base = newBase();
@@ -1147,15 +1148,15 @@ const noSwarm = (ws) => [ws[0], ws[1], 0, ws[3]];
 // 새 웨이브: 종류를 고르고, 세기(체력 합)가 예전 연속 등장과 같도록 등장 수를 정한다. 보스 웨이브면 보스를 예고한다
 function startWave() {
   const t0 = S.wEnd; S.wn++; S.wEnd = t0 + CFG.waveT; S.wTick = 3;
-  // 연결 모드는 웨이브 번호로 센다 (S.nextW: 다음 보스 웨이브 번호. 사냥철이면 간격이 짧아진다)
-  const boss = S.prep ? S.wn > 1 && S.wn >= (S.nextW || 1 + CFG.bossWaves) : S.wn > 1 && t0 >= S.nextBoss - 1e-6;
+  // 연결 모드는 웨이브마다 보스가 나온다 (PREP.bossAt 초, 사냥철이면 PACT.huntAt 두 번). 웨이브 종류도 그대로 뽑는다
+  const boss = S.prep ? true : S.wn > 1 && t0 >= S.nextBoss - 1e-6;   // 연결 모드는 웨이브마다 보스 (등장 시각은 prepStep 이 정한다)
   let v = 'mix';
-  if (boss) { if (S.prep) S.nextW = S.wn + bossWavesN(); else S.nextBoss = t0 + bossInterval(); spawnBoss(); }
+  if (boss && !S.prep) { S.nextBoss = t0 + bossInterval(); spawnBoss(); }
   else if (S.wn > 1) { const ids = WAVE_IDS.length > 1 ? WAVE_IDS.filter(id => id !== S.wLast) : WAVE_IDS; v = ids[wpick(ids.map(id => WAVES[id].p), rndS)]; }
-  if (!boss) S.wLast = v;
+  if (!boss || S.prep) S.wLast = v;
   const sT = spawnT(), span = S.prep ? PREP.span : CFG.waveT;   // 등장 시간, 이 웨이브가 맡는 예전 식의 구간 길이
   const t0D = S.prep ? tD() - span / 2 : S.t;                   // 그 구간이 시작하는 난이도 시간
-  S.crQ = !boss && t0D >= CRATE.from && S.spawnAcc > -1e6 && rndS() < CRATE.p ? 0.5 + rndS() * (sT - CRATE.fly - 0.5) : 0;   // 보급 상자: 등장 시간 안에 날아와 사라진다
+  S.crQ = (S.prep || !boss) && t0D >= CRATE.from && S.spawnAcc > -1e6 && rndS() < CRATE.p ? 0.5 + rndS() * (sT - CRATE.fly - 0.5) : 0;   // 보급 상자: 등장 시간 안에 날아와 사라진다
   const D = WAVES[v], tm = S.prep ? tD() : tD() + CFG.waveT / 2, base = BAL.spawnWeights(tm), grp = D.grp || SWARM_GRP;   // tm: 구간 가운데
   const ws = v === 'line' ? noSwarm(base) : D.w || base;
   const hp0 = BAL.spawnRate(tm) * span * evHp(base, SWARM_GRP);   // 예전 방식이면 이 웨이브 동안 나왔을 체력의 합
@@ -1169,8 +1170,8 @@ function startWave() {
     lanes = [a];
     if (rndS() < 0.6) lanes.push(a === 0 ? 1 : a === LANES - 1 ? a - 1 : a + (rndS() < 0.5 ? -1 : 1));
   }
-  S.wave = { n: S.wn, v, t0, rate: n / sT, boss, ws, grp, lanes, gk };
-  if (!boss && S.spawnAcc > -1e6) { S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 앞 웨이브 이름이 남아 있으면 지운다 (테스트로 건너뛸 때)   // 도구가 등장을 끈 장면에서는 알리지 않는다
+  S.wave = { n: S.wn, v, t0, rate: n / sT, boss, ws, grp, lanes, gk, bq: S.prep ? (hasPact('hunt') ? PACT.huntAt : [PREP.bossAt]).slice() : null };
+  if ((S.prep || !boss) && S.spawnAcc > -1e6) { S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 앞 웨이브 이름이 남아 있으면 지운다 (테스트로 건너뛸 때)   // 도구가 등장을 끈 장면에서는 알리지 않는다
 }
 // 보통 웨이브 하나가 주는 재화 (startWave 의 gk 로 맞춘 양과 같다. 처치 보너스는 빼고). 연결 모드는 지금 웨이브 (t 는 쓰지 않는다)
 function waveGold(t) {
@@ -1291,7 +1292,7 @@ function spawnBoss(force) {
 function appearBoss() {
   const p = S.pendingBoss; S.pendingBoss = null;
   const e = spawn(p.type, p.lane, p.x, p.y * H);
-  if (p.type === 'scale') { e.sc = { heavy: true, t: SCALE_T }; e.dmgMul = 0.5; e.spdMul = 0.6; }
+  if (p.type === 'scale') { e.sc = { heavy: true, t: AB_FIRST + 0.5 }; e.dmgMul = 0.5; e.spdMul = 0.6; }
   if (p.type === 'gold') goldInit(e);
   fx({ k: 'appear', d: 0.3, x: e.x, y: e.y, r: e.r, type: p.type });
   return e;
@@ -2417,7 +2418,7 @@ function bossStep(dt) {
     if (e.y <= 0) continue;                  // 화면에 들어온 뒤에만 능력을 쓴다
     switch (e.type) {
       case 'summon':
-        e.abT = (e.abT == null ? 4 : e.abT) - dt;
+        e.abT = (e.abT == null ? AB_FIRST : e.abT) - dt;
         if (e.abT <= 0) {
           e.abT += 4;
           if (S.enemies.length < 150) for (let k = 0; k < 3; k++) spawn('swarm', e.lane, e.x + (k - 1) * 26 + (rndS() - 0.5) * 10, e.y - e.r * 0.4 - k * 6);
@@ -2425,7 +2426,7 @@ function bossStep(dt) {
         }
         break;
       case 'jammer': {
-        e.abT = (e.abT == null ? 7 : e.abT) - dt;
+        e.abT = (e.abT == null ? AB_FIRST : e.abT) - dt;
         if (e.abT <= 0) {
           e.abT += 7;
           const c = []; for (let k = 0; k < LANES; k++) if (S.slots[k] && !S.locks[k]) c.push(k);
@@ -2452,7 +2453,7 @@ function bossStep(dt) {
         if (e.abT <= 0) {
           e.abT += STONE.every;
           const w = b.sw || (b.sw = []), c = [];
-          for (let i = 0; i < b.g.length; i++) if (b.g[i] && !b.g[i].st && !w.some(q => q.i === i)) c.push(i);
+          for (let i = b.C; i < b.g.length; i++) if (b.g[i] && !b.g[i].st && !w.some(q => q.i === i)) c.push(i);   // 무기 바로 아래 칸(0행)은 빼고
           for (let k = 0; k < STONE.n && c.length; k++) w.push({ i: c.splice(Math.floor(rndS() * c.length), 1)[0], t: AB_WARN });
           if (w.length) snd('alert');
         }
@@ -2482,7 +2483,7 @@ function bossStep(dt) {
         break;
       }
       case 'corrode':
-        e.abT = (e.abT == null ? 12 : e.abT) - dt;
+        e.abT = (e.abT == null ? AB_FIRST : e.abT) - dt;
         if (e.abT <= 0) {
           e.abT += 12;
           if (!S.corr) {
@@ -2894,7 +2895,7 @@ const pipeRate = (n) => n >= PIPE.need ? 1 + PIPE.bonus * (n - PIPE.need) : 0;
 // 그 값은 구간 가운데 span(n-1) + span/2 다 (예전 연속 등장에서 그 구간에 나온 적의 평균 등장 시각, 예전 웨이브가 세기를 정하던 시점도 구간 가운데).
 // 적 체력, 처치 재화, 웨이브 세기와 종류 가중치, 기지 피해 배수, 황금체·보급 상자 재화가 이 값을 쓴다. 정비 시간과 실제 흐른 시간은 난이도와 무관하다.
 // fill: 웨이브 세기 배수. 예전 방식의 CFG.waveFill(1.2)은 12초에 몰아 나오고 8초 쉬는 구조를 봇에 맞춘 보정이라 쓰지 않는다 (고르게 나오면 연속 등장과 같으니 1)
-const PREP = { T: 30, spawnT: 30, span: 30, fill: 1 };
+const PREP = { T: 30, spawnT: 90, span: 90, fill: 1, bossAt: 45 };
 function tD() { return S.prep ? PREP.span * (Math.max(1, S.wn) - 0.5) : S.t; }
 const spawnT = () => S.prep ? PREP.spawnT : CFG.waveSpawnT;   // 웨이브 하나에서 적이 나오는 시간
 function prepGo() {   // 다음 웨이브 시작
@@ -2916,7 +2917,8 @@ function prepStep(dt) {
   S.wt += dt;
   if (S.wt - wv.t0 < PREP.spawnT) S.spawnAcc += wv.rate * dt;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
-  if (S.wt - wv.t0 >= PREP.spawnT && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
+  if (wv.bq.length && !S.pendingBoss && S.wt - wv.t0 >= wv.bq[0] - WARN_T) { wv.bq.shift(); spawnBoss(); }   // 보스: 예고(WARN_T초)가 끝나는 때가 bq 의 시각
+  if (S.wt - wv.t0 >= PREP.spawnT && !wv.bq.length && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
     P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
   }
 }
@@ -2928,7 +2930,7 @@ const SK_TOTAL = CFG.maxLv / CFG.augEvery;                      // 진화 100강
 function testOn() { return !!S && !!S.cheat && !S.over; }
 function testIdle() { return testOn() && !S.pendingAug && !S.pendingPact; }
 function testWeapons() { const a = []; if (testOn()) for (let k = 0; k < S.slots.length; k++) if (S.slots[k]) a.push(k); return a; }
-function nextBossTest() { if (S.prep) S.nextW = S.wn + bossWavesN(); else S.nextBoss = (CFG.waves ? S.wt : S.t) + bossInterval(); }   // 부른 보스 다음 정기 보스는 한 주기 뒤
+function nextBossTest() { if (!S.prep) S.nextBoss = (CFG.waves ? S.wt : S.t) + bossInterval(); }   // 부른 보스 다음 정기 보스는 한 주기 뒤
 function testTop(w) { w.lv = CFG.maxLv; w.hi = CFG.maxLv; dirty(w); if (effLv(w) > S.maxLv) S.maxLv = effLv(w); }   // hi 를 맞춰 건너뛴 증강은 다시 받지 못한다
 const test = {
   KEYS: CHEAT_KEYS,
@@ -2987,7 +2989,7 @@ const test = {
   addTime(sec) {
     if (!testOn() || !(sec > 0)) return false;
     S.t += sec;
-    if (S.prep) { S.wn += Math.max(1, Math.round(sec / PREP.span)); while (S.nextW <= S.wn) S.nextW += bossWavesN(); return true; }
+    if (S.prep) { S.wn += Math.max(1, Math.round(sec / PREP.span)); return true; }
     if (!CFG.waves) while (S.nextBoss <= S.t) S.nextBoss += bossInterval();   // 웨이브 방식은 웨이브 시계가 따로라 보스 순서가 그대로다
     return true;
   },

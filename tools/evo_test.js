@@ -1152,11 +1152,12 @@ function scene(type, lines, secs, opt) {
   const DT = 1 / 30, P = Core.PREP, AW = Core.AB_WARN;
   const pipe = (sd, flags) => { Core.seed(sd); Core.test.newGame(Object.assign({ god: true }, flags || {}), 520, 'pipe'); return Core.S; };
   const run = (S, T, each) => { const t1 = S.t + T; while (S.t < t1) { Core.step(DT); if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (each && each() === false) break; } };
-  // (a) 웨이브 n 의 난이도 시간 = 30n - 15 (웨이브 안에서 고정), 적은 30초 동안 나오고, 정비는 30초, 보스는 4·7·10, 사냥철이면 2웨이브마다
+  // (a) 웨이브 n 의 난이도 시간 = 90n - 45 (웨이브 안에서 고정), 적은 90초 동안 나오고, 정비는 30초, 보스는 웨이브마다 45초에 (예고는 WARN_T 앞), 사냥철이면 30·60초에
   {
-    const S = pipe(31), seen = new Set(), bw = []; let wn = 0, lastSpawn = 0, rest = null;
-    run(S, 600, () => {
+    const S = pipe(31), seen = new Set(), bw = [], bt = {}; let wn = 0, lastSpawn = 0, rest = null, lastPB = null;
+    run(S, 1500, () => {
       if (S.wn !== wn) { wn = S.wn; if (S.wave.boss) bw.push(wn); assert(Math.abs(Core.tD() - (P.span * wn - P.span / 2)) < 1e-9, '난이도 시간 ' + wn); }
+      if (S.pendingBoss && S.pendingBoss !== lastPB) { (bt[S.wn] = bt[S.wn] || []).push(S.wt - S.wave.t0); } lastPB = S.pendingBoss;
       for (const e of S.enemies) {
         if (seen.has(e)) continue; seen.add(e);
         if (e.boss || e.cr || e.elite) continue;
@@ -1167,44 +1168,45 @@ function scene(type, lines, secs, opt) {
       if (S.prep.phase === 'rest') { if (rest == null) rest = S.prep.left; Core.prepGo(); }
       return S.wn < 11;
     });
-    assert(lastSpawn > P.spawnT - 1 && lastSpawn <= P.spawnT + 1e-6, '30초 동안 나온다 ' + lastSpawn);
-    assert(Math.abs(rest - P.T) < 1e-6 && P.T === 30, '정비 30초');
-    assert.deepStrictEqual(bw, [4, 7, 10], '보스 웨이브 ' + bw);
-    const H = pipe(32); H.pacts = ['hunt']; const hb = []; let hn = 0;
-    run(H, 900, () => { if (H.wn !== hn) { hn = H.wn; if (H.wave.boss) hb.push(hn); } for (const e of H.enemies) e.dead = true; H.enemies = []; H.pendingBoss = null; if (H.prep.phase === 'rest') Core.prepGo(); return H.wn < 9; });
-    assert.deepStrictEqual(hb, [4, 6, 8], '사냥철 ' + hb);
+    assert(lastSpawn > P.spawnT - 1 && lastSpawn <= P.spawnT + 1e-6, '90초 동안 나온다 ' + lastSpawn);
+    assert(Math.abs(rest - P.T) < 1e-6 && P.T === 30 && P.spawnT === 90, '정비 30초');
+    assert.deepStrictEqual(bw, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].slice(0, bw.length), '웨이브마다 보스 ' + bw); assert(bw.length >= 10);
+    for (let n = 1; n <= 10; n++) { assert(bt[n] && bt[n].length === 1 && Math.abs(bt[n][0] + Core.WARN_T - P.bossAt) < DT * 1.5 && P.bossAt === 45, '보스 45초 ' + n + ' ' + bt[n]); }
+    const H = pipe(32); H.pacts = ['hunt']; const ht = {}; let hn = 0, hp_ = null;
+    run(H, 1500, () => { if (H.pendingBoss && H.pendingBoss !== hp_) (ht[H.wn] = ht[H.wn] || []).push(H.wt - H.wave.t0); hp_ = H.pendingBoss; for (const e of H.enemies) e.dead = true; H.enemies = []; if (H.prep.phase === 'rest') Core.prepGo(); return H.wn < 5; });
+    for (let n = 1; n <= 3; n++) assert(ht[n] && ht[n].length === 2 && Math.abs(ht[n][0] + Core.WARN_T - 30) < DT * 1.5 && Math.abs(ht[n][1] + Core.WARN_T - 60) < DT * 1.5, '사냥철 ' + n + ' ' + ht[n]);
     // 테스트 모드의 시간 건너뛰기는 웨이브 번호를 올린다
-    const T = pipe(33); run(T, 1); const w0 = T.wn; assert(Core.test.addTime(60)); assert.strictEqual(T.wn, w0 + 2);
+    const T = pipe(33); run(T, 1); const w0 = T.wn; assert(Core.test.addTime(60)); assert.strictEqual(T.wn, w0 + 1);
   }
   // 보스를 불러 나타나게 한다 (체력을 크게 해 쓰러지지 않게)
   const summon = (S, type) => {
     S.bossOnly = type; S.spawnAcc = -1e9; run(S, 0.2); assert(Core.test.boss()); run(S, Core.WARN_T + 0.1);
     const e = S.enemies.find((o) => o.type === type); assert(e, type + ' 등장'); e.hp = e.maxHp = 1e15; return e;
   };
-  // (b) 교란체: 화면에 들어온 뒤 JUMBLE.first 초에 판의 두 줄을 예고, AB_WARN 초 뒤 그 줄 블록이 모두 새 블록. 다른 줄은 그대로. 쓰러지면 예고가 사라진다
+  // (b) 교란체: 화면에 들어온 뒤 JUMBLE.first 초에 판의 한 줄을 예고, AB_WARN 초 뒤 그 줄 블록이 모두 새 블록. 다른 줄은 그대로. 쓰러지면 예고가 사라진다
   {
     const S = pipe(41), b = S.m3, J = Core.JUMBLE, e = summon(S, 'jumble');
     let jw = null; run(S, J.first + 0.5, () => { if (b.jw) { jw = b.jw; return false; } });
-    assert(jw && jw.rows.length === 2 && jw.rows[0] !== jw.rows[1] && Math.abs(jw.t - AW) < 0.1, '두 줄 예고');
+    assert(jw && jw.rows.length === 1 && Math.abs(jw.t - AW) < 0.1, '한 줄 예고');
     const ids = b.g.map((o) => o.id); b.ev.length = 0;
     run(S, AW + 0.1, () => { if (!b.jw) return false; });
     for (let i = 0; i < b.g.length; i++) { const r = Math.floor(i / b.C); if (jw.rows.includes(r)) assert(b.g[i].id !== ids[i], '바뀐 줄'); else assert.strictEqual(b.g[i].id, ids[i], '그대로인 줄'); }
-    assert(b.ev.some((v) => v.k === 'jumble' && v.old.length === 10), '판 사건');
+    assert(b.ev.some((v) => v.k === 'jumble' && v.old.length === 5), '판 사건');
     run(S, J.every, () => { if (b.jw) return false; }); assert(b.jw, '다시 예고');
     e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(!b.jw, '쓰러지면 예고 끝');
   }
-  // (c) 석화체: 칸 두 개 예고 -> 그 칸에 그때 있는 블록이 굳는다. 굳은 칸은 옮길 수 없고 연결에 들지 않으며 그 너머로 이어지지 않는다. 쌓이고, 새 웨이브(새 판)에서 풀린다
+  // (c) 석화체: 칸 하나(0행은 빼고) 예고 -> 그 칸에 그때 있는 블록이 굳는다. 굳은 칸은 옮길 수 없고 연결에 들지 않으며 그 너머로 이어지지 않는다. 쌓이고, 새 웨이브(새 판)에서 풀린다
   {
     const S = pipe(42), b = S.m3, ST = Core.STONE, e = summon(S, 'stone');
     let sw = null; run(S, ST.first + 0.5, () => { if (b.sw) { sw = b.sw.map((w) => w.i); return false; } });
-    assert(sw && sw.length === 2 && sw[0] !== sw[1], '두 칸 예고');
+    assert(sw && sw.length === 1 && sw[0] >= b.C, '한 칸 예고 (0행 아님)');
     const i0 = sw[0], N = b.C, nb = [i0 - N, i0 + N, i0 % N ? i0 - 1 : -1, i0 % N < N - 1 ? i0 + 1 : -1].find((j) => j >= 0 && j < b.g.length && !sw.includes(j) && b.g[j].s !== b.g[i0].s);
     if (nb != null) { const inId = b.g[nb].id; assert(Core.m3Swap(i0, nb).ok); run(S, AW + 0.1); assert(b.g[i0].id === inId && b.g[i0].st, '들어온 블록이 굳는다'); assert(!b.g[nb].st, '빠져나간 블록은 그대로'); }
     else run(S, AW + 0.1);
     for (const i of sw) assert(b.g[i].st, '굳음');
     const j = [i0 - N, i0 + N, i0 % N ? i0 - 1 : -1, i0 % N < N - 1 ? i0 + 1 : -1].find((q) => q >= 0 && q < b.g.length && !b.g[q].st && b.g[q].s !== b.g[i0].s);
     if (j != null) { const r = Core.m3Swap(i0, j); assert(!r.ok && r.stone, '굳은 칸은 옮길 수 없다'); }
-    run(S, ST.every + 0.5); assert.strictEqual(b.g.filter((o) => o.st).length, 4, '쌓인다');
+    run(S, ST.every + 0.5); assert.strictEqual(b.g.filter((o) => o.st).length, 2, '쌓인다');
     // 연결: 0번 무기 열을 그 무기 블록으로 채우고 2행을 굳히면 연결 수는 2 (0, 1행)
     const t0 = S.slots[0].type; for (let r = 0; r < b.R; r++) b.g[r * N] = { s: t0, id: 9000 + r };
     for (let r = 0; r < b.R; r++) for (let c = 1; c < N; c++) if (b.g[r * N + c].s === t0) b.g[r * N + c].s = S.slots[1].type === t0 ? S.slots[2].type : S.slots[1].type;

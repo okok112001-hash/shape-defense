@@ -466,7 +466,7 @@ function abList() {
   if (!S) return out;
   for (const j of Object.keys(S.locks || {})) { const lk = S.locks[j]; if (lk.w > 0) out.push({ kind: 'lock', i: +j, rem: lk.w, nm: C.ENEMIES.jammer.name, txt: `${+j + 1}번 칸 잠금 예고` }); }
   const b = S.m3;   // 판에 거는 능력 (교란체, 석화체)
-  if (b && b.jw) out.push({ kind: 'jumble', i: b.jw.rows.join(''), rem: b.jw.t, nm: C.ENEMIES.jumble.name, txt: '판 두 줄이 바뀝니다' });
+  if (b && b.jw) out.push({ kind: 'jumble', i: b.jw.rows.join(''), rem: b.jw.t, nm: C.ENEMIES.jumble.name, txt: '판 한 줄이 바뀝니다' });
   if (b && b.sw) out.push({ kind: 'stone', i: b.sw.map(w => w.i).join('.'), rem: Math.min(...b.sw.map(w => w.t)), nm: C.ENEMIES.stone.name, txt: `판 ${b.sw.length}칸이 굳습니다` });
   if (S.corr) out.push({ kind: 'corr', i: S.corr.k, rem: S.corr.t, nm: C.ENEMIES.corrode.name, txt: `${S.corr.k + 1}번 칸 강화 -5 예고` });
   return out;
@@ -1427,10 +1427,10 @@ const BOSS_HELP = {
   summon: ['지나가는 동안 졸개를 계속 불러냅니다.', '졸개가 쌓이기 전에 범위 공격 무기로 쓸어내세요.'],
   jammer: ['무기 칸 하나를 잠가 한동안 쓰지 못하게 합니다. 어느 칸인지 미리 알려 줍니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
   shield: ['방패로 정면에서 오는 공격을 막습니다.', '옆 레인에 있는 무기로 공격하세요.'],
-  jumble: [`판의 두 줄을 골라 깜빡여 알린 뒤(${C.AB_WARN}초) 그 줄의 블록을 모두 새 블록으로 바꿉니다.`, '예고된 줄에 기대지 않게 다른 줄로 이어 두고, 바뀐 뒤 다시 이으세요.'],
+  jumble: [`판의 한 줄을 골라 깜빡여 알린 뒤(${C.AB_WARN}초) 그 줄의 블록을 모두 새 블록으로 바꿉니다.`, '예고된 줄에 기대지 않게 다른 줄로 이어 두고, 바뀐 뒤 다시 이으세요.'],
   corrode: ['예고한 칸의 무기 강화 단계를 5 낮춥니다. 0 아래로 내려가면 무기가 사라집니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
   charge: ['천천히 내려오다 멈춰서 다른 레인을 깜빡여 예고하고, 그 레인으로 옮겨 가며 빠르게 돌진합니다.', '예고된 레인으로 무기를 옮겨 모으세요.'],
-  stone: [`판의 두 칸을 골라 알린 뒤(${C.AB_WARN}초) 그 칸의 블록을 돌로 굳힙니다. 돌은 옮길 수 없고 이어지지 않으며, 그 웨이브가 끝날 때까지 풀리지 않습니다.`, '예고된 칸의 블록은 빼 두세요. 오래 살려 두면 돌이 계속 쌓이니 먼저 쓰러뜨리세요.'],
+  stone: [`판의 한 칸을 골라 알린 뒤(${C.AB_WARN}초) 그 칸의 블록을 돌로 굳힙니다. 돌은 옮길 수 없고 이어지지 않으며, 그 웨이브가 끝날 때까지 풀리지 않습니다.`, '예고된 칸의 블록은 빼 두세요. 오래 살려 두면 돌이 계속 쌓이니 먼저 쓰러뜨리세요.'],
   gold: ['맞힐 때마다 깎은 만큼 재화가 나옵니다. 쓰러뜨리면 전설 파츠. 있는 동안 판에 황금 블록이 생깁니다. 황금 블록은 어느 무기에나 이어집니다.', `황금 블록을 무기에 이을수록 황금체에게 주는 피해가 커집니다(하나마다 +${Math.round(C.GOLD.blkDmg * 100)}%).`],
   scale: ['4초마다 패턴이 바뀝니다. 밝게 빛나는 쪽에 따라 받는 피해와 속도가 달라집니다. 10번째 보스마다 나타나고, 쓰러뜨리면 거래를 제안합니다.', '오른쪽이 밝을 때 피해가 잘 들어갑니다. 그때 화력을 몰아 주세요. 왼쪽이 밝을 때는 느리게 움직이니 서두르지 않아도 됩니다.'],
 };
@@ -1468,7 +1468,7 @@ function helpHtml() {
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div><p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 보스가 황금체가 됩니다.</p>`;
   const link = `<p class="hnote">웨이브 중에는 무기 아래 판에서 블록을 이웃 칸 쪽으로 밀어 자리를 바꿉니다. 무기 바로 아래 칸부터 그 무기 블록을 ${C.PIPE.need}개 이상 이으면 무기가 공격합니다. ${C.PIPE.need}개를 넘는 블록 하나마다 공격 속도 +${Math.round(C.PIPE.bonus * 100)}%.</p>`;
-  const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), ${C.CFG.bossWaves}웨이브마다 보스가 나옵니다. 적을 모두 막으면 정비 시간(최대 ${C.PREP.T}초)이 됩니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
+  const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), 웨이브마다 보스가 나옵니다(${C.PREP.bossAt}초쯤). 적을 모두 막으면 정비 시간(최대 ${C.PREP.T}초)이 됩니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
     <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
     ${sec('연결', link)}${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
