@@ -851,6 +851,25 @@ b { font-weight: 600; }
 .devofx s { position: absolute; left: 50%; top: 40%; width: 6px; height: 6px; margin: -3px; background: var(--danger); animation: upspark .8s ease-in forwards; }
 @media (prefers-reduced-motion: reduce) { .devofx s, .skdot { animation: none; } .devofx .glow { animation: upfade .9s linear forwards; } }
 
+/* 강화로 스킬 포인트를 받은 순간 (T14a): 별빛 캔버스(대장간 창 위), ★ 스킬 버튼이 한 번 밝아짐, 대장간이 옅어지며 스킬 창이 떠오름 */
+#skFxCv { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 11; }
+#skFxCv[hidden] { display: none; }
+.btn.evob.skglow { animation: skglow .6s ease-out var(--skd, 0s); }
+.btn.evob.skglow .fl { animation: skglowl .6s ease-out var(--skd, 0s); }
+@keyframes skglow { 30% { border-color: var(--accent); box-shadow: 0 0 14px 1px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 0 18px color-mix(in srgb, var(--accent) 50%, transparent); } }
+@keyframes skglowl { 30% { transform: scale(1.07); color: var(--accent-ink); } }
+.modal.skm.skrise { position: relative; z-index: 1; animation: skrise .25s ease-out both; }
+@keyframes skrise { from { opacity: 0; transform: translateY(12px) scale(.98); filter: blur(4px); } }
+.modal.fgout { position: absolute; z-index: 0; margin: 0; pointer-events: none; animation: fgout .24s ease-in forwards; }
+@keyframes fgout { to { opacity: 0; filter: blur(3px); } }
+@keyframes skfade { from { opacity: 0; } }
+@keyframes fgfade { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .btn.evob.skglow .fl { animation: none; }
+  .modal.skm.skrise { animation: skfade .2s ease-out both; }
+  .modal.fgout { animation: fgfade .2s ease-in forwards; }
+}
+
 /* 스킬 창 */
 .modal.skm { gap: 9px; padding: 12px; }
 .skm .wm-head h2 { font: 22px/1 var(--font-display); }

@@ -114,6 +114,10 @@ let evoK = -1;                 // 진화 창이 열린 칸
 let swK = -1, swT = null;      // 무기 교체 창이 열린 칸, 고른 종류 (T13f)
 let skK = -1, skSel = null, skGot = null;   // 스킬 창: 칸, 고른 노드 {l, t}, 방금 찍은 노드 {l, t}
 const skMem = new WeakMap();                // 무기별로 마지막에 찍은 노드 {l, t}. 무기 객체에 묶여 칸을 옮겨도 따라가고, Core.S 에는 남지 않는다
+let skFx = null;                // 강화로 스킬 포인트를 받은 연출 {w, S, t0, D}. 끝나면 스킬 창이 뜬다. 그동안 누름을 받지 않는다 (T14a)
+let skIntro = false, skOpenAt = 0;   // 다음 그리기에 스킬 창이 떠오르며 나타남, 그렇게 뜬 때 (0.4초 동안, 그리고 그 전에 시작한 누름은 찍기·노드를 받지 않는다)
+let downAt = 0;                 // 마지막 누름이 시작한 때
+const ptrs = new Set();         // 지금 화면에 닿아 있는 손가락 (닿아 있는 동안에는 창을 바꾸지 않는다)
 let meltMode = false, meltAllArm = false;   // 대장간의 용해로 탭이 열림, 모두 분해 확인
 let fTab = 'w', fK = -1;       // 대장간을 다시 열 때의 탭(무기 w, 기지 b, 용해로 m)과 무기 칸
 const meltSet = new Set();   // 용해로 모드에서 고른 인벤토리 칸 (여러 개)
@@ -1138,7 +1142,7 @@ function skOpenSel(w) {
   const m = skMem.get(w);
   return m && C.skillPoints(w).spent > 0 ? { l: m.l, t: m.t } : skFirst(w);
 }
-function skillHtml() {
+function skillHtml(intro) {   // intro: 포인트를 받아 떠오르며 나타나는 첫 그리기 (T14a)
   const w = C.S.slots[skK], d = C.WEAPONS[w.type], P = C.skillPoints(w), tree = C.SKILLS[w.type];
   if (!skSel) skSel = skOpenSel(w);
   const cols = tree.map((line, l) => {
@@ -1158,7 +1162,7 @@ function skillHtml() {
   else if (i.rank >= i.max) body = `<span class="skfx">${cur}</span><span class="skreq">최대 랭크입니다.</span>`;
   else body = `<span class="skfx${i.rank ? '' : ' dim'}">${i.rank ? cur : '아직 찍지 않음'}</span><span class="skarr">▼</span><span class="skfx nx">${nxt}</span>`;
   const noPt = !i.can && !i.locked && i.rank < i.max;   // 포인트가 없을 때는 버튼 글로 알린다 (설명 칸 높이를 고정해 두었으므로 줄을 늘리지 않는다)
-  return `<div class="modal skm" style="--wc:${d.color}"><div class="wm-head"><div><h2>스킬</h2><span class="st"><b style="color:${d.color}">${d.name} ${lvTxt(w)}</b></span></div>
+  return `<div class="modal skm${intro ? ' skrise' : ''}" style="--wc:${d.color}"><div class="wm-head"><div><h2>스킬</h2><span class="st"><b style="color:${d.color}">${d.name} ${lvTxt(w)}</b></span></div>
       <span class="skpts${P.left > 0 ? ' has' : ''}">남은 포인트 <b>${P.left}</b></span></div>
     <div class="skgrid">${cols}</div>
     <div class="skdet"><div class="skhd"><span class="skpic${i.locked ? ' lock' : i.rank > 0 ? ' on' : ''}">${skIcon(i.node)}</span><b>${i.name}</b><span class="skk">${SK_KIND[i.node.t]}</span><span class="skrk">${i.rank}/${i.max}</span></div>${body}</div>
@@ -1617,9 +1621,14 @@ function renderOverlay() {
     const it = S.inv[partSwap.i], holder = partSwap.k === 'base' ? S.base : S.slots[partSwap.k];
     if (!it || it.kind !== 'p' || !holder) partSwap = null; else h = swapHtml();
   }
+  let fade = null;                                       // 포인트로 스킬 창이 뜰 때: 대장간 창은 그 자리에서 옅어지고 스킬 창이 떠오른다 (T14a)
   if (!h && mode === 'play' && S && skK >= 0) {         // 스킬 창
     const w = S.slots[skK];
-    if (!w || !w.evo) { skK = -1; skSel = null; } else h = skillHtml();
+    if (!w || !w.evo) { skK = -1; skSel = null; }
+    else {
+      h = skillHtml(skIntro);
+      if (skIntro) { skIntro = false; skOpenAt = performance.now(); fade = elO.hidden ? null : elO.querySelector(':scope > .modal.fg'); }
+    }
   }
   if (!h && mode === 'play' && S && evoK >= 0) {        // 진화 창
     const w = S.slots[evoK];
@@ -1639,7 +1648,13 @@ function renderOverlay() {
   }
   elO.classList.toggle('pactv', !!h && h.startsWith('<div class="pv'));
   if (skGot) { const g = skGot; skGot = null; setTimeout(() => { const t = elO.querySelector(`[data-sk="${g.l}:${g.t}"]`); if (t) t.classList.remove('got'); }, 600); }
-  if (h) {
+  if (fade && h) {
+    const r = fade.getBoundingClientRect(), o = elO.getBoundingClientRect(), st = fade.scrollTop;   // 옮기지 않고 그 자리에 둔다 (안의 연출이 처음부터 다시 돌지 않게)
+    Object.assign(fade.style, { left: (r.left - o.left) + 'px', top: (r.top - o.top) + 'px', width: r.width + 'px', height: r.height + 'px' });
+    for (const c of [...elO.children]) if (c !== fade) c.remove();
+    fade.classList.add('fgout'); fade.scrollTop = st; elO.insertAdjacentHTML('beforeend', h);
+    setTimeout(() => fade.remove(), 300);
+  } else if (h) {
     elO.innerHTML = h; elO.hidden = false;
     const mv = elO.querySelectorAll('.pv-emb [data-to]');   // 천칭 그림: 이전 기울기에서 새 기울기로
     if (mv.length) { void elO.offsetWidth; for (const e of mv) e.style.transform = e.dataset.to.slice(10); }
@@ -1649,7 +1664,7 @@ function renderOverlay() {
 
 /* ---------- 조작 ---------- */
 function resetUi() {
-  sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; swK = -1; swT = null; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
+  sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; swK = -1; swT = null; skK = -1; skSel = null; skGot = null; skFx = null; skIntro = false; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); evoRun.length = 0; rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; optsFrom = ''; abKey = ''; testView = false; testMsg = '';
   pOut = null; elB.classList.remove('rise');
@@ -1897,10 +1912,103 @@ function doUpgrade(k) {
     burstAt(elW.querySelector(`[data-slot="${k}"]`), r.success, r.lv, r.drop, r.evo);
   }
   if (S.pendingAug) { augSel = -1; augRep = -1; augSkip = false; }
-  if (r.point) { skK = k; skSel = null; Snd.play('skill'); setTimeout(() => Snd.play('aug'), 90); }   // 진화한 무기가 포인트를 받으면 스킬 창이 열린다
   renderOverlay();
+  if (r.point) skPointFx(k);   // 진화한 무기가 포인트를 받으면 짧은 연출 뒤에 스킬 창이 열린다
   if (r.drop && !r.devo) { say(`강화 실패. 도박사의 대가로 단계가 1 내려갔습니다. (${r.evo ? '★' : ''}+${r.lv})`, true); updateWInfo(); }
   drainEvq();
+}
+/* ---------- 스킬 포인트를 받은 순간 (T14a): 짧은 연출 뒤에 스킬 창 ----------
+   대장간 무기 칩에서 작은 별빛 몇 개가 번지며 떠올라, 옅은 꼬리를 끌며 ★ 스킬 버튼으로 흘러 들어간다. 버튼은 별이 닿을 때 한 번 밝아진다.
+   그동안은 누름을 받지 않고(연타가 다음 강화로 새지 않게), 창이 뜬 뒤 0.4초와 그 전에 시작한 누름은 찍기·노드를 받지 않는다.
+   움직임 줄이기면 별 없이 버튼만 밝아지고 창은 흐려지기만 한다. 별은 따로 둔 캔버스에 그린다 (대장간 창 위, 실제 시간 기준) */
+const SKFX = { D: 0.7, Dq: 0.45, n: 6, lock: 400 };   // 길이(초), 움직임 줄이기 길이, 별 수, 창이 뜬 뒤 막는 시간(ms)
+let skCv = null;
+function skPointFx(k) {
+  const S = C.S, w = S.slots[k]; if (!w) return;
+  const rm = RM.matches, D = rm ? SKFX.Dq : SKFX.D, fx = skFx = { w, S, t0: performance.now(), D };
+  Snd.play('skill');
+  const btn = elO.querySelector('[data-act="skOpen"]'), at = rm ? 0 : D * 0.7;   // 버튼이 밝아지는 때 = 첫 별이 닿을 때
+  if (btn) { btn.style.setProperty('--skd', at.toFixed(2) + 's'); btn.classList.add('skglow'); }
+  const src = elO.querySelector(`[data-fw="${k}"]`) || elW.querySelector(`[data-slot="${k}"]`);
+  if (!rm && src && btn) skStars(fx, src, btn);
+  setTimeout(() => skFxEnd(fx), D * 1000);
+}
+function skFxEnd(fx) {
+  if (skFx !== fx) return;
+  if (ptrs.size && performance.now() - fx.t0 < 3000) { setTimeout(() => skFxEnd(fx), 50); return; }   // 손가락이 닿아 있으면 뗄 때까지 창을 바꾸지 않는다 (신호가 끊겨도 3초 뒤에는 연다)
+  skFx = null;
+  const S = C.S, k = S === fx.S ? S.slots.indexOf(fx.w) : -1;
+  if (k < 0 || !fx.w.evo || S.over || mode === 'over') return;
+  skK = k; skSel = null; skIntro = true;
+  Snd.play('aug'); renderOverlay();
+}
+const skLock = (ev) => performance.now() - skOpenAt < SKFX.lock || (ev.detail > 0 && downAt < skOpenAt);
+function skStars(fx, src, dst) {
+  if (!skCv) { skCv = document.createElement('canvas'); skCv.id = 'skFxCv'; $('#app').appendChild(skCv); }
+  const a = $('#app').getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), W = a.width, H = a.height;
+  skCv.width = Math.round(W * dpr); skCv.height = Math.round(H * dpr); skCv.hidden = false;
+  const g = skCv.getContext('2d'), rs = src.getBoundingClientRect(), rd = (dst.querySelector('.fl') || dst).getBoundingClientRect();
+  const box = elO.firstElementChild ? elO.firstElementChild.getBoundingClientRect() : a;   // 버튼이 창 아래로 스크롤돼 안 보이면 창의 보이는 아래 끝으로
+  const tx = rd.left - a.left + 8, ty = Math.min(rd.top + rd.height / 2, box.bottom - 14) - a.top;
+  const sx = rs.left - a.left + rs.width / 2, sy = rs.top - a.top + rs.height * 0.42;
+  const L = theme.scheme === 'light', col = theme.v.accent, core = L ? col : '#ffffff', sd = (fx.t0 % 997) / 997;
+  const mid = (box.left + box.right) / 2 - a.left, side = Math.abs(mid - sx) < 40 ? 0 : Math.sign(mid - sx);   // 곡선은 창 안쪽으로 휜다 (가운데 칩이면 양쪽으로 나뉜다)
+  const P = [];
+  for (let i = 0; i < SKFX.n; i++) {          // 위쪽 부채꼴로 흩어졌다가 저마다 조금 다른 곡선으로 버튼에 모인다
+    const h1 = hash(sd * 13 + i * 3.7), h2 = hash(sd * 7 + i * 1.3), h3 = hash(sd * 3 + i * 5.1);
+    const an = -Math.PI / 2 + (i / (SKFX.n - 1) - 0.5) * 2.3 + (h1 - 0.5) * 0.45, sp = rs.width * (0.4 + 0.45 * h2);
+    P.push({ x0: sx + (h3 - 0.5) * rs.width * 0.45, y0: sy + (h1 - 0.5) * rs.height * 0.3, dx: Math.cos(an) * sp, dy: Math.sin(an) * sp * 0.8 - 5,
+      s: 3.4 + 2.4 * h2, dl: 0.09 * h3, bend: (side || (i % 2 ? 1 : -1)) * (22 + 70 * hash(sd * 5 + i * 2.9)), rot: h2 * 6.28, spin: (h1 - 0.5) * 7, tw: h3 * 6.28 });
+  }
+  const RISE = 0.24, FLY = 0.27;              // 떠오름, 날아감 (초)
+  const pos = (p, t) => {                     // t 초 뒤의 자리와 진행 (b: 날아감 0..1), 아직이면 null
+    const u = t - p.dl; if (u < 0) return null;
+    const r = Math.min(1, u / RISE), e = 1 - (1 - r) * (1 - r), x1 = p.x0 + p.dx * e, y1 = p.y0 + p.dy * e + Math.sin(u * 9 + p.tw) * 1.2;
+    if (u <= RISE) return { x: x1, y: y1, b: 0, r };
+    const b = Math.min(1, (u - RISE) / FLY), f = b * b * (2.2 - 1.2 * b);   // 처음엔 천천히, 갈수록 빨리 빨려 든다
+    const ex = p.x0 + p.dx, ey = p.y0 + p.dy, cx = ex + (tx - ex) * 0.35 + p.bend, cy = ey + (ty - ey) * 0.35, q = 1 - f;   // 버튼은 칩 아래에 있으니 옆으로 부풀린다 (+ 오른쪽)
+    return { x: q * q * ex + 2 * q * f * cx + f * f * tx, y: q * q * ey + 2 * q * f * cy + f * f * ty, b, r: 1 };
+  };
+  const star = (x, y, s, rot, c, al) => {     // 네 갈래 별 (가로세로 조금 다르게, 천천히 돈다)
+    g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = rgba(c, al); g.beginPath();
+    g.moveTo(0, -s * 1.15); g.quadraticCurveTo(0, 0, s, 0); g.quadraticCurveTo(0, 0, 0, s * 1.15); g.quadraticCurveTo(0, 0, -s, 0); g.quadraticCurveTo(0, 0, 0, -s * 1.15); g.fill(); g.restore();
+  };
+  const halo = (x, y, r, al) => {
+    if (r <= 0 || al <= 0) return;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(col, al)); gr.addColorStop(1, rgba(col, 0));
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  };
+  const T = fx.D + 0.12;
+  const draw = () => {
+    const t = (performance.now() - fx.t0) / 1000;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    if (t >= T || skFx !== fx && t > fx.D) { skCv.hidden = true; return; }
+    const c0 = Math.min(1, t / 0.32);         // 칩에서 서서히 번지는 빛
+    halo(sx, sy, rs.width * (0.35 + 0.5 * c0), (L ? 0.3 : 0.38) * Math.sin(Math.PI * c0));
+    let land = -1;                            // 가장 먼저 닿은 별의 때: 버튼 쪽에 옅은 빛이 번진다
+    for (const p of P) { const u = t - p.dl - RISE - FLY; if (u >= 0) land = Math.max(land, u); }
+    if (land >= 0) { const v = Math.min(1, land / 0.22); halo(tx, ty, 14 + 16 * v, (L ? 0.32 : 0.42) * (1 - v)); }
+    g.lineCap = 'round';
+    for (const p of P) {
+      const h = pos(p, t); if (!h || h.b >= 1) continue;
+      const fade = Math.min(1, (t - p.dl) / 0.08) * (1 - Math.pow(h.b, 5)), sz = p.s * (0.35 + 0.65 * h.r) * (1 - 0.55 * h.b * h.b) * (0.88 + 0.12 * Math.sin(t * 34 + p.tw));
+      let px = h.x, py = h.y, len = 0;        // 꼬리: 지나온 자리를 시간으로 되짚어 가늘고 옅게 (넓고 옅은 빛 위에 가는 선). 빨라져도 60px 까지만
+      for (let j = 1; j <= 10 && len < 60; j++) {
+        const o = pos(p, t - j * 0.013); if (!o) break;
+        len += Math.hypot(o.x - px, o.y - py);
+        const k = 1 - j / 11;
+        g.strokeStyle = rgba(col, (L ? 0.16 : 0.14) * fade * k); g.lineWidth = sz * 2.2 * k;
+        g.beginPath(); g.moveTo(px, py); g.lineTo(o.x, o.y); g.stroke();
+        g.strokeStyle = rgba(L ? col : core, (L ? 0.6 : 0.5) * fade * k * k); g.lineWidth = Math.max(0.7, sz * 0.6 * k);
+        g.stroke(); px = o.x; py = o.y;
+      }
+      halo(h.x, h.y, sz * 3.6, (L ? 0.32 : 0.38) * fade);
+      star(h.x, h.y, sz, p.rot + p.spin * t, core, 0.95 * fade);
+      if (L) star(h.x, h.y, sz * 0.45, p.rot + p.spin * t, '#ffffff', 0.8 * fade);
+    }
+    requestAnimationFrame(draw);
+  };
+  requestAnimationFrame(draw);
 }
 function doBaseUpgrade() {
   const S = C.S, b = S.base;
@@ -2086,8 +2194,9 @@ window.addEventListener('pointermove', (ev) => {
   }
   if (ev.cancelable) ev.preventDefault();
 }, { passive: false });
-window.addEventListener('pointerup', (ev) => { if (drag && ev.pointerId === drag.id) endDrag(true, ev.clientX, ev.clientY); });
-window.addEventListener('pointercancel', (ev) => { if (drag && ev.pointerId === drag.id) endDrag(false); });
+window.addEventListener('pointerdown', (ev) => { ptrs.add(ev.pointerId); downAt = performance.now(); }, true);
+window.addEventListener('pointerup', (ev) => { ptrs.delete(ev.pointerId); if (drag && ev.pointerId === drag.id) endDrag(true, ev.clientX, ev.clientY); });
+window.addEventListener('pointercancel', (ev) => { ptrs.delete(ev.pointerId); if (drag && ev.pointerId === drag.id) endDrag(false); });
 document.addEventListener('touchmove', (ev) => { if (drag && drag.active && ev.cancelable) ev.preventDefault(); }, { passive: false });
 
 function doWput(i) {                        // 인벤토리의 i번 파츠를 지금 고른 파츠 칸에 넣는다 (차 있으면 맞바꾼다)
@@ -2305,6 +2414,7 @@ function act(name) {
 }
 $('#app').addEventListener('click', (ev) => {
   const S = C.S;
+  if (skFx) return;                                  // 스킬 포인트 연출 중: 연타가 다음 강화나 창 바깥 누름으로 새지 않게 (T14a)
   // 무기 창이나 기지 창의 바깥 부분을 누르면 닫힌다
   if (ev.target === elO && mode === 'play' && S && evoK >= 0) { evoK = -1; renderOverlay(); return; }   // 진화 창은 바깥을 눌러도 닫힌다
   if (ev.target === elO && mode === 'play' && S && swK >= 0) { swK = -1; swT = null; renderOverlay(); return; }   // 교체 창도
@@ -2317,7 +2427,7 @@ $('#app').addEventListener('click', (ev) => {
   if (b.id === 'pauseBtn') { pause(); return; }
   if (b.id === 'speedBtn') { speed = speed === 1 ? 2 : 1; b.textContent = speed + '배'; b.classList.toggle('on', speed === 2); abKey = ''; renderWeapons(); renderBottom(); return; }   // 예고 막대는 속도에 맞춰 다시 만든다
   const ds = b.dataset;
-  if (ds.sk != null) { if (skK < 0) return; const [l, t] = ds.sk.split(':').map(Number); skSel = { l, t }; Snd.play('tap'); renderOverlay(); return; }
+  if (ds.sk != null) { if (skK < 0 || skLock(ev)) return; const [l, t] = ds.sk.split(':').map(Number); skSel = { l, t }; Snd.play('tap'); renderOverlay(); return; }
   if (ds.opt) { if (!optsFrom || !OPTS.some(r => r.k === ds.opt)) return; opts[ds.opt] = !opts[ds.opt]; saveOpts(); Snd.play('tap'); renderOverlay(); if (ds.opt === 'partTip') renderWeapons(); return; }   // 설정 창의 켬/끔
   if (ds.theme) { const t = THEMES.find(x => x.id === ds.theme); if (t) { applyTheme(t, true); Snd.play('tap'); renderAll(); } return; }
   if (ds.tc) {                                       // 테스트 창의 체크 항목
@@ -2326,7 +2436,10 @@ $('#app').addEventListener('click', (ev) => {
   }
   if (ds.tw) { testRun('give', ds.tw); return; }     // 테스트 창의 무기 받기
   if (ds.tb) { testRun('boss', ds.tb); return; }     // 테스트 창의 보스 고르기
-  if (ds.act) { if (prepWave() && PREP_LOCK.has(ds.act)) { say(PREP_MSG, true); return; } act(ds.act); return; }
+  if (ds.act) {
+    if ((ds.act === 'skUp' || ds.act === 'skClose') && skLock(ev)) return;   // 포인트로 스킬 창이 막 떴을 때 (T14a)
+    if (prepWave() && PREP_LOCK.has(ds.act)) { say(PREP_MSG, true); return; } act(ds.act); return;
+  }
   if (ds.aug != null || ds.rep != null) {
     if (!S || !S.pendingAug || performance.now() - augOpenAt < 400) return; // 연타 중 잘못 누르는 것 방지
     if (ds.aug != null) { augSel = +ds.aug; augRep = -1; augOpenAt = performance.now(); } else augRep = +ds.rep;
@@ -2365,7 +2478,7 @@ $('#app').addEventListener('click', (ev) => {
   if (ds.inv != null) return tapInv(+ds.inv);
   if (ds.slot != null) return tapSlot(+ds.slot);
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { ptrs.clear(); pause(); } });
 
 /* ---------- 전장 그리기 ---------- */
 function resize() {
