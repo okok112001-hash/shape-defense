@@ -5,6 +5,7 @@
    사용:
      node tools/value.js                  가치 표와 예산 밖 목록 (tools/value_report.txt)
      node tools/value.js fit              측정값으로 계수를 다시 맞추고 예측과 측정을 비교 (tools/value_cal.json, tools/value_fit.txt)
+     node tools/value.js check            파츠 검사 셋만 (지배, 거래형 배율, 전설 전용, 단순 파츠. 걸리면 종료 코드 1)
      node tools/value.js item <id> [등급] [무기]   항목 하나 (시나리오별)
      node tools/value.js line <무기>.<줄> [배율]  스킬 줄 하나 (랭크별 누적, 배율 sc 를 바꿔 볼 수 있다)
      node tools/value.js holdout          표본 밖 확인 (항목을 둘로 나눠 한쪽으로 맞추고 다른 쪽을 예측)
@@ -722,6 +723,10 @@ const layFor = (t, PP) => Object.assign({}, t === 'laser' ? LAY.I5 : LAY.X2, { s
 function partVal(id, g, t, PP) { return eqAll(statsOf(t, { p: [[id, g]] }), statsOf(t, {}), layFor(t, PP), PP); }
 function augVal(id, g, t, PP) { return eqAll(statsOf(t, { a: [[id, g]] }), statsOf(t, {}), layFor(t, PP), PP); }
 const heroEq = (vals, min) => (min >= 3 ? vals[3] / GRADE_RATIO[3] : vals[2]);   // 전설만 있는 항목은 전설 / 2.5 를 영웅 몫으로
+// 거래형 파츠 (T15a 규칙 ①): 한 수치를 깎고 다른 수치를 올린다. 비교할 같은 등급 단순 파츠. 잘 맞는 무기에서 그 파츠의 1.3배(검사 1.15~1.45), 안 맞는 무기에서는 손해.
+//   예산 판정도 영웅 기준의 TRADE_X 배로 한다. 거래형을 새로 넣으면 이 표에 더한다
+const TRADE = { glass: 'dmg', heavy: 'dmg', light: 'rate', nolimit: 'spread' };
+const TRADE_X = 1.3, TRADE_LO = 1.15, TRADE_HI = 1.45;
 function judge(v, budget) { const r = v / budget; return { r, flag: r > 1.5 ? '강함' : r < 1 / 1.5 ? '약함' : '' }; }
 
 function buildTables(PP) {
@@ -777,11 +782,58 @@ function buildTables(PP) {
   });
   // 예산 밖 목록
   const flag = (kind, label, g, v, hero) => { const j = judge(v, GRADE_RATIO[g] * hero); if (j.flag) out.flags.push({ kind, label, g, v, budget: GRADE_RATIO[g] * hero, r: j.r, flag: j.flag }); };
-  for (const r of out.parts) if (r.id !== 'gold') for (const g in r.g) flag('무기 파츠', `${r.id} ${r.name}`, +g, r.g[g].avg, out.partHero);
+  for (const r of out.parts) if (r.id !== 'gold') for (const g in r.g) flag('무기 파츠', `${r.id} ${r.name}`, +g, r.g[g].avg, out.partHero * (TRADE[r.id] ? TRADE_X : 1));
   for (const r of out.augs) for (const g in r.g) flag('증강', `${r.id} ${r.name}${r.for === 'all' ? ' (' + r.g[g].best + ')' : ''}`, +g, r.g[g].e.all, out.augHero);
   for (const r of out.base) for (const g in r.g) flag(r.kind === 'part' ? '기지 파츠' : '기지 증강', `${r.id} ${r.name}`, +g, r.g[g].tot / 100, out['base' + r.kind + 'Hero']);
+  out.checks = partChecks(out.parts);
   return out;
 }
+
+// 파츠 검사 셋 (T15a). 걸린 것만 문자열로 돌려준다
+//   가) 지배: 같은 등급에서 모든 무기(범위 무기 전용은 범위 무기)에서 다른 파츠 B 가 A 의 1.05배 넘고 0.5 넘게 큰 A (gold 는 뺌. B 에 전설 전용 특수 파츠는 넣지 않는다)
+//   나) 거래형 배율: TRADE 의 파츠가 잘 맞는 무기에서 단순 파츠의 1.15~1.45배인가, 손해 보는 무기가 있는가
+//   다) 전설 전용(min 3, 거래형 아님)이 전설 강화 탄두의 0.95배 이상인가
+//   라) 규칙 ③: 모든 무기에서 같은 값인 단순 파츠가 강화 탄두와 같은가 (0.95~1.05배)
+function partChecks(parts) {
+  const by = {}; for (const r of parts) by[r.id] = r;
+  const L = parts.filter((r) => r.id !== 'gold'), ck = { dom: [], trade: [], leg: [], flat: [] };
+  const legOnly = (r) => r.min >= 3 && !TRADE[r.id];   // 규칙 ②: 전설 전용 특수 파츠는 같은 등급 단순 파츠보다 세게 두므로 가) 의 B 에서 뺀다
+  const big = (b, a) => b > a + Math.max(0.005, 0.05 * Math.abs(a));
+  for (const A of L) for (const g in A.g) {
+    const ws = A.area ? AREA_W : WEAPON_IDS;
+    const doms = L.filter((B) => B !== A && (A.area || !B.area) && !legOnly(B) && B.g[g] && ws.every((t) => big(B.g[g].per[t], A.g[g].per[t]))).map((B) => B.id);
+    if (doms.length) ck.dom.push(`${A.id} ${A.name} ${GR[g]}: ${doms.join(', ')} 가 모든 무기에서 더 셈`);
+  }
+  for (const id in TRADE) {
+    const A = by[id], Bp = by[TRADE[id]]; if (!A || !Bp) { ck.trade.push(`${id}: 표의 파츠가 없음`); continue; }
+    for (const g in A.g) {
+      if (!Bp.g[g]) { ck.trade.push(`${id} ${GR[g]}: 비교할 ${TRADE[id]} ${GR[g]} 없음`); continue; }
+      const ws = (A.area ? AREA_W : WEAPON_IDS).filter((t) => Bp.g[g].per[t] > 0.001);
+      const rs = ws.map((t) => [t, A.g[g].per[t] / Bp.g[g].per[t]]).sort((a, b) => b[1] - a[1]), [bt, br] = rs[0], lose = rs.filter((x) => x[1] < 1);
+      const msg = `${id} ${A.name} ${GR[g]}: 최고 x${br.toFixed(2)} (${bt}, ${TRADE[id]} 대비), 손해 ${lose.length ? lose.map((x) => x[0]).join(',') : '없음'}`;
+      if (br < TRADE_LO || br > TRADE_HI || !lose.length) ck.trade.push(msg); else ck.tradeOk = (ck.tradeOk || []).concat(msg);
+    }
+  }
+  const dl = by.dmg.g[3].avg;
+  for (const A of L) if (A.min >= 3 && !TRADE[A.id] && A.g[3]) { const r = A.g[3].avg / dl; if (r < 0.95) ck.leg.push(`${A.id} ${A.name} 전설: ${(A.g[3].avg * 100).toFixed(1)} / 강화 탄두 ${(dl * 100).toFixed(1)} = x${r.toFixed(2)}`); }
+  for (const A of L) if (A.id !== 'dmg' && !A.area) for (const g in A.g) {
+    const v = WEAPON_IDS.map((t) => A.g[g].per[t]), lo = Math.min(...v), hi = Math.max(...v);
+    if (hi - lo > 0.01 * Math.max(0.01, Math.abs(hi)) || !by.dmg.g[g]) continue;
+    const r = hi / by.dmg.g[g].avg; if (r < 0.95 || r > 1.05) ck.flat.push(`${A.id} ${A.name} ${GR[g]}: ${(hi * 100).toFixed(1)} / 강화 탄두 ${(by.dmg.g[g].avg * 100).toFixed(1)} = x${r.toFixed(2)}`);
+  }
+  return ck;
+}
+function checkText(ck) {
+  const o = ['=== 파츠 검사 (T15a. 걸린 것이 없으면 "없음") ==='];
+  const sec = (h, L) => { o.push(`  [${h}] ${L.length ? '' : '없음'}`); for (const x of L) o.push('    ' + x); };
+  sec('가) 다른 파츠가 모든 무기에서 더 센 파츠', ck.dom);
+  sec(`나) 거래형 배율이 ${TRADE_LO}~${TRADE_HI}배 밖이거나 손해 보는 무기가 없음`, ck.trade);
+  if (ck.tradeOk) for (const x of ck.tradeOk) o.push('    (통과) ' + x);
+  sec('다) 전설 전용 파츠가 전설 강화 탄두의 0.95배 미만', ck.leg);
+  sec('라) 모든 무기에 같은 값인 단순 파츠가 강화 탄두와 다름 (0.95~1.05배 밖)', ck.flat);
+  return o;
+}
+const checkCount = (ck) => ck.dom.length + ck.trade.length + ck.leg.length + ck.flat.length;
 
 /* ---------- 리포트 ---------- */
 function reportText(T, PP, fitInfo) {
@@ -796,6 +848,7 @@ function reportText(T, PP, fitInfo) {
   o.push(`  기지 항목: F = 모든 무기 공격력 +% 어치, S = 기지 유효 체력 +%, G = 재화 +%. 교환 비율 1 S = ${(PP.x.aS / PP.x.aF).toFixed(2)} F, 1 G = ${(PP.x.aG / PP.x.aF).toFixed(2)} F (회복은 ${PP.x.Treg}초 동안 모인 양을 유효 체력으로 센다).`);
   o.push(`  등급 예산 = [${GRADE_RATIO.join(', ')}] x 영웅 기준(무기 파츠 ${Math.round(T.partHero * 100)}, 증강 ${Math.round(T.augHero * 100)} 고정, 기지 항목은 영웅 평균). 예산의 1.5배 넘으면 "강함", 1/1.5 밑이면 "약함".`);
   o.push('  무기 파츠와 공용 증강은 가장 잘 맞는 무기로 판정한다(강한 쪽이 상한. 맞지 않는 무기에서는 약해도 된다). 등급 범위(min~max) 밖은 나오지 않는다.');
+  o.push(`  거래형 파츠(${Object.keys(TRADE).join(', ')})의 예산은 x${TRADE_X} (T15a 규칙: 잘 맞는 무기에서 같은 등급 단순 파츠의 ${TRADE_X}배).`);
   o.push('');
   o.push(`=== 무기 파츠 (무기 8종 각각에 달았을 때 종합 가치. 판정은 가장 잘 맞는 무기, 영웅 기준 ${(T.partHero * 100).toFixed(0)}, 참고: 8종 평균의 영웅 평균 ${(T.partHeroMean * 100).toFixed(1)}) ===`);
   o.push('  ' + pad('파츠', 22) + pad('등급', 6) + WEAPON_IDS.map((t) => lpad(t.slice(0, 6), 8)).join('') + lpad('최고', 8) + lpad('예산', 7) + lpad('비', 6) + '  판정');
@@ -830,6 +883,8 @@ function reportText(T, PP, fitInfo) {
     o.push(`    랭크별 누적 R: ${s.steps.map((x, i) => (i < s.steps.length - 1 && x.tier !== s.steps[i + 1].tier ? rk[i] + ' |' : rk[i])).join(' ')}`);
   }
   o.push('  (박격포는 T5a 의 새 트리. 이 무기는 같은 무기 다섯 자루가 버티지 못해 skill_eq.js --mix(섞인 팀)로 잰다. 융단 폭격·충격파 기구 계수는 아직 영점 전. 전격기, 저격포, 산성은 아직 옛 트리(증강 효과를 나눠 담은 노드). 저격포 관통 저격, 이중 저격은 core.js 의 100 나누기 중복으로 피해가 1/100 이다)');
+  o.push('');
+  o.push(...checkText(T.checks));
   o.push('');
   o.push('=== 예산에서 크게 벗어난 항목 (계산기 판정) ===');
   for (const kind of ['무기 파츠', '증강', '기지 파츠', '기지 증강']) {
@@ -931,6 +986,8 @@ if (cmd === 'fit' || cmd === 'table') {
   const txt = reportText(buildTables(P), P, info);
   fs.writeFileSync(path.join(__dirname, 'value_report.txt'), txt);
   console.log(cmd === 'fit' ? '저장: tools/value_cal.json, tools/value_fit.txt, tools/value_report.txt' : '저장: tools/value_report.txt');
+} else if (cmd === 'check') {   // 파츠 검사 셋만 (걸리면 종료 코드 1)
+  const ck = buildTables(P).checks; console.log(checkText(ck).join('\n')); if (checkCount(ck)) process.exit(1);
 } else if (cmd === 'item') {
   const id = args[1], g = args[2] != null ? +args[2] : 2, kind = PARTS[id] ? 'part' : AUGS[id] ? 'aug' : null;
   if (!kind) { console.error('모르는 항목: ' + id); process.exit(1); }
@@ -970,5 +1027,5 @@ if (cmd === 'fit' || cmd === 'table') {
   }
   console.log(`표본 밖 예측: 항목 ${N}개 중 비 0.8~1.25 안 ${A}개, 0.9~1.1 안 ${B2}개`);
   console.log('25% 넘게 어긋남: ' + bad.join(', '));
-} else { console.error('명령: table | fit | holdout | item <id> [등급] [무기] | line <무기>.<줄> [배율]'); process.exit(1); }
+} else { console.error('명령: table | fit | check | holdout | item <id> [등급] [무기] | line <무기>.<줄> [배율]'); process.exit(1); }
 }
