@@ -1223,7 +1223,7 @@ function spawn(type, lane, x, y) {
   const e = {
     type, lane, x: x != null ? x : cx + (d.boss ? 0 : (rndS() - 0.5) * 30), y: y != null ? y : -d.r,
     r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(tD()),
-    boss: !!d.boss, born: S.t, h0: -1, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
+    boss: !!d.boss, born: S.t, f0: -1, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
     fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9,   // 스킬: 화염 화상, 초점 누적, 전기 사슬 기절
   };
   e.x = Math.max(e.r * 0.7, Math.min(W - e.r * 0.7, e.x));
@@ -1496,7 +1496,7 @@ function dot(e, amt, st, vap) {
   if (e.gd && st && st.w && st.w.au) amt *= 1 + GOLD.blkDmg * st.w.au;   // 황금 블록이 이어진 무기
   if (ghW(st)) { ghostHeal(e, amt); return; }   // 망령 블록과 이어진 무기: 피해 대신 회복
   if (vap && st.vap && !e.boss && (e.hp - amt) / e.maxHp <= st.vap) { if (amt < e.hp) vaporize(e); amt = Math.max(amt, e.hp); }   // 소멸: 용융선으로 체력 15% 이하
-  credit(st, amt, e); e.hp -= amt; if (!(e.h0 >= 0) && e.hp < e.maxHp * 0.5) e.h0 = S.t;   // h0: 체력이 처음 절반 아래로 떨어진 때 (배속 추천)
+  credit(st, amt, e); e.hp -= amt; if (!(e.f0 >= 0)) e.f0 = S.t;   // f0: 처음 맞은 때 (배속 추천)
   e.dAcc = (e.dAcc || 0) + amt;
   if (S.t - (e.dT || -1) >= 0.4 || e.hp <= 0) { fxNum(e.x + (rnd() - 0.5) * e.r, e.y - e.r * 0.2, e.dAcc, 2); e.dAcc = 0; e.dT = S.t; }
   if (e.hp <= 0) kill(e, st);
@@ -1530,7 +1530,7 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   }
   if (ghW(st)) { ghostHeal(e, d); return; }   // 망령 블록과 이어진 무기: 피해 대신 회복 (부가 효과, 폭발탄 없음)
   credit(st, d, e);
-  e.hp -= d; e.flash = 0.12; if (!(e.h0 >= 0) && e.hp < e.maxHp * 0.5) e.h0 = S.t;
+  e.hp -= d; e.flash = 0.12; if (!(e.f0 >= 0)) e.f0 = S.t;
   if (!noFx) {
   if (st.flame && !noFl) { e.fT = 3; e.fDps = Math.max(e.fDps || 0, st.dmg * st.flame); e.fSt = st; }   // 화염 산탄: 3초간 화상 (증강 화상과 따로 더해진다)
   if (st.slow) { e.slowT = 1.5; e.slowPct = Math.max(e.slowPct, e.boss ? st.slow * 0.5 : st.slow); }
@@ -3062,15 +3062,15 @@ const PREP = { spawnT: 90, span: 90, fill: 1, bossAt: 45 };
 function tD() { return S.prep ? PREP.span * (Math.max(1, S.wn) - 0.5) : S.t; }
 const spawnT = () => S.prep ? PREP.spawnT : CFG.waveSpawnT;   // 웨이브 하나에서 적이 나오는 시간
 // 배속 추천 (T13d, 연결 모드): 적이 쉽게 쓰러지는 동안 화면이 2배를 권한다. 웨이브 시계(S.wt, 게임 시간)로 재서 배속과 상관없고 난수를 쓰지 않는다.
-// 조건 둘 (사용자와 정함 2026-11-28): ① 최근 win 초 동안 기지 피해 없음 ② 그 동안 쓰러진 일반 적(보스, 상자 제외)이 체력 절반 아래로 깎인 뒤 쓰러지기까지 걸린 시간의 중앙값 hit 초 이하
-// ("반쯤 깎이면 바로 쓰러진다" = 화력이 남는다. 사거리에 들기 전 시간과 산성이 위에서 살짝 긁어 두는 것은 세지 않으니 무기 사거리와 상관없다).
-// 재는 방법: 이번 웨이브 안의 최근 win 초만 보므로 웨이브 시작 win 초 뒤부터, 그 동안 쓰러진 적이 n명 미만이면 판단하지 않는다.
+// 조건 둘 (사용자와 정함 2026-11-28, 같은 날 ②를 고쳤다): ① 최근 win 초 동안 기지 피해 없음 ② 그 동안 쓰러진 일반 적(보스, 상자 제외) 중 처음 맞고 hit 초 안에 쓰러진 적(한 방에 쓰러진 적 포함)이 n명 이상
+// ("맞으면 바로 쓰러진다" = 화력이 남는다. 사거리에 들기 전 시간은 세지 않으니 무기 사거리와 상관없다).
+// 재는 방법: 이번 웨이브 안의 최근 win 초만 보므로 웨이브 시작 win 초 뒤부터.
 // 다른 안(나타나서 쓰러지기까지, 무기가 노릴 적 없이 쉰 시간 비율, 헛쓴 피해 비율)은 사거리 짧은 팀·긴 팀·산성 팀 중 하나에서 갈리지 않았다 (docs/tasks.md 의 T13d).
 // show: 화면에 떠 있는 시간(초, 눌리지 않으면 사라지고 그 웨이브에는 다시 뜨지 않는다. ui spdSync)
-const SPD_TIP = { win: 20, n: 8, hit: 0.5, show: 10, keep: 64 };   // keep: 처치 기록을 남기는 수 (고리 배열)
-function tipLog(e) {   // 처치 기록: [웨이브 시각, 체력이 절반 아래로 떨어진 뒤 쓰러지기까지] 를 이어 붙인 배열
+const SPD_TIP = { win: 20, n: 8, hit: 1, show: 10, keep: 64 };   // keep: 처치 기록을 남기는 수 (고리 배열)
+function tipLog(e) {   // 처치 기록: [웨이브 시각, 처음 맞고 쓰러지기까지] 를 이어 붙인 배열
   const L = S.kl || (S.kl = []);
-  L.push(S.wt, e.h0 >= 0 ? S.t - e.h0 : 0);
+  L.push(S.wt, e.f0 >= 0 ? S.t - e.f0 : 0);
   if (L.length > SPD_TIP.keep * 2) L.splice(0, L.length - SPD_TIP.keep * 2);
 }
 function spdTip() {
@@ -3078,12 +3078,9 @@ function spdTip() {
   if (!P || P.phase !== 'wave' || !wv || S.over || !L || S.wt - wv.t0 < T.win) return false;
   const from = S.wt - T.win;
   if (S.lkW != null && S.lkW >= from) return false;                    // ① 기지 피해 없음
-  const a = [];
-  for (let i = L.length - 2; i >= 0 && L[i] >= from; i -= 2) a.push(L[i + 1]);
-  if (a.length < T.n) return false;
-  a.sort((x, y) => x - y);
-  const m = a.length >> 1;
-  return (a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2) <= T.hit;       // ② 반쯤 깎이면 바로 쓰러진다
+  let q = 0;
+  for (let i = L.length - 2; i >= 0 && L[i] >= from; i -= 2) if (L[i + 1] <= T.hit) q++;
+  return q >= T.n;                                                      // ② 맞고 1초 안에 쓰러진 적이 8명 이상
 }
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over || S.pendingAug || S.augQ) return false;   // 증강을 고르는 중(무기 교체 뒤 차례 포함)에는 시작하지 않는다

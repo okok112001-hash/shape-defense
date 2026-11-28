@@ -50,11 +50,11 @@ async def main():
         await shot('1_start')
         await tap('[data-act=opts]'); o = await ev(opt); check(o['aria'] == 'true' and o['store'] is None, f'처음엔 켬, 저장 없음 {o}')
         await shot('2_opts_on')
-        await tap('.orow[data-opt=spdTip]'); o = await ev(opt); check(o['aria'] == 'false' and o['store'] == '{"spdTip":false}', f'끄면 저장 {o}')
+        await tap('.orow[data-opt=spdTip]'); o = await ev(opt); check(o['aria'] == 'false' and o['store'] == '{"spdTip":false,"partTip":true}', f'끄면 저장 {o}')
         await shot('3_opts_off')
         await pg.reload(); await pg.wait_for_timeout(700)
         await tap('[data-act=opts]'); o = await ev(opt); check(o['aria'] == 'false', f'새로 고침 뒤에도 끔 {o}')
-        await tap('.orow[data-opt=spdTip]'); o = await ev(opt); check(o['aria'] == 'true' and o['store'] == '{"spdTip":true}', f'다시 켬 {o}')
+        await tap('.orow[data-opt=spdTip]'); o = await ev(opt); check(o['aria'] == 'true' and o['store'] == '{"spdTip":true,"partTip":true}', f'다시 켬 {o}')
         await tap('[data-act=optsBack]')
         check(await ev("() => !!document.querySelector('.modal.start')"), '뒤로: 시작 화면')
 
