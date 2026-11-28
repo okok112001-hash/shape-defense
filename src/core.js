@@ -655,6 +655,7 @@ function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null
   const gone = (a) => a && (!AUGS[a.id] || AUGS[a.id].pool === false);
   for (const w of S.slots.concat(S.inv)) if (w && w.kind === 'w' && w.augs.some(gone)) { w.augs = w.augs.map(a => gone(a) ? null : a); dirty(w); }
   if (S.pendingAug && S.pendingAug.options.some(gone)) { S.pendingAug.options = S.pendingAug.options.filter(a => !gone(a)); if (!S.pendingAug.options.length) S.pendingAug = null; }
+  if (S.augQ && !S.pendingAug) augNext();   // 무기 교체 뒤 증강 다시 고르기가 남아 있으면 이어서
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
   if (!S.locks) S.locks = {}; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
   if (S.wt == null) { S.wt = 0; S.wn = 0; S.wEnd = 0; S.wave = null; S.wLast = null; S.wTick = 0; }
@@ -1071,10 +1072,51 @@ function chooseAug(i, replaceIdx) {
   }
   t.augs[k] = { id: opt.id, g: opt.g };
   if (pa.base) bdirty(); else dirty(t);
-  S.pendingAug = null;
+  S.pendingAug = null; augNext();
   return { ok: true };
 }
-function skipAug(force) { if (!force && hasPact('sage')) return false; S.pendingAug = null; return true; }   // 현자의 눈: 건너뛸 수 없다 (force는 대상이 사라진 경우 정리용)
+function skipAug(force) { if (!force && hasPact('sage')) return false; S.pendingAug = null; augNext(); return true; }   // 현자의 눈: 건너뛸 수 없다 (force는 대상이 사라진 경우 정리용)
+
+/* ---------- 무기 교체 (T13f, 연결 모드) ---------- */
+// 정비 때 진화하지 않은 lv 강 이상 무기를 재화를 내고 다른 종류로 바꾼다 (지금과 다른 7종, 이미 장착한 종류도 된다).
+// 새 무기(newWeapon)에 강화 단계 −loss 와 파츠를 옮긴다 (맞지 않는 파츠는 플레이어가 옮긴다). 처치·피해 기록은 새 무기라 0부터.
+// 증강은 비우고, 새 단계까지 augEvery 강마다(5, 10, …) 그 단계 기준의 rollAugs 로 차례로 다시 고른다 (보통으로 그 단계까지 올린 무기와 기대값이 같다).
+// hi = 새 단계라 다시 올리면 그 위에서 증강을 받는다. 비용은 보통 웨이브 waves 개치 재화 (waveGold. 보급 상자 3개치·황금체 5개치와 같은 말투, 웨이브가 지나도 무게가 같다)
+const SWAP = { lv: 30, loss: 10, waves: 1 };
+function swapCost() { return Math.max(1, Math.round(waveGold(S.t) * SWAP.waves)); }
+function canSwap(slot, type) {
+  const w = S && S.slots[slot];
+  const o = { ok: false, reason: '', cost: S ? swapCost() : 0, have: S ? goldCount() : 0 };
+  if (!w) o.reason = 'none';
+  else if (w.evo) o.reason = 'evo';
+  else if (w.lv < SWAP.lv) o.reason = 'lv';
+  else if (!S.prep || S.prep.phase !== 'rest' || S.over || S.pendingAug || S.augQ || S.pendingPact) o.reason = 'busy';   // 정비 때만
+  else if (type != null && (type === w.type || WEAPON_IDS.indexOf(type) < 0)) o.reason = 'type';
+  else if (o.have < o.cost) o.reason = 'gold';
+  else o.ok = true;
+  return o;
+}
+function swapWeapon(slot, type) {
+  if (type == null) return { ok: false, reason: 'type' };
+  const c = canSwap(slot, type); if (!c.ok) return c;
+  const old = S.slots[slot], lv = old.lv - SWAP.loss, w = newWeapon(type);
+  if (!(S.cheat && S.cheat.gold)) S.gold -= c.cost;
+  w.lv = lv; w.hi = lv; w.parts = old.parts;
+  S.slots[slot] = w; S.slotDirty = true; S.invDirty = true;
+  const n = Math.floor(lv / CFG.augEvery);
+  if (n > 0) { S.augQ = { slot, type, n, k: 0 }; augNext(); }
+  return { ok: true, cost: c.cost, from: old.type, type, lv, n };
+}
+// 교체 뒤 증강 다시 고르기: 하나를 고르거나 건너뛸 때마다 다음 차례를 띄운다 (pendingAug.q = [몇 번째, 모두]). 차례는 S 에 있어 저장·불러오기에도 이어진다
+function augNext() {
+  const q = S.augQ; if (!q || S.pendingAug) return;
+  const w = S.slots[q.slot];
+  if (!w || w.evo || w.type !== q.type || q.k >= q.n) { S.augQ = null; return; }
+  q.k++;
+  const lv = q.k * CFG.augEvery;
+  S.pendingAug = { slot: q.slot, lv, q: [q.k, q.n], options: rollAugs(w.augs, AUG_POOL[w.type], lv) };
+  if (q.k >= q.n) S.augQ = null;
+}
 
 /* ---------- 천칭의 거래 ---------- */
 // 천칭이 죽으면 아직 받지 않은 거래 중 둘을 rndG로 뽑아 제안한다 (남은 것이 하나면 하나, 없으면 제안 없음)
@@ -3007,7 +3049,7 @@ function spdTip() {
   return (a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2) <= T.hit;       // ② 반쯤 깎이면 바로 쓰러진다
 }
 function prepGo() {   // 다음 웨이브 시작
-  const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
+  const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over || S.pendingAug || S.augQ) return false;   // 증강을 고르는 중(무기 교체 뒤 차례 포함)에는 시작하지 않는다
   P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
   if (S.m3) { const b = S.m3; m3Fill(b, -b.R - 0.5); }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
   return true;
@@ -3151,7 +3193,7 @@ const Core = {
   attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
-  SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
+  SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, tD: () => tD(),

@@ -1376,6 +1376,63 @@ function scene(type, lines, secs, opt) {
     assert(S2.kills > 0 && !S2.kl && S2.lkW == null, '예전 방식은 기록 없음');
   }
   ok('배속 추천 (T13d): 100강이면 웨이브 20초에 뜸, 기지 피해·느린 처치·정비 중이면 안 뜸, 예전 방식은 없음');
+  // (j) 무기 교체 (T13f): 진화 전·30강 이상·정비 때만, 비용 = 보통 웨이브 1개치 재화, 강화 −10, hi = 새 단계, 파츠 유지,
+  //     증강은 비우고 새 단계 ÷ 5 번(5, 10, … 단계 기준) 차례로 다시 고른다. 고르는 동안 웨이브 시작·다른 일 안 됨, 저장·불러오기에도 이어짐
+  {
+    const SW = Core.SWAP, S = pipe(5); Core.step(DT); Core.test.addTime(450);
+    const toRest = (S) => { S.wt = S.wave.t0 + P.spawnT; S.wave.bq = []; S.pendingBoss = null; S.enemies = []; Core.step(DT); assert.strictEqual(S.prep.phase, 'rest'); };
+    const w = S.slots[0], to = WEAPON_IDS.find((t) => t !== w.type);
+    assert.deepStrictEqual([SW.lv, SW.loss, SW.waves], [30, 10, 1]);
+    w.lv = 29; Core.dirty(w); assert.strictEqual(Core.canSwap(0, to).reason, 'lv', '29강은 안 됨');
+    w.lv = 33; w.hi = 35; Core.dirty(w); assert.strictEqual(Core.canSwap(0, to).reason, 'busy', '웨이브 중에는 안 됨');
+    toRest(S); S.gold = 1e9;
+    const cost = Core.canSwap(0, to).cost;
+    assert(cost > 0 && cost === Math.round(Core.waveGold(S.t) * SW.waves), '비용 = 보통 웨이브 1개치 재화 ' + cost);
+    assert(Core.canSwap(0, to).ok && Core.canSwap(0).ok, '정비 때 33강');
+    assert.strictEqual(Core.canSwap(0, w.type).reason, 'type', '같은 종류는 안 됨'); assert.strictEqual(Core.canSwap(0, 'nope').reason, 'type');
+    assert.strictEqual(Core.swapWeapon(0).reason, 'type', '종류를 골라야 함'); assert.strictEqual(Core.canSwap(4 + 1, to).reason, 'none');
+    const dup = S.slots[1].type; assert(Core.canSwap(0, dup).ok, '이미 장착한 종류도 됨');
+    S.shards = 1e9; S.slots[2].lv = 100; Core.dirty(S.slots[2]); assert(Core.evolve(2).ok); S.slots[2].lv = 40; assert.strictEqual(Core.canSwap(2, to).reason, 'evo', '진화한 무기는 안 됨');
+    S.gold = cost - 1; assert.strictEqual(Core.canSwap(0, to).reason, 'gold', '재화가 모자라면 안 됨');
+    S.gold = cost + 7; w.parts = [{ id: 'dmg', g: 2 }, null, { id: 'crit', g: 1 }]; w.augs = [{ id: 'a_dmg', g: 3 }, null, null]; w.kills = 9; Core.dirty(w);
+    const parts = JSON.stringify(w.parts), r = Core.swapWeapon(0, to), v = S.slots[0];
+    assert(r.ok && r.lv === 23 && r.n === 4 && r.from === w.type && r.type === to, JSON.stringify(r));
+    assert.strictEqual(S.gold, 7, '재화가 빠짐');
+    assert(v !== w && v.type === to && v.lv === 23 && v.hi === 23 && !v.evo && !v.kills && !v.dealt, '종류만 바뀌고 강화 −10, hi = 새 단계, 기록은 0부터');
+    assert.strictEqual(JSON.stringify(v.parts), parts, '파츠는 그대로');
+    assert(v.augs.every((a) => !a), '증강은 비움');
+    const got = []; S.slots[1].lv = 30; Core.dirty(S.slots[1]);
+    for (let i = 0; i < 10 && S.pendingAug; i++) {
+      const pa = S.pendingAug; got.push(pa.q.join('/') + '@' + pa.lv);
+      assert(pa.slot === 0 && pa.options.length === 3 && pa.options.every((o) => Core.AUG_POOL[to].indexOf(o.id) >= 0), '새 무기의 증강 풀에서');
+      assert(!Core.prepGo() && S.prep.phase === 'rest', '고르는 동안 웨이브 시작 안 됨');
+      assert.strictEqual(Core.canSwap(1, to).reason, 'busy'); assert.strictEqual(Core.upgrade(1).reason, 'busy');
+      if (i === 1) assert(Core.skipAug(), '건너뛰기는 그 번만'); else assert(Core.chooseAug(0, 0).ok);
+    }
+    assert.deepStrictEqual(got, ['1/4@5', '2/4@10', '3/4@15', '4/4@20'], '고르는 횟수와 번마다의 단계 ' + got);
+    assert(!S.pendingAug && !S.augQ && v.augs.some(Boolean), '다 고르면 끝');
+    S.cheat.succ = true; Core.upgrade(0); assert(v.lv === 24 && !S.pendingAug); Core.upgrade(0); assert(v.lv === 25 && S.pendingAug && S.pendingAug.lv === 25 && !S.pendingAug.q, '다시 올리면 새 단계 위에서 증강');
+    Core.skipAug(); S.cheat.succ = false;
+    // 100강 → 90강: 18번. 중간에 저장·불러오기, 현자의 눈(건너뛸 수 없음)
+    const u = S.slots[3]; u.lv = 100; u.hi = 100; Core.dirty(u); S.gold = 1e9;
+    assert(Core.swapWeapon(3, to).ok && Core.S.pendingAug.q.join() === '1,18');
+    Core.chooseAug(0, 0); Core.chooseAug(0, 0);
+    Core.setState(JSON.parse(JSON.stringify(Core.S))); let T2 = Core.S;
+    assert(T2 !== S && T2.pendingAug.q.join() === '3,18' && T2.augQ.k === 3, '저장·불러오기 뒤에도 이어짐');
+    const cp = JSON.parse(JSON.stringify(T2)); cp.pendingAug = null; Core.setState(cp); T2 = Core.S;
+    assert(T2.pendingAug.q.join() === '4,18' && T2.pendingAug.lv === 20, '고르던 것이 사라진 저장이면 다음 차례부터');
+    T2.pacts.push('sage'); assert(!Core.skipAug() && T2.pendingAug.q.join() === '4,18', '현자의 눈: 건너뛸 수 없음'); T2.pacts.pop();
+    const lvs = [];
+    for (let i = 0; i < 30 && T2.pendingAug; i++) { lvs.push(T2.pendingAug.lv); Core.chooseAug(0, 0); }
+    assert.deepStrictEqual(lvs, [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90], '90강까지 5강마다 ' + lvs);
+    assert(!T2.pendingAug && !T2.augQ && T2.slots[3].lv === 90 && Core.prepGo(), '다 고르면 다음 웨이브');
+    // 고르는 중에 무기가 사라지면 차례가 끝난다 (ui 는 그때 skipAug(true))
+    toRest(T2); const x = T2.slots[4]; x.lv = 40; Core.dirty(x); T2.gold = 1e9; assert(Core.swapWeapon(4, to).ok && T2.augQ);
+    T2.slots[4] = null; Core.skipAug(true); assert(!T2.pendingAug && !T2.augQ, '무기가 사라지면 차례 끝');
+    // 예전 방식(정비 없음, 도구)에서는 교체 없음
+    Core.seed(3); Core.newGame(520); const S3 = Core.S; S3.slots[2].lv = 50; S3.gold = 1e9; assert.strictEqual(Core.canSwap(2, 'laser').reason, 'busy', '예전 방식은 교체 없음');
+  }
+  ok('무기 교체 (T13f): 진화 전·30강·정비 때만, 비용 웨이브 1개치, 강화 −10, hi, 파츠 유지, 증강 새 단계÷5번(단계별), 저장·불러오기, 건너뛰기');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 

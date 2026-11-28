@@ -111,6 +111,7 @@ let sel = null;                // 고른 것: {from:'inv', i} 또는 {from:'slot
 let wmodal = -1, wpick = -1;   // 무기 창이 열린 칸, 그 안에서 파츠를 고르는 중인 칸
 let bmodal = false;            // 기지 창
 let evoK = -1;                 // 진화 창이 열린 칸
+let swK = -1, swT = null;      // 무기 교체 창이 열린 칸, 고른 종류 (T13f)
 let skK = -1, skSel = null, skGot = null;   // 스킬 창: 칸, 고른 노드 {l, t}, 방금 찍은 노드 {l, t}
 const skMem = new WeakMap();                // 무기별로 마지막에 찍은 노드 {l, t}. 무기 객체에 묶여 칸을 옮겨도 따라가고, Core.S 에는 남지 않는다
 let meltMode = false, meltAllArm = false;   // 대장간의 용해로 탭이 열림, 모두 분해 확인
@@ -267,6 +268,7 @@ const Snd = (function () {
     rewpop: [150, () => seq('triangle', [659, 988], 0.12, 0.08, 0.06)],   // 보스 보상이 떠오름
     rewland: [60, () => tone('triangle', 520, 780, 0.09, 0.09)],          // 인벤토리에 닿음
     skill: [60, () => seq('triangle', [659, 988], 0.12, 0.09, 0.06)],
+    swap: [300, () => { hiss(0.22, 0.05, 1500, 1.1, 'bandpass'); seq('triangle', [392, 587, 880], 0.12, 0.08, 0.07); }],   // 무기 교체
   };
   function play(name) {
     if (!ac || muted || ac.state !== 'running') return;
@@ -953,6 +955,13 @@ function fgEvo(w) {
   if (w.lv >= C.CFG.maxLv) return `<button type="button" class="btn fg-wide evob has" data-act="evoOpen" ${st}><span class="fl">★ 진화</span><span class="fd">0강부터 다시, 능력은 그대로, 스킬이 열립니다<br>조각 <b>${fmtInt(C.CFG.evoCost)}</b></span></button>`;
   return '<button type="button" class="btn fg-wide lock" disabled><span class="fl">★ 진화</span><span class="fd">100강이 되면 진화해서<br>스킬을 찍을 수 있습니다</span></button>';
 }
+// 교체 버튼 (T13f): 진화 전에만. 30강 전에는 잠긴 버튼
+function fgSwap(w, k) {
+  if (w.evo) return '';
+  if (w.lv < C.SWAP.lv) return `<button type="button" class="btn fg-wide lock" disabled><span class="fl">교체</span><span class="fd">${C.SWAP.lv}강부터 재화를 내고<br>다른 무기로 바꿀 수 있습니다</span></button>`;
+  const c = C.canSwap(k);
+  return `<button type="button" class="btn fg-wide swb${c.reason === 'gold' ? ' off' : ''}" data-act="swOpen"><span class="fl">교체</span><span class="fd">다른 무기로 바꿉니다, 강화 −${C.SWAP.loss}<br>재화 <b>◆ ${fmtInt(c.cost)}</b></span></button>`;
+}
 function wmHtml(w) {
   const S = C.S, st = C.stats(w), d = C.WEAPONS[w.type];
   const dealt = w.dealt || 0, share = S.dealt > 0 ? Math.round(dealt / S.dealt * 100) : 0;
@@ -966,7 +975,7 @@ function wmHtml(w) {
       <div class="wm-augs">${augRows(w.augs)}</div>
       <div class="fg-rec">처치 <b>${fmtInt(w.kills || 0)}</b> · 누적 피해 <b>${fmt(dealt)}</b> · 전체 피해 중 <b>${share}%</b></div>
     </div>
-    ${fgUp(w, 'wup')}${fgEvo(w)}</div>`;
+    ${fgUp(w, 'wup')}${fgSwap(w, wmodal)}${fgEvo(w)}</div>`;
 }
 function bmHtml() {
   const S = C.S, b = S.base, bs = C.bstats();
@@ -1013,6 +1022,19 @@ function evoHtml() {
     <ul class="evo-list"><li>0강으로 돌아가지만 능력은 유지</li><li>강화 비용 300 + 일반의 5배, 5강마다 스킬 포인트</li><li>0강 아래로 떨어지면 진화가 풀림</li></ul>
     ${c.reason === 'shards' ? `<p class="warn">조각이 ${fmtInt(c.cost - c.have)}개 모자랍니다.</p>` : ''}
     <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="evoOk"${ok ? '' : ' disabled'}>진화한다</button><button type="button" class="btn" data-act="evoClose">닫기</button></div></div>`;
+}
+// 무기 교체 창 (T13f): 바꿀 종류를 누르고 '교체한다'. 지금 종류는 같은 자리에 흐리게 (고를 수 없음)
+function swHtml() {
+  const w = C.S.slots[swK], d = C.WEAPONS[w.type], c = C.canSwap(swK, swT), nd = swT ? C.WEAPONS[swT] : null;
+  const lv = w.lv - C.SWAP.loss, n = Math.floor(lv / C.CFG.augEvery), ok = !!nd && c.ok, short = c.reason === 'gold';
+  return `<div class="modal evom swm"><h2>무기 교체</h2>
+    <div class="evo-w"><span class="evo-ic" style="--wc:${d.color}">${icon(w.type, 40)}</span><span class="evo-arr">${ARROW}</span><span class="evo-ic${nd ? ' on' : ' q'}"${nd ? ` style="--wc:${nd.color}"` : ''}>${nd ? icon(swT, 40) : '?'}</span>
+      <div class="evo-nm"><b style="color:${nd ? nd.color : 'var(--dim)'}">${nd ? nd.name : '무기를 고르세요'}</b><span>+${w.lv} → +${lv}</span>${nd ? `<span>${ROLE_LINE[swT]}</span>` : ''}</div></div>
+    <div class="sw-grid">${C.WEAPON_IDS.map(t => `<button type="button" class="sw-t${t === swT ? ' on' : ''}" data-swt="${t}" style="--wc:${C.WEAPONS[t].color}"${t === w.type ? ' disabled' : ''}>${icon(t, 28)}<small>${t === w.type ? '지금 무기' : C.WEAPONS[t].name}</small></button>`).join('')}</div>
+    <div class="evo-cost${short ? ' short' : ''}"><i class="gem">◆</i><b>재화 ${fmtInt(c.cost)}</b><span>보유 <b>${fmtInt(c.have)}</b></span></div>
+    <ul class="evo-list"><li>강화 −${C.SWAP.loss}, 파츠는 그대로</li><li>증강은 비우고, 새 무기의 증강을 ${n}번 다시 고릅니다</li></ul>
+    ${short ? `<p class="warn">재화가 ${fmtInt(c.cost - c.have)} 모자랍니다.</p>` : ''}
+    <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="swOk"${ok ? '' : ' disabled'}>교체한다</button><button type="button" class="btn" data-act="swClose">닫기</button></div></div>`;
 }
 /* ---------- 스킬 그림 ---------- */
 // 파츠 그림과 같은 화풍(24x24, 선 굵기 1.8). 같은 줄의 세 노드는 같은 소재가 발전한다. 색은 CSS 가 정한다(currentColor)
@@ -1269,9 +1291,9 @@ function augCard(a, key, i, tag, selected) {
 function augHtml() {
   const S = C.S, pa = S.pendingAug, t = pa.base ? S.base : S.slots[pa.slot];
   const who = pa.base ? `<b class="bcol">기지 +${pa.lv}</b>` : `<b style="color:${C.WEAPONS[t.type].color}">${C.WEAPONS[t.type].name} +${pa.lv}</b>`;
-  const full = t.augs.every(Boolean);
+  const full = t.augs.every(Boolean), q = pa.q;   // q: 무기 교체 뒤 다시 고르는 차례 [몇 번째, 모두] (T13f)
   if (augSkip) {
-    return `<div class="modal"><h2>건너뛰기</h2><p>증강을 받지 않고 건너뜁니다</p>
+    return `<div class="modal"><h2>건너뛰기</h2><p>${q ? '이번 증강만 받지 않고 건너뜁니다' : '증강을 받지 않고 건너뜁니다'}</p>
       <div class="d-acts two"><button type="button" class="btn danger" data-act="skipOk">건너뛰기</button><button type="button" class="btn" data-act="augBack">뒤로</button></div></div>`;
   }
   if (augSel >= 0 && pa.options[augSel]) {
@@ -1281,14 +1303,14 @@ function augHtml() {
       : { lab: '교체될 증강', x: augRep >= 0 && t.augs[augRep] ? augItem(t.augs[augRep]) : { txt: '아래에서 고르세요' } };
     const ok = !needRep || (augRep >= 0 && !!t.augs[augRep]);
     return `<div class="modal"><h2>${needRep ? '증강 교체' : '증강 적용'}</h2>
-      <p>${who} 달성</p>
+      <p>${who} ${q ? `단계의 증강 (${q[0]}/${q[1]})` : '달성'}</p>
       ${cmpHtml(left, { lab: '새 증강', x: augItem(o) })}
       ${needRep ? `<div class="wm-sec">교체할 증강을 고르세요</div>${t.augs.map((a, k) => augCard(a, 'rep', k, '', k === augRep)).join('')}` : ''}
       <div class="d-acts two"><button type="button" class="btn primary${ok ? '' : ' off'}" data-act="augOk"${ok ? '' : ' disabled'}>${needRep ? '교체' : '적용'}</button><button type="button" class="btn" data-act="augBack">뒤로</button></div></div>`;
   }
   const cur = t.augs.filter(Boolean).map(a => `<b class="g${a.g}">[${GR[a.g]}] ${C.AUGS[a.id].name}</b>`).join(', ');
-  return `<div class="modal${augIntro ? ' intro' : ''}"><h2>${pa.base ? '기지 증강 선택' : '증강 선택'}</h2>
-    <p>${who} 달성. 하나를 고르세요. 고르는 동안 게임은 멈춥니다.</p>
+  return `<div class="modal${augIntro ? ' intro' : ''}"><h2>${pa.base ? '기지 증강 선택' : q ? `증강 다시 고르기 <span class="aq">${q[0]}/${q[1]}</span>` : '증강 선택'}</h2>
+    <p>${q ? `${who} 단계의 증강입니다. 하나를 고르세요.` : `${who} 달성. 하나를 고르세요. 고르는 동안 게임은 멈춥니다.`}</p>
     ${pa.options.map((o, i) => {
       const same = t.augs.find(a => a && a.id === o.id);
       const tag = same ? `장착 중인 같은 증강([${GR[same.g]}])을 대체합니다` : full ? '칸이 가득 차서 기존 증강 하나와 교체합니다' : '';
@@ -1501,7 +1523,7 @@ function helpHtml() {
   const ctl = `<div class="hgrid3">
     ${hnode(hbox(partIcon(wp, 22), 'g1') + HARR + slot('blaster'), '장착 · 강화')}
     ${hnode(slot('blaster') + HSWAP + slot('mortar'), '자리 바꾸기')}
-    ${hnode(tap + HARR + win, '대장간')}</div><p class="hnote">대장간(아래 대장간 버튼, 또는 무기를 두 번 누르기)에서 무기와 기지를 강화하고 파츠를 바꾸며, 진화와 스킬, 용해로도 씁니다. 분해는 한 번 더 눌러야 실행됩니다.</p>`;
+    ${hnode(tap + HARR + win, '대장간')}</div><p class="hnote">대장간(아래 대장간 버튼, 또는 무기를 두 번 누르기)에서 무기와 기지를 강화하고 파츠를 바꾸며, 진화와 스킬, 무기 교체(${C.SWAP.lv}강부터), 용해로도 씁니다. 분해는 한 번 더 눌러야 실행됩니다.</p>`;
   const ctlIntro = `<p class="hnote">누르기와 끌기로 파츠를 장착하고, 무기 자리를 바꾸고, 대장간을 여는 방법입니다.</p>`;
   const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>
     <p class="hnote">범위 공격은 한 번에 때리는 적 수에 한도가 있고, 기지에 가까운 적부터 맞습니다. 한도는 대장간에 나옵니다.</p>`;
@@ -1594,6 +1616,10 @@ function renderOverlay() {
     const w = S.slots[evoK];
     if (!w || w.evo || w.lv < C.CFG.maxLv) evoK = -1; else h = evoHtml();
   }
+  if (!h && mode === 'play' && S && swK >= 0) {         // 무기 교체 창
+    const w = S.slots[swK];
+    if (!w || w.evo || w.lv < C.SWAP.lv) { swK = -1; swT = null; } else h = swHtml();
+  }
   if (!h && mode === 'play' && S && meltMode) h = fmHtml();   // 대장간의 용해로 탭
   if (!h && mode === 'play' && S && (wmodal >= 0 || bmodal)) {
     if (!bmodal && !S.slots[wmodal]) { wmodal = -1; wpick = -1; }
@@ -1614,7 +1640,7 @@ function renderOverlay() {
 
 /* ---------- 조작 ---------- */
 function resetUi() {
-  sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
+  sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; swK = -1; swT = null; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); evoRun.length = 0; rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; optsFrom = ''; abKey = ''; testView = false; testMsg = '';
   pOut = null; elB.classList.remove('rise');
@@ -1637,7 +1663,7 @@ const outBoard = () => !!pOut && !pOut.sw;  // 판이 가라앉는 중
 const outA = () => outBoard() ? Math.max(0, 1 - (performance.now() - pOut.t0) / (RM.matches ? 200 : 260)) : 1;   // 물길과 연결 표시가 꺼진다
 const prepWave = () => { const S = C.S; return !!S && !!S.prep && S.prep.phase === 'wave'; };   // 웨이브 중: 옮기기만 된다
 const m3Shown = () => { const S = C.S; return !!S && !!S.m3 && (!(S.prep && S.prep.phase !== 'wave') || outBoard()); };
-const PREP_LOCK = new Set(['gen', 'forge', 'meltBulk', 'craft', 'meltOne', 'bequip', 'bopen', 'evoOpen', 'evoOk', 'skOpen', 'skUp', 'bup', 'wopen', 'wup', 'wputOk', 'wdetach', 'pswapOk']);
+const PREP_LOCK = new Set(['gen', 'forge', 'meltBulk', 'craft', 'meltOne', 'bequip', 'bopen', 'evoOpen', 'evoOk', 'skOpen', 'skUp', 'bup', 'wopen', 'wup', 'wputOk', 'wdetach', 'pswapOk', 'swOpen', 'swOk']);
 const PREP_MSG = '웨이브 중에는 무기를 옮기는 것만 할 수 있습니다. 적을 모두 막으면 정비 시간이 됩니다.';
 let prepPh = '', prepOutAt = 0;
 function prepSync() {                     // 정비 막대와 단계가 바뀔 때의 정리 (가볍게 자주 부른다)
@@ -1660,7 +1686,7 @@ function prepSync() {                     // 정비 막대와 단계가 바뀔 �
   if (ph === 'wave') {                    // 웨이브 시작: 열려 있던 창과 모드를 닫는다
     pOut = null; elB.classList.remove('rise');
     const was = fOpen();
-    meltMode = false; meltAllArm = false; meltSet.clear(); partSwap = null; evoK = -1; skK = -1; skSel = null;
+    meltMode = false; meltAllArm = false; meltSet.clear(); partSwap = null; evoK = -1; swK = -1; swT = null; skK = -1; skSel = null;
     if (was) closeW(); else renderAll();
   } else if (ph === 'rest') {
     if (was === 'wave' && mode === 'play' && !S.over) pOut = { t0: now, n: Math.max(1, S.wn || 0), sw: 0 };   // 웨이브를 막음: 판은 가라앉은 뒤에 바꾼다
@@ -2012,7 +2038,7 @@ function endDrag(apply, x, y) {
 $('#app').addEventListener('pointerdown', (ev) => {
   downOnBtn = !!(ev.target.closest && ev.target.closest('button'));
   if (drag) endDrag(false);                // 이전 끌기가 비정상적으로 끝났다면 정리
-  if (mode !== 'play' || !C.S || C.S.pendingAug || C.S.pendingPact || fOpen() || partSwap || skK >= 0 || evoK >= 0) return;
+  if (mode !== 'play' || !C.S || C.S.pendingAug || C.S.pendingPact || fOpen() || partSwap || skK >= 0 || evoK >= 0 || swK >= 0) return;
   if (C.S.crate && !downOnBtn && crateTap(ev)) return;   // 날고 있는 보급 상자: 그 자리에 떨군다
   if (sel && !ev.target.closest('button')) {   // 다른 곳(전장, 빈 공간)을 누르면 선택 취소
     sel = null; confirmDrop = false; msg = '';
@@ -2200,6 +2226,16 @@ function act(name) {
     case 'bopen': openB(); return;
     case 'evoOpen': if (wmodal >= 0) { evoK = wmodal; Snd.play('tap'); renderOverlay(); } return;
     case 'evoClose': evoK = -1; Snd.play('tap'); renderOverlay(); return;
+    case 'swOpen': if (wmodal >= 0 && S.slots[wmodal]) { swK = wmodal; swT = null; Snd.play('tap'); renderOverlay(); } return;   // 무기 교체 창 (T13f)
+    case 'swClose': swK = -1; swT = null; Snd.play('tap'); renderOverlay(); return;
+    case 'swOk': {
+      if (swK < 0 || !swT) return;
+      const k = swK, r = C.swapWeapon(k, swT);
+      if (!r.ok) { if (r.reason === 'gold') say(`재화가 부족합니다. ${fmtInt(r.cost)}이 필요합니다.`, true); return; }
+      swK = -1; swT = null; fK = k; lastUp = { at: performance.now(), ok: true };   // 대장간의 그 무기 칩이 반짝인다
+      Snd.play('swap'); renderAll();            // 증강 다시 고르기 창이 이어서 뜬다
+      return;
+    }
     case 'evoOk': {
       if (evoK < 0) return;
       const k = evoK, w = S.slots[k], r = C.evolve(k);
@@ -2260,6 +2296,7 @@ $('#app').addEventListener('click', (ev) => {
   const S = C.S;
   // 무기 창이나 기지 창의 바깥 부분을 누르면 닫힌다
   if (ev.target === elO && mode === 'play' && S && evoK >= 0) { evoK = -1; renderOverlay(); return; }   // 진화 창은 바깥을 눌러도 닫힌다
+  if (ev.target === elO && mode === 'play' && S && swK >= 0) { swK = -1; swT = null; renderOverlay(); return; }   // 교체 창도
   if (ev.target === elO && mode === 'play' && S && skK < 0 && !S.pendingAug && !partSwap && fOpen()) { closeW(); return; }
   if (pactIntro && S && S.pendingPact && elO.contains(ev.target)) { pactIntro = false; renderOverlay(); return; }   // 등장 연출은 누르면 건너뛴다
   const b = ev.target.closest('button'); if (!b) return;
@@ -2294,6 +2331,8 @@ $('#app').addEventListener('click', (ev) => {
     partSwap.sel = +ds.prep; Snd.play('tap'); renderOverlay(); return;
   }
   if (partSwap) return;
+  if (ds.swt) { if (swK < 0 || !S.slots[swK] || ds.swt === S.slots[swK].type) return; swT = ds.swt; Snd.play('tap'); renderOverlay(); return; }   // 교체 창의 무기 고르기
+  if (swK >= 0) return;
   const open = fOpen() || skK >= 0 || evoK >= 0;
   if (ds.ft && fOpen() && skK < 0 && evoK < 0) {      // 대장간 탭
     const t = ds.ft, cur = meltMode ? 'm' : bmodal ? 'b' : 'w';
@@ -5716,7 +5755,7 @@ function m3Mount() {
   m3cv.addEventListener('pointerup', m3Up);
   m3cv.addEventListener('pointercancel', () => { m3t = null; });
 }
-function m3Can() { const S = C.S; return mode === 'play' && m3Shown() && !outBoard() && !S.over && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0; }
+function m3Can() { const S = C.S; return mode === 'play' && m3Shown() && !outBoard() && !S.over && !S.pendingAug && !S.pendingPact && wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0 && swK < 0; }
 function m3Cell(ev) {
   const b = C.S.m3, r = m3cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top - M3TOP;
   const c = Math.floor(x / m3cw), rr = Math.floor(y / m3ch);
@@ -6158,7 +6197,7 @@ let last = 0, acc = 0, lightAt = 0;
 function frame(ts) {
   const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0; last = ts;
   const S = C.S;
-  if (mode === 'play' && S && !S.pendingAug && !S.pendingPact && ((wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0) || (S.prep && S.prep.phase === 'rest'))) {
+  if (mode === 'play' && S && !S.pendingAug && !S.pendingPact && ((wmodal < 0 && !bmodal && !partSwap && skK < 0 && evoK < 0 && swK < 0) || (S.prep && S.prep.phase === 'rest'))) {
     legendMark();
     acc += dt * speed; let n = 0;
     while (acc >= 1 / 60 && n < 12) { C.step(1 / 60); acc -= 1 / 60; n++; }

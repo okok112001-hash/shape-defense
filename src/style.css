@@ -826,6 +826,16 @@ b { font-weight: 600; }
 .evo-cost.short > b, .evo-cost.short > span b { color: var(--danger); }
 .evo-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; color: var(--ink); font-size: 14px; line-height: 1.35; }
 .modal.evom p.warn { margin: -4px 0 0; }
+/* 무기 교체 창 (T13f): 진화 창과 같은 틀에 무기 고르기 칸 여덟 (지금 무기는 흐리게) */
+.evo-ic.q { color: var(--dim); font: 24px var(--font-display); border-style: dashed; }
+.evo-cost .gem { flex: none; font-style: normal; font-size: 20px; line-height: 1; color: var(--accent-ink); }
+.evo-cost.short .gem { color: var(--danger); }
+.sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.sw-t { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 7px 2px 5px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font: inherit; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.sw-t small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; line-height: 1.15; }
+.sw-t.on { border-color: var(--wc); background: color-mix(in srgb, var(--wc) 14%, var(--panel)); box-shadow: inset 0 0 0 1px var(--wc); }
+.sw-t[disabled] { opacity: .4; border-style: dashed; cursor: default; }
+.modal h2 .aq { margin-left: 4px; font-size: 17px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .btn[disabled] { cursor: default; }
 .devofx { position: absolute; }
 .devofx .glow { position: absolute; inset: 0; border-radius: 6px; background: rgba(255, 93, 93, .4); box-shadow: 0 0 18px 4px rgba(255, 93, 93, .6); animation: upshake .45s linear, upfade .9s ease-out forwards; }
