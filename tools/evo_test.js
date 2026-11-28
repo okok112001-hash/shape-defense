@@ -1212,6 +1212,7 @@ function scene(type, lines, secs, opt) {
     for (let r = 0; r < b.R; r++) for (let c = 1; c < N; c++) if (b.g[r * N + c].s === t0) b.g[r * N + c].s = S.slots[1].type === t0 ? S.slots[2].type : S.slots[1].type;
     assert.strictEqual(Core.pipeLinks()[0][0], 5); b.g[2 * N].st = 1; assert.strictEqual(Core.pipeLinks()[0][0], 2, '굳은 칸 너머로 안 이어짐');
     b.g[0].st = 1; assert.strictEqual(Core.pipeLinks()[0][0], 0, '0행이 굳으면 꺼짐');
+    assert.deepStrictEqual([0, 1, 2, 3, 4, 9].map(Core.pipeRate), [0, 0.5, 0.75, 1, 1.25, 2.5], '연결 공속: 1개 50%, 하나마다 +25%');
     e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); S.spawnAcc = 0; run(S, P.spawnT + 1, () => { for (const o of S.enemies) o.dead = true; S.enemies = []; if (S.prep.phase === 'rest') return false; });
     assert.strictEqual(S.prep.phase, 'rest'); assert(b.g.some((o) => o.st), '정비 중에도 그대로'); Core.prepGo(); assert(!b.g.some((o) => o.st) && !b.sw, '새 판에서 풀림');
   }

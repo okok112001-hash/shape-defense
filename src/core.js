@@ -2605,7 +2605,7 @@ function step(dt) {
     if ((w.sz || 0) !== sz) { w.sz = sz; S.slotDirty = true; }
     if (sz) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
-    if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 2개 이상 이어지지 않은 무기는 쏘지 않는다
+    if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 하나도 이어지지 않은 무기는 쏘지 않는다
     w.cd -= pl ? dt * pipeRate(pl[i][0]) : dt;
     if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
@@ -2862,7 +2862,7 @@ function step(dt) {
 /* ---------- 연결 판 (연결 모드에서만 S.m3 가 생긴다) ---------- */
 // 판은 5x5. 블록 종류는 성장 갈래 난수(rndG)로 고른다. 블록 = 장착한 무기 종류(모자라면 안 가진 무기로 5종).
 // 이웃한 두 블록을 아무 때나 맞바꾼다(터지지 않는다). 무기 바로 아래 칸(0행)에서 시작해 상하좌우로 이어진 그 무기 종류 블록 수가
-// 연결 수. 2개 이상이면 무기가 켜지고, 2개를 넘는 하나마다 공격 속도 +PIPE.bonus.
+// 연결 수. 1개 이상이면 무기가 켜지고, 공격 속도는 1개일 때 PIPE.base 배에서 하나 더 이을 때마다 +PIPE.step (1개 50%, 2개 75%, 3개 100%, 4개 125% ...).
 // g[r * C + c]: 위(r=0)에서 아래로. 새 블록의 fy 는 화면이 그 블록을 처음 그릴 때 어디서 나타나는지(칸 단위 차이)다.
 function m3Pool(b) {
   const own = [...new Set(S.slots.filter(Boolean).map(w => w.type))], rest = WEAPON_IDS.filter(id => own.indexOf(id) < 0);
@@ -2912,7 +2912,7 @@ function boardAb(e, dt, b, k, P, sound) {
 }
 // 연결: 칸마다 [연결 수, 연결된 판 칸 번호들, 그중 황금 블록 수]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록.
 // 황금 블록(황금체)은 어느 무기 종류로도 친다. 굳은 칸(석화체)은 연결에 들지 않고 그 너머로 이어지지도 않는다
-const PIPE = { need: 2, bonus: 0.05 };
+const PIPE = { need: 1, base: 0.5, step: 0.25 };
 function pipeLinks() {
   const b = S.m3, N = b.C, R = b.R, out = [];
   for (let k = 0; k < LANES; k++) {
@@ -2931,7 +2931,7 @@ function pipeLinks() {
   }
   return out;
 }
-const pipeRate = (n) => n >= PIPE.need ? 1 + PIPE.bonus * (n - PIPE.need) : 0;
+const pipeRate = (n) => n >= PIPE.need ? PIPE.base + PIPE.step * (n - PIPE.need) : 0;
 
 /* ---------- 정비 시간 (연결 모드에서만 S.prep 이 생긴다) ---------- */
 // 웨이브는 적이 다 나오고(PREP.spawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 최대 PREP.T 초 정비 시간,
