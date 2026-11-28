@@ -25,6 +25,8 @@ const ECOL = { basic: '#ff6b6b', runner: '#ffa06b', swarm: '#ff7fb0', heavy: '#f
 const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
 const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
+const OPTS_KEY = 'shape-defense-opts';     // 설정 창의 켬/끔 (JSON, 없는 값은 켬)
+const OPTS = [{ k: 'spdTip', name: '배속 추천' }];   // 설정 창의 줄 (T13d. T13g 의 파츠 추천을 여기에 더한다)
 
 /* ---------- 테마 ---------- */
 // v: :root의 CSS 변수, cv: 전장(canvas)에서 쓰는 색, wc: 무기 색 (없으면 원래 색)
@@ -130,6 +132,7 @@ let drag = null, suppressClick = 0, needRender = false;   // 끌어서 옮기기
 let pauseView = '';              // 일시정지 화면의 하위 화면: '' | confirm
 let testView = false, testMsg = '', testBossPick = false;   // 테스트 창 (열려 있는 동안 mode 는 pause), 방금 한 일, 보스 고르기 목록이 열렸는가
 let helpFrom = '';               // 도움말을 연 화면: '' | start | pause (뒤로를 누르면 그 화면으로 돌아간다)
+let optsFrom = '';               // 설정 창을 연 화면 (도움말과 같다)
 let pactView = false, pactResume = false, bannerUntil = 0;   // 맺은 거래 보기 창, 닫을 때 게임을 이어갈지, 완료 배너가 사라질 시각
 const PACT_LINES = ['원하는 것을 주지. 대신 그만한 것을 내놓아라.', '저울은 한쪽으로만 기울지 않는다. 골라라.', '공짜는 없다. 무엇을 걸겠나?', '힘을 원하나? 값은 네가 치른다.'];   // 천칭이 건네는 말
 let pactLine = PACT_LINES[0];
@@ -137,6 +140,7 @@ let pactSel = -1, pactSkip = false, pactOpenAt = 0, shownPact = null, pactIntro 
 let lastRes = null;              // 게임 오버 때 남기는 무기별 결과
 let partSwap = null, pswapAt = 0;   // 가득 찬 무기에 파츠를 넣을 때: {i: 인벤토리 칸, k: 무기 칸, sel: 고른 교체 대상}
 let best = loadBest();
+let opts = loadOpts();
 let sc = 1, dpr = 1;
 
 /* ---------- 소리 (파일 없이 합성) ---------- */
@@ -305,6 +309,13 @@ function applyTheme(th, save) {
   if (S) { for (const w of S.slots) if (w) C.dirty(w); for (const it of S.inv) if (it && it.kind === 'w') C.dirty(it); }
   if (save) { try { localStorage.setItem(THEME_KEY, th.id); } catch (e) { /* 무시 */ } }
 }
+function loadOpts() {
+  const o = {};
+  try { const v = JSON.parse(localStorage.getItem(OPTS_KEY) || '{}'); if (v && typeof v === 'object') Object.assign(o, v); } catch (e) { /* 저장소를 못 쓰는 환경, 깨진 값 */ }
+  for (const r of OPTS) if (typeof o[r.k] !== 'boolean') o[r.k] = true;
+  return o;
+}
+function saveOpts() { try { localStorage.setItem(OPTS_KEY, JSON.stringify(opts)); } catch (e) { /* 무시 */ } }
 function loadTheme() {
   try { const id = localStorage.getItem(THEME_KEY); const t = THEMES.find(x => x.id === id); if (t) return t; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
   return DEF_THEME;   // 저장된 것이 없거나 지금은 없는 테마면 기본으로
@@ -1381,14 +1392,25 @@ function testRun(name, arg) {
   S.invDirty = false; S.slotDirty = false;   // 바로 아래에서 모두 다시 그린다
   renderAll();
 }
-// 소리, 도움말, 테마를 고르는 아이콘 한 줄 (시작 화면과 일시정지 화면)
+// 소리, 도움말, 설정, 테마를 고르는 아이콘 한 줄 (시작 화면과 일시정지 화면)
 const SPK = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" stroke="none"/>';
 const SND_ON = `<svg viewBox="0 0 24 24" width="22" height="22" ${SVG_ATTR}>${SPK}<path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>`;
 const SND_OFF = `<svg viewBox="0 0 24 24" width="22" height="22" ${SVG_ATTR}>${SPK}<path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>`;
+const GEAR = (() => {   // 톱니바퀴: 이 8개
+  const p = [], f = (r, a) => (12 + Math.cos(a) * r).toFixed(2) + ' ' + (12 + Math.sin(a) * r).toFixed(2);
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, w = 0.2, v = 0.34; p.push(f(6.6, a - v), f(9.4, a - w), f(9.4, a + w), f(6.6, a + v)); }
+  return `<svg viewBox="0 0 24 24" width="22" height="22" ${SVG_ATTR}><path d="M${p.join('L')}Z"/><circle cx="12" cy="12" r="2.6"/></svg>`;
+})();
+function optsHtml() {   // 설정 창: 켬/끔 줄 목록
+  const rows = OPTS.map(r => { const on = !!opts[r.k]; return `<button type="button" class="orow${on ? ' on' : ''}" data-opt="${r.k}" role="switch" aria-checked="${on}"><span>${r.name}</span><small>${on ? '켬' : '끔'}</small><i class="osw"></i></button>`; }).join('');
+  return `<div class="modal optm"><h2>설정</h2><div class="olist">${rows}</div>
+    <button type="button" class="btn primary" data-act="optsBack">뒤로</button></div>`;
+}
 function iconRow() {
   const tiles = THEMES.map(t => `<button type="button" class="tile${t === theme ? ' on' : ''}" data-theme="${t.id}" aria-label="테마 ${t.name}" aria-pressed="${t === theme}"><span class="mini" style="background:${t.v.bg}"><i class="mi-a" style="background:${t.v.accent}"></i><i class="mi-p" style="background:${t.v.panel};border-color:${t.v.line}"></i></span><small>${t.name}</small></button>`).join('');
   return `<div class="irow"><button type="button" class="ib${Snd.muted ? ' off' : ''}" data-act="mute" aria-label="${Snd.muted ? '소리 켜기' : '소리 끄기'}">${Snd.muted ? SND_OFF : SND_ON}</button>
-    <button type="button" class="ib" data-act="help" aria-label="도움말"><b>?</b></button></div>
+    <button type="button" class="ib" data-act="help" aria-label="도움말"><b>?</b></button>
+    <button type="button" class="ib" data-act="opts" aria-label="설정">${GEAR}</button></div>
     <div class="pal" role="group" aria-label="테마">${tiles}</div>`;
 }
 /* ---------- 도움말 (그림 위주) ---------- */
@@ -1509,6 +1531,8 @@ function renderOverlay() {
     h = testHtml();
   } else if (mode === 'pause' && pactView && S && S.pacts && S.pacts.length) {
     h = pactViewHtml();
+  } else if ((mode === 'start' || mode === 'pause') && optsFrom) {
+    h = optsHtml();
   } else if ((mode === 'start' || mode === 'pause') && helpFrom) {
     h = helpHtml();
   } else if (mode === 'start') {
@@ -1590,7 +1614,7 @@ function renderOverlay() {
 function resetUi() {
   sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; skK = -1; skSel = null; skGot = null; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); evoRun.length = 0; rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); upMode = false; eqFx = null;
-  toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; abKey = ''; testView = false; testMsg = '';
+  toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; optsFrom = ''; abKey = ''; testView = false; testMsg = '';
   pOut = null; elB.classList.remove('rise');
 }
 // test 가 참이면 테스트 게임 (마지막 체크 설정으로 시작)
@@ -1654,7 +1678,7 @@ function invRise() {
     el.style.animationDelay = Math.round(d - e) + 'ms';
   }
 }
-function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; confirmDrop = false; renderOverlay(); } }
+function pause() { if (mode === 'play') { mode = 'pause'; pauseView = ''; helpFrom = ''; optsFrom = ''; confirmDrop = false; renderOverlay(); } }
 // 상태를 비우기 전에 무기별 결과와 받은 거래를 챙긴다. slots: 5칸 그대로 (무기, 빈 칸 null, 폐쇄 'closed')
 function captureRes(S) {
   const one = (w) => ({ type: w.type, lv: w.lv, evo: !!w.evo, kills: w.kills || 0, dealt: w.dealt || 0 });
@@ -2049,15 +2073,17 @@ function act(name) {
     case 'prepGo': if (mode === 'play' && C.prepGo()) { Snd.play('pick'); prepSync(); } return;
     case 'testOpen':
       if (mode !== 'play' || !isTest() || S.over || S.pendingAug || S.pendingPact) return;
-      testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; Snd.play('tap'); renderOverlay(); return;
+      testView = true; testMsg = ''; mode = 'pause'; pauseView = ''; helpFrom = ''; optsFrom = ''; Snd.play('tap'); renderOverlay(); return;
     case 'testClose': if (testView) { testClose(); Snd.play('tap'); renderAll(); } return;
     case 'testExit': if (testView) goHome(); return;
     case 'testMax': case 'testEvo': case 'testSkReset': case 'testAug': case 'testT1': case 'testT5': case 'testBoss': case 'testClear': case 'testWave': case 'testGold': case 'testTicket': case 'testCrate': testRun(name); return;
     case 'help': helpFrom = mode; renderOverlay(); return;
     case 'helpBack': helpFrom = ''; renderOverlay(); return;
+    case 'opts': optsFrom = mode; Snd.play('tap'); renderOverlay(); return;
+    case 'optsBack': optsFrom = ''; renderOverlay(); return;
     case 'pauseBack': pauseView = ''; renderOverlay(); return;
     case 'mute': Snd.toggle(); renderOverlay(); return;
-    case 'resume': pauseView = ''; helpFrom = ''; mode = 'play'; last = 0; renderAll(); return;   // 칸 표시(예고 막대)를 지금 시간에 맞춰 다시 만든다
+    case 'resume': pauseView = ''; helpFrom = ''; optsFrom = ''; mode = 'play'; last = 0; renderAll(); return;   // 칸 표시(예고 막대)를 지금 시간에 맞춰 다시 만든다
     case 'skipAug':                          // 건너뛰기: 작은 확인 창을 띄운다
       if (!S || !S.pendingAug || C.hasPact('sage') || performance.now() - augOpenAt < 400) return;
       augSkip = true; augSel = -1; augRep = -1; augOpenAt = performance.now(); renderOverlay(); return;
@@ -2251,6 +2277,7 @@ $('#app').addEventListener('click', (ev) => {
   if (b.id === 'speedBtn') { speed = speed === 1 ? 2 : 1; b.textContent = speed + '배'; b.classList.toggle('on', speed === 2); abKey = ''; renderWeapons(); renderBottom(); return; }   // 예고 막대는 속도에 맞춰 다시 만든다
   const ds = b.dataset;
   if (ds.sk != null) { if (skK < 0) return; const [l, t] = ds.sk.split(':').map(Number); skSel = { l, t }; Snd.play('tap'); renderOverlay(); return; }
+  if (ds.opt) { if (!optsFrom || !OPTS.some(r => r.k === ds.opt)) return; opts[ds.opt] = !opts[ds.opt]; saveOpts(); Snd.play('tap'); renderOverlay(); return; }   // 설정 창의 켬/끔
   if (ds.theme) { const t = THEMES.find(x => x.id === ds.theme); if (t) { applyTheme(t, true); Snd.play('tap'); renderAll(); } return; }
   if (ds.tc) {                                       // 테스트 창의 체크 항목
     if (!testView || !isTest() || !C.test.set(ds.tc, !S.cheat[ds.tc])) return;
@@ -5603,6 +5630,32 @@ const waveEl = document.createElement('div'); waveEl.id = 'waveBar'; waveEl.hidd
 waveEl.innerHTML = '<i class="wf"></i><i class="wb" hidden></i><i class="wb" hidden></i>'; $('#hud').appendChild(waveEl);
 const waveF = waveEl.firstChild, waveB = [waveEl.children[1], waveEl.children[2]];
 const wvPrev = { on: false, p: '', o: '', cls: '', pos: '', b: ['', ''] }, wvEnd = { w: null, h: 0 };
+// 배속 추천 (T13d): 적이 쉽게 쓰러지면(core spdTip) 1배 버튼이 숨 쉬듯 빛나고, 아래에서 작은 화살표가 버튼 쪽으로 올라간다.
+// 2배를 누르거나 조건이 깨지면 서서히 사라지고, 눌리지 않으면 SPD_TIP.show 초(게임 시간) 뒤 사라진다. 한 웨이브에 한 번만. 설정 창에서 끌 수 있다
+const spdBtn = $('#speedBtn'), spdEl = document.createElement('i'); spdEl.id = 'spdTip'; spdEl.hidden = true; spdEl.setAttribute('aria-hidden', 'true');
+spdEl.innerHTML = '<b></b><b></b><b></b>'; $('#hud').appendChild(spdEl);
+const spd = { on: false, S: null, wn: -1, t0: 0, chk: 0, off: 0 };   // 떠 있나, 그 게임, 이미 띄운 웨이브, 뜬 게임 시각, 다음 확인 시각, 숨기는 타이머
+function spdSync() {
+  const S = C.S;
+  if (spd.S !== S) { spd.S = S; spd.wn = -1; spd.chk = 0; }
+  const live = !!S && !!S.prep && S.prep.phase === 'wave' && !S.over && opts.spdTip && speed === 1 && (mode === 'play' || mode === 'pause');
+  if (!live || spd.wn === S.wn) { if (spd.on) spdHide(); return; }
+  if (mode !== 'play' || S.t < spd.chk && !(spd.on && S.t - spd.t0 >= C.SPD_TIP.show)) return;   // 일시정지 중에는 그대로 (시간도 멈춘다)
+  if (S.t >= spd.chk) spd.chk = S.t + 0.25;
+  const ok = C.spdTip();
+  if (!spd.on) { if (ok) spdShow(S); }
+  else if (!ok || S.t - spd.t0 >= C.SPD_TIP.show) spdHide();
+}
+function spdShow(S) {
+  spd.on = true; spd.t0 = S.t; clearTimeout(spd.off);
+  spdEl.hidden = false; spdBtn.classList.remove('tipo'); void spdEl.offsetWidth;   // 숨김을 푼 다음 프레임부터 서서히 나타나게
+  spdEl.classList.add('on'); spdBtn.classList.add('tip');
+}
+function spdHide() {
+  const S = C.S; spd.on = false; if (S) spd.wn = S.wn;   // 이번 웨이브에는 다시 뜨지 않는다
+  spdEl.classList.remove('on'); if (spdBtn.classList.contains('tip')) spdBtn.classList.replace('tip', 'tipo');
+  clearTimeout(spd.off); spd.off = setTimeout(() => { if (!spd.on) { spdEl.hidden = true; spdBtn.classList.remove('tipo'); } }, 900);
+}
 function waveSync() {
   const S = C.S, wv = S && S.wave, on = !!S && !!S.prep && S.prep.phase === 'wave' && !!wv && (mode === 'play' || mode === 'pause') && !S.over;
   if (wvPrev.on !== on) { wvPrev.on = on; waveEl.hidden = !on; }
@@ -6124,7 +6177,7 @@ function frame(ts) {
   draw(); hud(); updateChips();
   if (S && S.m3) m3Draw(dt);
   if (S && S.prep) prepSync(); else if (!prepEl.hidden) prepEl.hidden = true;
-  waveSync();
+  waveSync(); spdSync();
   if (ts - lightAt > 120) { lightAt = ts; lightUpdate(); }
   requestAnimationFrame(frame);
 }

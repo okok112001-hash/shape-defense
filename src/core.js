@@ -1144,7 +1144,7 @@ function spawn(type, lane, x, y) {
   const e = {
     type, lane, x: x != null ? x : cx + (d.boss ? 0 : (rndS() - 0.5) * 30), y: y != null ? y : -d.r,
     r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(tD()),
-    boss: !!d.boss, born: S.t, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
+    boss: !!d.boss, born: S.t, h0: -1, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
     fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9,   // 스킬: 화염 화상, 초점 누적, 전기 사슬 기절
   };
   e.x = Math.max(e.r * 0.7, Math.min(W - e.r * 0.7, e.x));
@@ -1344,6 +1344,7 @@ function kill(e, st) {
   if (e.dead) return;
   if (e.cr) { crateOpen(e); return; }        // 보급 상자: 처치가 아니다
   e.dead = true; S.kills++;
+  if (S.prep && !e.boss) tipLog(e);
   if (st && st.w) st.w.kills = (st.w.kills || 0) + 1;
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
@@ -1416,7 +1417,7 @@ function dot(e, amt, st, vap) {
   if (e.gd && st && st.w && st.w.au) amt *= 1 + GOLD.blkDmg * st.w.au;   // 황금 블록이 이어진 무기
   if (ghW(st)) { ghostHeal(e, amt); return; }   // 망령 블록과 이어진 무기: 피해 대신 회복
   if (vap && st.vap && !e.boss && (e.hp - amt) / e.maxHp <= st.vap) { if (amt < e.hp) vaporize(e); amt = Math.max(amt, e.hp); }   // 소멸: 용융선으로 체력 15% 이하
-  credit(st, amt, e); e.hp -= amt;
+  credit(st, amt, e); e.hp -= amt; if (!(e.h0 >= 0) && e.hp < e.maxHp * 0.5) e.h0 = S.t;   // h0: 체력이 처음 절반 아래로 떨어진 때 (배속 추천)
   e.dAcc = (e.dAcc || 0) + amt;
   if (S.t - (e.dT || -1) >= 0.4 || e.hp <= 0) { fxNum(e.x + (rnd() - 0.5) * e.r, e.y - e.r * 0.2, e.dAcc, 2); e.dAcc = 0; e.dT = S.t; }
   if (e.hp <= 0) kill(e, st);
@@ -1450,7 +1451,7 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   }
   if (ghW(st)) { ghostHeal(e, d); return; }   // 망령 블록과 이어진 무기: 피해 대신 회복 (부가 효과, 폭발탄 없음)
   credit(st, d, e);
-  e.hp -= d; e.flash = 0.12;
+  e.hp -= d; e.flash = 0.12; if (!(e.h0 >= 0) && e.hp < e.maxHp * 0.5) e.h0 = S.t;
   if (!noFx) {
   if (st.flame && !noFl) { e.fT = 3; e.fDps = Math.max(e.fDps || 0, st.dmg * st.flame); e.fSt = st; }   // 화염 산탄: 3초간 화상 (증강 화상과 따로 더해진다)
   if (st.slow) { e.slowT = 1.5; e.slowPct = Math.max(e.slowPct, e.boss ? st.slow * 0.5 : st.slow); }
@@ -2849,6 +2850,7 @@ function step(dt) {
       e.dead = true;
       const dmg = Math.round(e.leak * BAL.leakMul(tD()) * (1 - bs.shield) * (1 - bs.dmgRed) * (hasPact('blood') ? PACT.bloodDmg : 1) * 10) / 10;
       if (!(S.cheat && S.cheat.god)) S.hp -= dmg;   // 테스트: 기지 무적
+      if (S.prep) S.lkW = S.wt;               // 배속 추천: 기지가 맞은 때 (무적이어도 맞은 것으로 친다)
       S.hitFlash = 0.3;
       fx({ k: 'leak', d: 0.5, x: e.x, n: dmg });
       snd('leak');
@@ -2980,6 +2982,29 @@ const pipeRate = (n) => n >= PIPE.need ? PIPE.base + PIPE.step * (n - PIPE.need)
 const PREP = { T: 30, spawnT: 90, span: 90, fill: 1, bossAt: 45 };
 function tD() { return S.prep ? PREP.span * (Math.max(1, S.wn) - 0.5) : S.t; }
 const spawnT = () => S.prep ? PREP.spawnT : CFG.waveSpawnT;   // 웨이브 하나에서 적이 나오는 시간
+// 배속 추천 (T13d, 연결 모드): 적이 쉽게 쓰러지는 동안 화면이 2배를 권한다. 웨이브 시계(S.wt, 게임 시간)로 재서 배속과 상관없고 난수를 쓰지 않는다.
+// 웨이브가 win 초 넘게 지났고, 최근 win 초 동안 일반 적(보스, 상자 제외) 처치 n명 이상, 그 동안 기지 피해 없음, 지금 전장 deep 보다 깊이(기지 가까이) 내려온 일반 적 없음,
+// 그리고 그 적들이 나타나서 쓰러지기까지의 중앙값 life 초 이하이거나, 체력이 절반 아래로 떨어진 뒤 쓰러지기까지의 중앙값 hit 초 이하.
+// 둘 중 하나: 앞의 것만 쓰면 사거리가 짧은 무기(산탄포, 전격기, 펄스)는 적이 사거리에 들기까지만 5초 넘게 걸려 아무리 세도 안 뜬다.
+// 뒤의 것을 "처음 맞은 때"부터 재면 산성 분사기처럼 위에서 먼저 살짝 긁어 두는 무기가 있을 때 안 뜬다 (T13d 실험, 결과는 docs/tasks.md 의 T13d).
+// show: 화면에 떠 있는 시간(초, 눌리지 않으면 사라지고 그 웨이브에는 다시 뜨지 않는다. ui spdSync)
+const SPD_TIP = { win: 20, n: 8, life: 4, hit: 0.5, deep: 0.85, show: 10, keep: 64 };   // keep: 처치 기록을 남기는 수 (고리 배열)
+function tipLog(e) {   // 처치 기록: [웨이브 시각, 체력이 절반 아래로 떨어진 뒤 쓰러지기까지, 나타나서 쓰러지기까지] 를 이어 붙인 배열
+  const L = S.kl || (S.kl = []);
+  L.push(S.wt, e.h0 >= 0 ? S.t - e.h0 : 0, S.t - e.born);
+  if (L.length > SPD_TIP.keep * 3) L.splice(0, L.length - SPD_TIP.keep * 3);
+}
+function median(a) { a.sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+function spdTip() {
+  const P = S && S.prep, wv = S && S.wave, L = S && S.kl, T = SPD_TIP;
+  if (!P || P.phase !== 'wave' || !wv || S.over || !L || S.wt - wv.t0 < T.win) return false;
+  const from = S.wt - T.win;
+  if (S.lkW != null && S.lkW >= from) return false;
+  for (const e of S.enemies) if (!e.dead && !e.boss && !e.cr && e.y > H * T.deep) return false;
+  const a = [], b = [];
+  for (let i = L.length - 3; i >= 0 && L[i] >= from; i -= 3) { a.push(L[i + 1]); b.push(L[i + 2]); }
+  return a.length >= T.n && (median(b) <= T.life || median(a) <= T.hit);
+}
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
   P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
@@ -3130,7 +3155,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  m3Swap, PREP, prepGo, PIPE, pipeLinks, pipeRate, tD: () => tD(),
+  m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, tD: () => tD(),
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
