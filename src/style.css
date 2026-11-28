@@ -1037,3 +1037,79 @@ b { font-weight: 600; }
 @keyframes cbump { 0% { transform: scale(1); } 35% { transform: scale(1.2); filter: brightness(1.25); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { #genHave.cbump { animation: none; } }
 .testm .btn.on { border-color: var(--accent); color: var(--accent-ink); }   /* 테스트: 열린 보스 고르기 */
+/* ---------- 대장간 (T13e) ---------- */
+/* 아래 행동줄: 생성 + 대장간 */
+.acts.gf { grid-template-columns: 1.25fr 1fr; }
+.acts.gf .btn { min-width: 0; white-space: nowrap; }
+.btn.forge { gap: 8px; font: 19px var(--font-display); color: var(--ink); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.btn.forge svg { color: var(--accent-ink); flex: none; }
+.btn.forge.hint { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 0 8px color-mix(in srgb, var(--accent) 22%, transparent); animation: hintglow 1.8s ease-in-out infinite; }
+.btn.forge.pulse { animation: got .6s ease-out; }
+@media (prefers-reduced-motion: reduce) { .btn.forge.hint, .btn.forge.pulse { animation: none; } }
+/* 창 */
+.modal.fg { gap: 8px; padding: 12px; }
+.fg-head { align-items: center; }
+.fg-head .nm { display: flex; align-items: center; gap: 7px; font: 24px/1.1 var(--font-display); }
+.fg-head .nm svg { color: var(--accent-ink); }
+.fg-tabs { display: grid; grid-template-columns: repeat(3, 1fr); flex: none; border: 1.5px solid var(--line); border-radius: 7px; overflow: hidden; }
+.fg-tabs button { height: 38px; display: flex; align-items: center; justify-content: center; gap: 5px; font: 600 14px var(--font-body); color: var(--dim); background: var(--panel); border-right: 1px solid var(--line); }
+.fg-tabs button:last-child { border-right: 0; }
+.fg-tabs button svg { flex: none; }
+.fg-tabs button[data-ft="b"] svg { color: var(--ok); }
+.fg-tabs button[data-ft="m"] svg { color: var(--melt); }
+.fg-tabs button.on { color: var(--ink); background: color-mix(in srgb, var(--accent) 18%, var(--panel)); box-shadow: inset 0 -3px 0 var(--accent); }
+.fg-tabs button:disabled { opacity: .4; }
+.fg-chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; flex: none; }
+.fg-chip { height: 52px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--shade); }
+.fg-chip b { font: 14px var(--font-display); line-height: 1; white-space: nowrap; }
+.fg-chip.empty { border-style: dashed; opacity: .5; }
+.fg-chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); box-shadow: 0 0 0 1.5px var(--accent); }
+.fg-chip.up-ok, .fg-card.up-ok { animation: fgok .75s ease-out; }
+.fg-chip.up-no, .fg-card.up-no { animation: fgno .45s linear; }
+@keyframes fgok { 0% { box-shadow: 0 0 0 0 rgba(122, 240, 193, .95); } 30% { transform: scale(1.08); } 100% { box-shadow: 0 0 0 22px rgba(122, 240, 193, 0); } }
+@keyframes fgno { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.fg-card { flex: none; display: flex; flex-direction: column; gap: 7px; padding: 8px; border: 1.5px solid var(--line); border-radius: 8px; }
+.fg-name { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.fg-name .nm { display: block; font: 22px/1.1 var(--font-display); }
+.fg-name .st { display: block; font-size: 11.5px; color: var(--dim); }
+.fg-name .btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.fg-parts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.fg-parts.n4 { grid-template-columns: repeat(4, 1fr); }
+.fpt { position: relative; height: 50px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.05;
+  border: 1.5px solid var(--line); border-radius: 5px; background: var(--panel); }
+.fpt svg { flex: none; }
+.fpt small { max-width: 100%; padding: 0 3px; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fpt.empty { border-style: dashed; color: var(--dim); font-size: 11px; background: var(--bg); }
+.fpt.g0 { border-color: var(--g0); color: var(--g0); }
+.fpt.g1 { border-color: var(--g1); color: var(--g1); background: color-mix(in srgb, var(--g1) 16%, var(--panel)); }
+.fpt.g2 { border-color: var(--g2); color: var(--g2); background: color-mix(in srgb, var(--g2) 18%, var(--panel)); }
+.fpt.g3 { border-color: var(--g3); color: var(--g3); background: color-mix(in srgb, var(--g3) 20%, var(--panel)); }
+.fg-card .wm-info { min-height: 34px; }
+.fg-rec { font-size: 11px; color: var(--dim); }
+.fg-rec b { font-weight: 600; color: var(--ink); }
+/* 강화 버튼: 창 너비만큼, 보유 조각 · 필요 · 성공 확률 */
+.btn.fg-up { flex: none; height: 60px; display: grid; grid-template-columns: auto 1.25fr .8fr 1fr; align-items: center; gap: 4px; padding: 0 12px; text-align: left; }
+.fg-up .fl { font: 23px var(--font-display); padding-right: 8px; }
+.fg-up .fv { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; line-height: 1.15; }
+.fg-up .fv small { font-size: 10.5px; white-space: nowrap; }
+.fg-up .fv b { display: flex; align-items: center; gap: 3px; font: 18px var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fg-up .fv b svg { flex: none; }
+.btn.fg-up.max { display: flex; justify-content: space-between; opacity: .55; }
+.fg-up .fmx { font: 16px var(--font-display); color: var(--dim); }
+/* 짧은 설명이 붙은 넓은 버튼 (진화·스킬, 제조, 분해) */
+.btn.fg-wide { flex: none; height: auto; min-height: 52px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; padding: 6px 12px; text-align: left; }
+.fg-wide .fl { font: 20px var(--font-display); white-space: nowrap; }
+.fg-wide .fd { font: 400 11.5px/1.35 var(--font-body); color: var(--dim); text-align: right; overflow-wrap: anywhere; word-break: keep-all; }
+.fg-wide .fd b { font-weight: 600; color: var(--ink); }
+.btn.primary.fg-wide .fd { color: color-mix(in srgb, var(--on-accent) 78%, transparent); }
+.btn.primary.fg-wide .fd b { color: var(--on-accent); }
+.btn.ember.fg-wide .fd { color: inherit; }
+.btn.ember.fg-wide .fd b { color: inherit; }
+.btn.fg-wide.lock { opacity: .5; }
+/* 용해로 탭 */
+.fg-gauge { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--dim); }
+.fg-gauge b { font: 22px var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.fgm .fg-card .gbar { height: 9px; border-radius: 5px; margin: 0; }
+.fgm .odds { font-size: 11.5px; color: var(--dim); }
+.fgm .odds .g1 { color: var(--g1); } .fgm .odds .g2 { color: var(--g2); } .fgm .odds .g3 { color: var(--g3); }
+.fgm .inv { flex: none; }
