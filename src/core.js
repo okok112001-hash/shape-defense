@@ -595,7 +595,7 @@ const PACTS = {
   rush:     { name: '속전속결',       up: '적 체력 -20%',                    dn: '적 이동 속도 +18%' },
   hunt:     { name: '사냥철',        up: '보스 처치 보상 2배',                dn: '보스가 웨이브마다 2번 등장' },
   forge:    { name: '용광로의 축복',   up: '용해로 제작 비용 −40%',          dn: '생성에서 파츠가 나오지 않음' },
-  focus:    { name: '집중',          up: '남은 무기 피해 +45%',               dn: '5번 무기 칸 영구 폐쇄' },
+  focus:    { name: '집중',          up: '남은 무기 피해 +45%',               dn: '5번 무기 칸 영구 폐쇄, 그 칸의 무기는 사라짐' },
   gamble:   { name: '도박사',        up: '모든 강화 성공률 +15%p',            dn: '강화 실패 시 10% 확률로 1단계 하락' },
   relic:    { name: '유물 거래',      up: '전설 무기 파츠 1개 즉시 획득',        dn: '강화가 가장 높은 무기 -10강', instant: true },
   blood:    { name: '피의 계약',      up: '적 20마리 처치마다 기지 체력 최대치의 2% 회복', dn: '기지가 받는 피해 +50%' },
@@ -656,6 +656,12 @@ function setState(s) { S = s; while (S.inv.length < CFG.invSize) S.inv.push(null
   for (const w of S.slots.concat(S.inv)) if (w && w.kind === 'w' && w.augs.some(gone)) { w.augs = w.augs.map(a => gone(a) ? null : a); dirty(w); }
   if (S.pendingAug && S.pendingAug.options.some(gone)) { S.pendingAug.options = S.pendingAug.options.filter(a => !gone(a)); if (!S.pendingAug.options.length) S.pendingAug = null; }
   if (S.augQ && !S.pendingAug) augNext();   // 무기 교체 뒤 증강 다시 고르기가 남아 있으면 이어서
+  if (S.pipe) for (let i = 0; i < S.inv.length; i++) {   // 예전 저장(연결 모드)의 인벤토리 무기: 빈 칸에 장착하고, 남는 것은 그 값만큼 게이지로 (한 번만 일어나는 정리)
+    const it = S.inv[i]; if (!it || it.kind !== 'w') continue;
+    const k = S.slots.findIndex((w, j) => !w && !isClosed(j));
+    if (k >= 0) S.slots[k] = it; else S.melt = (S.melt || 0) + meltValue(it);
+    S.inv[i] = null;
+  }
   if (!S.evq) S.evq = []; if (!S.pacts) S.pacts = []; if (S.pendingPact === undefined) S.pendingPact = null; if (!S.bloodN) S.bloodN = 0;
   if (!S.locks) S.locks = {}; if (!S.corr) S.corr = null; if (!S.notes) S.notes = []; if (S.lastBoss === undefined) S.lastBoss = null; if (S.pendingBoss === undefined) S.pendingBoss = null;
   if (S.wt == null) { S.wt = 0; S.wn = 0; S.wEnd = 0; S.wave = null; S.wLast = null; S.wTick = 0; }
@@ -870,16 +876,18 @@ function moveInv(a, b) { // 인벤토리 안에서 자리 바꾸기
 // 봉쇄체가 잠근 칸(잠금이 실제로 걸린 때만. 예고 중에는 아직 옮길 수 있다)
 function isLocked(k) { const lk = S.locks && S.locks[k]; return !!lk && lk.l > 0; }
 function unrust(w) { if (!w) return; if (w.rz || w.gz) { w.rz = 0; w.gz = 0; dirty(w); } w.sz = 0; }   // 칸을 떠난 무기는 부식·봉쇄·망령 블록과 이어져 있지 않다
+// 연결 모드: 무기는 인벤토리에 들어가지 않는다 (사용자 결정 2026-11-28. 무기는 교체로만 바꾸고, 장착 해제·분해 없음).
+// 그래서 인벤토리 무기를 장착하는 길은 빈 칸에만 (예전 저장에 남은 무기가 있어도 setState 가 정리한다)
 function equipWeapon(invIdx, slot) {
   const it = S.inv[invIdx];
-  if (!it || it.kind !== 'w' || isLocked(slot) || isClosed(slot)) return false;
+  if (!it || it.kind !== 'w' || isLocked(slot) || isClosed(slot) || (S.pipe && S.slots[slot])) return false;
   const old = S.slots[slot]; unrust(old);
   S.slots[slot] = it; it.cd = 0.2;
   S.inv[invIdx] = old || null;
   return true;
 }
 function unequipWeapon(slot, idx) {
-  const w = S.slots[slot]; if (!w || isLocked(slot)) return false;
+  const w = S.slots[slot]; if (!w || isLocked(slot) || S.pipe) return false;   // 연결 모드는 장착 해제 없음
   const i = idx != null && S.inv[idx] === null ? idx : freeSlot(); if (i < 0) return false;
   unrust(w);
   S.inv[i] = w; S.slots[slot] = null; return true;
@@ -930,6 +938,7 @@ function baseDetach(k) {
   S.inv[i] = { kind: 'p', id: b.parts[k].id, g: b.parts[k].g }; b.parts[k] = null; bdirty();
   return true;
 }
+function meltable(it) { return !!it && (it.kind === 'p' || (it.kind === 'w' && !S.pipe)); }   // 녹일 수 있는 것: 파츠, 무기 (연결 모드는 무기를 녹이지 않는다)
 function meltSafe(it) { // 모두 분해에서 제외: 영웅 이상 파츠, 강화된 무기, 영웅 이상 파츠가 달린 무기
   if (it.kind === 'p') return it.g >= 2;
   if (it.kind === 'w') return !!it.evo || (it.lv || 0) >= 1 || (it.parts || []).some(p => p && p.g >= 2);   // 진화한 무기는 늘 제외
@@ -937,7 +946,7 @@ function meltSafe(it) { // 모두 분해에서 제외: 영웅 이상 파츠, 강
 }
 function meltAll() { // 인벤토리의 파츠와 무기를 전부 녹인다 (meltSafe 제외)
   let pts = 0, n = 0;
-  for (let i = 0; i < S.inv.length; i++) { const it = S.inv[i]; if (it && (it.kind === 'p' || it.kind === 'w') && !meltSafe(it)) { pts += meltPart(i); n++; } }
+  for (let i = 0; i < S.inv.length; i++) { const it = S.inv[i]; if (meltable(it) && !meltSafe(it)) { pts += meltPart(i); n++; } }
   return { pts, n };
 }
 function meltValue(it) { // 녹였을 때 얻는 게이지: 파츠는 등급별, 무기는 강화 단계 + 달린 파츠
@@ -950,19 +959,19 @@ function meltValue(it) { // 녹였을 때 얻는 게이지: 파츠는 등급별,
   return v;
 }
 function meltPart(i) { // 용해로: 인벤토리의 파츠 또는 무기를 녹여 게이지를 얻는다
-  const it = S.inv[i]; if (!it || (it.kind !== 'p' && it.kind !== 'w')) return 0;
+  const it = S.inv[i]; if (!meltable(it)) return 0;
   const pts = meltValue(it);
   S.melt = (S.melt || 0) + pts; S.inv[i] = null;
   return pts;
 }
 function meltList(list) { // 고른 칸들을 녹인다 (영웅 이상도 포함: 직접 고른 것이므로). 반환: 얻은 게이지와 개수
   let pts = 0, n = 0;
-  for (const i of list) { const it = S.inv[i]; if (it && (it.kind === 'p' || it.kind === 'w')) { pts += meltPart(i); n++; } }
+  for (const i of list) { if (meltable(S.inv[i])) { pts += meltPart(i); n++; } }
   return { pts, n };
 }
 function meltAllValue() { // 모두 분해가 얻을 게이지와 개수 (미리 보기)
   let pts = 0, n = 0;
-  for (const it of S.inv) if (it && (it.kind === 'p' || it.kind === 'w') && !meltSafe(it)) { pts += meltValue(it); n++; }
+  for (const it of S.inv) if (meltable(it) && !meltSafe(it)) { pts += meltValue(it); n++; }
   return { pts, n };
 }
 function craftPart() { // 용해로: 게이지를 써서 희귀 이상 파츠를 만든다
@@ -1136,7 +1145,12 @@ function choosePact(i) {
     const k = PACT.focusSlot, w = S.slots[k];
     if (w) {
       const f = freeSlot(); unrust(w);
-      if (f >= 0) { S.inv[f] = w; S.slots[k] = null; res.moved = 'inv'; }
+      if (S.pipe) {                           // 연결 모드: 무기는 사라지고(인벤토리에 넣지도 녹이지도 않는다) 달린 파츠만 인벤토리로, 자리가 없는 파츠는 녹인다
+        let pts = 0;
+        for (const p of w.parts) if (p) { const i = freeSlot(); if (i >= 0) S.inv[i] = { kind: 'p', id: p.id, g: p.g }; else pts += CFG.meltPts[p.g]; }
+        S.melt = (S.melt || 0) + pts; S.slots[k] = null; res.moved = 'gone'; res.pts = pts;
+      }
+      else if (f >= 0) { S.inv[f] = w; S.slots[k] = null; res.moved = 'inv'; }
       else { const pts = meltValue(w); S.melt = (S.melt || 0) + pts; S.slots[k] = null; res.moved = 'melt'; res.pts = pts; }
       if (S.locks) delete S.locks[k];
       if (S.corr && S.corr.k === k) S.corr = null;
@@ -3097,9 +3111,14 @@ const test = {
     if (!S || !S.cheat || CHEAT_KEYS.indexOf(key) < 0) return false;
     S.cheat[key] = !!on; return true;
   },
-  // 무기 받기: 인벤토리에 넣는다 (가득 차면 -1)
-  give(type) {
+  // 무기 받기: 인벤토리에 넣는다 (가득 차면 -1). 연결 모드는 무기가 인벤토리에 들어가지 않으니 k 번 칸의 무기를 새 0강 무기로 바꾼다 (반환: 칸 번호)
+  give(type, k) {
     if (!testOn() || !WEAPONS[type]) return -1;
+    if (S.pipe) {
+      if (k == null || k < 0 || k >= S.slots.length || isClosed(k) || isLocked(k)) return -1;
+      unrust(S.slots[k]); S.slots[k] = newWeapon(type); S.slotDirty = true;
+      return k;
+    }
     const i = addItem(newWeapon(type));
     if (i >= 0) S.invDirty = true;
     return i;
@@ -3191,7 +3210,7 @@ const Core = {
   LANES, LW, W, GRADES, CFG, BAL, WEAPONS, WEAPON_IDS, PARTS, AUGS, AUG_POOL, ENEMIES,
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T, AB_WARN,
-  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
+  attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, meltable, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
   bstats, basePut, baseDetach, upgradeBase, bossDrop, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,

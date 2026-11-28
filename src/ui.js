@@ -799,7 +799,7 @@ function cellHtml(it, i, mv) {   // mv: 용해로 탭의 칸 (녹일 것 고르�
   else if (it.kind === 'w') { inner = icon(it.type, 20, it.evo) + `<b>${lvTxt(it)}</b>`; cls += ' kw' + (it.evo ? ' evo' : ''); }
   else if (it.kind === 'p') { inner = partIcon(it.id, 26); cls += ' kp g' + it.g + (isBasePart(it) ? ' kb' : ''); }
   else if (it.kind === 't') { inner = TICKET(26); cls += ' kt'; }
-  const meltable = mv && !!it && (it.kind === 'p' || it.kind === 'w');
+  const meltable = mv && C.meltable(it);
   if (mv) cls += meltable ? ' meltable' : ' dim';
   if (meltable && meltSet.has(i)) { cls += ' msel'; inner += `<span class="mchk"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.500 4.500L19 7.500"/></svg></span>`; }
   else if (meltable) inner += '<span class="mcue"><i></i><i></i></span>';
@@ -958,7 +958,7 @@ function fgEvo(w) {
 // 교체 버튼 (T13f): 진화 전에만. 30강 전에는 잠긴 버튼
 function fgSwap(w, k) {
   if (w.evo) return '';
-  if (w.lv < C.SWAP.lv) return `<button type="button" class="btn fg-wide lock" disabled><span class="fl">교체</span><span class="fd">${C.SWAP.lv}강부터 재화를 내고<br>다른 무기로 바꿀 수 있습니다</span></button>`;
+  if (w.lv < C.SWAP.lv) return `<button type="button" class="btn fg-wide lock" disabled><span class="fl">교체</span><span class="fd">${C.SWAP.lv}강부터 다른 무기로<br>바꿀 수 있습니다</span></button>`;
   const c = C.canSwap(k);
   return `<button type="button" class="btn fg-wide swb${c.reason === 'gold' ? ' off' : ''}" data-act="swOpen"><span class="fl">교체</span><span class="fd">다른 무기로 바꿉니다, 강화 −${C.SWAP.loss}<br>비용 <b>◆ ${fmtInt(c.cost)}</b></span></button>`;
 }
@@ -969,7 +969,7 @@ function wmHtml(w) {
     <div class="fg-card">
       <div class="fg-name"><div><span class="nm" style="color:${d.color}">${d.name} ${lvTxt(w)}</span>
         <span class="st">공격력 ${fmt(st.dmg)} · 간격 ${st.cd.toFixed(2)}초 · 치명 ${Math.round(st.crit * 100)}%${st.capOn ? ` · ${st.cap < C.CAP_NONE ? '최대 ' + st.cap + '명' : '제한 없음'}` : ''}</span></div>
-        <button type="button" class="btn sm" data-act="wunequip">장착 해제</button></div>
+        ${S.pipe ? '' : '<button type="button" class="btn sm" data-act="wunequip">장착 해제</button>'}</div>
       ${fgParts(w.parts)}
       <div class="wm-info" id="wmInfo">${wInfoHtml(modalInfoText())}</div>
       <div class="wm-augs">${augRows(w.augs)}</div>
@@ -1007,10 +1007,10 @@ function fmHtml() {
       <span class="gbar"><i style="width:${pct}%"></i></span>
       <span class="odds">제조하면 <span class="g1">희귀 ${od[1]}%</span> · <span class="g2">영웅 ${od[2]}%</span> · <span class="g3">전설 ${od[3]}%</span></span>
     </div>
-    <div class="wm-sec">녹일 파츠·무기를 누르세요</div>
+    <div class="wm-sec">${S.pipe ? '녹일 파츠를 누르세요' : '녹일 파츠·무기를 누르세요'}</div>
     <div class="inv melting">${S.inv.map((it, i) => cellHtml(it, i, true)).join('')}</div>
     <button type="button" class="btn primary fg-wide${m >= cc ? '' : ' off'}" data-act="craft"><span class="fl">제조</span><span class="fd">게이지 <b>${fmtInt(cc)}</b>로 희귀 이상 파츠 하나</span></button>
-    <button type="button" class="btn ember fg-wide${meltAllArm && !n ? ' danger' : ''}" data-act="meltBulk"><span class="fl">${label}</span><span class="fd">게이지 <b>+${fmtInt(v)}</b>${n ? '' : '<br>영웅 이상 파츠, 강화한 무기는 빼고'}</span></button></div>`;
+    <button type="button" class="btn ember fg-wide${meltAllArm && !n ? ' danger' : ''}" data-act="meltBulk"><span class="fl">${label}</span><span class="fd">게이지 <b>+${fmtInt(v)}</b>${n ? '' : S.pipe ? '<br>영웅 이상 파츠는 빼고' : '<br>영웅 이상 파츠, 강화한 무기는 빼고'}</span></button></div>`;
 }
 /* ---------- 진화 창과 스킬 창 ---------- */
 function evoHtml() {
@@ -1275,7 +1275,8 @@ function pactToast(r) {
     t = r.got === 'melt' ? `<b>유물 거래</b> 인벤토리가 가득 차 전설 파츠(${nm})를 게이지 +${r.pts}로 바꿨습니다.` : `<b>유물 거래</b> 전설 파츠 <b class="g3">${nm}</b> 획득.`;
     if (r.lost) t += ` ${C.WEAPONS[r.lost.type].name} ${r.lost.evo || r.devo ? `★+${r.lost.from - 100} → ${r.devo ? '진화가 풀려 +100' : '★+' + (r.lost.to - 100)}` : `+${r.lost.from} → +${r.lost.to}`}`;
   } else if (r.id === 'focus' && r.moved) {
-    t += r.moved === 'melt' ? ` · 인벤토리가 가득 차 5번 칸 무기를 분해했습니다 (게이지 +${r.pts})` : ' · 5번 칸 무기를 인벤토리로 옮겼습니다';
+    t += r.moved === 'gone' ? ` · 5번 칸 무기는 사라지고 파츠는 인벤토리로${r.pts ? ` (자리가 없는 파츠는 게이지 +${r.pts})` : ''}`
+      : r.moved === 'melt' ? ` · 인벤토리가 가득 차 5번 칸 무기를 분해했습니다 (게이지 +${r.pts})` : ' · 5번 칸 무기를 인벤토리로 옮겼습니다';
   }
   return t;
 }
@@ -1351,12 +1352,12 @@ function testHtml() {
   const S = C.S, ch = S.cheat, full = C.freeSlot() < 0, k = testSlot(), any = k >= 0, evo = S.slots.some(w => w && w.evo);
   const off = (x) => x ? ' off' : '';
   const chk = C.test.KEYS.map(key => `<button type="button" class="tchk${ch[key] ? ' on' : ''}" data-tc="${key}" aria-pressed="${!!ch[key]}"><i class="tbox">${ch[key] ? TCHECK : ''}</i><span>${TEST_LABEL[key]}</span></button>`).join('');
-  const ws = C.WEAPON_IDS.map(id => `<button type="button" class="twb${off(full)}" data-tw="${id}">${icon(id, 22)}<small>${C.WEAPONS[id].name}</small></button>`).join('');
+  const ws = C.WEAPON_IDS.map(id => `<button type="button" class="twb${off(S.pipe ? !any : full)}" data-tw="${id}">${icon(id, 22)}<small>${C.WEAPONS[id].name}</small></button>`).join('');
   const wn = any ? `<small style="color:${C.WEAPONS[S.slots[k].type].color}">${C.WEAPONS[S.slots[k].type].name}</small>` : '';
   return `<div class="modal testm">
     <div class="wm-head"><h2>테스트</h2><span class="tmsg">${testMsg}</span><button type="button" class="x" data-act="testExit">끝내기</button></div>
     <div class="tgrid">${chk}</div>
-    <div class="wm-sec">무기 받기</div>
+    <div class="wm-sec">${S.pipe ? '무기 바꾸기 (고른 칸, 0강)' : '무기 받기'}</div>
     <div class="twp">${ws}</div>
     <div class="wm-sec">장착한 무기</div>
     <div class="tgrid">
@@ -1387,7 +1388,8 @@ function testRun(name, arg) {
   let m = '', ok = true;
   switch (name) {
     case 'give': {
-      const i = T.give(arg); if (i < 0) return;
+      const i = T.give(arg, testSlot()); if (i < 0) return;
+      if (S.pipe) { m = `${i + 1}번 칸 ${C.WEAPONS[arg].name}`; break; }   // 연결 모드: 고른 칸의 무기를 바꾼다
       m = C.WEAPONS[arg].name + ' 받음';
       newCell = i; setTimeout(() => { if (newCell === i) newCell = -1; }, 500);
       break;
@@ -1923,7 +1925,7 @@ function tapInv(i) {                      // 누르면 고르기만 한다. 다�
   const S = C.S, it = S.inv[i];
   confirmDrop = false; msg = ''; meltAllArm = false;
   if (meltMode) {                          // 대장간의 용해로 탭: 누르면 녹일 물건으로 고르거나 푼다 (몇 개든). 녹이기는 아래 버튼으로
-    if (!it || (it.kind !== 'p' && it.kind !== 'w')) return say('용해로에는 파츠와 무기만 넣을 수 있습니다.', true);
+    if (!C.meltable(it)) return say(S.pipe ? '용해로에는 파츠만 넣을 수 있습니다.' : '용해로에는 파츠와 무기만 넣을 수 있습니다.', true);
     if (meltSet.has(i)) meltSet.delete(i); else meltSet.add(i);
     Snd.play('tap'); renderOverlay(); return;
   }
@@ -1988,6 +1990,7 @@ function dropTarget(x, y, src) {
     if (!b || bd > DROP_NEAR * Math.sqrt(br.width * br.height)) return null;
   }
   if (b.classList.contains('bbtn')) return { from: 'base', el: b };
+  if (src && src.from === 'slot' && C.S.pipe && b.dataset.inv != null) return null;   // 연결 모드: 무기는 인벤토리에 넣을 수 없다
   return b.dataset.inv != null ? { from: 'inv', i: +b.dataset.inv, el: b } : { from: 'slot', k: +b.dataset.slot, el: b };
 }
 function sameSpot(a, b) { return a && b && a.from === b.from && (a.from === 'inv' ? a.i === b.i : a.k === b.k); }
@@ -2014,6 +2017,7 @@ function applyDrop(src, t) {               // 반환값: 실제로 옮겼는지
   if (C.isLocked(src.k) || (t.from === 'slot' && C.isLocked(t.k))) { say(LOCKED, true); return false; }   // 잠긴 칸에서는 꺼내지도, 넣지도 못한다
   if (t.from === 'slot') { if (C.isClosed(t.k)) { say(CLOSED, true); return false; } return C.swapSlots(src.k, t.k); }
   const it = S.inv[t.i];
+  if (S.pipe) return false;                // 연결 모드: 무기는 인벤토리에 들어가지 않는다
   if (!it) return C.unequipWeapon(src.k, t.i);
   if (it.kind === 'w') return C.equipWeapon(t.i, src.k);
   if (C.unequipWeapon(src.k)) return true;
@@ -2188,7 +2192,7 @@ function act(name) {
     case 'forge': Snd.play('tap'); openForge(fTab); return;   // 대장간: 마지막으로 본 탭으로 연다
     case 'meltBulk': {                       // 고른 것이 있으면 그것만, 없으면 '모두 분해' (영웅 이상 파츠, 강화한 무기 제외)
       const picked = [...meltSet].filter(i => { const x = S.inv[i]; return x && (x.kind === 'p' || x.kind === 'w'); });
-      const ok = x => x && (x.kind === 'p' || x.kind === 'w') && !C.meltSafe(x);
+      const ok = x => C.meltable(x) && !C.meltSafe(x);
       const idx = picked.length ? picked : S.inv.map((x, i) => ok(x) ? i : -1).filter(i => i >= 0);
       if (!idx.length) return say('분해할 수 있는 물건이 없습니다. (영웅 이상 파츠, 강화한 무기는 제외)', true);
       if (!picked.length && !meltAllArm) { meltAllArm = true; renderOverlay(); return say(`${idx.length}개를 분해하려면 한 번 더 누르세요. 제외: 영웅 이상 파츠, 강화한 무기, 영웅 이상 파츠가 달린 무기`, true); }

@@ -1,5 +1,5 @@
 """대장간 (T13e) 검사와 캡처. 정비 시간에 대장간을 열고 모든 기능을 한 번씩 실행한다:
-   무기 탭(무기 바꾸기, 강화, 파츠 장착·해제, 장착 해제, 진화, 스킬), 기지 탭(강화, 기지 파츠 장착), 용해로 탭(고르기, 분해, 모두 분해, 제조),
+   무기 탭(무기 바꾸기, 강화, 파츠 장착·해제, 장착 해제 없음, 무기를 인벤토리로 끌어도 안 들어감, 진화, 스킬), 기지 탭(강화, 기지 파츠 장착), 용해로 탭(고르기, 분해, 모두 분해, 제조),
    웨이브 중 잠금, 무기 두 번 누르기로 열기, 바깥 누르면 닫기, 다시 열면 마지막 탭.
    실행 (저장소 루트, 먼저 python build.py): python tests/forge_shots.py [테마들 쉼표로, 기본 paper,navy] [가로 세로]
    결과: dist/forge/shot_<테마>_<번호>.png, 실패하면 FAIL 줄과 종료 코드 1"""
@@ -38,7 +38,7 @@ async def run(b, TH, full):
     check(not await has('.modal.fg'), '웨이브 중에는 무기를 두 번 눌러도 대장간이 안 열림')
     # 정비로: 적을 다 나오게 하고 지운다. 재화·조각, 파츠 몇 개
     await ev("""(()=>{const S=Core.S,wv=S.wave;S.wt=wv.t0+Core.PREP.spawnT;wv.bq=[];S.pendingBoss=null;S.enemies=[];S.gold=1e6;S.shards=20000;S.melt=40;
-      const P=(id,g)=>({kind:'p',id,g});S.inv=Array(15).fill(null);[P('range',1),P('crit',2),P('shield',2),P('dmg',0),P('rate',0),Core.newWeapon('acid'),P('gold',0)].forEach((it,i)=>S.inv[i]=it);
+      const P=(id,g)=>({kind:'p',id,g});S.inv=Array(15).fill(null);[P('range',1),P('crit',2),P('shield',2),P('dmg',0),P('rate',0),P('range',0),P('gold',0)].forEach((it,i)=>S.inv[i]=it);
       const w=S.slots[1];w.lv=99;w.hi=95;Core.dirty(w);const v=S.slots[2];v.lv=23;v.hi=20;Core.dirty(v);S.invDirty=true;S.slotDirty=true;})()""")
     await pg.wait_for_timeout(2600)
     await pg.tap('#fieldWrap', position={'x': 30, 'y': 30}); await pg.wait_for_timeout(200)   # 웨이브 때 고른 무기 칸 선택 풀기
@@ -129,10 +129,23 @@ async def run(b, TH, full):
     await tap('[data-act=craft]')
     check(await ev("Core.S.inv.filter(Boolean).length") == k2 + 1, '제조')
     await shot('melt2')
-    # 장착 해제 (무기 탭)
+    # 장착 해제 없음 (연결 모드: 무기는 인벤토리에 들어가지 않는다)
     await tap('[data-ft=w]'); await tap('[data-fw="4"]')
-    await tap('[data-act=wunequip]')
-    check(await ev("!Core.S.slots[4]") and not await has('.modal.fg'), '장착 해제')
+    check(not await has('[data-act=wunequip]'), '장착 해제 버튼 없음')
+    await tap('[data-act=wclose]')
+    # 무기 칸을 인벤토리로 끌어도 들어가지 않음
+    async def drag_to(src_js, dst_js):
+        a = await ev(f"(()=>{{const r=({src_js}).getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]}})()")
+        bb = await ev(f"(()=>{{const r=({dst_js}).getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]}})()")
+        await pg.mouse.move(a[0], a[1]); await pg.mouse.down()
+        for i in range(1, 9):
+            await pg.mouse.move(a[0] + (bb[0] - a[0]) * i / 8, a[1] + (bb[1] - a[1]) * i / 8); await pg.wait_for_timeout(30)
+        await pg.mouse.up(); await pg.wait_for_timeout(600)   # 끌기 직후 0.4초의 누름은 무시된다
+    t3, t2 = await ev("Core.S.slots[3].type"), await ev("Core.S.slots[2].type")
+    await drag_to("document.querySelector('[data-slot=\"3\"]')", "document.querySelector('[data-slot=\"2\"]')")
+    check(await ev("Core.S.slots[2].type") == t3 and await ev("Core.S.slots[3].type") == t2, '무기 칸끼리 끌면 바뀜 (끌기 확인)')
+    await drag_to("document.querySelector('[data-slot=\"3\"]')", "[...document.querySelectorAll('#bottom [data-inv]')].find(e=>!Core.S.inv[+e.dataset.inv])")
+    check(await ev("!!Core.S.slots[3] && !Core.S.inv.some(x=>x&&x.kind==='w')"), '무기 칸을 인벤토리로 끌어도 그대로')
     # 다음 웨이브: 대장간을 열어 둔 채 시작할 수 없게 창이 덮는다. 닫고 시작하면 대장간 버튼이 잠김
     await tap('[data-act=prepGo]'); await pg.wait_for_timeout(500)
     check(await ev("Core.S.prep.phase") == 'wave' and not await has('#forgeBtn'), '웨이브 시작: 판이 나오고 대장간 버튼 없음')

@@ -1445,6 +1445,37 @@ function scene(type, lines, secs, opt) {
     assert(g2.w > 100 && d2.w > 100, '예전 방식은 무기가 나옴 ' + JSON.stringify(g2) + ' ' + JSON.stringify(d2));
   }
   ok('연결 모드 생성·보스 보상에 무기 없음 (파츠 18% · 조각 82%, 티켓 4% · 파츠 96%), 예전 방식은 그대로');
+  // (l) 연결 모드: 무기는 인벤토리에 들어가지 않는다. 장착 해제 없음, 무기는 녹이지 않음, 집중 거래는 5번 칸 무기가 사라지고 파츠만 인벤토리로,
+  //     예전 저장의 인벤토리 무기는 빈 칸에 장착하고 남는 것은 게이지로, 테스트의 무기 받기는 고른 칸을 바꾼다. 예전 방식(도구)은 그대로
+  {
+    const S = pipe(9), w0 = S.slots[0], nw = (S) => S.inv.filter((x) => x && x.kind === 'w').length;
+    assert(!Core.unequipWeapon(0) && S.slots[0] === w0 && !nw(S), '장착 해제 없음');
+    const x = Core.newWeapon('rail'); S.inv[3] = x;
+    assert(!Core.meltable(x) && Core.meltPart(3) === 0 && S.inv[3] === x, '무기는 녹이지 않음');
+    assert(Core.meltable({ kind: 'p', id: 'dmg', g: 0 }), '파츠는 녹임');
+    S.inv[4] = { kind: 'p', id: 'dmg', g: 0 }; const m0 = S.melt || 0, ma = Core.meltAll();
+    assert(ma.n === 1 && S.inv[3] === x && !S.inv[4] && S.melt > m0, '모두 분해도 무기는 빼고');
+    assert(Core.meltList([3]).n === 0 && S.inv[3] === x, '골라도 무기는 안 녹음');
+    assert(!Core.equipWeapon(3, 1) && S.inv[3] === x, '장착한 칸에 넣으면 원래 무기가 인벤토리로 가니 안 됨');
+    S.slots[1] = null; assert(Core.equipWeapon(3, 1) && S.slots[1] === x && !nw(S), '빈 칸에는 장착');
+    // 집중 거래: 5번 칸 무기는 사라지고 파츠는 인벤토리로 (자리가 없으면 게이지)
+    const w4 = S.slots[4]; w4.parts = [{ id: 'crit', g: 2 }, null, { id: 'rate', g: 1 }]; S.inv.fill(null);
+    S.pendingPact = ['focus']; const r = Core.choosePact(0);
+    assert(r.ok && r.moved === 'gone' && !S.slots[4] && !nw(S) && S.inv.filter(Boolean).length === 2, '집중: 무기는 사라지고 파츠 둘은 인벤토리로');
+    // 예전 저장: 인벤토리 무기는 빈 칸(닫힌 칸 빼고)에, 남는 것은 게이지로
+    const cp = JSON.parse(JSON.stringify(S)); cp.slots[2] = null; cp.inv[7] = Core.newWeapon('acid'); cp.inv[8] = Core.newWeapon('tesla'); const g0 = cp.melt || 0;
+    Core.setState(cp); const T = Core.S;
+    assert(T.slots[2] && T.slots[2].type === 'acid' && !T.slots[4] && !nw(T) && T.melt > g0, '예전 저장 정리 ' + T.melt);
+    // 테스트 모드의 무기 받기: 고른 칸의 무기를 새 0강 무기로
+    T.slots[0].lv = 40; assert(Core.test.give('pulse', 0) === 0 && T.slots[0].type === 'pulse' && T.slots[0].lv === 0 && !nw(T), '테스트: 칸을 바꿈');
+    assert(Core.test.give('pulse', 4) === -1 && Core.test.give('pulse') === -1, '테스트: 닫힌 칸·칸 없음은 안 됨');
+    // 예전 방식(도구): 장착 해제·무기 녹이기·집중 거래의 인벤토리 이동은 그대로
+    Core.seed(4); Core.newGame(520); const O = Core.S;
+    assert(Core.unequipWeapon(2) && nw(O) === 1, '예전 방식은 장착 해제');
+    const oi = O.inv.findIndex((q) => q && q.kind === 'w'); assert(Core.meltable(O.inv[oi]) && Core.meltPart(oi) > 0, '예전 방식은 무기도 녹임');
+    O.slots[4] = Core.newWeapon('laser'); O.pendingPact = ['focus']; assert(Core.choosePact(0).moved === 'inv' && nw(O) === 1, '예전 방식 집중은 인벤토리로');
+  }
+  ok('연결 모드: 무기는 인벤토리에 안 들어감 (장착 해제 없음, 녹이지 않음, 집중 거래는 무기가 사라지고 파츠만, 예전 저장 정리, 테스트 무기 바꾸기), 예전 방식은 그대로');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 
