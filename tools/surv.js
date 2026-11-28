@@ -10,6 +10,7 @@
      --pact 목록  거래 확인. 항목 = PACTS id (쉼표로 여러 개, all = 전부). 대상 없는 게임이 10분(600초)을 넘긴 시드만 골라,
                   600초에 Core.choosePact 로 거래를 적용하고 이후 생존 시간 (T-600)의 비율을 기하평균으로 낸다
                   항목 뒤에 @값[/둘째값] 을 붙이면 그 등급의 수치를 임시로 바꿔 잰다 (예: part:armor:2@30/5, aug:h_repair:2@0.4/8)
+     --pactT 초   거래를 적용하는 시각 (기본 600). 봇이 600초 전에 대부분 죽으면 앞당긴다 (T15c 는 180)
      --nobase     대상 없는 일반 게임(첫 줄)을 건너뛴다 (--pair/--pact 만 볼 때)
      --cache 파일 짝지은 기준(자리표시 항목) 결과를 저장/재사용한다. 키 = core.js 내용 해시, K, 시드 수, 종류
                   거래 이름 뒤에 @키=값;키=값 을 붙이면 Core.PACT 의 수치를 임시로 바꿔 잰다 (예: glass@glassDmg=1.2;glassHp=0.6)
@@ -24,7 +25,7 @@ const argv = process.argv.slice(2);
 const opt = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
 const pos = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1].startsWith('--')));
 const CORE = path.resolve(pos[0] || path.join(__dirname, '..', 'src', 'core.js'));
-const K = +pos[1] || 300, N = +pos[2] || 24, DT = 1 / 30, CAP = 3600, PACT_T = 600;
+const K = +pos[1] || 300, N = +pos[2] || 24, DT = 1 / 30, CAP = 3600, PACT_T = +opt('--pactT') || 600;
 const RUNNER = opt('--runner'), EVAL = opt('--eval'), NOEVO = argv.includes('--noevo');
 const MAP = (id, kind) => (kind === 'part' ? Core.PARTS : Core.AUGS)[id];
 
@@ -163,7 +164,7 @@ async function main() {
     res.pact = {};
     const ids = pacts === 'all' ? Core.PACT_IDS : pacts.split(',');
     const ok = seeds.filter((s, i) => base[i].T > PACT_T);
-    console.log('trade seeds (no-trade game > 10:00):', ok.length + '/' + N);
+    console.log('trade seeds (no-trade game > ' + PACT_T + 's):', ok.length + '/' + N);
     for (const id of ids) {
       const [pid, pov] = id.split('@'), pactOv = pov ? Object.fromEntries(pov.split(';').map((x) => { const [k, v] = x.split('='); return [k, +v]; })) : null;
       const w = await runJobs(ok.map((seed) => ({ spec: { pact: pid, pactOv }, seed })));

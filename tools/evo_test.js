@@ -1555,5 +1555,107 @@ function scene(type, lines, secs, opt) {
   assert(Math.abs(Core.stats(wl).mobPct - (Core.PARTS.mob.v[3] + Core.AUGS.a_mob.v[3]) / 100) < 1e-9, '파츠와 증강이 더해진다');
   ok('일반 적 추가 피해(소탕 모듈, 제압 사격): 일반 적·정예 x(1+v), 보스·대형·황금체·보급 상자 그대로 (블래스터 탄, 산성 웅덩이)');
 }
+/* T15c. 천칭 전투 거래 8개 (장기전, 거인 사냥꾼, 소탕전, 벼랑 끝, 외길, 비만화, 불굴, 예열) */
+{
+  const P = Core.PACT, near = (a, b, m) => assert(Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b)), `${m}: ${a} != ${b}`);
+  const take = (id) => { Core.S.pendingPact = [id]; assert(Core.choosePact(0).ok, id); };
+  for (const id of ['long', 'giant', 'sweep', 'brink', 'path', 'fat', 'grit', 'warm']) assert(Core.PACTS[id] && Core.PACT_IDS.indexOf(id) >= 0, id);
+  assert.strictEqual(Core.PACT_IDS.length, 20); assert.strictEqual(Core.PACTS.glass.name, '배수진');
+  // 장기전: x0.75, 웨이브를 막을 때마다 +3% (연결 모드), 예전 방식은 PREP.span 초마다
+  {
+    let S = game(21); const w = put('blaster', 0, 10), d0 = Core.stats(w).dmg; take('long');
+    near(Core.stats(w).dmg, d0 * 0.75, '장기전 받는 순간');
+    S.spawnAcc = -1e9; S.nextBoss = 1e9; S.hp = S.maxHp = 1e9;
+    for (let t = 0; t < Core.PREP.span * 3 + 1; t += 1 / 30) { Core.step(1 / 30); S.hp = S.maxHp; }
+    near(Core.stats(w).dmg, d0 * (0.75 + 0.03 * 3), '장기전 예전 방식 270초 = 3');
+    Core.seed(22); Core.test.newGame({ god: true }, 520, 'pipe'); S = Core.S; const wp = S.slots[0], dp = Core.stats(wp).dmg; take('long');
+    let cleared = 0; const t1 = S.t + 2000;
+    while (cleared < 2 && S.t < t1) { const was = S.prep.phase; Core.step(1 / 30); if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (was === 'wave' && S.prep.phase === 'rest') { cleared++; Core.prepGo(); } }
+    assert.strictEqual(S.longK, 2, '막은 웨이브 2'); near(Core.stats(wp).dmg, dp * 0.81, '장기전 2웨이브');
+    near(Core.longMul(), 0.81, 'longMul');
+  }
+  // 거인 사냥꾼 / 소탕전: 적 종류별 피해 (T15b 와 같은 장면)
+  {
+    const KINDS = { 일반: {}, 정예: { elite: 1 }, 대형: { type: 'heavy' }, 보스: { type: 'giant', boss: true }, 황금체: { type: 'gold', boss: true }, 상자: { type: 'crate', boss: true, cr: { t: 99, id: 1 } } };
+    const dealt = (wt, kind, pacts) => {
+      const S = game(11), w = put(wt, 2, 20); S.pacts = pacts.slice(); Core.dirty(w);
+      S.hp = S.maxHp = 1e9; S.spawnAcc = -1e9; S.nextBoss = 1e9;
+      const e = foe2(250, 330, Object.assign({ hp: 1e9, maxHp: 1e9 }, KINDS[kind]));
+      for (let i = 0; i < 180; i++) { S.hp = S.maxHp; Core.step(1 / 60); }
+      return 1e9 - e.hp;
+    };
+    for (const wt of ['blaster', 'acid']) for (const kind in KINDS) {
+      const mob = kind === '일반' || kind === '정예', d0 = dealt(wt, kind, []);
+      near(dealt(wt, kind, ['giant']) / d0, mob ? P.giantMob : P.giantBoss, `${wt} ${kind} 거인 사냥꾼`);
+      near(dealt(wt, kind, ['sweep']) / d0, mob ? P.sweepMob : 1, `${wt} ${kind} 소탕전`);
+    }
+    const S = game(12), hp = (type, pacts) => { S.pacts = pacts; const e = Core.spawn(type, 2); S.enemies.pop(); return e.maxHp; };
+    for (const type of ['basic', 'heavy', 'giant', 'gold', 'scale', 'crate']) {
+      const boss = !!Core.ENEMIES[type].boss && type !== 'crate';
+      near(hp(type, ['sweep']) / hp(type, []), boss ? P.sweepHp : 1, `소탕전 ${type} 체력`);
+    }
+  }
+  // 벼랑 끝: 체력 40% 아래에서 x(brinkDmg), 회복 절반
+  {
+    const S = game(23), w = put('blaster', 0, 10), d0 = Core.stats(w).dmg; S.spawnAcc = -1e9; S.nextBoss = 1e9; take('brink');
+    S.hp = S.maxHp * 0.5; Core.step(1 / 60); near(Core.stats(w).dmg, d0, '벼랑 끝 50%');
+    S.hp = S.maxHp * 0.39; Core.step(1 / 60); near(Core.stats(w).dmg, d0 * P.brinkDmg, '벼랑 끝 39%');
+    const regen = (pacts) => { const T = game(24); T.spawnAcc = -1e9; T.nextBoss = 1e9; T.slots[2] = null; T.base.parts[0] = { id: 'drone', g: 3 }; Core.setState(T); T.pacts = pacts; Core.dirty(T.base); T.base._s = null; T.hp = T.maxHp * 0.2; const h0 = T.hp; for (let i = 0; i < 60; i++) Core.step(1 / 60); return T.hp - h0; };
+    const r0 = regen([]), r1 = regen(['brink']); assert(r0 > 0); near(r1 / r0, P.brinkHeal, '벼랑 끝 초당 회복');
+  }
+  // 외길: 강화가 가장 높은 무기 x(pathTop), 나머지 x(pathRest), 같으면 왼쪽, 강화가 바뀌면 따라 바뀜, 진화는 100 + 단계
+  {
+    const S = game(25); S.slots[2] = null; S.spawnAcc = -1e9; S.nextBoss = 1e9;
+    const a = put('blaster', 0, 30), b = put('laser', 1, 30), c = put('rail', 3, 10), base = [a, b, c].map(w => Core.stats(w).dmg);
+    take('path'); Core.step(1 / 60);
+    assert.strictEqual(Core.pathW(), a, '같으면 왼쪽');
+    near(Core.stats(a).dmg, base[0] * P.pathTop, '외길 대상'); near(Core.stats(b).dmg, base[1] * P.pathRest, '외길 나머지'); near(Core.stats(c).dmg, base[2] * P.pathRest, '외길 나머지 2');
+    b.lv = 31; Core.dirty(b); Core.step(1 / 60); assert.strictEqual(Core.pathW(), b, '강화가 바뀌면 대상도');
+    near(Core.stats(a).dmg, base[0] * P.pathRest, '옛 대상은 나머지');
+    c.lv = 100; Core.evolve(3); c.lv = 1; Core.dirty(c); Core.step(1 / 60); assert.strictEqual(Core.pathW(), c, '진화는 100 + 단계');
+  }
+  // 비만화: 이후 등장하는 적 이동 속도 x0.8, 체력 x1.25 (보스 포함, 속전속결과 같은 범위)
+  {
+    const S = game(26), one = (type, pacts) => { S.pacts = pacts; const e = Core.spawn(type, 2); S.enemies.pop(); return e; };
+    for (const type of ['basic', 'runner', 'heavy', 'giant']) {
+      const e0 = one(type, []), e1 = one(type, ['fat']);
+      near(e1.speed / e0.speed, P.fatSpd, `비만화 ${type} 속도`); near(e1.maxHp / e0.maxHp, P.fatHp, `비만화 ${type} 체력`);
+    }
+  }
+  // 불굴: 실패마다 +3%p, 성공하면 0, 무기·기지가 함께, 비용 +25% (올림)
+  {
+    const S = game(27); const w = put('blaster', 0, 90); S.shards = 1e12;
+    const r0 = Core.upgradeInfo(w).rate, c0 = Core.upgradeInfo(w).cost; take('grit');
+    assert.strictEqual(Core.upgradeInfo(w).cost, Math.ceil(c0 * P.gritCost), '불굴 비용');
+    let fails = 0, sawReset = false, lv = w.lv;
+    for (let i = 0; i < 400 && !sawReset; i++) {
+      const before = S.grit || 0, r = Core.upgrade(0); if (S.pendingAug) Core.skipAug(true);
+      if (r.success) { assert.strictEqual(S.grit, 0, '성공하면 0'); if (before > 0) sawReset = true; w.lv = lv; Core.dirty(w); }
+      else { assert.strictEqual(S.grit, before + 1, '실패마다 +1'); fails++; near(Core.upgradeInfo(w).rate, Math.min(1, r0 + P.gritSucc * S.grit), '쌓인 성공률'); }
+    }
+    assert(fails > 0 && sawReset, '실패와 성공을 모두 봄');
+    S.grit = 4; S.base.lv = 80; const rb = Core.upgradeInfo(S.base).rate; S.pacts = []; near(rb - Core.upgradeInfo(S.base).rate, 0.12, '기지 강화도 같은 값');
+  }
+  // 예열: 공속 x1.4, 웨이브 시작 15초(예전 방식은 웨이브 길이의 1/6) 동안 쏘지 않음
+  {
+    let S = game(28); const w = put('blaster', 0, 10), cd0 = Core.stats(w).cd; take('warm'); near(Core.stats(w).cd, cd0 / P.warmRate, '예열 공속');
+    Core.seed(29); Core.test.newGame({ god: true }, 520, 'pipe'); S = Core.S; take('warm');
+    const shots = []; let t0 = null;
+    for (let i = 0; i < 30 * 40; i++) {
+      Core.step(1 / 30); if (S.pendingAug) Core.skipAug(true);
+      if (t0 == null && S.wave) t0 = S.wave.t0;
+      const on = S.warmOn; shots.push([S.wt - (S.wave ? S.wave.t0 : 0), on]);
+    }
+    assert(shots.some(([t, on]) => on && t < 15) && !shots.some(([t, on]) => on && t >= 15 + 1e-6), '연결 모드 15초 동안 꺼짐');
+    // 꺼진 동안 무기 쿨다운이 줄지 않는다
+    Core.seed(30); Core.test.newGame({ god: true }, 520, 'pipe'); S = Core.S; take('warm'); Core.step(1 / 30); for (const x of S.slots) x.cd = 0.5;
+    for (let i = 0; i < 30 * 5; i++) Core.step(1 / 30);
+    assert(S.warmOn && S.slots.every(x => x.cd === 0.5), '예열 중에는 쏘지 않음');
+    let S2 = game(31); take('warm'); S2.spawnAcc = -1e9; let seenOff = false;
+    for (let i = 0; i < 30 * 45; i++) { Core.step(1 / 30); if (S2.wave && S2.wt - S2.wave.t0 < Core.CFG.waveT * P.warmOld - 0.05) assert(S2.warmOn || S2.wt - S2.wave.t0 < 0.05, '예전 방식 1/6'); if (S2.wave && S2.wt - S2.wave.t0 > Core.CFG.waveT * P.warmOld + 0.05) { assert(!S2.warmOn, '예전 방식 1/6 뒤 켜짐'); seenOff = true; } }
+    assert(seenOff);
+  }
+  ok('천칭 전투 거래 8개: 장기전(x0.75 + 3%/막은 웨이브), 거인 사냥꾼, 소탕전(보스 체력, 상자 제외), 벼랑 끝(40%, 회복 절반), 외길(대상·나머지·따라 바뀜), 비만화, 불굴(쌓임·초기화·비용), 예열(공속, 15초·1/6 꺼짐)');
+}
 Core.seed(null);
 console.log(`\n${n} 묶음 통과`);

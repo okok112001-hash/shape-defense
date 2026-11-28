@@ -615,7 +615,7 @@ Object.defineProperty(ENEMIES, 'scale', { enumerable: false, value: { hp: ENEMIE
 
 /* ---------- 천칭의 거래 (한 판 동안 영구, 한 번씩만) ---------- */
 const PACTS = {
-  glass:    { name: '유리 대포',     up: '모든 무기 피해 +15%',               dn: '기지 최대 체력 -30%' },
+  glass:    { name: '배수진',        up: '모든 무기 피해 +15%',               dn: '기지 최대 체력 -30%' },
   overheat: { name: '과열',          up: '모든 무기 공격 속도 +25%',           dn: '모든 강화 성공률 -8%p' },
   greed:    { name: '탐욕',          up: '재화 획득 +40%',                   dn: '적 체력 +15%' },
   rush:     { name: '속전속결',       up: '적 체력 -20%',                    dn: '적 이동 속도 +18%' },
@@ -627,12 +627,25 @@ const PACTS = {
   blood:    { name: '피의 계약',      up: '적 20마리 처치마다 기지 체력 최대치의 2% 회복', dn: '기지가 받는 피해 +50%' },
   sage:     { name: '현자의 눈',      up: '증강 선택지 등급 +1단계 (최대 전설)',   dn: '증강 선택지 2개, 건너뛸 수 없음' },
   smuggle:  { name: '밀수',          up: '생성 비용 -25%',                   dn: '생성의 8%는 아무것도 나오지 않음' },
+  // T15c 전투 거래 8개
+  long:     { name: '장기전',        up: '웨이브를 막을 때마다 모든 무기 피해 +3%씩 쌓임', dn: '모든 무기 피해 -25%' },
+  giant:    { name: '거인 사냥꾼',    up: '보스와 대형 적에게 주는 피해 +50%',    dn: '일반 적에게 주는 피해 -15%' },
+  sweep:    { name: '소탕전',        up: '일반 적에게 주는 피해 +40%',          dn: '보스 체력 +30%' },
+  brink:    { name: '벼랑 끝',       up: '기지 체력이 40% 아래면 모든 무기 피해 +35%', dn: '기지 회복 효과 절반' },
+  path:     { name: '외길',          up: '강화가 가장 높은 무기 피해 +60%',      dn: '나머지 무기 피해 -10%' },
+  fat:      { name: '비만화',        up: '적 이동 속도 -20%',                  dn: '적 체력 +25%' },
+  grit:     { name: '불굴',          up: '강화에 실패할 때마다 성공률 +3%p 쌓임 (성공하면 처음부터)', dn: '강화 비용 +10%' },
+  warm:     { name: '예열',          up: '모든 무기 공격 속도 +40%',            dn: '웨이브 시작 15초 동안 무기가 쏘지 않음' },
 };
 const PACT_IDS = Object.keys(PACTS);
 const PACT = {   // 수치는 한곳에
   glassDmg: 1.15, glassHp: 0.7, heatRate: 1.25, heatSucc: -0.08, minSucc: 0.03, greedGold: 0.4, greedHp: 1.15, rushHp: 0.8, rushSpd: 1.18,
   huntEvery: 45, huntWaves: 2, huntAt: [30, 60], forgeMul: 0.6, focusDmg: 1.45, focusSlot: 4, gambleSucc: 0.15, gambleDrop: 0.1, relicLoss: 10,
   bloodEvery: 20, bloodHeal: 0.02, bloodDmg: 1.5, smuggleCost: 0.75, smuggleMiss: 0.08,
+  // T15c (처음 안에서 surv.js --pact 로 맞춤: giantMob 0.8→0.85, brinkDmg 1.6→1.35, pathRest 0.85→0.9, gritCost 1.25→1.1. balance_log 의 T15c)
+  // long: x(longBase + longStep·k), k = 받은 뒤 막은 웨이브 수 (예전 방식은 받은 뒤 PREP.span 초마다 1). brink: 기지 체력 brinkHp 아래
+  longBase: 0.75, longStep: 0.03, giantBoss: 1.5, giantMob: 0.85, sweepMob: 1.4, sweepHp: 1.3, brinkHp: 0.4, brinkDmg: 1.35, brinkHeal: 0.5,
+  pathTop: 1.6, pathRest: 0.9, fatSpd: 0.8, fatHp: 1.25, gritSucc: 0.03, gritCost: 1.1, warmRate: 1.4, warmT: 15, warmOld: 1 / 6,
 };
 
 /* ---------- 상태 ---------- */
@@ -702,6 +715,34 @@ function setH(h) {
 /* ---------- 거래 도우미 ---------- */
 function hasPact(id) { return !!S && !!S.pacts && S.pacts.indexOf(id) >= 0; }
 function isClosed(k) { return k === PACT.focusSlot && hasPact('focus'); }   // 집중: 5번 무기 칸 폐쇄
+// T15c 전투 거래. 상태가 바뀌는 것(벼랑 끝의 기지 체력, 외길의 대상, 장기전의 쌓인 수, 예열)은 pactTick 이 매 걸음 보고 바뀔 때만 능력치 사본을 버린다
+function healMul() { return hasPact('brink') ? PACT.brinkHeal : 1; }   // 벼랑 끝: 기지 회복 효과 절반 (비상 방벽은 그대로)
+function longMul() { return PACT.longBase + PACT.longStep * (S.longK || 0); }
+let pathW = null;   // 외길의 대상 무기 (저장하지 않는다. pactTick 이 매 걸음 다시 정한다)
+function pathTop() {   // 외길의 대상: 강화가 가장 높은 무기 칸 (진화는 100 + 단계, 같으면 왼쪽), 무기가 없으면 -1
+  let k = -1; for (let i = 0; i < S.slots.length; i++) { const w = S.slots[i]; if (w && (k < 0 || effLv(w) > effLv(S.slots[k]))) k = i; }
+  return k;
+}
+function warmT() { return S.prep ? PACT.warmT : CFG.waveT * PACT.warmOld; }   // 예열 시간: 연결 모드 15초, 예전 방식은 웨이브 길이의 1/6
+function pactStats(w, s) {
+  if (hasPact('long')) s.dmg *= longMul();
+  if (hasPact('giant')) { s.bossM *= PACT.giantBoss; s.mobM *= PACT.giantMob; }
+  if (hasPact('sweep')) s.mobM *= PACT.sweepMob;
+  if (hasPact('brink') && S.brk) s.dmg *= PACT.brinkDmg;
+  if (hasPact('path') && pathW) s.dmg *= pathW === w ? PACT.pathTop : PACT.pathRest;
+  if (hasPact('warm')) s.cd /= PACT.warmRate;
+}
+function pactTick() {
+  let ch = false;
+  if (hasPact('brink')) { const b = S.hp < S.maxHp * PACT.brinkHp; if (b !== !!S.brk) { S.brk = b; ch = true; } }
+  if (hasPact('path')) { const k = pathTop(), w = k >= 0 ? S.slots[k] : null; if (w !== pathW) { pathW = w; ch = true; S.slotDirty = true; } }
+  if (hasPact('long') && !S.prep) { const k = Math.max(0, Math.floor((S.t - (S.longT || 0)) / PREP.span)); if (k !== (S.longK || 0)) { S.longK = k; ch = true; } }
+  if (hasPact('warm')) {
+    const wv = S.wave, on = !!wv && (!S.prep || S.prep.phase === 'wave') && S.wt - wv.t0 < warmT();
+    if (on !== !!S.warmOn) { S.warmOn = on; S.slotDirty = true; }
+  } else if (S.warmOn) S.warmOn = false;
+  if (ch) for (const w of S.slots) dirty(w);
+}
 function craftBase() { return BAL.craftCost((S && S.crafts) || 0); }   // 거래 할인 전 비용 (등급 굴림의 m은 이 값으로 정한다)
 function craftCost() { const c = craftBase(); return hasPact('forge') ? Math.round(c * PACT.forgeMul) : c; }
 // 제조 등급 확률(%): 기본 가중치의 누적분포 F에 대해 P(등급 <= g) = F(g)^m, m = 할인 전 비용 / 100 (m번 뽑아 가장 좋은 것)
@@ -717,7 +758,7 @@ function bossWavesN() { return hasPact('hunt') ? PACT.huntWaves : CFG.bossWaves;
 /* ---------- 능력치 계산 ---------- */
 function blankStats(lanes, chain) {
   return {
-    dmgPct: 0, ratePct: 0, crit: 0.10, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, mobPct: 0, goldPct: 0,
+    dmgPct: 0, ratePct: 0, crit: 0.10, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, mobPct: 0, bossM: 1, mobM: 1, goldPct: 0,   // bossM·mobM: 거래(거인 사냥꾼·소탕전)의 곱
     execPct: 0, firstPct: 0, heal: 0, luck: 0, save: 0, dbl: 0,
     pierce: 0, shots: 0, shotMul: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes,
     chain, chainGrow: 0, closePct: 0, third: 0, lens: 0, cluster: 0, pool: 0, echo: 0,
@@ -761,6 +802,7 @@ function stats(w) {
   if (hasPact('glass')) s.dmg *= PACT.glassDmg;
   if (hasPact('focus')) s.dmg *= PACT.focusDmg;
   if (hasPact('overheat')) s.cd /= PACT.heatRate;
+  if (S.pacts.length) pactStats(w, s);
   if (s.gat) s.dmg *= 1 - 0.05 * s.gat;   // 개틀링 포신: 탄 피해 -5%/랭크 (다른 효과를 모두 적용한 뒤)
   s.evo = !!w.evo;
   s.range = Math.min(1, d.range * rg);
@@ -1026,8 +1068,11 @@ function pactSucc() { return (hasPact('overheat') ? PACT.heatSucc : 0) + (hasPac
 function upgradeInfo(t) { // t: 무기 또는 기지
   const next = t.lv + 1;
   let rate = Math.max(PACT.minSucc, Math.min(1, BAL.success(next) + bstats().luck + pactSucc()));   // 하한 3% (기존 곡선은 10% 이상이라 거래 없이는 그대로)
+  if (hasPact('grit')) rate = Math.min(1, rate + PACT.gritSucc * (S.grit || 0));   // 불굴: 실패할 때마다 쌓인 성공률
   if (S.cheat && S.cheat.succ) rate = 1;   // 테스트: 강화 100% 성공
-  return { cost: t.evo ? CFG.evoCostAdd + CFG.evoCostMul * next : next, rate, have: shardCount(), max: t.lv >= CFG.maxLv };   // 진화한 무기는 300 + 5 x 일반 비용, 성공률은 진화 단계 기준 그대로
+  let cost = t.evo ? CFG.evoCostAdd + CFG.evoCostMul * next : next;
+  if (hasPact('grit')) cost = Math.ceil(cost * PACT.gritCost);   // 불굴: 강화 비용 +10%
+  return { cost, rate, have: shardCount(), max: t.lv >= CFG.maxLv, grit: hasPact('grit') ? S.grit || 0 : 0 };   // 진화한 무기는 300 + 5 x 일반 비용, 성공률은 진화 단계 기준 그대로
 }
 function tryUpgrade(t) {
   const info = upgradeInfo(t);
@@ -1038,6 +1083,7 @@ function tryUpgrade(t) {
   const saved = bs.save > 0 && u1 < bs.save;
   if (!saved) takeShards(info.cost);
   const success = (S.cheat && S.cheat.succ) || u2 < info.rate;   // 테스트: 뽑는 횟수는 그대로 두고 판정만 덮어쓴다
+  if (hasPact('grit')) S.grit = success ? 0 : (S.grit || 0) + 1;   // 불굴: 무기·기지 강화가 함께 쓰는 하나
   let drop = false;
   let devo = false;
   if (!success && hasPact('gamble') && (t.lv > 0 || t.evo) && rndG() < PACT.gambleDrop) {   // 도박사: 실패하면 10%로 1단계 하락 (진화한 무기는 0강에서도: 0 아래면 진화가 풀림)
@@ -1167,6 +1213,7 @@ function choosePact(i) {
   const id = pp[i]; if (!id || S.pacts.indexOf(id) >= 0) return { ok: false };
   const res = { ok: true, id };
   S.pacts.push(id); S.pendingPact = null;
+  if (id === 'long') { S.longK = 0; S.longT = S.t; }
   if (id === 'focus') {                       // 5번 칸의 무기는 인벤토리로, 가득 차면 녹인다
     const k = PACT.focusSlot, w = S.slots[k];
     if (w) {
@@ -1222,11 +1269,11 @@ let boomDepth = 0;
 function spawn(type, lane, x, y) {
   const d = ENEMIES[type];
   let m = BAL.hpMul(tD()) * (d.boss ? BAL.bossHp : 1);
-  if (S.pacts.length) { if (hasPact('greed')) m *= PACT.greedHp; if (hasPact('rush')) m *= PACT.rushHp; }   // 이후 등장하는 적부터
+  if (S.pacts.length) { if (hasPact('greed')) m *= PACT.greedHp; if (hasPact('rush')) m *= PACT.rushHp; if (hasPact('fat')) m *= PACT.fatHp; if (d.boss && type !== 'crate' && hasPact('sweep')) m *= PACT.sweepHp; }   // 이후 등장하는 적부터 (소탕전: 보스, 보급 상자는 빼고)
   const cx = (lane + 0.5) * LW;
   const e = {
     type, lane, x: x != null ? x : cx + (d.boss ? 0 : (rndS() - 0.5) * 30), y: y != null ? y : -d.r,
-    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(tD()),
+    r: d.r, hp: d.hp * m, maxHp: d.hp * m, speed: d.speed * (d.boss ? BAL.bossSpd : 1) * (hasPact('rush') ? PACT.rushSpd : 1) * (hasPact('fat') ? PACT.fatSpd : 1), leak: d.leak, gold: d.gold * BAL.goldMul(tD()),
     boss: !!d.boss, born: S.t, f0: -1, slowT: 0, slowPct: 0, vulnT: 0, vulnPct: 0, cor: 0, corV: 0, corA: 0, corH: 0, corS: -1, burnT: 0, burnDps: 0, burnSt: null, stunT: 0, dead: false, flash: 0,
     fT: 0, fDps: 0, fSt: null, fcB: null, fcN: 0, fcT: 0, chT: -9,   // 스킬: 화염 화상, 초점 누적, 전기 사슬 기절
   };
@@ -1432,8 +1479,8 @@ function kill(e, st) {
   if (snipeW && st && st.w === snipeW) { snipeN++; if (st.stk) fx({ k: 'hkx', d: 0.9, x: e.x, y: e.y, r: e.r, c: st.color }); }   // 연속 사냥: 이 저격으로 처치 (✕ 자국)
   const bs = bstats();
   S.gold += e.gold * (1 + (st ? st.goldPct : 0) + bs.goldAll) * (e.boss && hasPact('hunt') ? 2 : 1);
-  if (hasPact('blood') && ++S.bloodN >= PACT.bloodEvery) { S.bloodN = 0; S.hp = Math.min(S.maxHp, S.hp + S.maxHp * PACT.bloodHeal); }
-  if (bs.heal && rndH() < bs.heal && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * 0.01);   // 수리 장치: 최대 체력의 1%
+  if (hasPact('blood') && ++S.bloodN >= PACT.bloodEvery) { S.bloodN = 0; S.hp = Math.min(S.maxHp, S.hp + S.maxHp * PACT.bloodHeal * healMul()); }
+  if (bs.heal && rndH() < bs.heal && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * 0.01 * healMul());   // 수리 장치: 최대 체력의 1%
   if (BIGK && !e.boss) flingFx(e);           // 큰 한 방으로 쓰러짐 (T10c)
   else fx({ k: 'pop', d: 0.25, x: e.x, y: e.y, r: e.r, boss: e.boss });
   if (e.boss) fx({ k: 'bosskill', d: 1.1, x: e.x, y: e.y, r: e.r, type: e.type });   // 보스 처치 연출 (화면 흔들림 포함)
@@ -1463,7 +1510,7 @@ function kill(e, st) {
   }
   if (e.boss) {
     S.bossKills++;
-    if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal);   // 보스를 처치하면 체력 회복
+    if (bs.bossHeal) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.bossHeal * healMul());   // 보스를 처치하면 체력 회복
     const rn = hasPact('hunt') ? 2 : 1;   // 사냥철: 보스 보상 2배
     for (let k = 0; k < rn; k++) {           // rewq: 화면에 보여 줄 보상 사건. 황금체는 보스 보상 대신 전설 파츠
       const d = e.gd ? newPart(false, subG(), 3) : bossDrop(); S.drops.push(d); S.rewq.push({ item: d, x: e.x, y: e.y, k, n: rn, gold: !!e.gd });
@@ -1515,7 +1562,7 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   if (rnd() < st.crit) { d *= 2.0 + st.critDmg; crit = true; }
   if (st.gamble) d *= 0.5 + rnd() * (st.gamble - 0.5);
   if (st.farPct && e.y < H * 0.7) d *= 1 + st.farPct;
-  if (e.boss || e.type === 'heavy') d *= 1 + st.bossPct; else if (st.mobPct) d *= 1 + st.mobPct;   // 일반 적 추가 피해 (T15b)
+  if (e.boss || e.type === 'heavy') d *= (1 + st.bossPct) * (st.bossM || 1); else d *= (1 + st.mobPct) * (st.mobM || 1);   // 일반 적 추가 피해 (T15b), 거래 곱 (T15c)
   const f = e.hp / e.maxHp;
   if (st.execPct && f <= 0.5) d *= 1 + st.execPct;
   if (st.firstPct && f >= 0.7) d *= 1 + st.firstPct;
@@ -2286,7 +2333,7 @@ function acidTick(p, dt, seen) {
     if (p.slow) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
     }
     got.add(e);                            // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
-    const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1 + st.mobPct);
+    const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? (1 + st.bossPct) * (st.bossM || 1) : (1 + st.mobPct) * (st.mobM || 1));
     dot(e, dps * dt, st);
     if (!e.dead && !gh && st.dsv && !e.boss && e.hp / e.maxHp <= st.dsv) dissolve(e, st);   // 용해
   }
@@ -2708,7 +2755,9 @@ function step(dt) {
   bossStep(dt);
 
   // 무기
+  if (S.pacts.length) pactTick();
   const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결: 칸마다 연결 수
+  const cold = S.warmOn;                            // 예열: 웨이브 시작 뒤 잠시 쏘지 않는다
   const ri = pl ? rustAt(S.m3) : -1, si = pl ? sealAt(S.m3) : -1, gi = pl ? ghostAt(S.m3) : -1;   // 부식 블록, 봉쇄 블록, 망령 블록이 있는 판 칸
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
@@ -2719,7 +2768,7 @@ function step(dt) {
     if ((w.sz || 0) !== sz) { w.sz = sz; S.slotDirty = true; }
     const gz = gi >= 0 && pl[i][1].indexOf(gi) >= 0 ? 1 : 0;  // 망령 블록과 이어져 있으면 공격이 피해 대신 회복 (탄 색이 바뀌므로 능력치 사본을 버린다)
     if ((w.gz || 0) !== gz) { w.gz = gz; dirty(w); S.slotDirty = true; }
-    if (sz) continue;
+    if (sz || cold) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
     if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 하나도 이어지지 않은 무기는 쏘지 않는다
     w.cd -= pl ? dt * pipeRate(pl[i][0]) : dt;
@@ -2870,7 +2919,7 @@ function step(dt) {
 
   // 기지의 자동 효과
   const bs = bstats(), B = S.base;
-  if (bs.regenPct && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.regenPct * dt);   // 1초마다 최대 체력의 일정 비율
+  if (bs.regenPct && S.hp < S.maxHp) S.hp = Math.min(S.maxHp, S.hp + S.maxHp * bs.regenPct * dt * healMul());   // 1초마다 최대 체력의 일정 비율
   if (bs.turret) {                           // 방어 포탑
     B.tt -= dt;
     if (B.tt <= 0) {
@@ -3108,7 +3157,8 @@ function prepStep(dt) {
     S.pendingBoss.wb = wv.n * 10 + i;      // 웨이브 막대의 몇 번째 보스인지 (화면용. 나타나면 적에게 옮긴다)
   }
   if (S.wt - wv.t0 >= PREP.spawnT && !wv.bq.length && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
-    P.phase = 'rest'; S.invDirty = true; S.slotDirty = true; snd('clear');   // 화면은 판이 가라앉은 뒤 인벤토리로 바뀐다 (ui prepSync)
+    P.phase = 'rest'; S.invDirty = true; S.slotDirty = true; snd('clear');
+    if (hasPact('long')) { S.longK = (S.longK || 0) + 1; pactDirty(); }   // 장기전: 막은 웨이브 수   // 화면은 판이 가라앉은 뒤 인벤토리로 바뀐다 (ui prepSync)
   }
 }
 
@@ -3238,7 +3288,7 @@ const Core = {
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
-  PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
+  PACTS, PACT, PACT_IDS, hasPact, longMul, spawn, pathW: () => pathW, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, PART_FIT, partFits, tD: () => tD(),
   test,
 };

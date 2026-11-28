@@ -1,0 +1,14 @@
+core.js K=321  mean 5.9 q25/med/q75 3.5 5.6 7.6 min 1.3 max 22.6 +100: 0/96 <5:00: 42/96
+trade seeds (no-trade game > 180s): 78/96
+pact glass ratio(gmean) 1.143 min/max 0.35 10.21 n=78
+pact overheat ratio(gmean) 1.342 min/max 0.19 20.05 n=78
+pact greed ratio(gmean) 1.174 min/max 0.29 6.62 n=78
+pact rush ratio(gmean) 1.117 min/max 0.40 6.47 n=78
+pact hunt ratio(gmean) 1.409 min/max 0.50 11.66 n=78
+pact forge ratio(gmean) 1.024 min/max 0.32 3.90 n=78
+pact focus ratio(gmean) 0.972 min/max 0.11 7.99 n=78
+pact gamble ratio(gmean) 1.162 min/max 0.45 6.46 n=78
+pact relic ratio(gmean) 0.806 min/max 0.12 3.57 n=78
+pact blood ratio(gmean) 0.990 min/max 0.23 2.31 n=78
+pact sage ratio(gmean) 1.263 min/max 0.25 4.92 n=78
+pact smuggle ratio(gmean) 0.926 min/max 0.16 3.01 n=78

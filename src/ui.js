@@ -470,6 +470,7 @@ function renderWeapons() {
     const ev = w && w.evo && !closed ? evoSlotHtml(w, now) : null;   // 진화하는 중
     const rz = !!w && !!w.rz && !closed, sz = !!w && !!w.sz && !closed, gz = !!w && !!w.gz && !closed;   // 부식 블록과 이어짐: 0강으로 친다 / 봉쇄 블록과 이어짐: 쏘지 않는다 / 망령 블록과 이어짐: 적을 회복시킨다
     const fit = !closed && target && !!w && partFit(picked, w.type);   // 고른 파츠와 잘 맞는 무기 (파츠 추천)
+    const pw = !closed && !!w && C.hasPact('path') && C.pathW() === w;   // 외길 거래의 대상 무기
     const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (sz ? ' sealed' : '') + (gz ? ' ghosted' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') + (fit ? ' fit' : '') +
       (lk ? (lk.l > 0 ? ' locked' : ' warn-lock') : '') + (cr ? ' warn-corr' : '');
     // 남는 빛의 숨 위상: 진화가 끝난 때부터 (다시 그려도 이어진다)
@@ -486,6 +487,7 @@ function renderWeapons() {
     if ((lk && lk.l > 0) || sz) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
     if (gz) h += `<span class="ghic">${GHOST_SVG(15)}</span>`;
     if (fit) h += `<span class="fitic">${FIT_SVG(15)}</span>`;
+    if (pw) h += `<span class="pathic" aria-label="외길 대상">${PATH_SVG(11)}</span>`;
     if (wl) h += `<span class="abic lk">${LOCK_SVG(18)}</span><i class="cd" style="${cdStyle(lk.w)}"></i>`;
     if (cr) h += `<span class="abic cr"><b>-5</b></span><i class="cd" style="${cdStyle(S.corr.t)}"></i>`;
     h += '</button>';
@@ -496,6 +498,7 @@ function renderWeapons() {
 const AB_COL = { lock: '#ff3d5a', corr: '#c04bff', ghost: '#1fa9bb' };
 const LOCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>`;
 const MIX_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h4c3 0 5 10 9 10h4M3 17h4c1.400 0 2.500-1.300 3.400-3M13.600 10c.9-1.700 2-3 3.400-3h3M18 4l3 3-3 3M18 14l3 3-3 3"/></svg>`;   // 교란: 섞기
+const PATH_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path d="M12 2.500 20 12h-5v9.500H9V12H4z" fill="currentColor"/></svg>`;   // 외길: 위로 곧은 화살표
 const GHOST_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path fill-rule="evenodd" fill="currentColor" d="M4.500 21V10.500a7.500 7.500 0 0 1 15 0V21l-2.500-2-2.500 2-2.500-2-2.500 2-2.500-2zM9.200 8.600a1.300 1.700 0 1 0 0 3.400 1.300 1.700 0 1 0 0-3.400zM14.800 8.600a1.300 1.700 0 1 0 0 3.400 1.300 1.700 0 1 0 0-3.400z"/></svg>`;   // 망령: 둥근 머리, 물결 옷자락, 두 눈
 const ROCK_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path d="M5 18.500 3.500 12 7 6.500l6-2 5.500 3 2 6.500-3 4.500z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 7.500 11 12l-3 3M11 12l4.500 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;   // 석화: 돌
 // 줄어드는 막대: 애니메이션 길이와 시작 위치를 남은 시간에 맞춘다. 화면을 다시 그려도 끊기지 않고 이어진다
@@ -962,7 +965,7 @@ function lightUpdate() {
   const pl = S.pipe && S.m3 ? C.pipeLinks() : null;
   for (let k = 0; k < C.LANES; k++) {       // 예열: 무기 칸이 붉게 빛난다
     const w = S.slots[k], cell = elW.children[k]; if (!cell) continue;
-    const off = !!w && prepWave() && (!!S.pipe && !!S.m3 && pl[k][0] < C.PIPE.need);   // 연결이 모자란 무기: 꺼짐
+    const off = !!w && prepWave() && ((!!S.pipe && !!S.m3 && pl[k][0] < C.PIPE.need) || !!S.warmOn);   // 연결이 모자란 무기, 예열 중: 꺼짐
     if (cell.classList.contains('dormant') !== off) cell.classList.toggle('dormant', off);
     const h = w && w.evo ? C.heatLevel(w) : 0;
     if (h > 0) { cell.classList.add('heat'); cell.style.setProperty('--heat', h.toFixed(2)); }
@@ -1339,9 +1342,17 @@ function scaleEmblem(n, sel) {
     <path d="M${cx} 20V8M${cx - 8} 8h16" /><circle cx="${cx}" cy="5" r="3.2" fill="${gold}" stroke="none"/>
     <g class="beam" data-to="${rot(a)}" style="transform-origin:${cx}px 20px;${rot(from)}">${beam}${xs.map(pan).join('')}${n === 1 ? `<path d="M${cx - 16} 20h32"/>` : ''}</g></svg>`;
 }
-function pvRows(id) {
-  const d = C.PACTS[id];
-  return `<span class="pc-row gain"><small>얻는 것</small><span>${d.up}</span></span><span class="pc-row cost"><small>치르는 것</small><span>${d.dn}</span></span>`;
+function pvRows(id, now) {
+  const d = C.PACTS[id], n = now ? pactNow(id) : '';
+  return `<span class="pc-row gain"><small>얻는 것</small><span>${d.up}</span></span><span class="pc-row cost"><small>치르는 것</small><span>${d.dn}</span></span>${n ? `<span class="pc-row now"><small>지금</small><span>${n}</span></span>` : ''}`;
+}
+// 맺은 거래 보기에서 상태를 알아야 하는 거래만 한 줄 (장기전 쌓인 값, 불굴 쌓인 성공률, 외길 대상)
+function pactNow(id) {
+  const S = C.S;
+  if (id === 'long') { const m = C.longMul(); return `모든 무기 피해 ${m >= 1 ? '+' : '−'}${Math.round(Math.abs(m - 1) * 100)}% (막은 웨이브 ${S.longK || 0})`; }
+  if (id === 'grit') return `다음 강화 성공률 +${Math.round((S.grit || 0) * C.PACT.gritSucc * 100)}%p`;
+  if (id === 'path') { const w = C.pathW(); return w ? `${C.WEAPONS[w.type].name} (${S.slots.indexOf(w) + 1}번 칸)` : ''; }
+  return '';
 }
 function pactCard(id, i, selected, dim) {
   const d = C.PACTS[id];
@@ -1364,7 +1375,7 @@ function pactHtml() {
 function pactViewHtml() {
   const L = C.S.pacts || [];
   return `<div class="pv"><div class="pv-box wide"><h2 class="pv-title">맺은 거래</h2><p class="pv-sub">게임이 끝날 때까지 이어집니다. (${L.length})</p>
-    <div class="pv-list">${L.map(id => `<div class="pl"><span class="pc-nm">${C.PACTS[id].name}</span><i class="pc-hr"></i>${pvRows(id)}</div>`).join('')}</div>
+    <div class="pv-list">${L.map(id => `<div class="pl"><span class="pc-nm">${C.PACTS[id].name}</span><i class="pc-hr"></i>${pvRows(id, true)}</div>`).join('')}</div>
     <div class="pv-acts"><button type="button" class="pv-ok" data-act="pactMarkClose">닫기</button></div></div></div>`;
 }
 function pactToast(r) {
