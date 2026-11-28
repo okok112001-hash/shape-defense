@@ -1355,7 +1355,7 @@ function scene(type, lines, secs, opt) {
     assert(Math.abs(got - deep / g.maxHp * g.gd.G) < 1e-6 * g.gd.G, '재화는 깎인 가장 낮은 체력까지 ' + got + ' ' + deep / g.maxHp * g.gd.G);
   }
   ok('망령 블록 (망령체, 연결 판): 이어진 무기는 회복(부가 효과·처치·재화 없음), 떼면 피해, 시간이 되면 사라졌다 다시, 황금체 재화 한 번');
-  // (i) 배속 추천 (T13d): 모두 100강에 판을 무기마다 3칸 이으면 웨이브 win 초에 뜬다. 기지가 맞으면, 기지 가까이 내려온 적이 있으면, 정비 중이면 안 뜬다.
+  // (i) 배속 추천 (T13d): 모두 100강에 판을 무기마다 3칸 이으면 웨이브 win 초에 뜬다. 기지가 맞으면, 절반 깎인 뒤 쓰러지기까지가 길면, 정비 중이면 안 뜬다.
   //     예전 방식(판 없음, 도구)은 처치 기록도 남기지 않고 늘 안 뜬다
   {
     const T = Core.SPD_TIP, S = pipe(2); Core.test.maxAll(); Core.test.addTime(450);
@@ -1364,18 +1364,18 @@ function scene(type, lines, secs, opt) {
     let first = -1;
     run(S, 40, () => { if (first < 0 && Core.spdTip()) first = S.wt - S.wave.t0; return first < 0; });
     assert(first >= T.win - 1e-9 && first < T.win + 1, '100강이면 웨이브 20초에 뜸 ' + first);
-    assert(S.kl.length % 3 === 0 && S.kl.length <= T.keep * 3, '처치 기록 길이 ' + S.kl.length);
+    assert(S.kl.length % 2 === 0 && S.kl.length <= T.keep * 2, '처치 기록 길이 ' + S.kl.length);
     S.lkW = S.wt; assert(!Core.spdTip(), '기지가 맞으면 안 뜸');
     run(S, T.win - 1); assert(!Core.spdTip(), '맞은 뒤 20초 안에는 안 뜸');
     run(S, 1.5); assert(Core.spdTip(), '20초 지나면 다시 ' + (S.wt - S.lkW));
-    let e = null; run(S, 10, () => { e = S.enemies.find((o) => !o.dead && !o.boss && !o.cr); return !e; });
-    const y0 = e.y; e.y = Core.H * (T.deep + 0.02); assert(!Core.spdTip(), '기지 가까이 내려온 적이 있으면 안 뜸'); e.y = y0;
+    const kl = S.kl.slice(); for (let i = 1; i < S.kl.length; i += 2) S.kl[i] = T.hit + 1; assert(!Core.spdTip(), '절반 깎인 뒤 쓰러지기까지가 길면 안 뜸');
+    S.kl = kl; assert(Core.spdTip(), '되돌리면 다시');
     S.prep.phase = 'rest'; assert(!Core.spdTip(), '정비 중에는 안 뜸'); S.prep.phase = 'wave';
     Core.seed(3); Core.test.newGame({ god: true }, 520); const S2 = Core.S; Core.test.maxAll();
     run(S2, 60, () => { assert(!Core.spdTip(), '예전 방식은 안 뜸'); });
     assert(S2.kills > 0 && !S2.kl && S2.lkW == null, '예전 방식은 기록 없음');
   }
-  ok('배속 추천 (T13d): 100강이면 웨이브 20초에 뜸, 기지 피해·가까운 적·정비 중이면 안 뜸, 예전 방식은 없음');
+  ok('배속 추천 (T13d): 100강이면 웨이브 20초에 뜸, 기지 피해·느린 처치·정비 중이면 안 뜸, 예전 방식은 없음');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 

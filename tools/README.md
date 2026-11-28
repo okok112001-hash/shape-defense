@@ -109,4 +109,4 @@
 `node tools/skill_perf.js [core.js] [--secs 60]` 진화 무기 다섯 자루에 스킬을 모두 찍은 팀과 스킬 없는 팀을 60초 돌려 시간 비율을 낸다(적이 죽는 경우, 죽지 않는 경우).
 
 ## 배속 추천 기준 (`tools/spd_tip.js`, T13d)
-`node tools/spd_tip.js <웨이브들> <강화들> [팀]` 연결 모드 한 웨이브를 모든 무기 강화 L 로 돌려(판은 무기마다 3칸 이음, 기지 무적, 시드 1~5) 배속 추천(`Core.SPD_TIP`, `Core.spdTip`)이 뜨는 판을 센다. 바탕 조건에 더한 두 잣대 A(나타나서 쓰러지기까지), B(체력 절반 아래에서 쓰러지기까지)와 게임이 쓰는 U(A 또는 B)를 같이 보이고, 뜬 뒤에 기지가 맞은 판 수와 웨이브당 기지에 닿은 적 수를 낸다. 예: `node tools/spd_tip.js 4,8 45,100 acid,shotgun,tesla,pulse,blaster` (약 1분).
+`node tools/spd_tip.js <웨이브들> <강화들> [팀]` 연결 모드 한 웨이브를 모든 무기 강화 L 로 돌려(판은 무기마다 3칸 이음, 기지 무적, 시드 1~5) 배속 추천(`Core.SPD_TIP`, `Core.spdTip`)이 뜨는 판을 센다. 뜬 판 수와 처음 뜬 때, 뜬 뒤에 기지가 맞은 판 수, 웨이브당 기지에 닿은 적 수를 낸다(판정이 `Core.spdTip` 과 다르면 멈춘다). 예: `node tools/spd_tip.js 4,8 45,100 acid,shotgun,tesla,pulse,blaster` (약 1분).

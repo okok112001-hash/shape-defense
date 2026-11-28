@@ -80,7 +80,7 @@ async def main():
         await ev("() => { const S = Core.S; let e = S.enemies.find(o => !o.dead && !o.boss && !o.cr); if (!e) { Core.step(1 / 60); e = S.enemies.find(o => !o.dead && !o.boss && !o.cr); } e.y = Core.H; e.stunT = 0; e.hp = e.maxHp = 1e15; }   // 체력을 크게: 그 프레임에 먼저 맞아 쓰러지지 않게")
         await adv(2); s = await ev(STATE); lk = await ev("() => Core.S.lkW - Core.S.wave.t0")
         check(not s['shown'] and lk > 18, f'기지가 맞으면 안 뜸 (맞은 때 {lk:.1f}초) {s}')
-        await adv(18); s = await until_shown(); why = await ev("() => { const S = Core.S, t0 = S.wave.t0; return { lk: +(S.lkW - t0).toFixed(1), deep: S.enemies.filter(e => !e.dead && !e.boss && !e.cr && e.y > Core.H * Core.SPD_TIP.deep).length, n: (S.kl.length / 3) }; }")
+        await adv(18); s = await until_shown(); why = await ev("() => { const S = Core.S, t0 = S.wave.t0; return { lk: +(S.lkW - t0).toFixed(1), n: (S.kl.length / 2) }; }")
         check(s['shown'], f'맞은 뒤 20초 지나면 뜸 {s} {why}')
         # 설정을 끄면 안 뜬다 (일시정지 -> 설정)
         await next_wave()

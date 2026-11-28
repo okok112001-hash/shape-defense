@@ -4138,27 +4138,28 @@ const PREP = { spawnT: 90, span: 90, fill: 1, bossAt: 45 };
 function tD() { return S.prep ? PREP.span * (Math.max(1, S.wn) - 0.5) : S.t; }
 const spawnT = () => S.prep ? PREP.spawnT : CFG.waveSpawnT;   // 웨이브 하나에서 적이 나오는 시간
 // 배속 추천 (T13d, 연결 모드): 적이 쉽게 쓰러지는 동안 화면이 2배를 권한다. 웨이브 시계(S.wt, 게임 시간)로 재서 배속과 상관없고 난수를 쓰지 않는다.
-// 웨이브가 win 초 넘게 지났고, 최근 win 초 동안 일반 적(보스, 상자 제외) 처치 n명 이상, 그 동안 기지 피해 없음, 지금 전장 deep 보다 깊이(기지 가까이) 내려온 일반 적 없음,
-// 그리고 그 적들이 나타나서 쓰러지기까지의 중앙값 life 초 이하이거나, 체력이 절반 아래로 떨어진 뒤 쓰러지기까지의 중앙값 hit 초 이하.
-// 둘 중 하나: 앞의 것만 쓰면 사거리가 짧은 무기(산탄포, 전격기, 펄스)는 적이 사거리에 들기까지만 5초 넘게 걸려 아무리 세도 안 뜬다.
-// 뒤의 것을 "처음 맞은 때"부터 재면 산성 분사기처럼 위에서 먼저 살짝 긁어 두는 무기가 있을 때 안 뜬다 (T13d 실험, 결과는 docs/tasks.md 의 T13d).
+// 조건 둘 (사용자와 정함 2026-11-28): ① 최근 win 초 동안 기지 피해 없음 ② 그 동안 쓰러진 일반 적(보스, 상자 제외)이 체력 절반 아래로 깎인 뒤 쓰러지기까지 걸린 시간의 중앙값 hit 초 이하
+// ("반쯤 깎이면 바로 쓰러진다" = 화력이 남는다. 사거리에 들기 전 시간과 산성이 위에서 살짝 긁어 두는 것은 세지 않으니 무기 사거리와 상관없다).
+// 재는 방법: 이번 웨이브 안의 최근 win 초만 보므로 웨이브 시작 win 초 뒤부터, 그 동안 쓰러진 적이 n명 미만이면 판단하지 않는다.
+// 다른 안(나타나서 쓰러지기까지, 무기가 노릴 적 없이 쉰 시간 비율, 헛쓴 피해 비율)은 사거리 짧은 팀·긴 팀·산성 팀 중 하나에서 갈리지 않았다 (docs/tasks.md 의 T13d).
 // show: 화면에 떠 있는 시간(초, 눌리지 않으면 사라지고 그 웨이브에는 다시 뜨지 않는다. ui spdSync)
-const SPD_TIP = { win: 20, n: 8, life: 4, hit: 0.5, deep: 0.85, show: 10, keep: 64 };   // keep: 처치 기록을 남기는 수 (고리 배열)
-function tipLog(e) {   // 처치 기록: [웨이브 시각, 체력이 절반 아래로 떨어진 뒤 쓰러지기까지, 나타나서 쓰러지기까지] 를 이어 붙인 배열
+const SPD_TIP = { win: 20, n: 8, hit: 0.5, show: 10, keep: 64 };   // keep: 처치 기록을 남기는 수 (고리 배열)
+function tipLog(e) {   // 처치 기록: [웨이브 시각, 체력이 절반 아래로 떨어진 뒤 쓰러지기까지] 를 이어 붙인 배열
   const L = S.kl || (S.kl = []);
-  L.push(S.wt, e.h0 >= 0 ? S.t - e.h0 : 0, S.t - e.born);
-  if (L.length > SPD_TIP.keep * 3) L.splice(0, L.length - SPD_TIP.keep * 3);
+  L.push(S.wt, e.h0 >= 0 ? S.t - e.h0 : 0);
+  if (L.length > SPD_TIP.keep * 2) L.splice(0, L.length - SPD_TIP.keep * 2);
 }
-function median(a) { a.sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
 function spdTip() {
   const P = S && S.prep, wv = S && S.wave, L = S && S.kl, T = SPD_TIP;
   if (!P || P.phase !== 'wave' || !wv || S.over || !L || S.wt - wv.t0 < T.win) return false;
   const from = S.wt - T.win;
-  if (S.lkW != null && S.lkW >= from) return false;
-  for (const e of S.enemies) if (!e.dead && !e.boss && !e.cr && e.y > H * T.deep) return false;
-  const a = [], b = [];
-  for (let i = L.length - 3; i >= 0 && L[i] >= from; i -= 3) { a.push(L[i + 1]); b.push(L[i + 2]); }
-  return a.length >= T.n && (median(b) <= T.life || median(a) <= T.hit);
+  if (S.lkW != null && S.lkW >= from) return false;                    // ① 기지 피해 없음
+  const a = [];
+  for (let i = L.length - 2; i >= 0 && L[i] >= from; i -= 2) a.push(L[i + 1]);
+  if (a.length < T.n) return false;
+  a.sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return (a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2) <= T.hit;       // ② 반쯤 깎이면 바로 쓰러진다
 }
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over) return false;
