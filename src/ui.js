@@ -7,8 +7,8 @@ const cv = $('#field'), ctx = cv.getContext('2d'), wrap = $('#fieldWrap');
 const elW = $('#weapons'), elB = $('#bottom'), elO = $('#overlay');
 const fxLayer = document.createElement('div'); fxLayer.id = 'fxLayer'; $('#app').appendChild(fxLayer);
 const toastEl = document.createElement('div'); toastEl.id = 'toast'; wrap.appendChild(toastEl);   // 알림은 전장 아래쪽에 잠깐 뜬다
-const prepEl = document.createElement('div'); prepEl.id = 'prepBar'; prepEl.hidden = true;   // 정비 시간: 남은 정비 시간과 다음 웨이브 버튼
-prepEl.innerHTML = '<span class="prt">정비 시간 <b id="prepT">20</b>초</span><button type="button" class="btn primary" data-act="prepGo">다음 웨이브</button>'; wrap.appendChild(prepEl);
+const prepEl = document.createElement('div'); prepEl.id = 'prepBar'; prepEl.hidden = true;   // 정비 시간 (시간 제한 없음): 다음 웨이브 버튼
+prepEl.innerHTML = '<span class="prt">정비 시간</span><button type="button" class="btn primary" data-act="prepGo">다음 웨이브</button>'; wrap.appendChild(prepEl);
 const rewLayer = document.createElement('div'); rewLayer.id = 'rewLayer'; $('#app').appendChild(rewLayer);   // 보스 보상 연출 (거래 창 위에도 보인다, 입력을 막지 않는다)
 const aimCv = document.createElement('canvas'); aimCv.id = 'aimLayer'; aimCv.hidden = true; $('#app').appendChild(aimCv);   // 전장 밖(무기 칸, 인벤토리 위)까지 이어지는 예고선 (입력을 막지 않는다)
 const aimCtx = aimCv.getContext('2d');
@@ -1518,7 +1518,7 @@ function helpHtml() {
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div><p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 보스가 황금체가 됩니다.</p>`;
   const link = `<p class="hnote">웨이브 중에는 무기 아래 판에서 블록을 이웃 칸 쪽으로 밀어 자리를 바꿉니다. 무기 바로 아래 칸부터 그 무기 블록을 이으면 무기가 공격합니다. 1개면 공격 속도 -${Math.round((1 - C.pipeRate(1)) * 100)}%이고, 하나 더 이을 때마다 +${Math.round(C.PIPE.step * 100)}%(${C.PIPE.need + Math.round((1 - C.PIPE.base) / C.PIPE.step)}개면 보통).</p>`;
-  const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), 웨이브마다 보스가 나옵니다(${C.PREP.bossAt}초쯤). 적을 모두 막으면 정비 시간(최대 ${C.PREP.T}초)이 됩니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
+  const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), 웨이브마다 보스가 나옵니다(${C.PREP.bossAt}초쯤). 적을 모두 막으면 정비 시간이 되고, 다음 웨이브는 준비가 끝나면 직접 시작합니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
     <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
     ${sec('연결', link)}${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
@@ -1652,7 +1652,6 @@ function prepSync() {                     // 정비 막대와 단계가 바뀔 �
   if (on && !vis) { prepOutAt = 0; prepEl.classList.remove('out'); prepEl.hidden = false; }   // 나타날 때는 위에서 살짝 내려온다 (CSS)
   else if (!on && vis) { if (P && P.phase === 'wave' && mode === 'play') { prepOutAt = now; prepEl.classList.add('out'); } else prepEl.hidden = true; }   // 다음 웨이브: 위로 흐려지며 사라진다
   if (prepOutAt && now - prepOutAt > 240) { prepOutAt = 0; prepEl.classList.remove('out'); prepEl.hidden = true; }
-  if (on) { const t = String(Math.max(0, Math.ceil(P.left))), b = $('#prepT'); if (b.textContent !== t) b.textContent = t; }
   const ph = P ? P.phase : '';
   if (ph === prepPh) return;
   const was = prepPh; prepPh = ph;

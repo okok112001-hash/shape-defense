@@ -642,7 +642,7 @@ function newGame(h, mode) {
   return S;
 }
 function pipeSetup() {   // 연결 모드: 정비 시간 구조, 겹치지 않는 무작위 무기 5개(0강), 웨이브 중 연결 판
-  S.prep = { phase: 'wave', left: 0, rest: 0, tick: 0 };
+  S.prep = { phase: 'wave', rest: 0 };
   const ids = WEAPON_IDS.slice(), r = subG();
   for (let k = 0; k < LANES; k++) S.slots[k] = newWeapon(ids.splice(Math.floor(r() * ids.length), 1)[0]);
   S.pipe = true;
@@ -2972,14 +2972,14 @@ function pipeLinks() {
 const pipeRate = (n) => n >= PIPE.need ? PIPE.base + PIPE.step * (n - PIPE.need) : 0;
 
 /* ---------- 정비 시간 (연결 모드에서만 S.prep 이 생긴다) ---------- */
-// 웨이브는 적이 다 나오고(PREP.spawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 최대 PREP.T 초 정비 시간,
-// '다음 웨이브'를 누르거나 시간이 다 되면 다음 웨이브. 웨이브 중에는 무기·인벤토리 옮기기만 된다(화면이 막는다).
+// 웨이브는 적이 다 나오고(PREP.spawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 정비 시간(시간 제한 없음, 2026-11-28),
+// '다음 웨이브'를 누르면 다음 웨이브. 웨이브 중에는 무기·인벤토리 옮기기만 된다(화면이 막는다).
 // 난이도는 웨이브마다 한 단계씩 오른다 (T12 O1): 웨이브 n 은 예전 식(연속 등장)의 [span(n-1), span·n) 초 구간을 그대로 옮긴 것이다.
 // 그 구간의 적이 spawnT 초 동안 고르게 나온다 (span = spawnT 라 예전 연속 등장과 같은 밀도). 웨이브 안에서는 난이도 시간이 고정이고,
 // 그 값은 구간 가운데 span(n-1) + span/2 다 (예전 연속 등장에서 그 구간에 나온 적의 평균 등장 시각, 예전 웨이브가 세기를 정하던 시점도 구간 가운데).
 // 적 체력, 처치 재화, 웨이브 세기와 종류 가중치, 기지 피해 배수, 황금체·보급 상자 재화가 이 값을 쓴다. 정비 시간과 실제 흐른 시간은 난이도와 무관하다.
 // fill: 웨이브 세기 배수. 예전 방식의 CFG.waveFill(1.2)은 12초에 몰아 나오고 8초 쉬는 구조를 봇에 맞춘 보정이라 쓰지 않는다 (고르게 나오면 연속 등장과 같으니 1)
-const PREP = { T: 30, spawnT: 90, span: 90, fill: 1, bossAt: 45 };
+const PREP = { spawnT: 90, span: 90, fill: 1, bossAt: 45 };
 function tD() { return S.prep ? PREP.span * (Math.max(1, S.wn) - 0.5) : S.t; }
 const spawnT = () => S.prep ? PREP.spawnT : CFG.waveSpawnT;   // 웨이브 하나에서 적이 나오는 시간
 // 배속 추천 (T13d, 연결 모드): 적이 쉽게 쓰러지는 동안 화면이 2배를 권한다. 웨이브 시계(S.wt, 게임 시간)로 재서 배속과 상관없고 난수를 쓰지 않는다.
@@ -3014,9 +3014,7 @@ function prepGo() {   // 다음 웨이브 시작
 function prepStep(dt) {
   const P = S.prep;
   if (P.phase === 'rest') {
-    P.rest += dt; P.left -= dt;
-    if (P.tick > 0 && P.left <= P.tick) { P.tick--; snd('tick'); }   // 3초 전부터 초읽기
-    if (P.left <= 0) prepGo();
+    P.rest += dt;                          // 정비는 시간 제한이 없다. '다음 웨이브'를 눌러야 시작한다
     return;
   }
   if (!S.wave) { S.wEnd = S.wt; startWave(); }
@@ -3029,7 +3027,7 @@ function prepStep(dt) {
     S.pendingBoss.wb = wv.n * 10 + i;      // 웨이브 막대의 몇 번째 보스인지 (화면용. 나타나면 적에게 옮긴다)
   }
   if (S.wt - wv.t0 >= PREP.spawnT && !wv.bq.length && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
-    P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('clear');   // 화면은 판이 가라앉은 뒤 인벤토리로 바뀐다 (ui prepSync)
+    P.phase = 'rest'; S.invDirty = true; S.slotDirty = true; snd('clear');   // 화면은 판이 가라앉은 뒤 인벤토리로 바뀐다 (ui prepSync)
   }
 }
 

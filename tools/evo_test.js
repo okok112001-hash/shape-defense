@@ -1152,7 +1152,7 @@ function scene(type, lines, secs, opt) {
   const DT = 1 / 30, P = Core.PREP, AW = Core.AB_WARN;
   const pipe = (sd, flags) => { Core.seed(sd); Core.test.newGame(Object.assign({ god: true }, flags || {}), 520, 'pipe'); return Core.S; };
   const run = (S, T, each) => { const t1 = S.t + T; while (S.t < t1) { Core.step(DT); if (S.pendingAug) Core.skipAug(true); if (S.pendingPact) Core.skipPact(); if (each && each() === false) break; } };
-  // (a) 웨이브 n 의 난이도 시간 = 90n - 45 (웨이브 안에서 고정), 적은 90초 동안 나오고, 정비는 30초, 보스는 웨이브마다 45초에 (예고는 WARN_T 앞), 사냥철이면 30·60초에
+  // (a) 웨이브 n 의 난이도 시간 = 90n - 45 (웨이브 안에서 고정), 적은 90초 동안 나오고, 정비는 시간 제한 없음, 보스는 웨이브마다 45초에 (예고는 WARN_T 앞), 사냥철이면 30·60초에
   {
     const S = pipe(31), seen = new Set(), bw = [], bt = {}; let wn = 0, lastSpawn = 0, rest = null, lastPB = null;
     run(S, 1500, () => {
@@ -1165,11 +1165,11 @@ function scene(type, lines, secs, opt) {
         lastSpawn = Math.max(lastSpawn, S.wt - S.wave.t0);
       }
       if (S.prep.phase === 'wave' && S.wt - S.wave.t0 > 2) { for (const e of S.enemies) e.dead = true; S.enemies = []; }   // 바로 잡는다 (등장이 끝날 때까지 웨이브는 이어진다)
-      if (S.prep.phase === 'rest') { if (rest == null) rest = S.prep.left; Core.prepGo(); }
+      if (S.prep.phase === 'rest') { if (rest == null) { rest = S.prep.rest; for (let i = 0; i < 120 * 30; i++) Core.step(DT); assert(S.prep.phase === 'rest' && S.prep.rest > 119, '정비는 시간 제한 없음 (2분 지나도 정비)'); } Core.prepGo(); }
       return S.wn < 11;
     });
     assert(lastSpawn > P.spawnT - 1 && lastSpawn <= P.spawnT + 1e-6, '90초 동안 나온다 ' + lastSpawn);
-    assert(Math.abs(rest - P.T) < 1e-6 && P.T === 30 && P.spawnT === 90, '정비 30초');
+    assert(rest < DT * 1.5 && P.T === undefined && P.spawnT === 90, '정비 시간 제한 없음');
     assert.deepStrictEqual(bw, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].slice(0, bw.length), '웨이브마다 보스 ' + bw); assert(bw.length >= 10);
     for (let n = 1; n <= 10; n++) { assert(bt[n] && bt[n].length === 1 && Math.abs(bt[n][0] + Core.WARN_T - P.bossAt) < DT * 1.5 && P.bossAt === 45, '보스 45초 ' + n + ' ' + bt[n]); }
     const H = pipe(32); H.pacts = ['hunt']; const ht = {}; let hn = 0, hp_ = null;
