@@ -1662,7 +1662,7 @@ function scene(type, lines, secs, opt) {
   const P = Core.PACT, near = (a, b, m) => assert(Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b)), `${m}: ${a} != ${b}`);
   const take = (id) => { Core.S.pendingPact = [id]; const r = Core.choosePact(0); assert(r.ok, id); return r; };
   for (const id of ['interest', 'loan', 'supply', 'coin']) assert(Core.PACTS[id] && Core.PACT_IDS.indexOf(id) >= 0, id);
-  assert.strictEqual(Core.PACT_IDS.length, 24);
+  assert(Core.PACT_IDS.length >= 24);
   const pipe = (seed) => { Core.seed(seed); Core.test.newGame({ god: true }, 520, 'pipe'); return Core.S; };
   // 처치 재화: 이자 x0.9, 대출 x0.85 (같이면 곱)
   const killGold = (pacts) => { const S = game(41); S.pacts = pacts; S.spawnAcc = -1e9; const e = Core.spawn('basic', 2); const g0 = S.gold; Core.kill(e); return S.gold - g0; };
@@ -1709,6 +1709,55 @@ function scene(type, lines, secs, opt) {
     const S = game(48); S.pacts = ['supply']; S.t = 600; S.wEnd = 600; S.nextBoss = 600; S.wn = 5; Core.startWave(); assert(S.wave.boss && S.crQ > 0, '예전 방식 보스 웨이브에도');
   }
   ok('천칭 재화·보상 거래 4개: 이자(10%, 웨이브 재화 x0.5 상한, 처치 x0.9), 대출(생성 50번 비용, 처치 x0.85), 보급 독점(웨이브마다 상자, 보스 보상 조각), 행운의 동전(티켓 15%, 한 번 뽑기)');
+}
+/* T15e. 천칭 판 거래 2개 (굵은 물길, 병주고 약주고) */
+{
+  const take = (id) => { Core.S.pendingPact = [id]; const r = Core.choosePact(0); assert(r.ok, id); return r; };
+  for (const id of ['thick', 'mixed']) assert(Core.PACTS[id] && Core.PACT_IDS.indexOf(id) >= 0, id);
+  assert.strictEqual(Core.PACT_IDS.length, 26);
+  const pipe = (seed) => { Core.seed(seed); Core.test.newGame({ god: true }, 520, 'pipe'); return Core.S; };
+  const clearWave = (S) => { Core.step(1 / 30); S.wave.bq = []; S.pendingBoss = null; S.wt = S.wave.t0 + Core.PREP.spawnT + 1; S.enemies = []; Core.step(1 / 30); assert.strictEqual(S.prep.phase, 'rest'); assert(Core.prepGo()); };
+  // 굵은 물길: 3개부터 쏘고 3개 보통, 하나마다 +40% (거래가 없으면 1개 50%, 하나마다 +25%)
+  {
+    const S = pipe(51);
+    assert.deepStrictEqual([0, 1, 2, 3, 4, 5].map(Core.pipeRate), [0, 0.5, 0.75, 1, 1.25, 1.5]); assert.strictEqual(Core.pipeP().need, 1);
+    take('thick');
+    assert.strictEqual(Core.pipeP().need, 3);
+    const r = [0, 1, 2, 3, 4, 5].map(Core.pipeRate); [0, 0, 0, 1, 1.4, 1.8].forEach((v, i) => assert(Math.abs(r[i] - v) < 1e-9, `굵은 물길 ${i}개: ${r[i]}`));
+    // 실제로 2개면 안 쏘고 3개면 쏜다: 0번 무기 열의 위 칸들만 그 무기 블록, 나머지는 장착하지 않은 무기 블록
+    const b = S.m3, N = b.C, t0 = S.slots[0].type;
+    for (let i = 1; i < N; i++) S.slots[i] = null;
+    const oth = Core.WEAPON_IDS.find((t) => t !== t0);
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: oth, id: 7000 + i };
+    b.g[0] = { s: t0, id: 7100 }; b.g[N] = { s: t0, id: 7101 };
+    Core.step(1 / 30); S.spawnAcc = -1e9; S.wave.bq = []; S.pendingBoss = null; S.enemies = [];
+    const w = S.slots[0], shots = () => w.n || 0;
+    const run = (sec) => { for (let i = 0; i < 30 * sec; i++) { if (!S.enemies.some((e) => !e.dead)) { const e = Core.spawn('basic', 0); e.y = 300; e.hp = e.maxHp = 1e12; } Core.step(1 / 30); } };
+    assert.strictEqual(Core.pipeLinks()[0][0], 2);
+    const n0 = shots(); run(4); assert.strictEqual(shots(), n0, '2개면 쏘지 않는다');
+    b.g[2 * N] = { s: t0, id: 7102 }; assert.strictEqual(Core.pipeLinks()[0][0], 3);
+    run(4); assert(shots() > n0, '3개면 쏜다');
+  }
+  // 병주고 약주고: 다음 웨이브의 새 판에 만능(황금) 2개, 돌 2개 (돌은 0행이 아니고 황금과 겹치지 않음). 웨이브 동안 남고 정비 뒤 새 판에 다시
+  {
+    const S = pipe(52); take('mixed');
+    for (let k = 0; k < 6; k++) {
+      clearWave(S);
+      const b = S.m3, gold = b.g.filter((o) => o.s === 'gold'), st = b.g.map((o, i) => o.st ? i : -1).filter((i) => i >= 0);
+      assert.strictEqual(gold.length, 2, '만능 2'); assert.strictEqual(st.length, 2, '돌 2');
+      assert(st.every((i) => i >= b.C && b.g[i].s !== 'gold'), '돌은 0행 밖, 황금과 겹치지 않음');
+      for (let i = 0; i < 30 * 3; i++) Core.step(1 / 30);
+      assert(b.g.filter((o) => o.st).length >= 2 && b.g.filter((o) => o.s === 'gold').length >= 2, '웨이브 동안 남음');
+    }
+    // 만능 블록은 어느 무기 줄에나 이어진다
+    const b = S.m3, N = b.C, t0 = S.slots[0].type, oth = Core.WEAPON_IDS.find((t) => S.slots.every((w) => !w || w.type !== t));
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: oth, id: 7200 + i };
+    b.g[0] = { s: 'gold', id: 7300 }; b.g[N] = { s: t0, id: 7301 }; assert.strictEqual(Core.pipeLinks()[0][0], 2, '만능 블록으로 이어짐');
+    // 거래가 없으면 새 판에 없다
+    const S2 = pipe(53); clearWave(S2);
+    assert(!S2.m3.g.some((o) => o.st || o.s === 'gold'), '거래 없으면 없음');
+  }
+  ok('천칭 판 거래 2개: 굵은 물길(2개 이하 안 쏨, 3개 보통, 4개 140%, 5개 180%), 병주고 약주고(웨이브 시작 때 만능 2·돌 2, 0행에 돌 없음)');
 }
 Core.seed(null);
 console.log(`\n${n} 묶음 통과`);

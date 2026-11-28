@@ -641,6 +641,9 @@ const PACTS = {
   loan:     { name: '대출',          up: '생성 50번 비용만큼 재화를 바로 받음',   dn: '적을 쓰러뜨려 받는 재화 -15%' },
   supply:   { name: '보급 독점',      up: '보급 상자가 웨이브마다 나옴',          dn: '보스 보상이 파츠 대신 강화 조각' },
   coin:     { name: '행운의 동전',    up: '보스 보상의 황금 티켓 확률 4% → 15%',   dn: '보스 보상 파츠를 한 번만 뽑음 (원래 세 번 중 가장 좋은 것)' },
+  // T15e 판 거래 2개 (연결 모드의 판에만 닿는다. 예전 방식(도구)에는 효과가 없다)
+  thick:    { name: '굵은 물길',      up: '3개 넘게 이은 블록 하나마다 공격 속도 +40%', dn: '블록을 3개 이상 이어야 공격함' },
+  mixed:    { name: '병주고 약주고',   up: '웨이브마다 판에 어느 무기와도 이어지는 황금 블록 2개', dn: '웨이브마다 판에 옮길 수 없는 돌 2개' },
 };
 const PACT_IDS = Object.keys(PACTS);
 const PACT = {   // 수치는 한곳에
@@ -653,6 +656,8 @@ const PACT = {   // 수치는 한곳에
   pathTop: 1.6, pathRest: 0.9, fatSpd: 0.8, fatHp: 1.25, gritSucc: 0.03, gritCost: 1.1, warmRate: 1.4, warmT: 15, warmOld: 1 / 6,
   // T15d: interest 이자 (정비 시작에 재화 x intrRate, 한 번에 waveGold() x intrCap 까지), loan 대출 (생성 loanN 번의 비용 합), 처치 재화 배수 intrKill·loanKill, coin 황금 티켓 확률
   intrRate: 0.1, intrCap: 0.5, intrKill: 0.9, loanN: 50, loanKill: 0.85, coinTicket: 0.15,
+  // T15e: mixed 병주고 약주고 (웨이브 시작 때 판에 만능(황금) 블록 mixGold 개, 돌 mixStone 개). thick 굵은 물길의 연결 수치는 PIPE_THICK
+  mixGold: 2, mixStone: 2,
 };
 
 /* ---------- 상태 ---------- */
@@ -2782,7 +2787,7 @@ function step(dt) {
     if ((w.gz || 0) !== gz) { w.gz = gz; dirty(w); S.slotDirty = true; }
     if (sz || cold) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
-    if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 하나도 이어지지 않은 무기는 쏘지 않는다
+    if (pl && pl[i][0] < pipeP().need) continue;               // 연결이 모자란 무기는 쏘지 않는다 (보통 1개, 굵은 물길 3개)
     w.cd -= pl ? dt * pipeRate(pl[i][0]) : dt;
     if (w.rl && w.cd <= 0) { w.rl = 0; w.rlE = S.t; snd('rack'); }   // 난사: 재장전 끝 (철컥)
     if (w.ag > 0) {                          // 2연발의 두 번째 발사
@@ -3078,7 +3083,7 @@ function ghostAt(b) { return blkAt(b, 'gh'); }  // 망령 블록이 있는 칸 (
 // 부식·봉쇄·망령 블록을 걸 칸: 0행, 굳은 칸, 황금 블록, 이미 걸린 블록은 빼고, 켜진 무기와 이어진 블록이 있으면 그중에서 (없으면 아무 칸)
 function boardPick(b) {
   const ok = (i) => { const o = b.g[i]; return i >= b.C && o && !o.st && o.s !== 'gold' && !o.ru && !o.sl && !o.gh; };
-  const on = new Set(); for (const [n, cells] of pipeLinks()) if (n >= PIPE.need) for (const i of cells) if (ok(i)) on.add(i);
+  const on = new Set(); const need = pipeP().need; for (const [n, cells] of pipeLinks()) if (n >= need) for (const i of cells) if (ok(i)) on.add(i);
   const c = [...on].sort((x, y) => x - y);
   if (!c.length) for (let i = 0; i < b.g.length; i++) if (ok(i)) c.push(i);
   return c.length ? pick(c, rndS) : -1;
@@ -3095,6 +3100,8 @@ function boardAb(e, dt, b, k, P, sound) {
 // 연결: 칸마다 [연결 수, 연결된 판 칸 번호들, 그중 황금 블록 수]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록.
 // 황금 블록(황금체)은 어느 무기 종류로도 친다. 굳은 칸(석화체)은 연결에 들지 않고 그 너머로 이어지지도 않는다
 const PIPE = { need: 1, base: 0.5, step: 0.25 };
+const PIPE_THICK = { need: 3, base: 1, step: 0.4 };   // 거래 굵은 물길: 3개부터 쏘고 3개면 보통, 하나 더 이을 때마다 +40%
+const pipeP = () => hasPact('thick') ? PIPE_THICK : PIPE;   // 지금 쓰는 연결 수치 (화면도 이것을 쓴다)
 function pipeLinks() {
   const b = S.m3, N = b.C, R = b.R, out = [];
   for (let k = 0; k < LANES; k++) {
@@ -3113,7 +3120,14 @@ function pipeLinks() {
   }
   return out;
 }
-const pipeRate = (n) => n >= PIPE.need ? PIPE.base + PIPE.step * (n - PIPE.need) : 0;
+const pipeRate = (n) => { const P = pipeP(); return n >= P.need ? P.base + P.step * (n - P.need) : 0; };
+// 병주고 약주고: 새 판에 만능(황금) 블록과 돌을 놓는다. 황금은 아무 칸, 돌은 0행과 황금 칸을 뺀 칸 (판을 깔 때라 부식·봉쇄·망령 블록은 아직 없지만 빼고 고른다)
+function mixedPut(b) {
+  const free = (i) => { const o = b.g[i]; return !!o && !o.st && o.s !== 'gold' && !o.ru && !o.sl && !o.gh; };
+  const take = (from, n, f) => { const c = []; for (let i = from; i < b.g.length; i++) if (free(i)) c.push(i); for (let k = 0; k < n && c.length; k++) f(b.g[c.splice(Math.floor(rndG() * c.length), 1)[0]]); };
+  take(0, PACT.mixGold, (o) => { o.s = 'gold'; });
+  take(b.C, PACT.mixStone, (o) => { o.st = 1; });
+}
 
 /* ---------- 정비 시간 (연결 모드에서만 S.prep 이 생긴다) ---------- */
 // 웨이브는 적이 다 나오고(PREP.spawnT) 모두 쓰러지면(보스 예고, 떨어진 보급 상자는 빼고) 끝난다. 그 뒤 정비 시간(시간 제한 없음, 2026-11-28),
@@ -3150,7 +3164,7 @@ function spdTip() {
 function prepGo() {   // 다음 웨이브 시작
   const P = S && S.prep; if (!P || P.phase !== 'rest' || S.over || S.pendingAug || S.augQ) return false;   // 증강을 고르는 중(무기 교체 뒤 차례 포함)에는 시작하지 않는다
   P.phase = 'wave'; S.wEnd = S.wt; startWave(); S.invDirty = true; S.slotDirty = true;
-  if (S.m3) { const b = S.m3; m3Fill(b, -b.R - 0.5); }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다)
+  if (S.m3) { const b = S.m3; m3Fill(b, -b.R - 0.5); if (hasPact('mixed')) mixedPut(b); }   // 판도 새로 (정비 때 무기가 바뀌었을 수 있다). 병주고 약주고: 만능 블록과 돌
   return true;
 }
 function prepStep(dt) {
@@ -3302,7 +3316,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, longMul, loanGold, killGoldMul, kill, startWave, spawn, pathW: () => pathW, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, PART_FIT, partFits, tD: () => tD(),
+  m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, PIPE_THICK, pipeP, mixedPut, pipeLinks, pipeRate, PART_FIT, partFits, tD: () => tD(),
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;

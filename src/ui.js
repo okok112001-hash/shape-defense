@@ -965,7 +965,7 @@ function lightUpdate() {
   const pl = S.pipe && S.m3 ? C.pipeLinks() : null;
   for (let k = 0; k < C.LANES; k++) {       // 예열: 무기 칸이 붉게 빛난다
     const w = S.slots[k], cell = elW.children[k]; if (!cell) continue;
-    const off = !!w && prepWave() && ((!!S.pipe && !!S.m3 && pl[k][0] < C.PIPE.need) || !!S.warmOn);   // 연결이 모자란 무기, 예열 중: 꺼짐
+    const off = !!w && prepWave() && ((!!S.pipe && !!S.m3 && pl[k][0] < C.pipeP().need) || !!S.warmOn);   // 연결이 모자란 무기, 예열 중: 꺼짐
     if (cell.classList.contains('dormant') !== off) cell.classList.toggle('dormant', off);
     const h = w && w.evo ? C.heatLevel(w) : 0;
     if (h > 0) { cell.classList.add('heat'); cell.style.setProperty('--heat', h.toFixed(2)); }
@@ -1659,7 +1659,7 @@ function helpHtml() {
     <p class="hnote">100강 무기를 조각 5000으로 진화시킵니다. 0강으로 돌아가지만 능력은 그대로이고, 강화 비용은 300 + 일반 비용의 5배입니다. 5강마다 스킬 포인트 1개(모두 20개)를 받아 스킬 줄을 키웁니다. 거래로 0강 아래까지 떨어지면 진화가 풀려 100강 무기가 되고, 스킬은 사라집니다.</p>`;
   const stat = `<div class="hstat">${[['burn', '화상'], ['slow', '둔화'], ['ice', '빙결'], ['stun', '기절'], ['vuln', '취약'], ['cor', '부식']].map(([k, n]) => `<span class="hn"><span class="hv">${statusSvg(k, L)}</span><span class="hcap">${n}</span></span>`).join('')}</div>`;
   const bosses = `<div class="hbl">${C.BOSS_IDS.map(bossCard).join('')}</div><p class="hnote"><b class="gtag">황금 티켓</b> 보스 보상으로 드물게 나옵니다. 쓰면 다음 보스가 황금체가 됩니다.</p>`;
-  const link = `<p class="hnote">웨이브 중에는 무기 아래 판에서 블록을 이웃 칸 쪽으로 밀어 자리를 바꿉니다. 무기 바로 아래 칸부터 그 무기 블록을 이으면 무기가 공격합니다. 1개면 공격 속도 -${Math.round((1 - C.pipeRate(1)) * 100)}%이고, 하나 더 이을 때마다 +${Math.round(C.PIPE.step * 100)}%(${C.PIPE.need + Math.round((1 - C.PIPE.base) / C.PIPE.step)}개면 보통).</p>`;
+  const PP = C.pipeP(), link = `<p class="hnote">웨이브 중에는 무기 아래 판에서 블록을 이웃 칸 쪽으로 밀어 자리를 바꿉니다. 무기 바로 아래 칸부터 그 무기 블록을 이으면 무기가 공격합니다. ${PP.base < 1 ? `${PP.need}개면 공격 속도 -${Math.round((1 - PP.base) * 100)}%이고, 하나 더 이을 때마다 +${Math.round(PP.step * 100)}%(${PP.need + Math.round((1 - PP.base) / PP.step)}개면 보통)` : `${PP.need}개 이상 이어야 공격하고(${PP.need}개면 보통), 하나 더 이을 때마다 +${Math.round(PP.step * 100)}%`}.</p>`;
   const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), 웨이브마다 보스가 나옵니다(${C.PREP.bossAt}초쯤). 적을 모두 막으면 정비 시간이 되고, 다음 웨이브는 준비가 끝나면 직접 시작합니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
     <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
@@ -6147,7 +6147,7 @@ function drawPipeTags(S, H) {
   ctx.font = '14px "Do Hyeon", sans-serif'; ctx.textAlign = 'center'; ctx.globalAlpha = oa;   // 웨이브를 막음: 판의 물길과 함께 꺼진다
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k]; if (!w) continue;
-    const n = L[k][0], x = (k + 0.5) * C.LW, on = n >= C.PIPE.need, pc = Math.round((C.pipeRate(n) - 1) * 100);
+    const n = L[k][0], x = (k + 0.5) * C.LW, on = n >= C.pipeP().need, pc = Math.round((C.pipeRate(n) - 1) * 100);
     ctx.fillStyle = w.sz ? AB_COL.lock : w.gz && on ? TC.ghost : on ? C.WEAPONS[w.type].color : rgba(theme.v.ink || '#000', 0.45);
     ctx.fillText(w.sz ? '봉쇄' : w.gz && on ? '회복' : on ? (pc ? '공속 ' + (pc > 0 ? '+' : '') + pc + '%' : '공속 보통') : '꺼짐', x, H - 22);
   }
@@ -6530,10 +6530,10 @@ function m3Ev(b, now) {
 const m3ph = [0, 0, 0, 0, 0], m3pp = [0, 0, 0, 0, 0];   // 줄마다 흐름 위치, 물결 위치 (속도가 바뀌어도 튀지 않게 쌓는다)
 const hexLum = (h) => { const n = parseInt(h.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };   // 0~255
 function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now, dt) {
-  const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b), si = C.sealAt(b), gi = C.ghostAt(b);
+  const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b), si = C.sealAt(b), gi = C.ghostAt(b), need = C.pipeP().need;   // need: 무기가 켜지는 연결 수 (굵은 물길이면 3)
   g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
   L.forEach(([n, cells], k) => {
-    if (n < C.PIPE.need) return;
+    if (n < need) return;
     const col = C.WEAPONS[S.slots[k].type].color, set = new Set(cells), q = 1 - Math.exp(-(n - 1) / 4);
     const dk = hexLum(col) < 110;                 // 밝은 테마의 저격포처럼 어두운 회색 무기: 칸 바탕과 물길이 한 색으로 뭉치지 않게 바탕은 옅게, 물길은 진하게   // q: 1개 0 -> 많이 이을수록 1 에 가까이
     const par = new Map([[k, -1]]), dep = new Map([[k, 0]]), q2 = [k], kid = new Set();   // 무기 쪽(위)으로 흐르는 방향: 무기 칸에서부터 넓혀 간 부모, 무기 칸에서 몇 칸째인지
