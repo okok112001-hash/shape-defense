@@ -40,6 +40,10 @@
   --melt-fill: #e5731a;
   --ember: #d4260f;        /* 용해로 모드 표시색: 붉은 불씨 (등급 네 색, 강화 모드의 금색과 다르다) */
   --shard-ink: #8f6200;    /* 강화 조각 숫자 글자 (조각 그림의 노랑과 같은 계열, 밝은 바탕에서 읽히게 짙게) */
+  --hold-1: rgba(255, 255, 255, .34);   /* 꾹 누르기: 버튼 안에 차오르는 빛 (위쪽 옅은 끝, 아래), 흐르는 빛, 반짝임 (T14c) */
+  --hold-2: rgba(255, 255, 255, .58);
+  --hold-3: rgba(255, 255, 255, .5);
+  --hold-sp: #ffffff;
   --danger: #e03a3a;
   --ok: #0f9d76;
   --g0: #6b7688;
@@ -385,6 +389,31 @@ b { font-weight: 600; }
 .shnum b { display: block; font-weight: normal; color: var(--shard-ink); transform-origin: 50% 70%;
   text-shadow: 0 1px 0 var(--shadow), 0 0 5px var(--shadow), 0 0 10px var(--shadow); }
 @media (prefers-reduced-motion: reduce) { .shfx { display: none; } }
+/* 꾹 누르기 연속 (T14c): 생성·강화 버튼 안 아래에서 옅은 빛이 차오르고(글자 뒤), 반복 중에는 빛이 흐르며 왼쪽 위 귀퉁이에 횟수. 값은 ui.js 의 hkDraw 가 변수로 준다 */
+[data-hold] { position: relative; isolation: isolate; -webkit-touch-callout: none; }
+.hkfx { position: absolute; inset: 0; z-index: -1; pointer-events: none; font-style: normal; }
+.hkc { position: absolute; inset: 0; overflow: hidden; border-radius: 3.5px; opacity: var(--hka, 0); }
+.hkfl { position: absolute; left: 0; right: 0; top: 0; height: calc(100% + 9px); transform: translateY(var(--hky, 100px));
+  background: linear-gradient(to bottom, transparent, var(--hold-1) 9px, var(--hold-2)); }   /* 위 9px 는 옅게 번지는 끝 */
+.hkw { position: absolute; top: 0; bottom: 0; left: 0; width: 42%; opacity: var(--hkw, 0); transform: translateX(var(--hkx, -200px)) skewX(-18deg);
+  background: linear-gradient(90deg, transparent, var(--hold-3) 50%, transparent); }
+.hkw.w2 { transform: translateX(var(--hkx2, -200px)) skewX(-18deg); }
+.hkn { position: absolute; right: 6px; top: -12px; padding: 1px 7px 0; border-radius: 9px; font: 14px/16px var(--font-display); font-style: normal; white-space: nowrap;
+  font-variant-numeric: tabular-nums; color: var(--accent-ink); background: var(--panel); border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  opacity: 0; transform: translateY(3px) scale(.85); transition: opacity .2s, transform .2s; }
+.hkn.on { opacity: 1; transform: none; }
+.hksp { position: absolute; width: 0; height: 0; color: var(--hold-sp); }
+.hksp svg { position: absolute; left: -9px; top: -9px; display: block; }
+/* 손가락 시범: 대장간 창 위에도 보이게 따로 둔 층 */
+#hkLayer { position: absolute; inset: 0; z-index: 11; pointer-events: none; overflow: hidden; }
+.hkdemo { position: absolute; }
+.hkfg { position: absolute; left: 0; top: 0; opacity: 0; transform-origin: 18px 76px; display: block;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 38%); mask-image: linear-gradient(to bottom, transparent, #000 38%); }
+.hkfg svg { display: block; }
+.hkhalo { position: absolute; left: -20px; top: -20px; width: 40px; height: 40px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 55%, transparent), transparent); }
+.hkpl { position: absolute; font: 24px/1 var(--font-display); font-style: normal; color: var(--accent-ink); opacity: 0;
+  text-shadow: 0 0 3px var(--shadow); }
 @keyframes upring { from { transform: scale(.4); opacity: 1; } to { transform: scale(3.4); opacity: 0; } }
 @keyframes uptext {
   0% { transform: translate(var(--tx), 12px) scale(.3); opacity: 0; }
@@ -4724,6 +4753,10 @@ const Snd = (function () {
     gen: [40, () => seq('triangle', [988, 1319], 0.1, 0.1, 0.07)],
     ok: [30, () => seq('triangle', [523, 659, 784], 0.1, 0.12, 0.06)],
     fail: [30, () => tone('sawtooth', 220, 110, 0.22, 0.07)],
+    hrun: [200, () => tone('triangle', 784, 1175, 0.09, 0.05)],       // 꾹 누르기: 빛이 가득 차 반복이 시작됨 (T14c)
+    hgen: [70, () => tone('triangle', 1175, 1319, 0.05, 0.045)],      // 반복 중의 생성·강화 성공·실패: 짧고 작게 (겹치지 않게)
+    hok: [70, () => seq('triangle', [659, 880], 0.06, 0.07, 0.035)],
+    hfail: [90, () => tone('triangle', 247, 196, 0.05, 0.03)],
     aug: [200, () => seq('sine', [523, 659, 784, 1047], 0.5, 0.08, 0.05)],
     legend: [300, () => { seq('triangle', [1047, 1319, 1568, 2093], 0.2, 0.09, 0.055); seq('sine', [2093, 2637], 0.3, 0.05, 0.14); }],
     pact: [600, () => { tone('sine', 98, 92, 1.1, 0.16); tone('sine', 196, 190, 0.9, 0.07, 0.03); tone('triangle', 294, 290, 0.7, 0.035, 0.05); hiss(0.45, 0.07, 260, 0.8, 'lowpass', 0.02); }],   // 거래 완료: 낮고 묵직한 울림
@@ -5069,7 +5102,7 @@ function equipFx(k, g) {
 // 전설 파츠가 새로 생기면 그 칸에서 금빛이 터진다 (생성, 제조, 보스 보상)
 const legSeen = new WeakSet();
 function legendMark() { for (const it of C.S.inv) if (it && it.kind === 'p' && it.g === 3) legSeen.add(it); }
-function legendScan() { C.S.inv.forEach((it, i) => { if (it && it.kind === 'p' && it.g === 3 && !legSeen.has(it)) { legSeen.add(it); legendFx(i); } }); }
+function legendScan() { let n = 0; C.S.inv.forEach((it, i) => { if (it && it.kind === 'p' && it.g === 3 && !legSeen.has(it)) { legSeen.add(it); legendFx(i); n++; } }); return n; }
 function legendFx(i) {
   Snd.play('legend');
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -5354,7 +5387,7 @@ function invHtml() {
   if (!sel) {                               // 생성과 대장간 (T13e: 강화·용해로·기지는 대장간 안으로)
     cols = ' gf' + (prepWave() ? ' plock' : '');
     const canGen = C.goldCount() >= C.genCost() && C.freeSlot() >= 0;
-    acts = `<button type="button" class="btn primary gen${canGen ? ' hint' : ' off'}" id="genBtn" data-act="gen"><span class="gc"><b id="genHave">◆ ${fmtInt(C.goldCount())}</b><small id="genCost">비용 ${C.genCost()}</small></span><span>생성</span></button>
+    acts = `<button type="button" class="btn primary gen${canGen ? ' hint' : ' off'}" id="genBtn" data-act="gen" data-hold="gen"><span class="gc"><b id="genHave">◆ ${fmtInt(C.goldCount())}</b><small id="genCost">비용 ${C.genCost()}</small></span><span>생성</span></button>
       <button type="button" class="btn forge${canUp() ? ' hint' : ''}" id="forgeBtn" data-act="forge">${ANVIL(22)}<span>대장간</span></button>`;
   } else if (sel.from === 'inv') {
     const it = S.inv[sel.i];
@@ -5383,9 +5416,35 @@ function renderBottom() {
   if (!sel) confirmDrop = false;
   for (const i of [...meltSet]) { const it = S.inv[i]; if (!meltMode || !it || (it.kind !== 'p' && it.kind !== 'w')) meltSet.delete(i); }
   elB.classList.remove('m3on');
-  elB.innerHTML = invHtml();
+  const html = invHtml();
+  if (!holdKeep(elB, html)) elB.innerHTML = html;
   updateInfo();
   if (pOut && pOut.sw && performance.now() - pOut.sw <= outT().rise + 300) invRise();   // 웨이브를 막고 정비로: 떠오르는 중
+}
+/* 누르고 있는 버튼(꾹 누르기, T14c)이 root 안에 있으면 다시 만들지 않고 새 내용에 맞춰 제자리에서 고친다(같은 자리의 같은 태그는 남기고 속성·글자만 바꾼다).
+   그 버튼이 없어지는 갱신(다른 창 등)은 손을 뗀 뒤로 미룬다. 반환이 참이면 처리했으니 부른 쪽은 innerHTML 을 쓰지 않는다 */
+function holdKeep(root, html) {
+  const h = hold; if (!h || !h.btn.isConnected || !root.contains(h.btn)) return false;
+  if (!html.includes(`data-hold="${h.act}"`)) { h.dirty = true; return true; }
+  const t = document.createElement('template'); t.innerHTML = html;
+  morphKids(root, [...root.childNodes], [...t.content.childNodes], null);
+  if (!h.btn.isConnected) { h.dirty = true; h.stop = true; }   // 생기지 않을 일: 버튼을 잃으면 멈추고 뗀 뒤에 다시 그린다
+  return true;
+}
+function morphKids(p, a, b, ref) {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) morphTo(a[i], b[i]);
+  for (let i = n; i < a.length; i++) a[i].remove();
+  for (let i = n; i < b.length; i++) p.insertBefore(b[i], ref);
+}
+function morphTo(a, b) {
+  if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) { a.replaceWith(b); return; }
+  if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+  const keep = !!hold && a === hold.btn;   // 누르고 있는 버튼: disabled 는 손을 뗀 뒤에 (누르는 중에 꺼진 버튼이 신호를 놓치지 않게)
+  for (const n of a.getAttributeNames()) if (!b.hasAttribute(n) && !(keep && n === 'disabled')) a.removeAttribute(n);
+  for (const n of b.getAttributeNames()) { if (keep && n === 'disabled') continue; const v = b.getAttribute(n); if (a.getAttribute(n) !== v) a.setAttribute(n, v); }
+  const fx = hkv && hkv.el.parentNode === a ? hkv.el : null;   // 버튼 안의 빛은 남긴다
+  morphKids(a, [...a.childNodes].filter(x => x !== fx), [...b.childNodes], fx);
 }
 function meltNow() { const m = C.meltCount(); return m === Infinity ? '∞' : m; }
 function renderAll() { abKey = ''; syncTest(); renderWeapons(); renderBottom(); renderOverlay(); updateChips(); updateMark(); }
@@ -5474,9 +5533,9 @@ function fgParts(parts) {
 // 강화 버튼: 창 너비만큼, 보유 조각 · 필요 · 성공 확률을 함께 적는다
 function fgUp(t, act) {
   const u = C.upgradeInfo(t);
-  if (u.max) return '<button type="button" class="btn fg-up max" disabled><span class="fl">강화</span><span class="fmx">최대 강화</span></button>';
+  if (u.max) return `<button type="button" class="btn fg-up max" data-hold="${act}" disabled><span class="fl">강화</span><span class="fmx">최대 강화</span></button>`;
   const ok = u.have >= u.cost;
-  return `<button type="button" class="btn primary fg-up${ok ? '' : ' off'}" data-act="${act}"><span class="fl">강화</span>
+  return `<button type="button" class="btn primary fg-up${ok ? '' : ' off'}" data-act="${act}" data-hold="${act}"><span class="fl">강화</span>
     <span class="fv"><small>보유 조각</small><b>${SHARD}${fmtInt(u.have)}</b></span><span class="fv${ok ? '' : ' lack'}"><small>필요</small><b>${fmtInt(u.cost)}</b></span><span class="fv"><small>성공 확률</small><b>${Math.round(u.rate * 100)}%</b></span></button>`;
 }
 // 진화 / 스킬 버튼: 두 글자만으로는 무엇인지 모르니 짧은 설명을 붙인다
@@ -6082,11 +6141,12 @@ function helpHtml() {
   const waves = `<p class="hnote">웨이브마다 구성이 다르고(${Object.keys(C.WAVES).filter(v => C.WAVES[v].name).map(v => C.WAVES[v].name).join(', ')}), 웨이브마다 보스가 나옵니다(${C.PREP.bossAt}초쯤). 적을 모두 막으면 정비 시간이 되고, 다음 웨이브는 준비가 끝나면 직접 시작합니다. 생성, 강화, 파츠 장착은 정비 시간에만 할 수 있고, 웨이브 중에는 무기 옮기기만 됩니다.</p>
     <p class="hnote"><b class="ctag">보급 상자</b> 가끔 날아옵니다. 누르면 그 자리에 떨어지고, 부수면 재화·조각·파츠 중 하나가 나옵니다. 기지 가까이 떨굴수록 무기가 먼저 쏩니다.</p>`;
   return `<div class="modal help"><h2>도움말</h2><div class="hscroll">
-    ${sec('연결', link)}${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up)}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
+    ${sec('연결', link)}${sec('조작', ctlIntro + ctl)}${sec('무기', wps)}${sec('등급', grades)}${sec('파츠', parts)}${sec('강화와 증강', up + '<p class="hnote">생성과 강화 버튼은 꾹 누르고 있으면 저절로 계속 눌립니다.</p>')}${sec('진화', evoH)}${sec('용해로', melt + meltNote)}${sec('상태 이상', stat)}${sec('웨이브', waves)}${sec('보스', bosses)}${sec('천칭과 거래', scaleHelp)}</div>
     <button type="button" class="btn primary" data-act="helpBack">뒤로</button></div>`;
 }
 function renderOverlay() {
   const S = C.S;
+  if (hold && elO.contains(hold.btn) && !holdOverlayOk()) { hold.dirty = true; return; }   // 대장간 강화를 꾹 누르는 중: 다른 창은 손을 뗀 뒤에 (T14c)
   let h = '';
   if (mode === 'pause' && testView && isTest()) {
     h = testHtml();
@@ -6180,7 +6240,8 @@ function renderOverlay() {
     fade.classList.add('fgout'); fade.scrollTop = st; elO.insertAdjacentHTML('beforeend', h);
     setTimeout(() => fade.remove(), 300);
   } else if (h) {
-    elO.innerHTML = h; elO.hidden = false;
+    if (!holdKeep(elO, h)) elO.innerHTML = h;
+    elO.hidden = false;
     const mv = elO.querySelectorAll('.pv-emb [data-to]');   // 천칭 그림: 이전 기울기에서 새 기울기로
     if (mv.length) { void elO.offsetWidth; for (const e of mv) e.style.transform = e.dataset.to.slice(10); }
   }
@@ -6189,6 +6250,8 @@ function renderOverlay() {
 
 /* ---------- 조작 ---------- */
 function resetUi() {
+  hold = null; holdEat = 0; demoN = 0; demoWn = -1; hkTaps = []; clearTimeout(hkTimer);
+  if (hkDemo) { hkDemo.el.remove(); hkDemo = null; }
   sel = null; partSwap = null; wmodal = -1; bmodal = false; evoK = -1; swK = -1; swT = null; skK = -1; skSel = null; skGot = null; skFx = null; skIntro = false; wpick = -1; lastUp = null; confirmDrop = false; msg = '';
   augSel = -1; augRep = -1; augSkip = false; pactSel = -1; pactSkip = false; shownPact = null; pactView = false; bannerEl.classList.remove('show'); evoRun.length = 0; rewLayer.innerHTML = ''; wpickNew = -1; newCell = -1; meltMode = false; meltAllArm = false; meltSet.clear(); eqFx = null;
   toastEl.classList.remove('show'); pauseView = ''; helpFrom = ''; optsFrom = ''; abKey = ''; testView = false; testMsg = '';
@@ -6425,22 +6488,47 @@ function upgradeFail(r, t) {   // t: 무기 또는 기지. 필요한 개수는 �
   else if (r.reason === 'max') say('이미 최대 강화입니다.', true);
   updateWInfo();
 }
-function doUpgrade(k) {
-  const S = C.S, w = S.slots[k]; if (!w) return;
+// 생성 한 번. h: 꾹 누르기 반복 중이면 그 상태 (알림은 holdSay 가 한 줄로 합치고, 소리는 짧게, 꽝 연출은 생략한다)
+function doGen(h) {
+  const S = C.S, pre = S.inv.slice();
+  legendMark();
+  const r = C.generate();
+  if (!r.ok) {
+    if (h || r.reason === 'busy') return r;
+    if (r.reason === 'gold') say(`재화가 부족합니다. ◆ ${C.genCost()}이 필요합니다.`, true);
+    else if (r.reason === 'full') say('인벤토리가 가득 찼습니다. 장착하거나 버려서 칸을 비우세요.', true);
+    return r;
+  }
+  const it = r.item;
+  if (r.miss) { Snd.play(h ? 'hfail' : 'fail'); renderBottom(); if (!h) { missFx($('#genBtn')); say('<b>꽝!</b> 아무것도 나오지 않았습니다.', true); } return r; }
+  Snd.play(h ? 'hgen' : 'gen');
+  const nc = S.inv.findIndex((x, i) => x !== pre[i]);
+  if (!h || nc >= 0) { newCell = nc; setTimeout(() => { if (newCell === nc) newCell = -1; }, 500); }   // 반복 중 조각이면 앞서 생긴 칸의 반짝임을 끊지 않는다
+  renderBottom(); r.leg = legendScan();
+  if (it.kind === 's') { pulseUp(); shardFx(it.n); }
+  if (h) return r;
+  if (it.kind === 'w') say(`획득: <b style="color:${C.WEAPONS[it.type].color}">${C.WEAPONS[it.type].name}</b> (무기)`);
+  else if (it.kind === 'p') say('획득: ' + (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it));
+  else say(`획득: <b>강화 조각 ${it.n}개</b>`);
+  return r;
+}
+function doUpgrade(k, h) {   // h: 꾹 누르기 반복 중 (실패는 칩을 흔들지 않고, 도박사 알림은 합친 줄에 맡긴다)
+  const S = C.S, w = S.slots[k]; if (!w) return null;
   const r = C.upgrade(k);
-  if (!r.ok) return upgradeFail(r, w);
-  Snd.play(r.success ? 'ok' : 'fail');
+  if (!r.ok) { if (!h) upgradeFail(r, w); return r; }
+  Snd.play(h ? (r.success ? 'hok' : 'hfail') : (r.success ? 'ok' : 'fail'));
   msg = '';
   renderWeapons(); renderBottom();
-  if (wmodal >= 0) lastUp = { ok: r.success, at: performance.now() };
+  if (wmodal >= 0) { if (!h || r.success) lastUp = { ok: r.success, at: performance.now() }; }
   else {
     burstAt(elW.querySelector(`[data-slot="${k}"]`), r.success, r.lv, r.drop, r.evo);
   }
   if (S.pendingAug) { augSel = -1; augRep = -1; augSkip = false; }
   renderOverlay();
   if (r.point) skPointFx(k);   // 진화한 무기가 포인트를 받으면 짧은 연출 뒤에 스킬 창이 열린다
-  if (r.drop && !r.devo) { say(`강화 실패. 도박사의 대가로 단계가 1 내려갔습니다. (${r.evo ? '★' : ''}+${r.lv})`, true); updateWInfo(); }
+  if (r.drop && !r.devo && !h) { say(`강화 실패. 도박사의 대가로 단계가 1 내려갔습니다. (${r.evo ? '★' : ''}+${r.lv})`, true); updateWInfo(); }
   drainEvq();
+  return r;
 }
 /* ---------- 스킬 포인트를 받은 순간 (T14a): 짧은 연출 뒤에 스킬 창 ----------
    대장간 무기 칩에서 작은 별빛 몇 개가 번지며 떠올라, 옅은 꼬리를 끌며 ★ 스킬 버튼으로 흘러 들어간다. 버튼은 별이 닿을 때 한 번 밝아진다.
@@ -6535,20 +6623,273 @@ function skStars(fx, src, dst) {
   };
   requestAnimationFrame(draw);
 }
-function doBaseUpgrade() {
+function doBaseUpgrade(h) {
   const S = C.S, b = S.base;
   const r = C.upgradeBase();
-  if (!r.ok) return upgradeFail(r, b);
-  Snd.play(r.success ? 'ok' : 'fail');
+  if (!r.ok) { if (!h) upgradeFail(r, b); return r; }
+  Snd.play(h ? (r.success ? 'hok' : 'hfail') : (r.success ? 'ok' : 'fail'));
   msg = '';
   renderBottom();
-  if (bmodal) lastUp = { ok: r.success, at: performance.now() };
+  if (bmodal) { if (!h || r.success) lastUp = { ok: r.success, at: performance.now() }; }
   else {
     burstAt($('#forgeBtn'), r.success, r.lv, r.drop);
   }
   if (S.pendingAug) { augSel = -1; augRep = -1; augSkip = false; }
   renderOverlay();
-  if (r.drop) { say(`강화 실패. 도박사의 대가로 기지 단계가 1 내려갔습니다. (+${r.lv})`, true); updateWInfo(); }
+  if (r.drop && !h) { say(`강화 실패. 도박사의 대가로 기지 단계가 1 내려갔습니다. (+${r.lv})`, true); updateWInfo(); }
+  return r;
+}
+/* ---------- 꾹 누르기 연속 (T14c) ----------
+   생성·대장간 무기 강화·기지 강화 버튼(data-hold)을 0.35초 누르고 있으면 반복한다: 처음 초당 4번, 1.5초 뒤 초당 10번.
+   손을 떼거나 더 할 수 없으면(재화·조각 부족, 인벤토리 가득, 최대 강화, 증강·스킬 창) 멈추고, 다시 하려면 손을 뗐다 눌러야 한다.
+   반복이 있었던 누름은 손을 뗄 때 오는 click 을 버린다. 결과는 알림 한 줄로 합친다(holdSay). 짧게 누르면 지금처럼 click 으로 한 번.
+   누르는 동안 그 버튼은 다시 만들지 않는다: 그 버튼이 든 화면은 holdKeep 이 제자리에서 고치고, 버튼이 없어지는 갱신(증강 창 등)은 손을 뗀 뒤에 그린다.
+   알게 하는 표현(글 없이, 테마 강조색): ① 누르면 버튼 안 아래에서 옅은 빛이 차오르고 짧게 떼면 스르르 빠진다. 가득 차면 작은 반짝임과 함께 반복하며
+   빛이 흐르고(빨라지면 빨리) 귀퉁이에 횟수. ② 같은 버튼을 3초 안에 6번 이상 짧게 누르고 잠깐 멈추면 손가락 시범(1.5초 두 번, 실행은 안 함).
+   꾹 누르기로 반복을 한 번 하면 저장(HOLD_KEY)하고 ②는 다시 안 뜬다. 아직이면 정비마다 한 번, 한 판에 세 번까지.
+   움직임 줄이기: ① 빛이 차는 것만(흐름·반짝임 없음), ② 손가락이 흐려지며 나타났다 사라지기만 */
+const HOLD = { wait: 350, i1: 250, i2: 100, fast: 1500, slip: 18, legend: 600, tapN: 6, tapT: 3000, demoGap: 550, demoMax: 3, demoT: 1.5 };
+const HOLD_KEY = 'shape-defense-hold';
+let holdKnown = false;
+try { holdKnown = localStorage.getItem(HOLD_KEY) === '1'; } catch (e) { /* 저장소를 못 쓰는 환경 */ }
+let hold = null;      // 누르고 있는 버튼 {act, btn, id, x0, y0, t0, run(반복을 시작한 때), next, stop, n(한 횟수), s(합친 결과), lv0, why, dirty}
+let holdEat = 0;      // 이 시각까지 오는 click 하나를 버린다 (반복이 있었던 누름을 뗄 때)
+let hkv = null;       // 버튼 안의 빛 {act, el, p, a, w, ph, sp, bump, cnt, cntAt, last}. 손을 뗀 뒤에도 빠질 때까지 남는다
+let hkDemo = null;    // 손가락 시범 {act, t0, el, fg, halo, kill, k, ph, p}
+let hkTaps = [], hkTapAct = '', hkTimer = 0, demoN = 0, demoWn = -1, hkRaf = 0, hkLayer = null;
+const holdTarget = (act) => { const S = C.S; return !S ? null : act === 'wup' ? (wmodal >= 0 ? S.slots[wmodal] : null) : act === 'bup' ? S.base : null; };
+const holdOverlayOk = () => { const S = C.S; return mode === 'play' && !!S && !S.pendingAug && !S.pendingPact && !partSwap && skK < 0 && evoK < 0 && swK < 0 && !meltMode && wpick < 0 && (hold.act === 'wup' ? wmodal >= 0 && !bmodal : hold.act === 'bup' && bmodal); };
+// 지금 그 버튼을 한 번 더 할 수 있는가: undefined 면 됨, 아니면 멈추는 까닭 ('' 은 알림에 붙이지 않음)
+function holdWhy(act) {
+  const S = C.S;
+  if (!S || mode !== 'play' || S.over || S.pendingAug || S.pendingPact || skFx || prepWave()) return '';
+  if (act === 'gen') {
+    if (sel || fOpen() || partSwap || skK >= 0 || evoK >= 0 || swK >= 0) return '';
+    if (C.goldCount() < C.genCost()) return '재화 부족';
+    if (C.freeSlot() < 0) return '인벤토리 가득';
+    return undefined;
+  }
+  const t = holdTarget(act);
+  if (!t || (act === 'wup' && bmodal) || (act === 'bup' && !bmodal) || wpick >= 0 || partSwap || skK >= 0 || evoK >= 0 || swK >= 0 || meltMode) return '';
+  const u = C.upgradeInfo(t);
+  if (u.max) return '최대 강화';
+  if (u.have < u.cost) return '조각 부족';
+  return undefined;
+}
+function holdStart(b, ev) {
+  const now = performance.now(), act = b.dataset.hold, t = holdTarget(act);
+  hold = { act, btn: b, id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, t0: now, run: 0, next: 0, stop: false, n: 0, s: { sh: 0, p: 0, lg: 0, x: 0 }, lv0: t ? t.lv : 0, why: '', dirty: false };
+  hkAttach(act, b); hkv.cnt = 0; hkv.cntAt = 0;
+  hkLoop();
+}
+function holdRun(now) {
+  const h = hold;
+  if (h.stop) return;
+  if (!h.run) {
+    if (now - h.t0 < HOLD.wait) return;
+    if (holdWhy(h.act) !== undefined) { h.stop = true; return; }   // 그새 할 수 없게 됨: 반복하지 않고, 뗄 때의 click 이 지금처럼 알린다
+    h.run = h.next = now;
+    if (!holdKnown) { holdKnown = true; try { localStorage.setItem(HOLD_KEY, '1'); } catch (e) { /* 무시 */ } }
+    Snd.play('hrun'); hkSpark();
+  }
+  for (let k = 0; k < 3 && !h.stop && now >= h.next; k++) holdStep(now);
+  if (now - h.next > 250) h.next = now;   // 오래 멈춘 프레임 뒤에 몰아서 하지 않는다
+}
+function holdStep(now) {
+  const h = hold, why = holdWhy(h.act);
+  if (why !== undefined) { holdStop(why); return; }
+  h.n++;
+  let wait = now - h.run < HOLD.fast ? HOLD.i1 : HOLD.i2;
+  if (h.act === 'gen') {
+    const r = doGen(h);
+    if (r.ok) {
+      if (r.miss) h.s.x++;
+      else if (r.item.kind === 's') h.s.sh += r.item.n;
+      else { h.s.p++; if (r.leg) { h.s.lg += r.leg; wait += HOLD.legend; } }   // 전설 파츠: 잠깐 멈춰 칸의 금빛을 보여 준다
+    }
+  } else {
+    const r = h.act === 'wup' ? doUpgrade(wmodal, h) : doBaseUpgrade(h);
+    if (r && r.devo) h.why = '';
+  }
+  h.next += wait;
+  if (hkv && hkv.act === h.act) { hkv.bump = 1; hkv.cnt = h.n; }
+  const w2 = holdWhy(h.act);
+  if (w2 !== undefined) holdStop(w2); else holdSay(h);
+}
+function holdStop(why) { const h = hold; if (!h || h.stop) return; h.stop = true; h.why = why || ''; if (h.n) holdSay(h); }
+function holdSay(h) {
+  let t;
+  if (h.act === 'gen') {
+    const p = [];
+    if (h.s.sh) p.push(`조각 +${fmtInt(h.s.sh)}`);
+    if (h.s.p) p.push(`파츠 ${h.s.p}` + (h.s.lg ? ` (<span class="g3">전설 ${h.s.lg}</span>)` : ''));
+    if (h.s.x) p.push(`꽝 ${h.s.x}`);
+    t = `<b>생성 ${h.n}번</b>` + (p.length ? ': ' + p.join(', ') : '');
+  } else {
+    const tg = holdTarget(h.act), d = tg ? tg.lv - h.lv0 : 0;
+    t = `<b>강화 ${h.n}번</b>: ${d < 0 ? '−' + (-d) : '+' + d}`;
+  }
+  if (h.why) t += ' · ' + h.why;
+  say(t, false, 2600);
+  if (h.act !== 'gen') updateWInfo();
+}
+function holdEnd(cancel) {
+  const h = hold; if (!h) return;
+  hold = null;
+  const now = performance.now();
+  if (h.run) {
+    holdEat = now + 800;
+    if (!h.dirty) setTimeout(() => { if (!hold && C.S && mode === 'play') { if (h.act === 'gen') renderBottom(); else renderOverlay(); } }, 380);   // 누르는 동안 남겨 둔 정리(최대 강화의 disabled 등)를 빛이 빠진 뒤에
+  } else if (!h.stop && !cancel) hkTap(h.act, now);
+  if (h.dirty) setTimeout(renderAll, 0);    // 미뤄 둔 화면(증강 창 등): 뗄 때의 click 이 지나간 뒤에
+  hkLoop();
+}
+window.addEventListener('pointerdown', (ev) => {
+  holdEat = 0; clearTimeout(hkTimer);
+  if (hkDemo && !hkDemo.kill) hkDemo.kill = performance.now();   // 시범은 아무 데나 누르면 흐려지며 사라진다
+  if (hold) { if (ev.pointerId !== hold.id) holdStop(''); return; }   // 다른 손가락이 닿으면 반복을 멈춘다
+  const b = ev.target.closest && ev.target.closest('[data-hold]');
+  if (!b || b.disabled || (ev.pointerType === 'mouse' && ev.button !== 0) || holdWhy(b.dataset.hold) !== undefined) return;
+  holdStart(b, ev);
+}, true);
+window.addEventListener('pointermove', (ev) => {
+  const h = hold; if (!h || ev.pointerId !== h.id || h.stop) return;
+  if (Math.hypot(ev.clientX - h.x0, ev.clientY - h.y0) > HOLD.slip) { if (h.run) holdStop(''); else h.stop = true; }   // 손가락이 미끄러지면 멈춤
+}, true);
+window.addEventListener('pointerup', (ev) => { if (hold && ev.pointerId === hold.id) holdEnd(false); }, true);
+window.addEventListener('pointercancel', (ev) => { if (hold && ev.pointerId === hold.id) holdEnd(true); }, true);
+$('#app').addEventListener('contextmenu', (ev) => { if (ev.target.closest && ev.target.closest('[data-hold]')) ev.preventDefault(); });   // 길게 누르기 메뉴를 막는다
+// 짧게 누른 것을 센다: 같은 버튼을 3초 안에 6번 넘게 두드리고 잠깐 멈추면 손가락 시범
+function hkTap(act, now) {
+  if (holdKnown || demoN >= HOLD.demoMax) return;
+  if (hkTapAct !== act) { hkTapAct = act; hkTaps = []; }
+  hkTaps.push(now);
+  while (hkTaps.length && now - hkTaps[0] > HOLD.tapT) hkTaps.shift();
+  clearTimeout(hkTimer);
+  if (hkTaps.length >= HOLD.tapN) hkTimer = setTimeout(() => demoStart(act), HOLD.demoGap);
+}
+// 보이는 그 버튼 (다른 창에 가려져 있으면 없음)
+function hkBtn(act) {
+  const b = document.querySelector(`[data-hold="${act}"]`); if (!b) return null;
+  const r = b.getBoundingClientRect(); if (!r.width || !r.height) return null;
+  const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return e && b.contains(e) ? b : null;
+}
+function hkLoop() { if (!hkRaf) hkRaf = requestAnimationFrame(hkFrame); }
+function hkFrame() {
+  hkRaf = 0;
+  const now = performance.now();
+  if (hold) holdRun(now);
+  if (hkDemo) demoFrame(now);
+  if (hkv) hkDraw(now);
+  if (hold || hkv || hkDemo) hkLoop();
+}
+// 버튼 안의 빛: 차오르는 빛(.hkfl), 흐르는 빛 둘(.hkw), 귀퉁이 횟수(.hkn). 버튼 글자 뒤에 깔린다 (style.css [data-hold])
+function hkAttach(act, b) {
+  if (hkv && hkv.act !== act) { hkv.el.remove(); hkv = null; }
+  if (!hkv) {
+    const el = document.createElement('i'); el.className = 'hkfx';
+    el.innerHTML = '<i class="hkc"><i class="hkfl"></i><i class="hkw"></i><i class="hkw w2"></i></i><i class="hkn"></i>';
+    hkv = { act, el, p: 0, a: 0, w: 0, ph: 0, sp: 0, bump: 0, cnt: 0, cntAt: 0, last: performance.now(), shown: '' };
+  }
+  if (hkv.el.parentNode !== b) b.appendChild(hkv.el);
+}
+function hkSpark() {   // 빛이 가득 찬 순간: 위쪽 가장자리에서 작은 네 갈래 반짝임 (움직임 줄이기면 없음)
+  if (RM.matches || !hkv || !hkv.el.parentNode) return;
+  const w = hkv.el.parentNode.clientWidth, s = document.createElement('i');
+  s.className = 'hksp'; s.style.left = (w * (0.28 + Math.random() * 0.1)).toFixed(1) + 'px'; s.style.top = '3px';
+  s.innerHTML = `<svg viewBox="-10 -10 20 20" width="18" height="18"><path d="M0-9Q0 0 7 0Q0 0 0 9Q0 0-7 0Q0 0 0-9z" fill="currentColor"/></svg>`;
+  hkv.el.appendChild(s);
+  s.animate([{ transform: 'scale(.2) rotate(-20deg)', opacity: 0 }, { transform: 'scale(1) rotate(8deg)', opacity: 1, offset: 0.35 }, { transform: 'scale(.55) rotate(30deg)', opacity: 0 }],
+    { duration: 440, easing: 'cubic-bezier(.2,.7,.3,1)' }).onfinish = () => s.remove();
+}
+function hkDraw(now) {
+  const v = hkv, dt = Math.min(0.05, (now - v.last) / 1000), rm = RM.matches; v.last = now;
+  if (!v.el.isConnected) {                   // 버튼을 다시 만들었다 (짧게 누른 뒤의 click 등): 새 버튼으로 옮겨 이어서 빠진다
+    const nb = document.querySelector(`[data-hold="${v.act}"]`);
+    if (nb) nb.appendChild(v.el); else { hkv = null; return; }
+  }
+  const h = hold && hold.act === v.act ? hold : null, d = !h && hkDemo && hkDemo.act === v.act && !hkDemo.kill ? hkDemo : null;
+  const ease = (x, to, tau) => x + (to - x) * (1 - Math.exp(-dt / tau));
+  let tw = 0, ta = null;
+  if (h && !h.stop && !h.run) { v.p = Math.min(1, (now - h.t0) / HOLD.wait); v.a = 1; }
+  else if (h && !h.stop) { v.p = 1; ta = 0.65; tw = 1; v.sp = now - h.run < HOLD.fast ? 1.1 : 1.9; }
+  else if (d && d.ph === 1) { v.p = d.p; v.a = 1; }
+  else if (d && d.ph === 2) { v.p = 1; ta = 0.65; tw = 1; v.sp = 1.3; }
+  else v.p = ease(v.p, 0, 0.09);           // 뗐거나 멈춤: 스르르 빠진다
+  if (rm) tw = 0;
+  v.w = ease(v.w, tw, 0.12); if (ta !== null) v.a = ease(v.a, ta, 0.15);
+  v.ph += dt * v.sp; v.bump = Math.max(0, v.bump - dt / 0.18);
+  const b = v.el.parentNode, W = b.clientWidth, H = b.clientHeight, st = v.el.style;
+  const pv = 1 - Math.pow(1 - v.p, 1.6);   // 처음에 조금 빨리 보이게 (가득 차는 때는 그대로)
+  st.setProperty('--hky', (H - (H + 9) * pv).toFixed(1) + 'px');   // 위 끝(옅게 번지는 9px)이 아래에서 버튼 위까지 오른다
+  st.setProperty('--hka', Math.min(1, v.a * (0.86 + 0.14 * v.bump)).toFixed(3));
+  st.setProperty('--hkw', v.w.toFixed(3));
+  const x = (f) => ((-0.5 + 1.55 * (f - Math.floor(f))) * W).toFixed(1) + 'px';
+  st.setProperty('--hkx', x(v.ph)); st.setProperty('--hkx2', x(v.ph + 0.5));
+  const on = !!h && !!h.run || (!h && v.cnt > 0 && now - v.cntAt < 450);   // 횟수: 반복 중, 그리고 뗀 뒤 잠깐
+  if (h && h.run) v.cntAt = now;
+  const n = v.el.querySelector('.hkn'), txt = '×' + v.cnt;
+  if (on && n.textContent !== txt) {
+    n.textContent = txt;
+    if (!rm && v.cnt > 1) n.animate([{ transform: 'scale(1.18)' }, { transform: 'none' }], { duration: 160, easing: 'ease-out' });
+  }
+  if (n.classList.contains('on') !== on) n.classList.toggle('on', on);
+  if (!h && !d && v.p < 0.004 && v.w < 0.004 && !on && now - v.cntAt > 700) { v.el.remove(); hkv = null; }
+}
+/* 손가락 시범: 버튼 위로 손가락 그림이 서서히 내려와 꾹 누른 채 머물고, 버튼 안의 빛이 차오른 뒤 작은 + 들이 차례로 튀어 오른다 (1.5초, 두 번).
+   손가락 끝은 버튼 가운데에서 조금 오른쪽 아래, 몸통은 오른쪽 위로 비스듬히(가운데 글자를 가리지 않게). 대장간 창 위에도 보이게 따로 둔 층(#hkLayer)에 그린다 */
+const FINGER = `<svg viewBox="0 0 30 66" width="36" height="79" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 0V48a9 9 0 0 0 18 0V0" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.7"/>
+  <path d="M10.6 48.5c0 3 1.9 4.9 4.4 4.9s4.4-1.9 4.4-4.9v-3.2c0-.9-.7-1.5-1.5-1.5h-5.8c-.8 0-1.5.6-1.5 1.5z" stroke="var(--ink)" stroke-width="1.2" opacity=".75"/>
+  <path d="M9.5 26.5q5.5 2.2 11 0M10 33q5 1.8 10 0" stroke="var(--ink)" stroke-width="1.1" opacity=".5"/></svg>`;
+function demoStart(act) {
+  const S = C.S;
+  if (holdKnown || hold || hkDemo || demoN >= HOLD.demoMax || !S || mode !== 'play' || demoWn === S.wn) return;
+  const b = hkBtn(act); if (!b) return;
+  demoN++; demoWn = S.wn; hkTaps = [];
+  if (!hkLayer) { hkLayer = document.createElement('div'); hkLayer.id = 'hkLayer'; $('#app').appendChild(hkLayer); }
+  const el = document.createElement('div'); el.className = 'hkdemo';
+  el.innerHTML = `<i class="hkhalo"></i><i class="hkfg">${FINGER}</i>`;
+  hkLayer.appendChild(el);
+  hkDemo = { act, t0: performance.now(), el, fg: el.querySelector('.hkfg'), halo: el.querySelector('.hkhalo'), kill: 0, k: 0, c: -1, sp: false, ph: 0, p: 0 };
+  if (!RM.matches) hkAttach(act, b);
+  hkLoop();
+}
+const DEMO_PL = [0.7, 0.88, 1.02, 1.12, 1.2];   // + 가 튀어 오르는 때 (한 번 안에서, 초)
+function demoFrame(now) {
+  const d = hkDemo, b = hkBtn(d.act), rm = RM.matches, T = HOLD.demoT;
+  if (!b && !d.kill) d.kill = now;
+  const u = (now - d.t0) / 1000;
+  if (u >= 2 * T || (d.kill && now - d.kill > 180)) { d.el.remove(); hkDemo = null; return; }
+  const app = $('#app').getBoundingClientRect();
+  if (b) { const r = b.getBoundingClientRect(); Object.assign(d.el.style, { left: (r.left - app.left) + 'px', top: (r.top - app.top) + 'px', width: r.width + 'px', height: r.height + 'px' }); }
+  const W = d.el.offsetWidth, H = d.el.offsetHeight, c = Math.floor(u / T), v = u - c * T;
+  if (c !== d.c) { d.c = c; d.k = 0; d.sp = false; }
+  const sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  let al, dy, sc = 1, pr = 0;                // 손가락: 진하기, 위아래, 크기, 눌림(0..1)
+  if (rm) { al = sm(v / 0.3) * (1 - sm((v - 1.2) / 0.25)); dy = 2; }
+  else if (v < 0.3) { const e = 1 - Math.pow(1 - v / 0.3, 3); al = e; dy = -18 * (1 - e); }
+  else if (v < 1.2) { pr = sm((v - 0.3) / 0.08); al = 1; dy = 2 * pr; sc = 1 - 0.04 * pr; }
+  else { const e = sm((v - 1.2) / 0.25); pr = 1 - e; al = 1 - e; dy = 2 - 14 * e; sc = 0.96 + 0.04 * e; }
+  if (d.kill) al *= Math.max(0, 1 - (now - d.kill) / 180);
+  const tx = W * 0.6, ty = H * 0.58;          // 손가락 끝
+  d.fg.style.transform = `translate(${(tx - 18).toFixed(1)}px, ${(ty - 76 + dy).toFixed(1)}px) rotate(24deg) scale(${sc.toFixed(3)})`;   // 끝(18, 76)을 축으로
+  d.fg.style.opacity = al.toFixed(3);
+  d.halo.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${(0.6 + 0.4 * pr).toFixed(3)})`;
+  d.halo.style.opacity = (rm ? 0 : pr * al * 0.9).toFixed(3);
+  if (rm) return;
+  d.ph = d.kill ? 0 : v < 0.34 ? 0 : v < 0.69 ? 1 : v < 1.25 ? 2 : 0;   // 버튼 안의 빛: 차오름(1) → 흐름(2) → 빠짐(0)
+  d.p = Math.min(1, Math.max(0, (v - 0.34) / 0.35));
+  if (d.ph === 2 && !d.sp) { d.sp = true; hkSpark(); }
+  while (!d.kill && d.k < DEMO_PL.length && v >= DEMO_PL[d.k]) {
+    const s = document.createElement('i'); s.className = 'hkpl'; s.textContent = '+';
+    s.style.left = (W * (0.2 + 0.07 * d.k) + (hash(d.t0 * 0.01 + d.k * 3.1 + c) - 0.5) * 12).toFixed(1) + 'px'; s.style.top = '2px';
+    d.el.appendChild(s);
+    s.animate([{ transform: 'translate(-50%, -40%) scale(.5)', opacity: 0 }, { transform: 'translate(-50%, -105%) scale(1.1)', opacity: 1, offset: 0.3 }, { transform: 'translate(-50%, -150%) scale(.92)', opacity: 0 }],
+      { duration: 560, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => s.remove();
+    d.k++;
+  }
 }
 const LOCKED = '잠긴 칸입니다. 잠금이 풀릴 때까지 옮길 수 없습니다.';
 const CLOSED = '집중 거래로 폐쇄된 칸입니다. 무기를 넣을 수 없습니다.';
@@ -6808,27 +7149,7 @@ function act(name) {
   if (name !== 'meltBulk') meltAllArm = false;
   if (name !== 'meltOne') confirmDrop = false;
   switch (name) {
-    case 'gen': {
-      const pre = S.inv.slice();
-      legendMark();
-      const r = C.generate();
-      if (!r.ok) {
-        if (r.reason === 'busy') return;
-        if (r.reason === 'gold') say(`재화가 부족합니다. ◆ ${C.genCost()}이 필요합니다.`, true);
-        else if (r.reason === 'full') say('인벤토리가 가득 찼습니다. 장착하거나 버려서 칸을 비우세요.', true);
-        return;
-      }
-      const it = r.item;
-      if (r.miss) { Snd.play('fail'); renderBottom(); missFx($('#genBtn')); say('<b>꽝!</b> 아무것도 나오지 않았습니다.', true); return; }
-      Snd.play('gen');
-      newCell = S.inv.findIndex((x, i) => x !== pre[i]);
-      const nc = newCell; setTimeout(() => { if (newCell === nc) newCell = -1; }, 500);
-      renderBottom(); legendScan();
-      if (it.kind === 'w') say(`획득: <b style="color:${C.WEAPONS[it.type].color}">${C.WEAPONS[it.type].name}</b> (무기)`);
-      else if (it.kind === 'p') say('획득: ' + (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it));
-      else { say(`획득: <b>강화 조각 ${it.n}개</b>`); pulseUp(); shardFx(it.n); }
-      return;
-    }
+    case 'gen': doGen(null); return;
     case 'forge': Snd.play('tap'); openForge(fTab); return;   // 대장간: 마지막으로 본 탭으로 연다
     case 'meltBulk': {                       // 고른 것이 있으면 그것만, 없으면 '모두 분해' (영웅 이상 파츠, 강화한 무기 제외)
       const picked = [...meltSet].filter(i => { const x = S.inv[i]; return x && (x.kind === 'p' || x.kind === 'w'); });
@@ -6939,6 +7260,7 @@ function act(name) {
 }
 $('#app').addEventListener('click', (ev) => {
   const S = C.S;
+  if (holdEat) { const eat = performance.now() < holdEat; holdEat = 0; if (eat) return; }   // 꾹 눌러 반복한 뒤 손을 뗄 때의 click: 한 번 더 실행하지 않는다 (T14c)
   if (skFx) return;                                  // 스킬 포인트 연출 중: 연타가 다음 강화나 창 바깥 누름으로 새지 않게 (T14a)
   // 무기 창이나 기지 창의 바깥 부분을 누르면 닫힌다
   if (ev.target === elO && mode === 'play' && S && evoK >= 0) { evoK = -1; renderOverlay(); return; }   // 진화 창은 바깥을 눌러도 닫힌다
@@ -7003,7 +7325,7 @@ $('#app').addEventListener('click', (ev) => {
   if (ds.inv != null) return tapInv(+ds.inv);
   if (ds.slot != null) return tapSlot(+ds.slot);
 });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { ptrs.clear(); pause(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { ptrs.clear(); holdEnd(true); pause(); } });
 
 /* ---------- 전장 그리기 ---------- */
 function resize() {
