@@ -427,8 +427,8 @@ b { font-weight: 600; }
 }
 .slot.rusted, .slot.evo.rusted { border-color: #c04bff; background: color-mix(in srgb, #c04bff 16%, var(--panel)); }   /* 부식 블록과 이어진 무기 (0강으로 침) */
 .slot.rusted .lv.rz { color: #c04bff; text-shadow: none; }
-.slot.locked { border-color: #ff3d5a; background: color-mix(in srgb, #ff3d5a 25%, var(--panel)); }
-.slot.locked > svg, .slot.locked > .lv, .slot.locked > .pips { opacity: .35; }
+.slot.locked, .slot.sealed, .slot.evo.sealed { border-color: #ff3d5a; background: color-mix(in srgb, #ff3d5a 25%, var(--panel)); }   /* sealed: 봉쇄 블록과 이어진 무기 */
+.slot.locked > svg, .slot.locked > .lv, .slot.locked > .pips, .slot.sealed > svg, .slot.sealed > .lv, .slot.sealed > .pips { opacity: .35; }
 .slot .lockic { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; display: flex; color: #ff5d7a; }
 /* 예고 중인 칸의 아이콘 (잠금, -5, 낚아채는 손) */
 .abic { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; pointer-events: none; color: #fff; background: var(--ab); border: 1.5px solid #fff; animation: abpop .5s ease-in-out infinite alternate; }
@@ -444,7 +444,7 @@ b { font-weight: 600; }
 #abChips { position: absolute; left: 8px; right: 8px; top: 46px; z-index: 3; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #abChips:empty { display: none; }
 .abchip { position: relative; display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 12px 7px 5px; overflow: hidden; border: 1.5px solid var(--ab); border-radius: 999px; background: var(--toast); color: var(--ink); font-size: 12px; line-height: 16px; white-space: nowrap; }
-.abchip.lock { --ab: #ff3d5a; } .abchip.corr, .abchip.rust { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; }
+.abchip.lock, .abchip.seal { --ab: #ff3d5a; } .abchip.corr, .abchip.rust { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; }
 .abchip .aic { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ab); color: #fff; display: flex; align-items: center; justify-content: center; }
 .abchip .aic b { font: 12px var(--font-display); }
 .abchip .atx { overflow: hidden; text-overflow: ellipsis; }

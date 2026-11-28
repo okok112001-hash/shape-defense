@@ -429,8 +429,8 @@ function renderWeapons() {
     const mine = sel && sel.from === 'slot' && sel.k === k;
     const lk = S.locks && S.locks[k], cr = S.corr && S.corr.k === k, closed = C.isClosed(k);
     const ev = w && w.evo && !closed ? evoSlotHtml(w, now) : null;   // 진화하는 중
-    const rz = !!w && !!w.rz && !closed;      // 부식 블록과 이어짐: 0강으로 친다
-    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
+    const rz = !!w && !!w.rz && !closed, sz = !!w && !!w.sz && !closed;   // 부식 블록과 이어짐: 0강으로 친다 / 봉쇄 블록과 이어짐: 쏘지 않는다
+    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (sz ? ' sealed' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
       (lk ? (lk.l > 0 ? ' locked' : ' warn-lock') : '') + (cr ? ' warn-corr' : '');
     // 남는 빛의 숨 위상: 진화가 끝난 때부터 (다시 그려도 이어진다)
     const st = w && w.evo ? `--wc:${C.WEAPONS[w.type].color};--eb:-${(((now - (evoBorn.get(w) || 0)) / 1000) % 8.8).toFixed(2)}s${ev ? ev.style : ''}` : '';
@@ -443,7 +443,7 @@ function renderWeapons() {
         w.augs.map(a => `<i class="pa"${a ? ` style="background:${GHEX[a.g]};border-color:${GHEX[a.g]}"` : ''}></i>`).join('') + '</span>' +
         (upmode ? '<span class="upcue"><i></i><i></i></span>' : '') + (w.evo && C.skillPoints(w).left > 0 ? '<i class="skdot" aria-label="남은 스킬 포인트"></i>' : '') + (ev ? ev.ring : '');
     } else h += '<span class="plus">+</span>';
-    if (lk && lk.l > 0) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
+    if ((lk && lk.l > 0) || sz) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
     if (wl) h += `<span class="abic lk">${LOCK_SVG(18)}</span><i class="cd" style="${cdStyle(lk.w)}"></i>`;
     if (cr) h += `<span class="abic cr"><b>-5</b></span><i class="cd" style="${cdStyle(S.corr.t)}"></i>`;
     h += '</button>';
@@ -472,6 +472,8 @@ function abList() {
   if (S.corr) out.push({ kind: 'corr', i: S.corr.k, rem: S.corr.t, nm: C.ENEMIES.corrode.name, txt: `${S.corr.k + 1}번 칸 강화 -5 예고` });
   const ri = b ? C.rustAt(b) : -1;   // 부식 블록 (예고가 아니라 지금 걸려 있는 것. 막대는 남은 시간)
   if (ri >= 0) out.push({ kind: 'rust', i: b.g[ri].id, rem: b.g[ri].ru, T: C.RUST.dur, nm: C.ENEMIES.corrode.name, txt: '부식 블록과 이은 무기는 0강' });
+  const si = b ? C.sealAt(b) : -1;   // 봉쇄 블록
+  if (si >= 0) out.push({ kind: 'seal', i: b.g[si].id, rem: b.g[si].sl, T: C.SEAL.dur, nm: C.ENEMIES.jammer.name, txt: '봉쇄 블록과 이은 무기는 못 쏨' });
   return out;
 }
 const chipsEl = document.createElement('div'); chipsEl.id = 'abChips'; wrap.insertBefore(chipsEl, toastEl);   // 보스 체력 막대 바로 아래
@@ -479,7 +481,7 @@ function updateChips() {
   const L = abList(), key = L.map(a => a.kind + a.i).join('|');
   if (key === abKey) return;
   abKey = key;
-  chipsEl.innerHTML = L.map(a => `<div class="abchip ${a.kind}" role="status"><span class="aic">${a.kind === 'lock' ? LOCK_SVG(14) : a.kind === 'jumble' ? MIX_SVG(14) : a.kind === 'stone' ? ROCK_SVG(14) : a.kind === 'rust' ? '<b>+0</b>' : '<b>-5</b>'}</span><span class="atx"><b>${a.nm}</b>: ${a.txt}</span><i class="cd" style="${cdStyle(a.rem, a.T)}"></i></div>`).join('');
+  chipsEl.innerHTML = L.map(a => `<div class="abchip ${a.kind}" role="status"><span class="aic">${a.kind === 'lock' || a.kind === 'seal' ? LOCK_SVG(14) : a.kind === 'jumble' ? MIX_SVG(14) : a.kind === 'stone' ? ROCK_SVG(14) : a.kind === 'rust' ? '<b>+0</b>' : '<b>-5</b>'}</span><span class="atx"><b>${a.nm}</b>: ${a.txt}</span><i class="cd" style="${cdStyle(a.rem, a.T)}"></i></div>`).join('');
 }
 // 발동하는 순간: 칸 위에 번쩍임
 function abHitFx(kind, i) {
@@ -1428,7 +1430,7 @@ const BOSS_HELP = {
   giant: ['체력이 아주 많고 크고 단단한 보스입니다.', '무기와 강화를 한곳에 몰아서 기지에 닿기 전에 쓰러뜨리세요.'],
   split: ['쓰러뜨리면 대형 적 셋으로 갈라집니다.', '갈라진 적이 한꺼번에 오니 범위 공격 무기를 준비하세요.'],
   summon: ['지나가는 동안 졸개를 계속 불러냅니다.', '졸개가 쌓이기 전에 범위 공격 무기로 쓸어내세요.'],
-  jammer: ['무기 칸 하나를 잠가 한동안 쓰지 못하게 합니다. 어느 칸인지 미리 알려 줍니다.', '예고된 칸의 무기를 다른 칸으로 옮겨서 피하세요.'],
+  jammer: [`판의 블록 하나를 봉쇄합니다. 봉쇄 블록과 이어진 무기는 이어져 있는 동안 쏘지 못합니다. 봉쇄는 ${C.SEAL.dur}초 뒤 풀리고, 잠시 뒤 다른 블록에 다시 걸립니다.`, '봉쇄 블록을 밀어서 무기 줄에서 떼어 내세요. 봉쇄는 블록과 함께 옮겨집니다.'],
   shield: ['방패로 정면에서 오는 공격을 막습니다.', '옆 레인에 있는 무기로 공격하세요.'],
   jumble: [`판의 한 줄을 골라 깜빡여 알린 뒤(${C.AB_WARN}초) 그 줄의 블록을 모두 새 블록으로 바꿉니다.`, '예고된 줄에 기대지 않게 다른 줄로 이어 두고, 바뀐 뒤 다시 이으세요.'],
   corrode: [`판의 블록 하나를 부식시킵니다. 부식 블록과 이어진 무기는 이어져 있는 동안 0강이 됩니다(증강·진화 능력은 그대로). 부식은 ${C.RUST.dur}초 뒤 사라지고, 잠시 뒤 다른 블록에 다시 생깁니다.`, '부식 블록을 밀어서 무기 줄에서 떼어 내세요. 부식은 블록과 함께 옮겨집니다.'],
@@ -5475,8 +5477,8 @@ function drawPipeTags(S, H) {
   for (let k = 0; k < C.LANES; k++) {
     const w = S.slots[k]; if (!w) continue;
     const n = L[k][0], x = (k + 0.5) * C.LW, on = n >= C.PIPE.need, bonus = Math.round((C.pipeRate(n) - 1) * 100);
-    ctx.fillStyle = on ? C.WEAPONS[w.type].color : rgba(theme.v.ink || '#000', 0.45);
-    ctx.fillText(on ? (bonus > 0 ? '공속 +' + bonus + '%' : '켜짐') : n === 1 ? '1/2' : '꺼짐', x, H - 22);
+    ctx.fillStyle = w.sz ? AB_COL.lock : on ? C.WEAPONS[w.type].color : rgba(theme.v.ink || '#000', 0.45);
+    ctx.fillText(w.sz ? '봉쇄' : on ? (bonus > 0 ? '공속 +' + bonus + '%' : '켜짐') : n === 1 ? '1/2' : '꺼짐', x, H - 22);
   }
 }
 /* ---------- 상태 표시 ---------- */
@@ -5557,6 +5559,7 @@ function m3Block(g, x, y, R, s) {              // 무기 블록 (무기 색 테�
 // 판에 쓰는 작은 그림 (24 단위 SVG 경로): 돌(석화체, 능력 칩과 같은 그림), 섞기(교란체), 보석(황금 블록)
 const G_ROCK = new Path2D('M5 18.5 3.5 12 7 6.5l6-2 5.5 3 2 6.5-3 4.5z'), G_ROCKC = new Path2D('M9 7.5 11 12l-3 3M11 12l4.5 1');
 const G_MIX = new Path2D('M3 7h4c3 0 5 10 9 10h4M3 17h4c1.4 0 2.5-1.3 3.4-3M13.6 10c.9-1.7 2-3 3.4-3h3M18 4l3 3-3 3M18 14l3 3-3 3');
+const G_LOCK = new Path2D('M6 11h12v9H6z'), G_LOCKS = new Path2D('M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11');   // 자물쇠 (봉쇄 블록)
 const G_GEM = new Path2D('M7.5 5h9l4 5L12 20 3.5 10z'), G_GEMF = new Path2D('M3.5 10h17M9.5 5 8 10l4 10 4-10-1.5-5');
 function m3Glyph(g, p, x, y, s, col, lw, fill) {   // 가운데 (x, y), 크기 s 로 그린다
   g.save(); g.translate(x - s / 2, y - s / 2); g.scale(s / 24, s / 24);
@@ -5648,6 +5651,43 @@ function m3Rust(g, x, y, R, id, u, f, rem, now) {
     m3RR(g, bx + 0.5, by + 0.5, (bw - 1) * fr, 3.5, 1.75); g.fillStyle = rgba(col, f * u); g.fill();
   }
 }
+// 봉쇄 블록 (봉쇄체): 블록이 어둑해지고, 붉은 띠 두 줄이 한쪽 끝에서부터 감겨 블록을 묶는다(각도와 처짐이 블록마다 조금씩 다르고 숨 쉬듯 팽팽해졌다 느슨해짐).
+// 두 띠가 만나는 곳에 자물쇠. 풀릴 때는 띠가 제 방향으로 미끄러져 빠지며 옅어진다. 아래 막대는 남은 시간. u: 감긴 정도, f: 남은 정도, rem: 남은 시간(초)
+function m3Seal(g, x, y, R, id, u, f, rem, now) {
+  const h = R * 1.05, col = AB_COL.lock, rm = RM.matches, light = theme.scheme === 'light';
+  g.save(); m3RR(g, x - h, y - h, h * 2, h * 2, 7); g.clip();
+  g.fillStyle = rgba(theme.v.panel, 0.5 * f * Math.min(1, u * 2)); g.fillRect(x - h, y - h, h * 2, h * 2);   // 어둑하게 (아이콘이 흐려진다)
+  g.fillStyle = rgba(col, 0.1 * f); g.fillRect(x - h, y - h, h * 2, h * 2);
+  const cx0 = x + (hash(id * 1.7) - 0.5) * h * 0.35, cy0 = y + (hash(id * 2.3) - 0.5) * h * 0.35;   // 두 띠가 만나는 곳
+  for (let k = 0; k < 2; k++) {
+    const p = Math.max(0, Math.min(1, u * 1.7 - k * 0.45)); if (p <= 0) continue;
+    const a = (k ? 0.62 : -0.55) + (hash(id * 3.1 + k * 5.3) - 0.5) * 0.35, ca = Math.cos(a), sa = Math.sin(a);
+    const L = h * 1.75, wd = h * (0.26 + 0.08 * hash(id * 4.7 + k)), slip = (1 - f) * h * 0.9 * (k ? 1 : -1);
+    const sag = h * (0.07 + 0.05 * hash(id * 6.1 + k)) * (rm ? 1 : 1 + 0.25 * Math.sin(now / 650 + k * 2 + id));
+    const ep = 1 - (1 - p) * (1 - p), x0 = cx0 - ca * L + ca * slip, y0 = cy0 - sa * L + sa * slip;   // 한쪽 끝에서부터 감긴다
+    const x1 = x0 + ca * 2 * L * ep, y1 = y0 + sa * 2 * L * ep, mx = (x0 + x1) / 2 - sa * sag * ep, my = (y0 + y1) / 2 + ca * sag * ep;
+    const nx = -sa * wd / 2, ny = ca * wd / 2;
+    g.beginPath(); g.moveTo(x0 + nx, y0 + ny); g.quadraticCurveTo(mx + nx, my + ny, x1 + nx, y1 + ny); g.lineTo(x1 - nx, y1 - ny); g.quadraticCurveTo(mx - nx, my - ny, x0 - nx, y0 - ny); g.closePath();
+    g.fillStyle = rgba(col, (light ? 0.82 : 0.75) * f); g.fill();
+    g.lineWidth = 1; g.strokeStyle = rgba('#ffffff', 0.4 * f);                   // 띠의 밝은 가장자리
+    g.beginPath(); g.moveTo(x0 + nx * 0.6, y0 + ny * 0.6); g.quadraticCurveTo(mx + nx * 0.6, my + ny * 0.6, x1 + nx * 0.6, y1 + ny * 0.6); g.stroke();
+  }
+  g.restore();
+  m3RR(g, x - h, y - h, h * 2, h * 2, 7); g.lineWidth = 2; g.strokeStyle = rgba(col, Math.min(1, u * 1.4) * f); g.stroke();
+  const q = Math.max(0, Math.min(1, u * 2.2 - 1.2));   // 자물쇠: 띠가 다 감긴 뒤에 살짝 넘쳤다가 제 크기로
+  if (q > 0) {
+    const sc = (1 + 0.35 * Math.sin(Math.PI * q) * (1 - q)) * (0.6 + 0.4 * q) * (h / 20);
+    g.save(); g.translate(cx0, cy0); g.scale(sc, sc); g.globalAlpha *= f;
+    m3RR(g, -8, -8, 16, 16, 5); g.fillStyle = col; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#ffffff'; g.stroke();
+    m3Glyph(g, G_LOCK, 0, 0.5, 12, '#ffffff', 0, '#ffffff'); m3Glyph(g, G_LOCKS, 0, 0.5, 12, '#ffffff', 2.2);
+    g.restore();
+  }
+  if (rem > 0) {                                   // 남은 시간 막대
+    const bw = h * 2 - 8, bx = x - h + 4, by = y + h - 7, fr = Math.min(1, rem / C.SEAL.dur);
+    m3RR(g, bx, by, bw, 4.5, 2.25); g.fillStyle = `rgba(0,0,0,${0.5 * f * u})`; g.fill(); g.lineWidth = 1; g.strokeStyle = rgba('#ffffff', f * u); g.stroke();
+    m3RR(g, bx + 0.5, by + 0.5, (bw - 1) * fr, 3.5, 1.75); g.fillStyle = rgba(col, f * u); g.fill();
+  }
+}
 // 보스 능력 예고 (무기 칸의 봉쇄·부식 예고와 같은 말투): 능력 색 테두리가 0.5초마다 깜빡이고(바탕이 짙어졌다 옅어짐, 바깥 고리와 안쪽 흰 선),
 // 오른쪽 위에 능력 그림 배지(커졌다 작아짐), 아래에 줄어드는 막대
 function abBlink(now) { if (RM.matches) return 0.6; const u = (now % 500) / 500; return 1 - Math.abs(1 - 2 * u); }
@@ -5681,6 +5721,9 @@ function m3Ev(b, now) {
     else if (ev.k === 'rust' && !RM.matches) {   // 부식이 묻음: 번지기 시작한 점에서 방울이 튀어 떨어진다
       const o = b.g[ev.i], id = o ? o.id : 0, ox = (hash(id * 1.31) - 0.5) * 0.9, oy = (hash(id * 2.97) - 0.5) * 0.9;   // m3Rust 의 시작점 (블록 반 너비 단위)
       for (let k = 0; k < 7; k++) m3fx.push({ k: 'spl', i: ev.i, ox, oy, sd: hash(id * 3.3 + k * 2.7 + (now % 83)), t0: now + k * 25, d: 520 + 160 * hash(k * 5.1 + id) });
+    } else if (ev.k === 'seal' && !RM.matches) {   // 봉쇄: 자물쇠가 채워질 때(감긴 뒤) 그 자리에서 짧은 불티가 튄다
+      const o = b.g[ev.i], id = o ? o.id : 0, ox = (hash(id * 1.7) - 0.5) * 0.35, oy = (hash(id * 2.3) - 0.5) * 0.35;
+      for (let k = 0; k < 6; k++) m3fx.push({ k: 'snap', i: ev.i, ox, oy, sd: hash(id * 2.9 + k * 3.1 + (now % 71)), t0: now + 330 + k * 12, d: 260 + 120 * hash(k * 4.3 + id) });
     } else if (ev.k === 'rustEnd' && !RM.matches) { for (let k = 0; k < 4; k++) m3fx.push({ k: 'fume', i: ev.i, sd: hash(ev.i * 4.1 + k * 3.7 + (now % 79)), t0: now + k * 90, d: 900 }); }
   }
   b.ev.length = 0;
@@ -5689,7 +5732,7 @@ function m3Ev(b, now) {
 
 // 연결: 무기 칸(위)에서 시작해 이어진 같은 종류 블록 사이에 물길을 그린다. 2개 이상이면 진하게 흐르고, 1개면 흐릿한 점선으로 '하나 더'를 알린다
 function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now) {
-  const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b);
+  const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b), si = C.sealAt(b);
   g.save(); g.lineCap = 'round';
   L.forEach(([n, cells], k) => {
     if (!n) return;
@@ -5701,7 +5744,8 @@ function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now) {
     if (on) {
       for (const i of cells) { m3RR(g, (i % N) * cw + 2, M3TOP + Math.floor(i / N) * ch + 1, cw - 4, ch - 2, 7); g.fillStyle = rgba(col, 0.2); g.fill(); }
       g.strokeStyle = rgba(col, 0.75); g.lineWidth = Rb * 0.55; g.beginPath(); for (const s of seg) { g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); } g.stroke();
-      g.strokeStyle = set.has(ri) ? rgba(ECOL.corrode, 0.95) : 'rgba(255,255,255,.75)'; g.lineWidth = Rb * 0.18; g.setLineDash([3, 9]); g.lineDashOffset = -now / 30;   // 무기 쪽으로 흐른다 (부식 블록과 이어진 줄은 부식이 흘러든다)
+      const sl = set.has(si);                     // 봉쇄 블록과 이어진 줄: 흐름이 멈추고 붉다 / 부식 블록과 이어진 줄: 부식이 흘러든다
+      g.strokeStyle = sl ? rgba(AB_COL.lock, 0.95) : set.has(ri) ? rgba(ECOL.corrode, 0.95) : 'rgba(255,255,255,.75)'; g.lineWidth = Rb * 0.18; g.setLineDash([3, 9]); g.lineDashOffset = sl ? 0 : -now / 30;   // 무기 쪽으로 흐른다
       g.beginPath(); for (const s of seg) { g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); } g.stroke(); g.setLineDash([]);
     } else {                                      // 하나만 이어짐: 흐릿하게 깜빡이는 점선
       const a = 0.35 + 0.25 * Math.sin(now / 260);
@@ -5751,6 +5795,7 @@ function m3Draw(dt) {
     if (v.s !== o.s) { if (o.s === 'gold') { v.ps = v.s; v.gt = now; } v.s = o.s; }   // 황금 블록이 됨
     if (o.st && !v.st) { v.st = 1; v.stt = now; }                                       // 돌로 굳음
     if (o.ru > 0) { if (!v.rt || v.rx) { v.rt = now; v.rx = 0; } } else if (v.rt && !v.rx) v.rx = now;   // 부식이 묻음 / 걷힘
+    if (o.sl > 0) { if (!v.lt || v.lx) { v.lt = now; v.lx = 0; } } else if (v.lt && !v.lx) v.lx = now;   // 봉쇄가 걸림 / 풀림
     v.x += (tx - v.x) * k;
     if (v.y < ty - 0.001) { v.vy = Math.max(v.vy, 3) + 40 * dt; v.y = Math.min(ty, v.y + v.vy * dt); }   // 아래로는 떨어진다
     else { v.y += (ty - v.y) * k; v.vy = 0; }
@@ -5777,6 +5822,11 @@ function m3Draw(dt) {
       if (f <= 0) v.rt = v.rx = 0;
       else m3Rust(g, x, y, R, o.id, rm ? 1 : Math.min(1, (now - v.rt) / 900), f, o.ru || 0, now);
     }
+    if (v.lt && !o.st && o.s !== 'gold') {       // 봉쇄 블록: 띠가 감기고, 풀릴 때는 미끄러져 빠진다
+      const f = v.lx ? (rm ? 0 : 1 - (now - v.lx) / 450) : 1;
+      if (f <= 0) v.lt = v.lx = 0;
+      else m3Seal(g, x, y, R, o.id, rm ? 1 : Math.min(1, (now - v.lt) / 650), f, o.sl || 0, now);
+    }
     g.globalAlpha = 1;
   }
   for (const q of wr) {                          // 블록 위: 테두리, 배지, 막대. 굳을 칸은 남은 시간이 줄수록 빗금이 짙어진다
@@ -5800,6 +5850,10 @@ function m3Draw(dt) {
       const x = cx(f.i % N) + f.ox * Rb * 1.05 + Math.cos(a) * v * t, y = cy(Math.floor(f.i / N)) + f.oy * Rb * 1.05 + Math.sin(a) * v * t + 2.4 * Rb * t * t;
       g.fillStyle = rgba(ECOL.corrode, 0.85 * (1 - u)); const z = 1.2 + 1.6 * hash(f.sd * 13) * (1 - 0.5 * u);
       g.beginPath(); g.ellipse(x, y, z, z * 1.25, a, 0, Math.PI * 2); g.fill();
+    } else if (f.k === 'snap') {                  // 불티: 짧은 선이 밖으로 튀며 짧아지고 옅어진다
+      const a = f.sd * 6.28, x0 = cx(f.i % N) + f.ox * Rb * 1.05, y0 = cy(Math.floor(f.i / N)) + f.oy * Rb * 1.05, d0 = Rb * (0.45 + 0.6 * u), d1 = d0 + Rb * (0.35 + 0.3 * hash(f.sd * 7)) * (1 - u);
+      g.strokeStyle = rgba(AB_COL.lock, 0.95 * (1 - u)); g.lineWidth = 1.6; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(x0 + Math.cos(a) * d0, y0 + Math.sin(a) * d0); g.lineTo(x0 + Math.cos(a) * d1, y0 + Math.sin(a) * d1); g.stroke();
     } else if (f.k === 'fume') {                  // 옅은 김: 커지며 올라가 흩어진다
       const x = cx(f.i % N) + (f.sd - 0.5) * Rb * 1.4 + Math.sin(u * 4 + f.sd * 9) * Rb * 0.15, y = cy(Math.floor(f.i / N)) - u * Rb * 1.1, r = Rb * (0.18 + 0.3 * u) * (0.8 + 0.4 * hash(f.sd * 3));
       g.fillStyle = rgba(ECOL.corrode, 0.22 * Math.sin(Math.PI * u)); m3Blob(g, x, y, r, f.sd, now, false); g.fill();

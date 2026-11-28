@@ -521,6 +521,7 @@ Object.defineProperty(ENEMIES, 'jumble', { enumerable: false, value: { hp: 320, 
 Object.defineProperty(ENEMIES, 'stone', { enumerable: false, value: { hp: 320, speed: 0.026, r: 50, leak: 20, gold: 55, boss: true, name: '석화체',
   hint: '판의 칸 하나를 돌로 굳힙니다(무기 바로 아래 칸은 빼고). 굳은 칸은 이 웨이브 동안 풀리지 않습니다', tip: ['판 칸을 돌로', '빨리 쓰러뜨리기'] } });
 // 연결 판에서 능력이 바뀌는 보스의 안내 (열거되지 않게 둔다: 벤치 캐시의 해시가 그대로)
+Object.defineProperty(ENEMIES.jammer, 'pipeHint', { enumerable: false, value: '판의 블록 하나를 봉쇄합니다. 봉쇄 블록과 이어진 무기는 쏘지 못합니다. 줄에서 떼어 내세요' });
 Object.defineProperty(ENEMIES.corrode, 'pipeHint', { enumerable: false, value: '판의 블록 하나를 부식시킵니다. 부식 블록과 이어진 무기는 0강이 됩니다. 줄에서 떼어 내세요' });
 // 보스는 처음부터 무작위 (같은 보스가 연달아 나오지 않음). 10번째마다는 천칭
 const BOSS_IDS = ['giant', 'split', 'summon', 'jammer', 'shield', 'jumble', 'corrode', 'charge', 'stone', 'gold'];
@@ -535,6 +536,9 @@ const STONE = { first: AB_FIRST, every: 8, n: 1 };
 // 부식 블록과 이어진 무기는 이어져 있는 동안 강화 단계를 0으로 친다 (강화 단계의 공격력 배수만. 증강, 파츠, 진화 능력과 진화한 무기의 100강 몫은 그대로).
 // 부식은 블록에 붙어 있어 블록과 함께 옮겨진다. dur 초 뒤 사라지고, gap 초 뒤 다른 블록에 다시 생긴다. 판이 없는 예전 방식(도구)에서는 예전 능력(예고 칸 무기 강화 -5)
 const RUST = { first: AB_FIRST, dur: 8, gap: 4 };
+// 봉쇄체(연결 판): 부식체와 같은 방식으로 블록 하나를 봉쇄 블록으로 만든다. 봉쇄 블록과 이어진 무기는 이어져 있는 동안 쏘지 못한다 (w.sz).
+// 판이 없는 예전 방식(도구)에서는 예전 능력(예고 칸 잠금)
+const SEAL = { first: AB_FIRST, dur: 8, gap: 4 };
 
 /* ---------- 웨이브 (T11) ---------- */
 // 웨이브마다 세기(적 체력의 합)는 예전 연속 등장으로 같은 시간 동안 나왔을 양과 같다. 종류는 구성과 자리만 바꾼다.
@@ -855,7 +859,7 @@ function moveInv(a, b) { // 인벤토리 안에서 자리 바꾸기
 }
 // 봉쇄체가 잠근 칸(잠금이 실제로 걸린 때만. 예고 중에는 아직 옮길 수 있다)
 function isLocked(k) { const lk = S.locks && S.locks[k]; return !!lk && lk.l > 0; }
-function unrust(w) { if (w && w.rz) { w.rz = 0; dirty(w); } }   // 칸을 떠난 무기는 부식 블록과 이어져 있지 않다
+function unrust(w) { if (!w) return; if (w.rz) { w.rz = 0; dirty(w); } w.sz = 0; }   // 칸을 떠난 무기는 부식·봉쇄 블록과 이어져 있지 않다
 function equipWeapon(invIdx, slot) {
   const it = S.inv[invIdx];
   if (!it || it.kind !== 'w' || isLocked(slot) || isClosed(slot)) return false;
@@ -1198,7 +1202,7 @@ function goldBlk(e, dt) {
   const b = S.m3, g = e.gd;
   if (!b || !S.prep || S.prep.phase !== 'wave' || (g.bt -= dt) > 0) return;
   g.bt += GOLD.blk;
-  const c = []; for (let i = 0; i < b.g.length; i++) { const o = b.g[i]; if (o && !o.st && o.s !== 'gold' && !o.ru) c.push(i); }   // 부식 블록은 황금이 되지 않는다
+  const c = []; for (let i = 0; i < b.g.length; i++) { const o = b.g[i]; if (o && !o.st && o.s !== 'gold' && !o.ru && !o.sl) c.push(i); }   // 부식·봉쇄 블록은 황금이 되지 않는다
   if (!c.length) return;
   const i = pick(c, rndS); b.g[i].s = 'gold'; b.ev.push({ k: 'gold', i }); snd('goldblk');
 }
@@ -2435,6 +2439,7 @@ function bossStep(dt) {
         }
         break;
       case 'jammer': {
+        if (S.m3) { const b = boardOn(); if (b) boardAb(e, dt, b, 'sl', SEAL, 'hitlock'); break; }   // 연결 판: 봉쇄 블록
         e.abT = (e.abT == null ? AB_FIRST : e.abT) - dt;
         if (e.abT <= 0) {
           e.abT += 7;
@@ -2492,20 +2497,7 @@ function bossStep(dt) {
         break;
       }
       case 'corrode':
-        if (S.m3) {                          // 연결 판: 부식 블록 (판에 하나만. 있는 동안은 시계가 gap 에 머문다)
-          const b = boardOn(); if (!b) break;
-          if (rustAt(b) >= 0) { e.abT = RUST.gap; break; }
-          e.abT = (e.abT == null ? RUST.first : e.abT) - dt;
-          if (e.abT <= 0) {
-            e.abT = RUST.gap;
-            const ok = (i) => { const o = b.g[i]; return i >= b.C && o && !o.st && o.s !== 'gold'; };   // 0행, 굳은 칸, 황금 블록은 빼고
-            const on = new Set(); for (const [n, cells] of pipeLinks()) if (n >= PIPE.need) for (const i of cells) if (ok(i)) on.add(i);
-            let c = [...on].sort((x, y) => x - y);
-            if (!c.length) for (let i = 0; i < b.g.length; i++) if (ok(i)) c.push(i);
-            if (c.length) { const i = pick(c, rndS); b.g[i].ru = RUST.dur; b.ev.push({ k: 'rust', i }); snd('hitcorr'); }
-          }
-          break;
-        }
+        if (S.m3) { const b = boardOn(); if (b) boardAb(e, dt, b, 'ru', RUST, 'hitcorr'); break; }   // 연결 판: 부식 블록
         e.abT = (e.abT == null ? AB_FIRST : e.abT) - dt;
         if (e.abT <= 0) {
           e.abT += 12;
@@ -2548,10 +2540,10 @@ function bossStep(dt) {
       if (hit) snd('hitstone');
     }
   }
-  // 부식 블록: 시간이 다 되거나, 굳거나, 부식체가 없어지면 사라진다
-  if (b) {
-    const i = rustAt(b);
-    if (i >= 0) { const o = b.g[i]; if (!alive.corrode || o.st || (o.ru -= dt) <= 0) { delete o.ru; b.ev.push({ k: 'rustEnd', i }); } }
+  // 부식·봉쇄 블록: 시간이 다 되거나, 굳거나, 그 보스가 없어지면 사라진다
+  if (b) for (const [k, boss, end] of [['ru', 'corrode', 'rustEnd'], ['sl', 'jammer', 'sealEnd']]) {
+    const i = blkAt(b, k);
+    if (i >= 0) { const o = b.g[i]; if (!alive[boss] || o.st || (o[k] -= dt) <= 0) { delete o[k]; b.ev.push({ k: end, i }); } }
   }
   // 부식: 예고한 칸의 무기 강화 단계를 5 낮춘다. 0 아래로 내려가면 무기가 파괴된다 (판이 없는 예전 방식)
   if (S.corr) {
@@ -2603,12 +2595,15 @@ function step(dt) {
 
   // 무기
   const pl = S.pipe && S.m3 ? pipeLinks() : null;   // 연결: 칸마다 연결 수
-  const ri = pl ? rustAt(S.m3) : -1;                 // 부식 블록이 있는 판 칸
+  const ri = pl ? rustAt(S.m3) : -1, si = pl ? sealAt(S.m3) : -1;   // 부식 블록, 봉쇄 블록이 있는 판 칸
   for (let i = 0; i < LANES; i++) {
     const w = S.slots[i]; if (!w) continue;
     w.au = pl ? pl[i][2] : 0;                                // 이어진 황금 블록 수 (황금체에게 주는 피해)
     const rz = ri >= 0 && pl[i][1].indexOf(ri) >= 0 ? 1 : 0;  // 부식 블록과 이어져 있으면 강화 단계를 0으로 친다
     if ((w.rz || 0) !== rz) { w.rz = rz; dirty(w); S.slotDirty = true; }
+    const sz = si >= 0 && pl[i][1].indexOf(si) >= 0 ? 1 : 0;  // 봉쇄 블록과 이어져 있으면 쏘지 않는다
+    if ((w.sz || 0) !== sz) { w.sz = sz; S.slotDirty = true; }
+    if (sz) continue;
     const lk = S.locks[i]; if (lk && lk.l > 0) continue;     // 봉쇄된 칸은 발사하지 않는다
     if (pl && pl[i][0] < PIPE.need) continue;               // 연결: 2개 이상 이어지지 않은 무기는 쏘지 않는다
     w.cd -= pl ? dt * pipeRate(pl[i][0]) : dt;
@@ -2895,7 +2890,26 @@ function m3Swap(i, j) {
   if (b.g[i].st || b.g[j].st) return { ok: false, stone: true };
   const x = b.g[i]; b.g[i] = b.g[j]; b.g[j] = x; return { ok: true };
 }
-function rustAt(b) { for (let i = 0; i < b.g.length; i++) if (b.g[i] && b.g[i].ru > 0) return i; return -1; }   // 부식 블록이 있는 칸 (없으면 -1)
+function blkAt(b, k) { for (let i = 0; i < b.g.length; i++) if (b.g[i] && b.g[i][k] > 0) return i; return -1; }
+function rustAt(b) { return blkAt(b, 'ru'); }   // 부식 블록이 있는 칸 (없으면 -1)
+function sealAt(b) { return blkAt(b, 'sl'); }   // 봉쇄 블록이 있는 칸 (없으면 -1)
+// 부식·봉쇄 블록을 걸 칸: 0행, 굳은 칸, 황금 블록, 이미 걸린 블록은 빼고, 켜진 무기와 이어진 블록이 있으면 그중에서 (없으면 아무 칸)
+function boardPick(b) {
+  const ok = (i) => { const o = b.g[i]; return i >= b.C && o && !o.st && o.s !== 'gold' && !o.ru && !o.sl; };
+  const on = new Set(); for (const [n, cells] of pipeLinks()) if (n >= PIPE.need) for (const i of cells) if (ok(i)) on.add(i);
+  const c = [...on].sort((x, y) => x - y);
+  if (!c.length) for (let i = 0; i < b.g.length; i++) if (ok(i)) c.push(i);
+  return c.length ? pick(c, rndS) : -1;
+}
+// 부식체·봉쇄체: 판에 하나만. 있는 동안은 보스의 시계가 gap 에 머물고, 사라진 뒤 gap 초에 다시 건다
+function boardAb(e, dt, b, k, P, sound) {
+  if (blkAt(b, k) >= 0) { e.abT = P.gap; return; }
+  e.abT = (e.abT == null ? P.first : e.abT) - dt;
+  if (e.abT > 0) return;
+  e.abT = P.gap;
+  const i = boardPick(b); if (i < 0) return;
+  b.g[i][k] = P.dur; b.ev.push({ k: k === 'ru' ? 'rust' : 'seal', i }); snd(sound);
+}
 // 연결: 칸마다 [연결 수, 연결된 판 칸 번호들, 그중 황금 블록 수]. 무기 바로 아래 칸(0행)이 그 무기 종류일 때 거기서 상하좌우로 이어진 같은 종류 블록.
 // 황금 블록(황금체)은 어느 무기 종류로도 친다. 굳은 칸(석화체)은 연결에 들지 않고 그 너머로 이어지지도 않는다
 const PIPE = { need: 2, bonus: 0.05 };
@@ -3075,7 +3089,7 @@ const Core = {
   bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose,
-  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, rustAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
+  WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, rustAt, sealAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
   m3Swap, PREP, prepGo, PIPE, pipeLinks, pipeRate, tD: () => tD(),
   test,

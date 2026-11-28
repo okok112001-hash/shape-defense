@@ -1273,6 +1273,28 @@ function scene(type, lines, secs, opt) {
     e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(Core.rustAt(b) < 0 && !w0.rz && !w1.rz, '쓰러지면 사라짐');
   }
   ok('부식 블록 (부식체, 연결 판): 이어진 무기는 강화 단계 0, 블록과 함께 옮겨짐, 시간이 되면 사라졌다 다시');
+  // (g) 봉쇄 블록 (봉쇄체): 부식 블록과 같은 방식. 봉쇄 블록과 이어진 무기만 쏘지 않는다(재장전 시계도 멈춤). 떼면 다시 쏜다. 예전 방식의 칸 잠금은 그대로(위 검사)
+  {
+    const SL = Core.SEAL, S = pipe(46), b = S.m3, N = b.C;
+    for (let k = 0; k < 5; k++) S.slots[k] = null;
+    const w0 = put('rail', 0, 40), w1 = put('pulse', 1, 20);
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: 'shotgun', id: 5000 + i };
+    for (const i of [0, N, 2 * N]) b.g[i] = { s: 'rail', id: 5100 + i };
+    for (const i of [1, 1 + N]) b.g[i] = { s: 'pulse', id: 5200 + i };
+    const e = summon(S, 'jammer'); e.speed = 0;
+    run(S, 8, () => Core.sealAt(b) < 0); const si = Core.sealAt(b);
+    assert([N, 2 * N, 1 + N].includes(si), '이어진 블록 (0행 아님) ' + si);
+    assert(Math.abs(b.g[si].sl - SL.dur) < 0.1 && b.ev.some((v) => v.k === 'seal' && v.i === si) && !Object.keys(S.locks).length, '봉쇄 블록 (칸 잠금 없음)');
+    delete b.g[si].sl; b.g[2 * N].sl = 5; run(S, 0.05);
+    assert(w0.sz === 1 && !w1.sz, '이어진 무기만');
+    w0.cd = 0.5; w1.cd = 0.5; run(S, 0.3); assert(w0.cd === 0.5 && w1.cd < 0.5, '봉쇄된 무기는 쏘지 않는다');
+    assert(Core.m3Swap(2 * N, 2 * N + 1).ok); run(S, 0.3);
+    assert.strictEqual(Core.sealAt(b), 2 * N + 1, '블록과 함께 옮겨짐'); assert(!w0.sz && w0.cd < 0.5, '떼면 다시 쏜다');
+    b.ev.length = 0; run(S, 5, () => Core.sealAt(b) >= 0); assert(Core.sealAt(b) < 0 && b.ev.some((v) => v.k === 'sealEnd'), '시간이 다 되면 사라짐');
+    const t0 = S.t; run(S, SL.gap + 1, () => Core.sealAt(b) < 0); assert(Core.sealAt(b) >= 0 && Math.abs(S.t - t0 - SL.gap) < 0.1, '쉬었다 다시 ' + (S.t - t0));
+    e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(Core.sealAt(b) < 0 && !w0.sz && !w1.sz, '쓰러지면 사라짐');
+  }
+  ok('봉쇄 블록 (봉쇄체, 연결 판): 이어진 무기는 쏘지 않음, 블록과 함께 옮겨짐, 시간이 되면 사라졌다 다시');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 
