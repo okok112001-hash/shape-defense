@@ -110,3 +110,6 @@
 
 ## 배속 추천 기준 (`tools/spd_tip.js`, T13d)
 `node tools/spd_tip.js <웨이브들> <강화들> [팀]` 연결 모드 한 웨이브를 모든 무기 강화 L 로 돌려(판은 무기마다 3칸 이음, 기지 무적, 시드 1~5) 배속 추천(`Core.SPD_TIP`, `Core.spdTip`)이 뜨는 판을 센다. 뜬 판 수와 처음 뜬 때, 뜬 뒤에 기지가 맞은 판 수, 웨이브당 기지에 닿은 적 수를 낸다(판정이 `Core.spdTip` 과 다르면 멈춘다). 예: `node tools/spd_tip.js 4,8 45,100 acid,shotgun,tesla,pulse,blaster` (약 1분).
+
+## 파츠 추천 표 (`tools/part_fit.js`, T13g)
+`node tools/part_fit.js` 무기 파츠마다 `tools/value.js` 의 무기별 종합 가치(영웅 등급, 영웅이 없으면 가까운 등급)를 보이고 추천 무기를 뽑는다(`tools/part_fit.txt`). 가장 높은 무기의 0.75배 이상이고 0보다 크면 추천, 가장 낮은 무기도 0.5배 이상이면(어디에 달아도 비슷) 또는 추천이 후보의 3/4 이상이면(거의 어디나) 추천 없음. 범위 무기 전용 파츠는 범위 무기만 후보. `--write` 는 `src/core.js` 의 `PART_FIT` 블록을 새 표로 바꾸고, `--check` 는 같은지만 본다(다르면 종료 코드 1). 파츠 수치나 계산기 계수를 바꾸면 `--write` 뒤 빌드한다.

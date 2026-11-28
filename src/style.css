@@ -109,6 +109,14 @@ b { font-weight: 600; }
 .slot.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .slot.tg { border-color: var(--ok); border-style: dashed; animation: blink .8s linear infinite; }
 @keyframes blink { 50% { background: color-mix(in srgb, var(--ok) 20%, transparent); } }
+/* 파츠 추천 (T13g): 고른 파츠와 잘 맞는 무기 칸(또는 대장간에서 이 무기와 잘 맞는 파츠 줄)에 작은 반짝임과 옅은 안쪽 빛. 테마 강조색(배속 추천과 같은 말투) */
+.slot.fit { box-shadow: inset 0 0 12px color-mix(in srgb, var(--accent) 32%, transparent); }
+.fitic { position: absolute; z-index: 1; pointer-events: none; display: flex; color: var(--accent); animation: fittw 2.2s ease-in-out infinite; }
+.slot .fitic { left: 3px; top: 3px; }
+.prow.fit { position: relative; padding-right: 26px; }
+.prow .fitic { right: 7px; top: 7px; }
+.hfit { display: inline-flex; vertical-align: -2px; color: var(--accent); }
+@keyframes fittw { 0%, 100% { opacity: .6; transform: scale(.82) rotate(-8deg); } 50% { opacity: 1; transform: scale(1.06) rotate(8deg); } }
 .pips { display: flex; gap: 3px; height: 6px; }
 .pips i { width: 8px; height: 6px; border: 1px solid var(--line); }
 .pips i.pa { width: 6px; border-radius: 50%; }
@@ -277,7 +285,7 @@ b { font-weight: 600; }
 .cur { font-size: 11.5px; color: var(--dim); }
 
 @media (prefers-reduced-motion: reduce) {
-  .slot.tg, .cell.new, .slot .pop { animation: none; }
+  .slot.tg, .cell.new, .slot .pop, .fitic { animation: none; }
   .slot .pop { opacity: 0; }
 }
 

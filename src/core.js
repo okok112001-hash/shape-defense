@@ -177,6 +177,25 @@ const gradeOk = (D, g) => g >= D.min && g <= (D.max != null ? D.max : 3);
 const BASE_PART_IDS = Object.keys(PARTS).filter(id => PARTS[id].base);
 const WEAPON_PART_IDS = Object.keys(PARTS).filter(id => !PARTS[id].base);
 const PART_IDS = Object.keys(PARTS);
+// 파츠 추천 (T13g): 무기 파츠마다 잘 맞는 무기. tools/part_fit.js 가 tools/value.js 의 무기별 종합 가치로 뽑아 아래 표를 쓴다
+// (수치를 바꾸면 node tools/part_fit.js --write). 표에 없는 파츠는 어디에 달아도 비슷하다
+// PART_FIT 시작 (tools/part_fit.js 가 쓴다. 손으로 고치지 않는다)
+const PART_FIT = {
+  range: ['pulse', 'mortar'],
+  boss: ['mortar', 'rail'],
+  exec: ['blaster', 'laser', 'pulse'],
+  first: ['shotgun', 'mortar', 'rail'],
+  heavy: ['blaster', 'laser', 'pulse', 'tesla', 'acid'],
+  sniper: ['laser', 'rail'],
+  chill: ['pulse', 'acid'],
+  glass: ['blaster', 'tesla', 'rail', 'acid'],
+  big: ['pulse', 'mortar'],
+  ember: ['laser', 'mortar', 'rail'],
+  spread: ['laser'],
+  nolimit: ['laser'],
+};
+// PART_FIT 끝
+const partFits = (id, type) => !!PART_FIT[id] && PART_FIT[id].includes(type);
 
 /* ---------- 증강 (무기 고유, 5강마다 3택) ---------- */
 const laneText = (n) => n >= 4 ? '모든 레인의 적을 조준' : `조준 범위가 양옆 ${n}레인으로 확대`;
@@ -3216,7 +3235,7 @@ const Core = {
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
   PACTS, PACT, PACT_IDS, hasPact, isClosed, craftCost, craftBase, craftOdds, choosePact, skipPact, meltList, meltAllValue, SCALE_EVERY,
-  m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, tD: () => tD(),
+  m3Swap, PREP, prepGo, SPD_TIP, spdTip, PIPE, pipeLinks, pipeRate, PART_FIT, partFits, tD: () => tD(),
   test,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;

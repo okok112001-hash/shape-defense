@@ -26,7 +26,7 @@ const BEST_KEY = 'shape-defense-best';
 const THEME_KEY = 'shape-defense-theme';
 const TEST_KEY = 'shape-defense-test';     // 테스트 모드의 마지막 체크 설정
 const OPTS_KEY = 'shape-defense-opts';     // 설정 창의 켬/끔 (JSON, 없는 값은 켬)
-const OPTS = [{ k: 'spdTip', name: '배속 추천' }];   // 설정 창의 줄 (T13d. T13g 의 파츠 추천을 여기에 더한다)
+const OPTS = [{ k: 'spdTip', name: '배속 추천' }, { k: 'partTip', name: '파츠 추천' }];   // 설정 창의 줄 (T13d 배속 추천, T13g 파츠 추천)
 
 /* ---------- 테마 ---------- */
 // v: :root의 CSS 변수, cv: 전장(canvas)에서 쓰는 색, wc: 무기 색 (없으면 원래 색)
@@ -436,10 +436,13 @@ const FLAME = `<svg viewBox="0 0 24 24" width="16" height="16" ${SVG_ATTR}><path
 const TICKET = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5h18v3.5a2 2 0 0 0 0 4v3.5H3V14a2 2 0 0 0 0-4z"/><path d="M12 8.6l1.05 2.15 2.35.33-1.7 1.65.4 2.35L12 13.97l-2.1 1.1.4-2.35-1.7-1.65 2.35-.33z" fill="currentColor" stroke="none"/></svg>`;
 const BASEICON = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${SVG_ATTR}><path d="M3 21V10l4-3v4l5-4 5 4V7l4 3v11z"/><path d="M10 21v-5h4v5"/></svg>`;
 const isBasePart = (it) => !!it && it.kind === 'p' && !!C.PARTS[it.id].base;
+// 파츠 추천 (T13g): 파츠와 잘 맞는 무기(core PART_FIT)에 작은 반짝임. 설정 '파츠 추천'으로 끈다
+const partFit = (it, type) => !!opts.partTip && !!it && it.kind === 'p' && !!type && C.partFits(it.id, type);
+const FIT_SVG = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true"><path fill="currentColor" d="M12 1.500Q13.100 10.900 21 12Q13.100 13.100 12 22.500Q10.900 13.100 3 12Q10.900 10.900 12 1.500z"/></svg>`;   // 네 갈래 반짝임 (세로가 조금 길다)
 function partLine(p) { return `<b class="g${p.g}">[${GR[p.g]}] ${C.PARTS[p.id].name}</b> ${C.partDesc(p)}`; }
 function picHtml(p) { return `<span class="pic g${p.g}${C.PARTS[p.id].base ? ' bp' : ''}">${partIcon(p.id, 26)}</span>`; }
-function partRow(p, attr, selected) {
-  return `<button type="button" class="prow g${p.g}${selected ? ' sel' : ''}" ${attr}>${picHtml(p)}<span class="chip g${p.g}">${GR[p.g]}</span><span class="nm">${C.PARTS[p.id].name}</span><span class="ds">${C.partDesc(p)}</span></button>`;
+function partRow(p, attr, selected, fit) {   // fit: 이 무기와 잘 맞는 파츠 (파츠 추천)
+  return `<button type="button" class="prow g${p.g}${selected ? ' sel' : ''}${fit ? ' fit' : ''}" ${attr}${fit ? ' aria-label="' + C.PARTS[p.id].name + ' 잘 맞음"' : ''}>${picHtml(p)}<span class="chip g${p.g}">${GR[p.g]}</span><span class="nm">${C.PARTS[p.id].name}</span><span class="ds">${C.partDesc(p)}</span>${fit ? `<span class="fitic">${FIT_SVG(16)}</span>` : ''}</button>`;
 }
 
 /* ---------- 무기 칸 ---------- */
@@ -456,11 +459,12 @@ function renderWeapons() {
     const lk = S.locks && S.locks[k], cr = S.corr && S.corr.k === k, closed = C.isClosed(k);
     const ev = w && w.evo && !closed ? evoSlotHtml(w, now) : null;   // 진화하는 중
     const rz = !!w && !!w.rz && !closed, sz = !!w && !!w.sz && !closed, gz = !!w && !!w.gz && !closed;   // 부식 블록과 이어짐: 0강으로 친다 / 봉쇄 블록과 이어짐: 쏘지 않는다 / 망령 블록과 이어짐: 적을 회복시킨다
-    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (sz ? ' sealed' : '') + (gz ? ' ghosted' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') +
+    const fit = !closed && target && !!w && partFit(picked, w.type);   // 고른 파츠와 잘 맞는 무기 (파츠 추천)
+    const wl = lk && lk.w > 0, cls = 'slot' + (w ? '' : ' empty') + (w && w.evo ? ' evo' : '') + (rz ? ' rusted' : '') + (sz ? ' sealed' : '') + (gz ? ' ghosted' : '') + (ev ? ' evoing' : '') + (closed ? ' closed' : '') + (mine ? ' sel' : '') + (!closed && target && (picked.kind === 'w' || w) ? ' tg' : '') + (fit ? ' fit' : '') +
       (lk ? (lk.l > 0 ? ' locked' : ' warn-lock') : '') + (cr ? ' warn-corr' : '');
     // 남는 빛의 숨 위상: 진화가 끝난 때부터 (다시 그려도 이어진다)
     const st = w && w.evo ? `--wc:${C.WEAPONS[w.type].color};--eb:-${(((now - (evoBorn.get(w) || 0)) / 1000) % 8.8).toFixed(2)}s${ev ? ev.style : ''}` : '';
-    h += `<button type="button" class="${cls}" data-slot="${k}"${st ? ` style="${st}"` : ''} aria-label="무기 칸 ${k + 1}${closed ? ' 폐쇄됨' : ''}">`;
+    h += `<button type="button" class="${cls}" data-slot="${k}"${st ? ` style="${st}"` : ''} aria-label="무기 칸 ${k + 1}${closed ? ' 폐쇄됨' : ''}${fit ? ' 잘 맞음' : ''}">`;
     if (closed) h += `<svg class="xmark" viewBox="0 0 24 24" width="30" height="30" ${SVG_ATTR}><path d="M5 5l14 14M19 5L5 19" stroke-width="2.6"/></svg><small class="cl">폐쇄</small>`;
     else if (w) {
       h += (ev ? ev.html : icon(w.type, 26, w.evo) + `<b class="lv${rz ? ' rz' : ''}">${rz ? (w.evo ? '★+0' : '+0') : lvTxt(w)}</b>`) + '<span class="pips">' +
@@ -471,6 +475,7 @@ function renderWeapons() {
     } else h += '<span class="plus">+</span>';
     if ((lk && lk.l > 0) || sz) h += `<span class="lockic">${LOCK_SVG(22)}</span>`;
     if (gz) h += `<span class="ghic">${GHOST_SVG(15)}</span>`;
+    if (fit) h += `<span class="fitic">${FIT_SVG(15)}</span>`;
     if (wl) h += `<span class="abic lk">${LOCK_SVG(18)}</span><i class="cd" style="${cdStyle(lk.w)}"></i>`;
     if (cr) h += `<span class="abic cr"><b>-5</b></span><i class="cd" style="${cdStyle(S.corr.t)}"></i>`;
     h += '</button>';
@@ -1192,7 +1197,7 @@ function wpickHtml(k) {
       <p class="cur">빠진 파츠는 인벤토리로 돌아갑니다.</p>
       <div class="d-acts two"><button type="button" class="btn primary" data-act="wputOk">교체</button><button type="button" class="btn" data-act="wputBack">뒤로</button></div></div>`;
   }
-  const rows = S.inv.map((it, i) => it && it.kind === 'p' && isBasePart(it) === bmodal ? partRow(it, `data-wput="${i}"`) : '').join('');
+  const rows = S.inv.map((it, i) => it && it.kind === 'p' && isBasePart(it) === bmodal ? partRow(it, `data-wput="${i}"`, false, !bmodal && partFit(it, holder.type)) : '').join('');
   return `<div class="modal wm wpk">
     <div class="wm-head">
       <div><span class="nm">파츠 고르기</span><span class="st">${name}의 ${k + 1}번 파츠 칸</span></div>
@@ -1532,7 +1537,8 @@ function helpHtml() {
     <p class="hnote">범위 공격은 한 번에 때리는 적 수에 한도가 있고, 기지에 가까운 적부터 맞습니다. 한도는 대장간에 나옵니다.</p>`;
   const grades = `<div class="hchips">${GR.map((n, g) => `<span class="hchip g${g}">${n}</span>`).join('')}</div>`;
   const parts = `<div class="hgrid2"><div class="hpt"><span class="pic g1">${partIcon(wp, 28)}</span><span><b>무기 파츠</b><small>무기 하나에 장착</small></span></div>
-    <div class="hpt"><span class="pic g1 bp">${partIcon(bp, 28)}</span><span><b>기지 파츠</b><small>기지에 장착, 전체 적용</small></span></div></div>`;
+    <div class="hpt"><span class="pic g1 bp">${partIcon(bp, 28)}</span><span><b>기지 파츠</b><small>기지에 장착, 전체 적용</small></span></div></div>
+    <p class="hnote">파츠를 고르면 잘 맞는 무기에 <span class="hfit">${FIT_SVG(14)}</span> 표시가 뜹니다. 설정에서 끌 수 있습니다.</p>`;
   const augs = `<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`;
   const up = `<div class="hflow">${hnode(SHARD.replace('width="15" height="15"', 'width="28" height="28"'), '강화 조각')}${HARR}${hnode(hbox(icon('blaster', 22) + '<em class="bdg">+5</em>', 'slot'), '강화')}${HARR}${hnode(augs, '5단계마다 증강')}</div>`;
   const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2'), '파츠')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
@@ -2312,7 +2318,7 @@ $('#app').addEventListener('click', (ev) => {
   if (b.id === 'speedBtn') { speed = speed === 1 ? 2 : 1; b.textContent = speed + '배'; b.classList.toggle('on', speed === 2); abKey = ''; renderWeapons(); renderBottom(); return; }   // 예고 막대는 속도에 맞춰 다시 만든다
   const ds = b.dataset;
   if (ds.sk != null) { if (skK < 0) return; const [l, t] = ds.sk.split(':').map(Number); skSel = { l, t }; Snd.play('tap'); renderOverlay(); return; }
-  if (ds.opt) { if (!optsFrom || !OPTS.some(r => r.k === ds.opt)) return; opts[ds.opt] = !opts[ds.opt]; saveOpts(); Snd.play('tap'); renderOverlay(); return; }   // 설정 창의 켬/끔
+  if (ds.opt) { if (!optsFrom || !OPTS.some(r => r.k === ds.opt)) return; opts[ds.opt] = !opts[ds.opt]; saveOpts(); Snd.play('tap'); renderOverlay(); if (ds.opt === 'partTip') renderWeapons(); return; }   // 설정 창의 켬/끔
   if (ds.theme) { const t = THEMES.find(x => x.id === ds.theme); if (t) { applyTheme(t, true); Snd.play('tap'); renderAll(); } return; }
   if (ds.tc) {                                       // 테스트 창의 체크 항목
     if (!testView || !isTest() || !C.test.set(ds.tc, !S.cheat[ds.tc])) return;

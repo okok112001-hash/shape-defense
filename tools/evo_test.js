@@ -1479,6 +1479,21 @@ function scene(type, lines, secs, opt) {
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 
+/* 16. 파츠 추천 표 (T13g): 무기 파츠만, 아는 무기만, 겹침 없음, 범위 무기 전용 파츠는 범위 무기만. 표가 계산과 같은지는 node tools/part_fit.js --check */
+{
+  const F = Core.PART_FIT, AREA = WEAPON_IDS.filter((t) => WEAPONS[t].cap && !WEAPONS[t].capSk);
+  assert(Object.keys(F).length > 0, '추천 표가 비었다');
+  for (const id in F) {
+    const D = Core.PARTS[id];
+    assert(D && !D.base, id + ': 무기 파츠가 아니다');
+    assert(F[id].length > 0 && new Set(F[id]).size === F[id].length, id + ': 비었거나 겹친다');
+    for (const t of F[id]) { assert(WEAPONS[t], id + ': 모르는 무기 ' + t); if (D.area) assert(AREA.includes(t), id + ': 범위 무기가 아닌 ' + t); }
+    assert(F[id].length < (D.area ? AREA : WEAPON_IDS).length, id + ': 모든 무기를 추천');
+  }
+  assert(Core.partFits('range', 'pulse') && !Core.partFits('range', 'rail') && !Core.partFits('dmg', 'blaster') && !Core.partFits('shield', 'blaster'));
+  ok(`파츠 추천 표: 파츠 ${Object.keys(F).length}종, 무기 파츠만, 아는 무기만, 범위 전용은 범위 무기만`);
+}
+
 /* 10. 스트레스: 무기 종류마다 다섯 자루를 모두 진화시키고 20분 */
 {
   const DT = 1 / 30, T = QUICK ? 120 : 1200;
