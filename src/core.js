@@ -1191,7 +1191,8 @@ function startWave() {
     lanes = [a];
     if (rndS() < 0.6) lanes.push(a === 0 ? 1 : a === LANES - 1 ? a - 1 : a + (rndS() < 0.5 ? -1 : 1));
   }
-  S.wave = { n: S.wn, v, t0, rate: n / sT, boss, ws, grp, lanes, gk, bq: S.prep ? (hasPact('hunt') ? PACT.huntAt : [PREP.bossAt]).slice() : null };
+  S.wave = { n: S.wn, v, t0, rate: n / sT, boss, ws, grp, lanes, gk, bq: null, bt: null };
+  if (S.prep) { S.wave.bt = (hasPact('hunt') ? PACT.huntAt : [PREP.bossAt]).slice(); S.wave.bq = S.wave.bt.slice(); }   // bt: 이 웨이브의 보스 시각 (화면의 웨이브 막대), bq: 아직 예고하지 않은 것
   if ((S.prep || !boss) && S.spawnAcc > -1e6) { S.fx = S.fx.filter(f => f.k !== 'wave'); fx({ k: 'wave', d: 2, n: S.wn, text: D.name, v }); snd('wave'); }   // 앞 웨이브 이름이 남아 있으면 지운다 (테스트로 건너뛸 때)   // 도구가 등장을 끈 장면에서는 알리지 않는다
 }
 // 보통 웨이브 하나가 주는 재화 (startWave 의 gk 로 맞춘 양과 같다. 처치 보너스는 빼고). 연결 모드는 지금 웨이브 (t 는 쓰지 않는다)
@@ -1313,6 +1314,7 @@ function spawnBoss(force) {
 function appearBoss() {
   const p = S.pendingBoss; S.pendingBoss = null;
   const e = spawn(p.type, p.lane, p.x, p.y * H);
+  if (p.wb != null) e.wb = p.wb;
   if (p.type === 'scale') { e.sc = { heavy: true, t: AB_FIRST + 0.5 }; e.dmgMul = 0.5; e.spdMul = 0.6; }
   if (p.type === 'gold') goldInit(e);
   fx({ k: 'appear', d: 0.3, x: e.x, y: e.y, r: e.r, type: p.type });
@@ -2997,7 +2999,10 @@ function prepStep(dt) {
   S.wt += dt;
   if (S.wt - wv.t0 < PREP.spawnT) S.spawnAcc += wv.rate * dt;
   while (S.spawnAcc >= 1) { S.spawnAcc -= 1; waveSpawn(wv); }
-  if (wv.bq.length && !S.pendingBoss && S.wt - wv.t0 >= wv.bq[0] - WARN_T) { wv.bq.shift(); spawnBoss(); }   // 보스: 예고(WARN_T초)가 끝나는 때가 bq 의 시각
+  if (wv.bq.length && !S.pendingBoss && S.wt - wv.t0 >= wv.bq[0] - WARN_T) {   // 보스: 예고(WARN_T초)가 끝나는 때가 bq 의 시각
+    const i = (wv.bt ? wv.bt.length : 1) - wv.bq.length; wv.bq.shift(); spawnBoss();
+    S.pendingBoss.wb = wv.n * 10 + i;      // 웨이브 막대의 몇 번째 보스인지 (화면용. 나타나면 적에게 옮긴다)
+  }
   if (S.wt - wv.t0 >= PREP.spawnT && !wv.bq.length && !S.pendingBoss && !S.enemies.some(e => !e.dead && !e.cr)) {   // 웨이브를 막았다: 정비 시간
     P.phase = 'rest'; P.left = PREP.T; P.tick = 3; S.invDirty = true; S.slotDirty = true; snd('ok');
   }

@@ -57,7 +57,7 @@ b { font-weight: 600; }
 #hud {
   /* 칸 너비를 고정해 숫자 길이가 바뀌어도 아무것도 움직이지 않는다: 체력 | 시간 | 처치 | 속도 | 정지 */
   display: grid; grid-template-columns: minmax(0, 1fr) 54px 50px 38px 38px; column-gap: 8px; align-items: center; padding: 6px 10px;
-  background: var(--panel); border-bottom: 1px solid var(--line);
+  position: relative; background: var(--panel); border-bottom: 1px solid var(--line);
 }
 .hp { display: grid; grid-template-columns: minmax(0, 1fr) 38px; column-gap: 6px; align-items: center; min-width: 0; }
 .hp-bar { height: 10px; border: 1px solid var(--line); background: var(--shade); border-radius: 2px; overflow: hidden; }
@@ -936,6 +936,28 @@ b { font-weight: 600; }
   border-radius: 8px; background: var(--panel); border: 1.5px solid var(--accent); box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
 }
 #prepBar[hidden] { display: none; }
+/* 웨이브 막대 (연결 모드, 웨이브 중): HUD 아래 가장자리. 적이 나오는 동안 차오르고, 보스 시각마다 작은 마름모 (ui waveSync) */
+#waveBar { position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; z-index: 4; pointer-events: none; background: color-mix(in srgb, var(--ink) 10%, transparent); }
+#waveBar[hidden] { display: none; }
+#waveBar .wf { position: absolute; inset: 0; transform-origin: 0 50%; transform: scaleX(0); background: color-mix(in srgb, var(--ink) 52%, transparent); transition: opacity .35s; }
+#waveBar.end::after { content: ''; position: absolute; right: 0; top: -1px; bottom: -1px; width: 44px; border-radius: 2px 0 0 2px;   /* 마무리 중: 끝이 숨 쉰다 */
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 80%, transparent)); animation: wvbr 1.7s ease-in-out infinite alternate; }
+#waveBar .wb { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; box-sizing: border-box; transform: rotate(45deg); border-radius: 1px;
+  border: 1.5px solid var(--danger); background: var(--panel); transition: opacity .5s, background-color .5s, border-color .5s, box-shadow .5s; }
+#waveBar .wb[hidden] { display: none; }
+#waveBar .wb.up { opacity: .7; }
+#waveBar .wb.warn { background: var(--danger); animation: wvbl .42s ease-in-out infinite alternate; }
+#waveBar .wb.on { background: var(--danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 28%, transparent); }
+#waveBar .wb.gone { opacity: .4; border-color: var(--dim); background: var(--dim); }
+#waveBar .wb.gd { border-color: var(--gold); }
+#waveBar .wb.gd.warn, #waveBar .wb.gd.on { background: var(--gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent); }
+#waveBar.ps .wb, #waveBar.ps::after { animation-play-state: paused; }
+@keyframes wvbl { from { opacity: 1; } to { opacity: .25; } }
+@keyframes wvbr { from { opacity: .12; } to { opacity: .85; } }
+@media (prefers-reduced-motion: reduce) {
+  #waveBar .wb.warn { animation: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 45%, transparent); }
+  #waveBar.end::after { animation: none; opacity: .5; }
+}
 #prepBar .prt { font-size: 13px; color: var(--dim); }
 #prepBar .prt b { font: 20px var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
 #prepBar .btn { height: 38px; padding: 0 14px; }

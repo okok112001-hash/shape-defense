@@ -5531,6 +5531,52 @@ function hud() {
   const w = Math.max(0, S.hp / S.maxHp * 100).toFixed(0) + '%';
   if (hudPrev.w !== w) { hudPrev.w = w; hudEl.fill.style.width = w; hudEl.fill.classList.toggle('low', S.hp / S.maxHp < 0.3); }
 }
+// 웨이브 막대 (연결 모드, 웨이브 중): HUD 아래 가장자리의 가는 막대가 적이 나오는 동안(PREP.spawnT) 차오른다.
+// 보스 시각(wv.bt)마다 작은 마름모: 다가옴 옅게, 예고 중 깜빡임, 나와 있음 진하게, 사라짐 흐리게. 다 차면 남은 적(체력 합)이 줄어드는 만큼 막대가 옅어지고 끝이 숨 쉰다.
+// 요소는 한 번만 만들고 매 프레임 바뀐 값만 쓴다 (손가락이 닿아 있어도 안전하다)
+const waveEl = document.createElement('div'); waveEl.id = 'waveBar'; waveEl.hidden = true; waveEl.setAttribute('aria-hidden', 'true');
+waveEl.innerHTML = '<i class="wf"></i><i class="wb" hidden></i><i class="wb" hidden></i>'; $('#hud').appendChild(waveEl);
+const waveF = waveEl.firstChild, waveB = [waveEl.children[1], waveEl.children[2]];
+const wvPrev = { on: false, p: '', o: '', cls: '', pos: '', b: ['', ''] }, wvEnd = { w: null, h: 0 };
+function waveSync() {
+  const S = C.S, wv = S && S.wave, on = !!S && !!S.prep && S.prep.phase === 'wave' && !!wv && (mode === 'play' || mode === 'pause') && !S.over;
+  if (wvPrev.on !== on) { wvPrev.on = on; waveEl.hidden = !on; }
+  if (!on) return;
+  const T = C.PREP.spawnT, el = S.wt - wv.t0, end = el >= T;
+  const p = Math.min(1, Math.max(0, el / T)).toFixed(3);
+  if (wvPrev.p !== p) { wvPrev.p = p; waveF.style.transform = 'scaleX(' + p + ')'; }
+  let hp = 0, a0 = '', a1 = '';                  // 남은 적의 체력 합, 나와 있는 웨이브 보스의 종류
+  const k0 = wv.n * 10;
+  for (const e of S.enemies) {
+    if (e.dead || e.cr) continue;
+    hp += Math.max(0, e.hp);
+    if (e.wb === k0) a0 = e.type; else if (e.wb === k0 + 1) a1 = e.type;
+  }
+  let o = '1';
+  if (end) {                                     // 마무리 중: 다 찬 때의 남은 적을 1로 (분열·소환으로 늘면 그만큼 다시 잡는다)
+    if (wvEnd.w !== wv) { wvEnd.w = wv; wvEnd.h = 0; }
+    wvEnd.h = Math.max(wvEnd.h, hp);
+    o = (0.3 + 0.7 * (wvEnd.h > 0 ? hp / wvEnd.h : 0)).toFixed(2);
+  }
+  if (wvPrev.o !== o) { wvPrev.o = o; waveF.style.opacity = o; }
+  const cls = (end ? 'end' : '') + (mode === 'pause' ? ' ps' : '');
+  if (wvPrev.cls !== cls) { wvPrev.cls = cls; waveEl.className = cls; }
+  const bt = wv.bt || [], pos = wv.n + ':' + bt.join(',');
+  if (wvPrev.pos !== pos) {                      // 웨이브가 바뀔 때만 자리를 잡는다
+    wvPrev.pos = pos;
+    for (let i = 0; i < 2; i++) { waveB[i].hidden = i >= bt.length; if (i < bt.length) waveB[i].style.left = (Math.min(1, bt[i] / T) * 100).toFixed(2) + '%'; }
+  }
+  const pb = S.pendingBoss, sh = bt.length - (wv.bq ? wv.bq.length : 0);   // sh: 예고를 시작한 보스 수
+  for (let i = 0; i < bt.length && i < 2; i++) {
+    let c, ty = '';
+    if (pb && pb.wb === k0 + i) { c = 'warn'; ty = pb.type; }
+    else if (i >= sh) c = 'up';
+    else if ((ty = i ? a1 : a0)) c = 'on';
+    else c = 'gone';
+    c = 'wb ' + c + (ty === 'gold' ? ' gd' : '');
+    if (wvPrev.b[i] !== c) { wvPrev.b[i] = c; waveB[i].className = c; }
+  }
+}
 
 /* ---------- 연결 판 ---------- */
 // 캔버스 하나에 그린다. 손가락이 닿아 있는 동안 DOM 을 다시 만들지 않도록 한 번 만든 캔버스를 계속 쓴다.
@@ -6001,6 +6047,7 @@ function frame(ts) {
   draw(); hud(); updateChips();
   if (S && S.m3) m3Draw(dt);
   if (S && S.prep) prepSync(); else if (!prepEl.hidden) prepEl.hidden = true;
+  waveSync();
   if (ts - lightAt > 120) { lightAt = ts; lightUpdate(); }
   requestAnimationFrame(frame);
 }
