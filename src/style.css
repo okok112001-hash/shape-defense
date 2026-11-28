@@ -518,11 +518,11 @@ b { font-weight: 600; }
 .btn.melt.danger { color: var(--danger); border-color: var(--danger); }
 /* 장착 효과: 칸에 딱 맞물리는 얇은 사각 테두리 (번짐 없음) */
 .eqfx { position: absolute; pointer-events: none; z-index: 4; }
-.eqfx .fr { position: absolute; inset: 0; border: 2px solid var(--c); border-radius: 5px; animation: eqsnap .22s cubic-bezier(.2, .9, .3, 1) both, eqout .16s linear .26s forwards; }
+.eqfx .fr { position: absolute; inset: 0; border: 2px solid var(--c); border-radius: 5px; animation: eqsnap .264s cubic-bezier(.2, .9, .3, 1) both, eqout .192s linear .312s forwards; }
 .eqfx .fr u { position: absolute; width: 7px; height: 7px; border: 0 solid #fff; }
 .eqfx .fr .tl { left: -2px; top: -2px; border-width: 3px 0 0 3px; } .eqfx .fr .tr { right: -2px; top: -2px; border-width: 3px 3px 0 0; }
 .eqfx .fr .bl { left: -2px; bottom: -2px; border-width: 0 0 3px 3px; } .eqfx .fr .br { right: -2px; bottom: -2px; border-width: 0 3px 3px 0; }
-.eqfx .fl { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: #fff; box-shadow: 0 0 0 1px var(--c); opacity: 0; animation: eqflash .2s linear .2s both; }
+.eqfx .fl { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: #fff; box-shadow: 0 0 0 1px var(--c); opacity: 0; animation: eqflash .24s linear .24s both; }
 @keyframes eqsnap { from { transform: scale(1.25); opacity: .25; } to { transform: scale(1); opacity: 1; } }
 @keyframes eqout { to { opacity: 0; } }
 @keyframes eqflash { 0% { opacity: 1; top: 0; } 100% { opacity: 0; top: calc(100% - 2px); } }

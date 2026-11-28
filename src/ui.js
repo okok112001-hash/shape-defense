@@ -590,7 +590,7 @@ function snapFx(el, g, host) {
   d.innerHTML = '<i class="fr"><u class="tl"></u><u class="tr"></u><u class="bl"></u><u class="br"></u></i><i class="fl"></i>';
   if (!host) while (fxLayer.children.length > 8) fxLayer.firstChild.remove();
   (host || fxLayer).appendChild(d);
-  setTimeout(() => d.remove(), 480);
+  setTimeout(() => d.remove(), 576);
 }
 // 무기 칸 또는 대장간 버튼(기지 파츠) 위에 나온다
 function equipFx(k, g) {
@@ -5342,7 +5342,7 @@ function drawRange(w, rk) {
 }
 // 보스 능력 예고선: 보스에서 대상까지 굵은 점선 빔, 끝에 맥동하는 표시와 남은 시간
 // out: 대상이 전장 밖(인벤토리 칸)이다. 표시는 칸 안의 그림을 가리지 않게 작게, 남은 시간은 전장 아래쪽 선 옆에 쓴다
-function aimBeam(g, x0, y0, tx, ty, c, rem, nowW, out, H) {
+function aimBeam(g, x0, y0, tx, ty, c, rem, nowW, out, H, noTxt) {
   const pu = RM.matches ? 0.6 : 0.5 + 0.5 * Math.sin(nowW / 110), al = 0.7 + 0.3 * pu;
   g.lineCap = 'butt';
   g.beginPath(); g.moveTo(x0, y0); g.lineTo(tx, ty);
@@ -5362,20 +5362,19 @@ function aimBeam(g, x0, y0, tx, ty, c, rem, nowW, out, H) {
     g.beginPath(); g.arc(tx, ty, 8, 0, Math.PI * 2); g.fillStyle = `rgba(${c},1)`; g.fill();
     g.lineWidth = 2; g.strokeStyle = '#fff'; g.beginPath(); g.moveTo(tx - 5, ty); g.lineTo(tx + 5, ty); g.moveTo(tx, ty - 5); g.lineTo(tx, ty + 5); g.stroke();
   }
+  if (noTxt) return;
   g.font = '17px "Do Hyeon", sans-serif'; g.textAlign = 'center'; g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,.75)';
   const tt = Math.max(0, rem).toFixed(1); g.strokeText(tt, nx, ny); g.fillStyle = '#fff'; g.fillText(tt, nx, ny);
 }
-// 연결 판 윗변(예고된 칸들의 가로 가운데)을 전장 좌표로 (전장 아래로 벗어난 값). 판이 화면에 없으면 null.
-// 선은 판 위에서 멈춘다 (블록을 가리지 않게. 어느 칸인지는 판이 직접 보여 준다)
+// 연결 판의 예고된 칸·줄의 가운데를 전장 좌표로 (전장 아래로 벗어난 값). cells: [열, 행] 목록(칸 단위, 가운데는 .5). 판이 화면에 없으면 null.
 function boardAim(cells) {
   const b = C.S.m3; if (!b || !m3cv || !elB.contains(m3cv) || !cells.length) return null;
   const r = m3cv.getBoundingClientRect(), f = cv.getBoundingClientRect(); if (!r.width || !f.width) return null;
-  let x = 0; for (const i of cells) x += (i % b.C + 0.5) * m3cw;
-  return [(r.left + x / cells.length - f.left) / sc, (r.top + 2 - f.top) / sc];
+  return cells.map(q => [(r.left + q[0] * m3cw - f.left) / sc, (r.top + M3TOP + q[1] * m3ch - f.top) / sc]);
 }
 // 전장 canvas 밖으로 나간 예고선의 나머지를 화면 전체를 덮는 겹 canvas에 그린다 (같은 좌표계, 전장 아래만)
 function drawAimOut(a, nowW, H) {
-  if (!a && !coinRun.length) { if (!aimCv.hidden) aimCv.hidden = true; return; }
+  if (!(a && a.length) && !coinRun.length) { if (!aimCv.hidden) aimCv.hidden = true; return; }
   const ar = $('#app').getBoundingClientRect(), f = cv.getBoundingClientRect();
   const w = Math.round(ar.width * dpr), h = Math.round(ar.height * dpr);
   if (aimCv.width !== w || aimCv.height !== h) { aimCv.width = w; aimCv.height = h; }
@@ -5385,7 +5384,7 @@ function drawAimOut(a, nowW, H) {
   if (a) {
     g.setTransform(dpr * sc, 0, 0, dpr * sc, (f.left - ar.left) * dpr, (f.top - ar.top) * dpr);
     g.save(); g.beginPath(); g.rect(-C.W, H, C.W * 3, H * 3); g.clip();
-    aimBeam(g, a[0], a[1], a[2], a[3], a[4], a[5], nowW, true, H);
+    for (const q of a) aimBeam(g, q[0], q[1], q[2], q[3], q[4], q[5], nowW, true, H, q[6]);
     g.restore();
   }
   if (coinRun.length) { g.setTransform(dpr, 0, 0, dpr, 0, 0); drawCoins(g, nowW, ar); }
@@ -5507,15 +5506,19 @@ function draw() {
     let tx = -1, ty = H - 24, c = '', rem = 0, out = false;
     if (e.type === 'jammer') { for (const j of Object.keys(S.locks)) if (S.locks[j].w > 0) { tx = (+j + 0.5) * C.LW; c = '255,61,90'; rem = S.locks[j].w; break; } }
     else if (e.type === 'corrode' && S.corr) { tx = (S.corr.k + 0.5) * C.LW; c = '200,90,255'; rem = S.corr.t; }
-    else if ((e.type === 'jumble' && S.m3 && S.m3.jw) || (e.type === 'stone' && S.m3 && S.m3.sw)) {   // 판까지: 예고된 줄(칸)들의 가운데
-      const b = S.m3, J = e.type === 'jumble', cells = J ? [2] : b.sw.map(w => w.i);
+    else if ((e.type === 'jumble' && S.m3 && S.m3.jw) || (e.type === 'stone' && S.m3 && S.m3.sw)) {   // 판까지: 예고된 줄의 가운데, 굳을 칸 하나하나의 가운데
+      const b = S.m3, J = e.type === 'jumble';
       c = J ? '255,79,163' : '224,120,92'; rem = J ? b.jw.t : Math.min(...b.sw.map(w => w.t));
-      const a = boardAim(cells);
-      if (a) { tx = a[0]; ty = a[1]; out = true; } else tx = W / 2;
+      const pts = boardAim(J ? b.jw.rows.map(r => [b.C / 2, r + 0.5]) : b.sw.map(w => [w.i % b.C + 0.5, Math.floor(w.i / b.C) + 0.5]));
+      if (pts) {
+        pts.forEach((a, i) => { aimBeam(ctx, e.x, e.y, a[0], a[1], c, rem, nowW, true, H, i > 0); });
+        aimOut = pts.map((a, i) => [e.x, e.y, a[0], a[1], c, rem, i > 0]);
+        continue;
+      }
+      tx = W / 2;
     }
     if (tx < 0) continue;
     aimBeam(ctx, e.x, e.y, tx, ty, c, rem, nowW, out, H);
-    if (out) aimOut = [e.x, e.y, tx, ty, c, rem];
   }
   drawAimOut(aimOut, nowW, H);
   for (const e of S.enemies) if (e.type === 'charge' && !e.dead) drawCharge(e, H, nowW);   // 돌격체: 예고 레인과 돌진 잔상 (몸 아래에)
@@ -6039,12 +6042,14 @@ function m3Ev(b, now) {
 // 연결: 무기 칸(위)에서 시작해 이어진 같은 종류 블록 사이에 물길을 그린다. 많이 이을수록 물길이 굵고 진해지고, 무늬가 길어지며 공격 속도에 맞춰 빨리 흐른다.
 // 칸 바탕에는 빛 물결이 끝 블록에서 무기 쪽으로 올라간다 (공격 속도에 비례해 잦고 빠르다)
 const m3ph = [0, 0, 0, 0, 0], m3pp = [0, 0, 0, 0, 0];   // 줄마다 흐름 위치, 물결 위치 (속도가 바뀌어도 튀지 않게 쌓는다)
+const hexLum = (h) => { const n = parseInt(h.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };   // 0~255
 function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now, dt) {
   const L = C.pipeLinks(), N = b.C, ri = C.rustAt(b), si = C.sealAt(b), gi = C.ghostAt(b);
   g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
   L.forEach(([n, cells], k) => {
     if (n < C.PIPE.need) return;
-    const col = C.WEAPONS[S.slots[k].type].color, set = new Set(cells), q = 1 - Math.exp(-(n - 1) / 4);   // q: 1개 0 -> 많이 이을수록 1 에 가까이
+    const col = C.WEAPONS[S.slots[k].type].color, set = new Set(cells), q = 1 - Math.exp(-(n - 1) / 4);
+    const dk = hexLum(col) < 110;                 // 밝은 테마의 저격포처럼 어두운 회색 무기: 칸 바탕과 물길이 한 색으로 뭉치지 않게 바탕은 옅게, 물길은 진하게   // q: 1개 0 -> 많이 이을수록 1 에 가까이
     const par = new Map([[k, -1]]), dep = new Map([[k, 0]]), q2 = [k], kid = new Set();   // 무기 쪽(위)으로 흐르는 방향: 무기 칸에서부터 넓혀 간 부모, 무기 칸에서 몇 칸째인지
     while (q2.length) { const i = q2.shift(), c = i % N; for (const j of [i - N, i + N, c > 0 ? i - 1 : -1, c < N - 1 ? i + 1 : -1]) if (j >= 0 && set.has(j) && !par.has(j)) { par.set(j, i); dep.set(j, dep.get(i) + 1); kid.add(i); q2.push(j); } }
     const sl = set.has(si), rate = C.pipeRate(n);  // 봉쇄 블록과 이어진 줄: 흐름이 멈추고 붉다 / 부식 블록과 이어진 줄: 부식이 흘러든다
@@ -6060,12 +6065,13 @@ function m3Pipes(g, S, b, cw, ch, cx, cy, Rb, now, dt) {
     };
     for (const i of cells) {                      // 칸 바탕: 많이 이을수록 진하고, 물결이 지나갈 때 밝아진다 (세 칸에 한 물결)
       const x = (m3pp[k] + dep.get(i) / 3) % 1, w = RM.matches ? 0 : Math.pow(0.5 + 0.5 * Math.cos(x * 6.2832), 4);
-      m3RR(g, (i % N) * cw + 2, M3TOP + Math.floor(i / N) * ch + 1, cw - 4, ch - 2, 7); g.fillStyle = rgba(col, 0.09 + 0.15 * q + 0.2 * w); g.fill();
+      m3RR(g, (i % N) * cw + 2, M3TOP + Math.floor(i / N) * ch + 1, cw - 4, ch - 2, 7); g.fillStyle = rgba(col, (0.09 + 0.15 * q + 0.2 * w) * (dk ? 0.45 : 1)); g.fill();
     }
     path();
     if (q > 0.05) { g.strokeStyle = rgba(col, 0.2 * q); g.lineWidth = Rb * (0.5 + 0.55 * q); g.stroke(); }   // 많이 이으면 물길 둘레가 번진다
-    g.strokeStyle = rgba(col, 0.5 + 0.3 * q); g.lineWidth = Rb * (0.28 + 0.3 * q); g.stroke();
-    g.strokeStyle = sl ? rgba(AB_COL.lock, 0.95) : set.has(ri) ? rgba(ECOL.corrode, 0.95) : set.has(gi) ? rgba(TC.ghost, 0.95) : 'rgba(255,255,255,.75)';   // 망령 블록과 이어진 줄: 창백한 물길 g.lineWidth = Rb * (0.12 + 0.1 * q);
+    g.strokeStyle = rgba(col, dk ? 0.95 : 0.5 + 0.3 * q); g.lineWidth = Rb * (0.28 + 0.3 * q) * (dk ? 1.25 : 1); g.stroke();
+    g.strokeStyle = sl ? rgba(AB_COL.lock, 0.95) : set.has(ri) ? rgba(ECOL.corrode, 0.95) : set.has(gi) ? rgba(TC.ghost, 0.95) : 'rgba(255,255,255,.75)';   // 망령 블록과 이어진 줄: 창백한 물길
+    g.lineWidth = Rb * (0.12 + 0.1 * q);
     g.setLineDash([2.5 + 5 * q, 9.5 - 5 * q]); g.lineDashOffset = m3ph[k]; g.stroke(); g.setLineDash([]);   // 무기 쪽으로 흐른다. 빠를수록 무늬가 길게 끌린다
   });
   g.restore();

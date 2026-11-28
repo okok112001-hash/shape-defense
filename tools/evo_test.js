@@ -1363,7 +1363,8 @@ function scene(type, lines, secs, opt) {
     for (let k = 0; k < b.C; k++) for (let r = 0; r < b.R; r++) { const o = b.g[r * b.C + k]; o.s = r < 3 ? own[k] : rest[(r + k) % rest.length]; o.st = 0; }
     let first = -1;
     run(S, 40, () => { if (first < 0 && Core.spdTip()) first = S.wt - S.wave.t0; return first < 0; });
-    assert(first >= T.win - 1e-9 && first < T.win + 1, '100강이면 웨이브 20초에 뜸 ' + first);
+    // 기본 공격 속도 -10%(2026-11-28): 처치 8명이 모이는 데 조금 더 걸려 여유를 6초로
+    assert(first >= T.win - 1e-9 && first < T.win + 6, '100강이면 웨이브 20초에 뜸 ' + first);
     assert(S.kl.length % 2 === 0 && S.kl.length <= T.keep * 2, '처치 기록 길이 ' + S.kl.length);
     S.lkW = S.wt; assert(!Core.spdTip(), '기지가 맞으면 안 뜸');
     run(S, T.win - 1); assert(!Core.spdTip(), '맞은 뒤 20초 안에는 안 뜸');

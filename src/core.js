@@ -93,7 +93,10 @@ const BAL = {
   runnerTau: 300,   // 달리는 적(runner) 비중이 늘어나는 시간 상수(초)
   // 초반에는 넉넉하고(시작 +35%) 시간이 갈수록 완만하게 줄어든다
   // 2026-11-21 사용자 결정: 황금체·보급 상자로 쉬워져 재화 전체 x0.9 (goldK)
-  goldK: 0.81,
+  // 2026-11-28 사용자 결정: 기본 재화 획득량 -15% (0.81 -> 0.6885)
+  goldK: 0.6885,
+  // 2026-11-28 사용자 결정: 모든 무기의 기본 공격 속도 -10%
+  baseRate: 0.9,
   goldMul(t) { return BAL.goldK * (1 + t / 80) * (0.63 + 0.72 * Math.exp(-t / 200)); },
   // 제조 비용: 이번 판에서 제조한 횟수 k(0부터)가 늘수록 오른다. 비용/100 = m 은 등급 굴림의 '뽑는 횟수'(craftOdds)
   craftCost(k) { return Math.round(CFG.craftCost * Math.pow(1 + 0.1 * k, 1.25)); },
@@ -750,7 +753,7 @@ function stats(w) {
   const rg = Math.max(0.4, 1 + s.rangePct);
   const lv = w.rz ? 0 : w.lv;            // 부식 블록과 이어진 무기(w.rz): 강화 단계를 0으로 친다
   s.dmg = d.dmg * (w.evo ? BAL.lvMul(CFG.maxLv) * BAL.evoMul(lv) : BAL.lvMul(lv)) * Math.max(0.2, 1 + s.dmgPct);
-  s.cd = d.cd / Math.max(0.4, 1 + s.ratePct);
+  s.cd = d.cd / BAL.baseRate / Math.max(0.4, 1 + s.ratePct);
   if (hasPact('glass')) s.dmg *= PACT.glassDmg;
   if (hasPact('focus')) s.dmg *= PACT.focusDmg;
   if (hasPact('overheat')) s.cd /= PACT.heatRate;
