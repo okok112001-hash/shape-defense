@@ -1999,7 +1999,8 @@ function generate() {
   if (!(S.cheat && S.cheat.gold)) S.gold -= c;
   S.gen++;
   const nW = weaponCount();
-  const pw = nW < 1 ? 1 : 0.08 + 0.92 * Math.exp(-(nW - 1) / 1.8);  // 무기를 많이 가질수록 연속적으로 줄어든다
+  // 무기를 많이 가질수록 연속적으로 줄어든다. 연결 모드는 무기가 나오지 않는다 (무기는 교체로만 바꾼다, 사용자 결정 2026-11-28. 나머지는 파츠 18% · 조각 82% 그대로의 비율)
+  const pw = S.pipe ? 0 : nW < 1 ? 1 : 0.08 + 0.92 * Math.exp(-(nW - 1) / 1.8);
   const rg = subG(), r = rg();
   if (hasPact('smuggle') && rg() < PACT.smuggleMiss) return { ok: true, item: { kind: 'x' }, miss: true };   // 밀수: 비용만 나가고 꽝
   let item;
@@ -2012,7 +2013,7 @@ function generate() {
 function bossDrop() {
   const nW = weaponCount();
   const rg = subG();
-  if (rg() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true, rg);
+  if (!S.pipe && rg() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true, rg);   // 연결 모드는 무기 없음 (교체로만): 황금 티켓 4% · 파츠 96%
   if (CFG.waves && rg() < GOLD.ticket) return { kind: 't' };   // 파츠 대신 황금 티켓 (웨이브가 없는 측정 도구에서는 나오지 않는다)
   return newPart(true, rg);
 }
@@ -4356,7 +4357,7 @@ const Core = {
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T, AB_WARN,
   attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
-  bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
+  bstats, basePut, baseDetach, upgradeBase, bossDrop, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
@@ -5898,14 +5899,15 @@ function helpHtml() {
     ${hnode(tap + HARR + win, '대장간')}</div><p class="hnote">대장간(아래 대장간 버튼, 또는 무기를 두 번 누르기)에서 무기와 기지를 강화하고 파츠를 바꾸며, 진화와 스킬, 무기 교체(${C.SWAP.lv}강부터), 용해로도 씁니다. 분해는 한 번 더 눌러야 실행됩니다.</p>`;
   const ctlIntro = `<p class="hnote">누르기와 끌기로 파츠를 장착하고, 무기 자리를 바꾸고, 대장간을 여는 방법입니다.</p>`;
   const wps = `<div class="hgrid2">${C.WEAPON_IDS.map(t => `<div class="hw">${icon(t, 26)}<span><b>${C.WEAPONS[t].name}</b><small>${ROLE_LINE[t] || C.WEAPONS[t].desc.split('.')[0].slice(0, 10)}</small></span></div>`).join('')}</div>
+    <p class="hnote">무기 5개로 시작합니다. 무기는 대장간의 교체(${C.SWAP.lv}강부터)로만 바꿉니다.</p>
     <p class="hnote">범위 공격은 한 번에 때리는 적 수에 한도가 있고, 기지에 가까운 적부터 맞습니다. 한도는 대장간에 나옵니다.</p>`;
   const grades = `<div class="hchips">${GR.map((n, g) => `<span class="hchip g${g}">${n}</span>`).join('')}</div>`;
   const parts = `<div class="hgrid2"><div class="hpt"><span class="pic g1">${partIcon(wp, 28)}</span><span><b>무기 파츠</b><small>무기 하나에 장착</small></span></div>
     <div class="hpt"><span class="pic g1 bp">${partIcon(bp, 28)}</span><span><b>기지 파츠</b><small>기지에 장착, 전체 적용</small></span></div></div>`;
   const augs = `<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`;
   const up = `<div class="hflow">${hnode(SHARD.replace('width="15" height="15"', 'width="28" height="28"'), '강화 조각')}${HARR}${hnode(hbox(icon('blaster', 22) + '<em class="bdg">+5</em>', 'slot'), '강화')}${HARR}${hnode(augs, '5단계마다 증강')}</div>`;
-  const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2') + hbox(icon('pulse', 20), 'slot'), '파츠 · 무기')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
-  const meltNote = `<p class="hnote">쓰지 않는 파츠와 무기를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 제작할 때마다 게이지는 더 들지만 좋은 등급이 나올 확률이 높아집니다. 대장간의 용해로 탭에서 녹일 물건을 눌러서 고릅니다.</p>`;
+  const melt = `<div class="hflow">${hnode(hbox(partIcon(wp, 20), 'g2'), '파츠')}${HARR}${hnode(`<span class="hgauge"><i></i><b>100</b></span>`, '게이지 100')}${HARR}${hnode(`<span class="pic g3">${partIcon('crit', 26)}</span>`, '새 파츠')}</div>`;
+  const meltNote = `<p class="hnote">쓰지 않는 파츠를 녹이면 게이지가 차오릅니다. 게이지가 가득 차면(100) 희귀 등급 이상의 새 파츠를 만듭니다. 제작할 때마다 게이지는 더 들지만 좋은 등급이 나올 확률이 높아집니다. 대장간의 용해로 탭에서 녹일 물건을 눌러서 고릅니다.</p>`;
   const scaleHelp = bossCard('scale') + `<p class="hnote">거래는 무언가를 주는 대신 무언가를 가져갑니다. 한 번 맺으면 게임이 끝날 때까지 이어지며, 맺지 않고 건너뛸 수도 있습니다. 받은 거래는 대장간의 기지 탭에서 볼 수 있습니다.</p>`;
   const evoNode = (w, cap) => hnode(hbox(icon('blaster', 22, w) + `<em class="bdg">${cap}</em>`, 'slot'), w ? '진화' : '100강');
   const evoH = `<div class="hflow">${evoNode(false, '+100')}${HARR}${evoNode(true, '★+0')}${HARR}${hnode(`<span class="hmini">${[1, 2, 3].map(g => `<i class="g${g}"></i>`).join('')}</span>`, '5강마다 스킬')}</div>

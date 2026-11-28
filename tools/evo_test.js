@@ -1433,6 +1433,18 @@ function scene(type, lines, secs, opt) {
     Core.seed(3); Core.newGame(520); const S3 = Core.S; S3.slots[2].lv = 50; S3.gold = 1e9; assert.strictEqual(Core.canSwap(2, 'laser').reason, 'busy', '예전 방식은 교체 없음');
   }
   ok('무기 교체 (T13f): 진화 전·30강·정비 때만, 비용 3000, 강화 −10, hi, 파츠 유지, 증강 새 단계÷5번(단계별), 저장·불러오기, 건너뛰기');
+  // (k) 연결 모드는 생성·보스 보상에서 무기가 나오지 않는다 (교체로만). 생성은 파츠 18% · 조각 82%, 보스 보상은 황금 티켓 4% · 파츠 96%. 예전 방식(도구)은 그대로 무기가 나온다
+  {
+    const count = (S, f, N) => { const c = {}; for (let i = 0; i < N; i++) { const k = f(); c[k] = (c[k] || 0) + 1; } return c; };
+    const genKind = (S) => () => { S.gold = 1e12; S.inv.fill(null); const r = Core.generate(); assert(r.ok); return r.item.kind; };
+    const S = pipe(8), g = count(S, genKind(S), 4000), d = count(S, () => Core.bossDrop().kind, 4000);
+    assert(!g.w && !d.w, '연결 모드: 무기 없음 ' + JSON.stringify(g) + ' ' + JSON.stringify(d));
+    assert(Math.abs(g.p / 4000 - 0.18) < 0.02 && Math.abs(g.s / 4000 - 0.82) < 0.02, '생성 파츠 18% · 조각 82% ' + JSON.stringify(g));
+    assert(Math.abs(d.t / 4000 - Core.GOLD.ticket) < 0.012 && d.p + d.t === 4000, '보스 보상 티켓 4% · 파츠 ' + JSON.stringify(d));
+    Core.seed(8); Core.newGame(520); const S2 = Core.S, g2 = count(S2, genKind(S2), 2000), d2 = count(S2, () => Core.bossDrop().kind, 2000);
+    assert(g2.w > 100 && d2.w > 100, '예전 방식은 무기가 나옴 ' + JSON.stringify(g2) + ' ' + JSON.stringify(d2));
+  }
+  ok('연결 모드 생성·보스 보상에 무기 없음 (파츠 18% · 조각 82%, 티켓 4% · 파츠 96%), 예전 방식은 그대로');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 

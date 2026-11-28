@@ -834,7 +834,8 @@ function generate() {
   if (!(S.cheat && S.cheat.gold)) S.gold -= c;
   S.gen++;
   const nW = weaponCount();
-  const pw = nW < 1 ? 1 : 0.08 + 0.92 * Math.exp(-(nW - 1) / 1.8);  // 무기를 많이 가질수록 연속적으로 줄어든다
+  // 무기를 많이 가질수록 연속적으로 줄어든다. 연결 모드는 무기가 나오지 않는다 (무기는 교체로만 바꾼다, 사용자 결정 2026-11-28. 나머지는 파츠 18% · 조각 82% 그대로의 비율)
+  const pw = S.pipe ? 0 : nW < 1 ? 1 : 0.08 + 0.92 * Math.exp(-(nW - 1) / 1.8);
   const rg = subG(), r = rg();
   if (hasPact('smuggle') && rg() < PACT.smuggleMiss) return { ok: true, item: { kind: 'x' }, miss: true };   // 밀수: 비용만 나가고 꽝
   let item;
@@ -847,7 +848,7 @@ function generate() {
 function bossDrop() {
   const nW = weaponCount();
   const rg = subG();
-  if (rg() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true, rg);
+  if (!S.pipe && rg() < (nW < 5 ? 0.6 : 0.12)) return randomWeapon(true, rg);   // 연결 모드는 무기 없음 (교체로만): 황금 티켓 4% · 파츠 96%
   if (CFG.waves && rg() < GOLD.ticket) return { kind: 't' };   // 파츠 대신 황금 티켓 (웨이브가 없는 측정 도구에서는 나오지 않는다)
   return newPart(true, rg);
 }
@@ -3191,7 +3192,7 @@ const Core = {
   get S() { return S; }, get H() { return H; },
   newGame, setState, setH, step, stats, dirty, generate, genCost, discard, moveInv, equipWeapon, unequipWeapon, swapSlots, isLocked, WARN_T, AB_WARN,
   attachPart, replacePart, putPart, meltPart, meltValue, meltAll, meltSafe, craftPart, detachPart, orbPos, turretPos, heatLevel, sprayState, SPRAY_ON, SPRAY_RL, SPRAY_K, CAP_M, beamStop, CAP_NONE, shellPos, AIR_CD, AIR_WARN, AIR_GAP, AIR_DROP, AIR_ALT, AIR_R, AIR_SLOPE, airTrack, cloudPos, FLD_R, ARC_MAX, BALL_BOOM_R, STREAK_K, STREAK_F, BURST_GAP, MARK_MAX, CRACK_P, CRACK_Y, RAIN_CD, SLIME_MAX, SMALL_MAX, BIG_CAP, NOVA_N, TWIN_N, HALO_T, NUKE_N, NUKE_N2, SLUG_N, DRAGON_N, GIANT_N, BALL_N2, BALL_STUN, NOVA_K, NUKE_K, NUKE_R0, SLUG_K, SLUG_KN, SLUG_STN, DRAGON_M, GIANT_M, BALL_TW, BALL_BOOM, RAIN_K, RAIN_UP, PUD_SITE, PUD_LOBE, PUD_R, PUD_DRY, puddleR, CORR_K, CORR_MAX, CORR_DT, CORR_HOLD, CORR_DROP, DSV_T, DSV_POOL,
-  bstats, basePut, baseDetach, upgradeBase, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
+  bstats, basePut, baseDetach, upgradeBase, bossDrop, bestDps, BASE_PART_IDS, WEAPON_PART_IDS, upgrade, upgradeInfo, chooseAug, skipAug, shardCount, goldCount, meltCount, freeSlot,
   partDesc, augDesc, newWeapon, seed,
   SKILLS, canEvolve, evolve, skillUp, skillInfo, skillPoints, skillRank, skillText, effLv, evoLose, SWAP, canSwap, swapWeapon, swapCost,
   WAVES, WAVE_IDS, BOSS_IDS, CHG_WARN, JUMBLE, STONE, RUST, SEAL, GHOST, rustAt, sealAt, ghostAt, ELITE_HP, GOLD, useTicket, waveGold, CRATE, dropCrate,
