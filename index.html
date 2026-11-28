@@ -39,6 +39,7 @@
   --melt: #b4540a;
   --melt-fill: #e5731a;
   --ember: #d4260f;        /* 용해로 모드 표시색: 붉은 불씨 (등급 네 색, 강화 모드의 금색과 다르다) */
+  --shard-ink: #8f6200;    /* 강화 조각 숫자 글자 (조각 그림의 노랑과 같은 계열, 밝은 바탕에서 읽히게 짙게) */
   --danger: #e03a3a;
   --ok: #0f9d76;
   --g0: #6b7688;
@@ -364,6 +365,26 @@ b { font-weight: 600; }
 .upfx.edge-l b { left: 2px; --tx: 0%; } .upfx.edge-r b { left: auto; right: 2px; --tx: 0%; }
 .upfx s { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--accent); animation: upspark .7s ease-out forwards; }
 @keyframes upfade { to { opacity: 0; } }
+/* 생성으로 얻은 강화 조각 (T14b): 생성 버튼 왼쪽 위에서 조각이 튀어 오르며 흐려지고, +N 이 떠오른다 (숫자는 ui shNumAnim) */
+.shfx { position: absolute; width: 0; height: 0; animation: shlife .9s linear forwards; }
+@keyframes shlife { to { opacity: 1; } }
+.shfx .sg { position: absolute; left: -30px; top: -11px; width: 60px; height: 22px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(closest-side, rgba(255, 200, 61, .5), rgba(255, 200, 61, 0)); animation: shglow .55s ease-out forwards; }
+@keyframes shglow { 0% { opacity: 0; transform: scale(.5); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.35, 1.6); } }
+.shfx .sp { position: absolute; left: var(--x0); top: 0; animation: shx var(--d) cubic-bezier(.3, .6, .5, 1) var(--dl) both; }
+.shfx .sp u { display: block; width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; text-decoration: none; animation: shy var(--d) var(--dl) both; }
+.shfx .sp svg { display: block; }
+@keyframes shx { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
+@keyframes shy {
+  0% { transform: translateY(2px) rotate(0deg) scale(calc(var(--s) * .4)); opacity: 0; animation-timing-function: cubic-bezier(.2, .8, .4, 1); }
+  14% { opacity: 1; }
+  62% { transform: translateY(var(--dy)) rotate(calc(var(--r) * .7)) scale(var(--s)); opacity: .95; animation-timing-function: cubic-bezier(.5, 0, .8, .6); }
+  100% { transform: translateY(calc(var(--dy) + 9px)) rotate(var(--r)) scale(calc(var(--s) * .8)); opacity: 0; }
+}
+.shnum { position: absolute; margin-top: -22px; white-space: nowrap; opacity: 0; font: 21px/1 var(--font-display); }
+.shnum b { display: block; font-weight: normal; color: var(--shard-ink); transform-origin: 50% 70%;
+  text-shadow: 0 1px 0 var(--shadow), 0 0 5px var(--shadow), 0 0 10px var(--shadow); }
+@media (prefers-reduced-motion: reduce) { .shfx { display: none; } }
 @keyframes upring { from { transform: scale(.4); opacity: 1; } to { transform: scale(3.4); opacity: 0; } }
 @keyframes uptext {
   0% { transform: translate(var(--tx), 12px) scale(.3); opacity: 0; }
@@ -4480,6 +4501,7 @@ const BLUE_V = {
   g0: '#aab6cc', g1: '#5cb8ff', g2: '#c48bff', g3: '#ffa63d', backdrop: '#132c5a',
   shade: 'rgba(0, 0, 0, .18)', overlay: 'rgba(10, 24, 54, .78)', toast: 'rgba(22, 48, 98, .92)', shadow: '#000',
   hatch: 'rgba(255, 255, 255, .07)', sheen: 'rgba(255, 244, 214, .55)', melt: '#ffb37a', 'melt-fill': '#ff9f5a', ember: '#ff3d2e',
+  'shard-ink': '#ffd35a',                   // 강화 조각 숫자 글자 (T14b)
   gold: '#ffd84a', 'on-gold': '#1c1503',   // 황금체와 티켓 (전설 등급의 주황과 헷갈리지 않는 노란 금색), 그 위 글자
   crate: '#d9ad74',                          // 보급 상자 (나무색. 도움말 글자)
   ghost: '#7fe3ec',                          // 망령체 (도움말 글자. 등급 파랑·--ok 초록과 다른 청록)
@@ -4502,7 +4524,7 @@ const THEMES = [
       accent: '#e09a00', 'accent-ink': '#8a5600', 'on-accent': '#1c1503', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#6b7688', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#d9dee6',
       shade: 'rgba(30, 50, 90, .07)', overlay: 'rgba(28, 39, 64, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
+      hatch: 'rgba(30, 50, 90, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', 'shard-ink': '#8f6200', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
     cv: { grid: 'rgba(30,50,90,.09)', lane: 'rgba(30,50,90,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '28,39,64',
       bossTxt: '#a01c1c', bossLine: 'rgba(28,39,64,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
@@ -4515,7 +4537,7 @@ const THEMES = [
       accent: '#0e7a73', 'accent-ink': '#0a5f59', 'on-accent': '#fffaf0', ok: '#2a8a4a', danger: '#c93a2e',
       g0: '#77705f', g1: '#1f7fe0', g2: '#8a4be0', g3: '#d9740a', backdrop: '#e4d9c1',
       shade: 'rgba(80, 55, 20, .07)', overlay: 'rgba(58, 47, 31, .55)', toast: 'rgba(255, 250, 240, .97)', shadow: '#fffaf0',
-      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
+      hatch: 'rgba(80, 55, 20, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#a14a0c', 'melt-fill': '#d9731c', ember: '#d4260f', 'shard-ink': '#8f6200', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
     cv: { grid: 'rgba(80,55,20,.09)', lane: 'rgba(80,55,20,.26)', base: 'rgba(42,138,74,.9)', turret: '#2a8a4a',
       dmgStroke: '255,250,240', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '58,47,31',
       bossTxt: '#a01c1c', bossLine: 'rgba(58,47,31,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
@@ -4528,7 +4550,7 @@ const THEMES = [
       accent: '#c2255c', 'accent-ink': '#a01b49', 'on-accent': '#ffffff', ok: '#0f9d76', danger: '#e03a3a',
       g0: '#66768c', g1: '#1f7fe0', g2: '#8a4be0', g3: '#e07a00', backdrop: '#cfe1f3',
       shade: 'rgba(22, 48, 79, .07)', overlay: 'rgba(22, 48, 79, .55)', toast: 'rgba(255, 255, 255, .97)', shadow: '#fff',
-      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
+      hatch: 'rgba(22, 48, 79, .07)', sheen: 'rgba(255, 255, 255, .95)', melt: '#b4540a', 'melt-fill': '#e5731a', ember: '#d4260f', 'shard-ink': '#8f6200', gold: '#9a7300', 'on-gold': '#ffffff', crate: '#8a5a2b', ghost: '#0f8c9c' }),
     cv: { grid: 'rgba(22,48,79,.09)', lane: 'rgba(22,48,79,.26)', base: 'rgba(15,157,118,.9)', turret: '#0f9d76',
       dmgStroke: '255,255,255', dmgBig: '184,100,0', dmg2: '196,70,10', dmg3: '154,106,0', dmgN: '22,48,79',
       bossTxt: '#a01c1c', bossLine: 'rgba(22,48,79,.7)', hit: 'rgba(255,190,60,.75)', fence: 'rgba(190,120,0,.95)',
@@ -5074,6 +5096,65 @@ function pulseUp() {
   const b = $('#forgeBtn'); if (!b) return;
   b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse');
   setTimeout(() => b.classList.remove('pulse'), 700);
+}
+/* 생성으로 강화 조각을 얻으면 생성 버튼 왼쪽 위에서 조각 서너 개가 튀어 오르며 흐려지고 +N 이 떠올랐다 사라진다 (T14b, 약 0.8초).
+   오른손 엄지가 버튼 오른쪽과 아래를 가리므로 왼쪽 위로 띄운다. 대장간 버튼 반짝임(pulseUp)은 그대로 둔다.
+   0.6초 안에 또 받으면 새 숫자 없이 떠 있는 숫자에 더해 한 번 부풀고, 조각 묶음은 3개까지만 남는다(연타해도 쌓이지 않음).
+   움직임 줄이기면 숫자만 흐려지며 나타났다 사라진다. 생성 버튼은 다시 만들지 않고 #fxLayer 에 따로 그린다 */
+const SHFX = { merge: 600, life: 800, keep: 3 };
+let shNum = null;   // 떠 있는 숫자 {el, n, at, y, an}
+function shardFx(n) {
+  const b = $('#genBtn'); if (!b || !(n > 0)) return;
+  const a = $('#app').getBoundingClientRect(), r = b.getBoundingClientRect(), rm = RM.matches, now = performance.now();
+  const ox = r.left - a.left + Math.max(26, Math.min(56, r.width * 0.24)), oy = r.top - a.top;   // 버튼 위쪽 가장자리의 왼쪽
+  if (!rm) {
+    const old = fxLayer.querySelectorAll('.shfx');
+    for (let i = 0; i <= old.length - SHFX.keep; i++) old[i].remove();
+    while (fxLayer.children.length > 8) fxLayer.firstChild.remove();
+    const d = document.createElement('div');
+    d.className = 'shfx'; d.style.left = ox.toFixed(1) + 'px'; d.style.top = oy.toFixed(1) + 'px';
+    const k = Math.random() < 0.5 ? 3 : 4;
+    let inner = '<i class="sg"></i>';
+    for (let i = 0; i < k; i++) {
+      const an = (-168 + (i + 0.2 + Math.random() * 0.6) / k * 70) * Math.PI / 180;   // 왼쪽 위 부채꼴(거의 바로 위 ~ 왼쪽 옆으로 조금 위). 숫자는 오른쪽 위로 뜬다
+      const dist = 28 + Math.random() * 22, dx = Math.cos(an) * dist, dy = Math.sin(an) * dist;
+      inner += `<i class="sp" style="--x0:${((Math.random() - 0.5) * 16).toFixed(0)}px;--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--r:${((Math.random() - 0.5) * 220).toFixed(0)}deg;--s:${(0.62 + Math.random() * 0.5).toFixed(2)};--dl:${(Math.random() * 0.12).toFixed(2)}s;--d:${(0.58 + Math.random() * 0.14).toFixed(2)}s"><u>${SHARD}</u></i>`;
+    }
+    d.innerHTML = inner;
+    d.addEventListener('animationend', e => { if (e.target === d) d.remove(); });
+    fxLayer.appendChild(d);
+  }
+  const nx = ox + 18, ny = oy - 6;
+  const live = shNum && shNum.el.isConnected && now - shNum.at < SHFX.merge;
+  if (live) {                                // 떠 있는 숫자에 더한다: 그 자리에서 다시 또렷해지며 한 번 부푼다
+    shNum.n += n; shNum.at = now;
+    shNum.el.querySelector('b').textContent = '+' + fmtInt(shNum.n);
+    const m = new DOMMatrixReadOnly(getComputedStyle(shNum.el).transform);
+    const op = +getComputedStyle(shNum.el).opacity;
+    shNum.an.cancel();
+    shNum.y = Math.max(-30, m.m42);
+    shNum.an = shNumAnim(shNum.el, shNum.y, op, rm);
+    if (!rm) shNum.el.querySelector('b').animate([{ transform: 'scale(1.32)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'cubic-bezier(.2,.8,.3,1)' });
+  } else {
+    if (shNum) { shNum.an.cancel(); shNum.el.remove(); }
+    const el = document.createElement('div');
+    el.className = 'shnum'; el.style.left = nx.toFixed(1) + 'px'; el.style.top = ny.toFixed(1) + 'px';
+    el.innerHTML = `<b>+${fmtInt(n)}</b>`;
+    fxLayer.appendChild(el);
+    shNum = { el, n, at: now, y: 0, an: shNumAnim(el, 0, 0, rm) };
+  }
+  const cur = shNum;
+  cur.an.onfinish = () => { cur.el.remove(); if (shNum === cur) shNum = null; };
+}
+// 숫자의 움직임: 지금 높이(y)·진하기(op)에서 이어서 위로 떠오르며 흐려진다. 움직임 줄이기면 제자리에서 진하기만
+function shNumAnim(el, y, op, rm) {
+  const T = (dy, s) => `translate(-50%, ${(rm ? -6 : y + dy).toFixed(1)}px) scale(${rm ? 1 : s})`;
+  return el.animate([
+    { transform: T(op > 0 ? 0 : 4, op > 0 ? 1 : 0.82), opacity: op, easing: 'cubic-bezier(.2,.8,.3,1)' },   // 빨리 또렷해지며 떠오르고
+    { transform: T(-6, 1), opacity: 1, offset: 0.2 },                                                          // 천천히 오르며 머물다
+    { transform: T(-11, 1), opacity: 1, offset: 0.6, easing: 'ease-in' },                                      // 흐려진다
+    { transform: T(-19, 0.96), opacity: 0 },
+  ], { duration: SHFX.life, fill: 'forwards' });
 }
 function gaugeFlash() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -6745,7 +6826,7 @@ function act(name) {
       renderBottom(); legendScan();
       if (it.kind === 'w') say(`획득: <b style="color:${C.WEAPONS[it.type].color}">${C.WEAPONS[it.type].name}</b> (무기)`);
       else if (it.kind === 'p') say('획득: ' + (isBasePart(it) ? '<b class="btag">기지 파츠</b> ' : '') + partLine(it));
-      else { say(`획득: <b>강화 조각 ${it.n}개</b>`); pulseUp(); }
+      else { say(`획득: <b>강화 조각 ${it.n}개</b>`); pulseUp(); shardFx(it.n); }
       return;
     }
     case 'forge': Snd.play('tap'); openForge(fTab); return;   // 대장간: 마지막으로 본 탭으로 연다

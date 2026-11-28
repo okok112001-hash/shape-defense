@@ -21,6 +21,7 @@
   --melt: #b4540a;
   --melt-fill: #e5731a;
   --ember: #d4260f;        /* 용해로 모드 표시색: 붉은 불씨 (등급 네 색, 강화 모드의 금색과 다르다) */
+  --shard-ink: #8f6200;    /* 강화 조각 숫자 글자 (조각 그림의 노랑과 같은 계열, 밝은 바탕에서 읽히게 짙게) */
   --danger: #e03a3a;
   --ok: #0f9d76;
   --g0: #6b7688;
@@ -346,6 +347,26 @@ b { font-weight: 600; }
 .upfx.edge-l b { left: 2px; --tx: 0%; } .upfx.edge-r b { left: auto; right: 2px; --tx: 0%; }
 .upfx s { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--accent); animation: upspark .7s ease-out forwards; }
 @keyframes upfade { to { opacity: 0; } }
+/* 생성으로 얻은 강화 조각 (T14b): 생성 버튼 왼쪽 위에서 조각이 튀어 오르며 흐려지고, +N 이 떠오른다 (숫자는 ui shNumAnim) */
+.shfx { position: absolute; width: 0; height: 0; animation: shlife .9s linear forwards; }
+@keyframes shlife { to { opacity: 1; } }
+.shfx .sg { position: absolute; left: -30px; top: -11px; width: 60px; height: 22px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(closest-side, rgba(255, 200, 61, .5), rgba(255, 200, 61, 0)); animation: shglow .55s ease-out forwards; }
+@keyframes shglow { 0% { opacity: 0; transform: scale(.5); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.35, 1.6); } }
+.shfx .sp { position: absolute; left: var(--x0); top: 0; animation: shx var(--d) cubic-bezier(.3, .6, .5, 1) var(--dl) both; }
+.shfx .sp u { display: block; width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; text-decoration: none; animation: shy var(--d) var(--dl) both; }
+.shfx .sp svg { display: block; }
+@keyframes shx { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
+@keyframes shy {
+  0% { transform: translateY(2px) rotate(0deg) scale(calc(var(--s) * .4)); opacity: 0; animation-timing-function: cubic-bezier(.2, .8, .4, 1); }
+  14% { opacity: 1; }
+  62% { transform: translateY(var(--dy)) rotate(calc(var(--r) * .7)) scale(var(--s)); opacity: .95; animation-timing-function: cubic-bezier(.5, 0, .8, .6); }
+  100% { transform: translateY(calc(var(--dy) + 9px)) rotate(var(--r)) scale(calc(var(--s) * .8)); opacity: 0; }
+}
+.shnum { position: absolute; margin-top: -22px; white-space: nowrap; opacity: 0; font: 21px/1 var(--font-display); }
+.shnum b { display: block; font-weight: normal; color: var(--shard-ink); transform-origin: 50% 70%;
+  text-shadow: 0 1px 0 var(--shadow), 0 0 5px var(--shadow), 0 0 10px var(--shadow); }
+@media (prefers-reduced-motion: reduce) { .shfx { display: none; } }
 @keyframes upring { from { transform: scale(.4); opacity: 1; } to { transform: scale(3.4); opacity: 0; } }
 @keyframes uptext {
   0% { transform: translate(var(--tx), 12px) scale(.3); opacity: 0; }
