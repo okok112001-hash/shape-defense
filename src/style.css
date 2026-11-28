@@ -425,6 +425,8 @@ b { font-weight: 600; }
   0%, 100% { background: color-mix(in srgb, var(--ab) 14%, var(--shade)); box-shadow: 0 0 0 0 var(--ab); }
   50% { background: color-mix(in srgb, var(--ab) 62%, var(--panel)); box-shadow: 0 0 0 3px var(--ab), inset 0 0 0 2px #fff; }
 }
+.slot.rusted, .slot.evo.rusted { border-color: #c04bff; background: color-mix(in srgb, #c04bff 16%, var(--panel)); }   /* 부식 블록과 이어진 무기 (0강으로 침) */
+.slot.rusted .lv.rz { color: #c04bff; text-shadow: none; }
 .slot.locked { border-color: #ff3d5a; background: color-mix(in srgb, #ff3d5a 25%, var(--panel)); }
 .slot.locked > svg, .slot.locked > .lv, .slot.locked > .pips { opacity: .35; }
 .slot .lockic { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; display: flex; color: #ff5d7a; }
@@ -442,7 +444,7 @@ b { font-weight: 600; }
 #abChips { position: absolute; left: 8px; right: 8px; top: 46px; z-index: 3; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 #abChips:empty { display: none; }
 .abchip { position: relative; display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 12px 7px 5px; overflow: hidden; border: 1.5px solid var(--ab); border-radius: 999px; background: var(--toast); color: var(--ink); font-size: 12px; line-height: 16px; white-space: nowrap; }
-.abchip.lock { --ab: #ff3d5a; } .abchip.corr { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; }
+.abchip.lock { --ab: #ff3d5a; } .abchip.corr, .abchip.rust { --ab: #c04bff; } .abchip.jumble { --ab: #ff4fa3; } .abchip.stone { --ab: #e0785c; }
 .abchip .aic { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--ab); color: #fff; display: flex; align-items: center; justify-content: center; }
 .abchip .aic b { font: 12px var(--font-display); }
 .abchip .atx { overflow: hidden; text-overflow: ellipsis; }

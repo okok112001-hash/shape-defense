@@ -1246,6 +1246,33 @@ function scene(type, lines, secs, opt) {
     }
     assert(got[0] > 0 && Math.abs(got[1] / got[0] - (1 + 2 * G.blkDmg)) < 1e-6, '황금 피해 ' + got[1] / got[0]);
   }
+  // (f) 부식 블록 (부식체): 화면에 들어온 뒤 RUST.first 초에 무기와 이어진 블록 하나(0행 아님)가 부식. 그 블록과 이어진 무기만 강화 단계를 0으로 친다
+  //     (진화한 무기는 100강 몫이 남는다). 부식은 블록과 함께 옮겨지고, 줄에서 떼면 풀린다. dur 초 뒤 사라지고 gap 초 뒤 다시. 쓰러지면 사라진다
+  {
+    const RU = Core.RUST, S = pipe(45), b = S.m3, N = b.C;
+    for (let k = 0; k < 5; k++) S.slots[k] = null; S.shards = 1e9;
+    const w0 = put('rail', 0, 40), w1 = put('pulse', 1, 100, true); w1.lv = 20; Core.dirty(w1);
+    for (let i = 0; i < b.g.length; i++) b.g[i] = { s: 'shotgun', id: 6000 + i };
+    for (const i of [0, N, 2 * N]) b.g[i] = { s: 'rail', id: 6100 + i };
+    for (const i of [1, 1 + N]) b.g[i] = { s: 'pulse', id: 6200 + i };
+    run(S, 0.1); const d0 = Core.stats(w0).dmg, d1 = Core.stats(w1).dmg;
+    const e = summon(S, 'corrode'); e.speed = 0;
+    let t0 = S.t; run(S, 8, () => Core.rustAt(b) < 0); const ri = Core.rustAt(b);
+    assert([N, 2 * N, 1 + N].includes(ri), '이어진 블록 (0행 아님) ' + ri);
+    assert(Math.abs(b.g[ri].ru - RU.dur) < 0.1 && b.ev.some((v) => v.k === 'rust' && v.i === ri), '부식 블록 ' + b.g[ri].ru);
+    delete b.g[ri].ru; b.g[2 * N].ru = 5; run(S, 0.05);
+    assert(w0.rz === 1 && !w1.rz, '이어진 무기만');
+    assert(Math.abs(Core.stats(w0).dmg / d0 * BAL.lvMul(40) - 1) < 1e-9 && Core.stats(w1).dmg === d1, '강화 단계 0');
+    assert(Core.m3Swap(2 * N, 2 * N + 1).ok); run(S, 0.05);
+    assert.strictEqual(Core.rustAt(b), 2 * N + 1, '블록과 함께 옮겨짐'); assert(!w0.rz && Core.stats(w0).dmg === d0, '떼면 풀림');
+    delete b.g[2 * N + 1].ru; b.g[1 + N].ru = 3; run(S, 0.05);
+    assert(w1.rz === 1 && Math.abs(Core.stats(w1).dmg / d1 * BAL.evoMul(20) - 1) < 1e-9, '진화한 무기: 진화 단계만 0');
+    b.ev.length = 0; run(S, 3.1, () => Core.rustAt(b) >= 0); assert(Core.rustAt(b) < 0 && b.ev.some((v) => v.k === 'rustEnd'), '시간이 다 되면 사라짐');
+    run(S, 0.05); assert(!w1.rz && Core.stats(w1).dmg === d1);
+    t0 = S.t; run(S, RU.gap + 1, () => Core.rustAt(b) < 0); assert(Core.rustAt(b) >= 0 && Math.abs(S.t - t0 - RU.gap) < 0.1, '쉬었다 다시 ' + (S.t - t0));
+    e.dead = true; S.enemies = S.enemies.filter((o) => !o.dead); run(S, 0.1); assert(Core.rustAt(b) < 0 && !w0.rz && !w1.rz, '쓰러지면 사라짐');
+  }
+  ok('부식 블록 (부식체, 연결 판): 이어진 무기는 강화 단계 0, 블록과 함께 옮겨짐, 시간이 되면 사라졌다 다시');
   ok('연결 모드 (웨이브 n = 난이도 30n-15초, 30초 등장·30초 정비, 보스 4·7·10과 사냥철, 테스트 시간 건너뛰기, 교란체, 석화체, 황금 블록과 피해)');
 }
 
