@@ -143,7 +143,7 @@ function model(st, ref, c, lay, PP) {
   const closeSh = t === 'laser' ? Math.min(1, 0.35 / r) : t === 'pulse' ? 1 : t === 'rail' || t === 'acid' ? 0.35 : t === 'mortar' ? 0.8 : near1(0.35);
   let q = 1 + st.crit * (1 + st.critDmg);
   if (st.gamble) q *= 0.5 + (st.gamble - 0.5) / 2;
-  q *= 1 + beta * st.bossPct;
+  q *= 1 + beta * st.bossPct + (1 - beta) * st.mobPct;   // 일반 적 추가 피해 (T15b)
   q *= 1 + Math.min(1, farSh * pc.phi) * st.farPct;
   q *= 1 + closeSh * st.closePct;
   const q0 = 1 + ref.crit * (1 + ref.critDmg);
@@ -358,7 +358,7 @@ function model(st, ref, c, lay, PP) {
     case 'acid': {
       const rr = 75 * (1 + st.aRange + st.areaPct), np = capC(nIn(lam, Math.PI * rr * rr), N) * 0.8;
       let pools = (1 + st.aMulti) * rate * 4;                 // 살아 있는 웅덩이 수 (웅덩이-초 / 초)
-      const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct;
+      const cm = 1 + st.crit * (1 + st.critDmg), bm = 1 + beta * st.bossPct + (1 - beta) * st.mobPct;
       // 부식 겹 (T10e): 웅덩이를 지나는 시간 tIn (지름 x 0.85 / 속도, 끈적한 산 둔화 반영, 웅덩이 수명 4초의 0.6 까지) 동안의 평균 겹 x 겹당 값
       const cv = Core.CORR_K + st.aVuln, sl0 = Math.max(st.aSlow, st.slow) * (1 - 0.5 * bb);
       const tIn = Math.min(2.4, 1.7 * rr / Math.max(1, Rv0 * (1 - sl0))), cP = corrRun(tIn), cR = st.rain ? corrRun(st.rainT) : null;

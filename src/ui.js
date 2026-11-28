@@ -400,6 +400,7 @@ const PICON = {
   critd: '<path d="M12 2l5 13-5 7-5-7z"/><path d="M12 2v20"/>',
   range: '<path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/><path d="M12 5v14" stroke-dasharray="2 3"/>',
   boss: '<circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6M10 7v6M7 10h6"/>',
+  mob: `<path d="M4 9a10 10 0 0 1 16 0"/><path d="M20 9l-.4-4M20 9l-4 .4"/><path d="M3.5 20l2.5-5 2.5 5zM9.5 20l2.5-5 2.5 5zM15.5 20l2.5-5 2.5 5z" ${FILL}/>`,
   gold: `<path d="M12 2l10 10-10 10L2 12z"/><path d="M12 8l4 4-4 4-4-4z" ${FILL}/>`,
   exec: '<path d="M5 5h14l-7 15z"/><path d="M3 5h18"/>',
   first: '<path d="M2 12h12M10 7l5 5-5 5"/><path d="M20 4v16"/>',

@@ -1528,5 +1528,32 @@ function scene(type, lines, secs, opt) {
   }
   ok(`스트레스 ${QUICK ? 2 : 20}분 x 무기 ${WEAPON_IDS.length}종 (다섯 자루 진화, 무작위 스킬, 가끔 강화/손실/재진화)`);
 }
+/* T15b. 일반 적 추가 피해 (소탕 모듈, 제압 사격): 일반 적·정예에는 들고 보스·대형·황금체·보급 상자에는 안 든다 */
+{
+  const KINDS = { 일반: {}, 정예: { elite: 1 }, 대형: { type: 'heavy' }, 보스: { type: 'giant', boss: true }, 황금체: { type: 'gold', boss: true }, 상자: { type: 'crate', boss: true, cr: { t: 99, id: 1 } } };
+  const dealt = (wt, kind, mob) => {   // 같은 시드로 적 하나를 3초 때린 피해
+    const S = game(11), w = put(wt, 2, 20);
+    if (mob && mob.p != null) w.parts[0] = { id: 'mob', g: mob.p };
+    if (mob && mob.a != null) w.augs[0] = { id: 'a_mob', g: mob.a };
+    Core.dirty(w); S.hp = S.maxHp = 1e9; S.spawnAcc = -1e9; S.nextBoss = 1e9;
+    const e = foe2(250, 330, Object.assign({ hp: 1e9, maxHp: 1e9 }, KINDS[kind]));
+    for (let i = 0; i < 180; i++) { S.hp = S.maxHp; Core.step(1 / 60); }
+    return 1e9 - e.hp;
+  };
+  assert(Core.PARTS.mob && Core.AUGS.a_mob && Core.AUGS.a_mob.for === 'all', '소탕 모듈, 제압 사격');
+  for (const wt of ['blaster', 'acid']) {
+    const pm = Core.PARTS.mob.v[2] / 100, am = Core.AUGS.a_mob.v[1] / 100;
+    for (const kind in KINDS) {
+      const d0 = dealt(wt, kind), d1 = dealt(wt, kind, { p: 2 }), d2 = dealt(wt, kind, { a: 1 });
+      assert(d0 > 0, `${wt} ${kind}: 피해 0`);
+      const mob = kind === '일반' || kind === '정예', x1 = mob ? 1 + pm : 1, x2 = mob ? 1 + am : 1;
+      assert(Math.abs(d1 / d0 - x1) < 1e-6, `${wt} ${kind} 소탕 모듈: x${(d1 / d0).toFixed(4)} != x${x1}`);
+      assert(Math.abs(d2 / d0 - x2) < 1e-6, `${wt} ${kind} 제압 사격: x${(d2 / d0).toFixed(4)} != x${x2}`);
+    }
+  }
+  game(12); const wl = put('laser', 0, 0); wl.parts[0] = { id: 'mob', g: 3 }; wl.augs[0] = { id: 'a_mob', g: 3 }; Core.dirty(wl);
+  assert(Math.abs(Core.stats(wl).mobPct - (Core.PARTS.mob.v[3] + Core.AUGS.a_mob.v[3]) / 100) < 1e-9, '파츠와 증강이 더해진다');
+  ok('일반 적 추가 피해(소탕 모듈, 제압 사격): 일반 적·정예 x(1+v), 보스·대형·황금체·보급 상자 그대로 (블래스터 탄, 산성 웅덩이)');
+}
 Core.seed(null);
 console.log(`\n${n} 묶음 통과`);

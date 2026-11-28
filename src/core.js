@@ -141,6 +141,7 @@ const PARTS = {
   critd: { name: '예리한 날',   abbr: '치피', min: 0, v: [29, 55, 93, 177], w: [2.7, 5, 8.3, 16.7],  ap: (s, v, w) => { s.critDmg += v / 100; s.crit += w / 100; }, d: (v, w) => `치명타 피해 +${v}%, 치명타 확률 +${w}%` },
   range: { name: '확장 모듈',   abbr: '범위', min: 0, v: [4.7, 9.4, 19, 46],    ap: pct('rangePct'), d: v => `사거리와 공격 범위 +${v}%` },
   boss:  { name: '약점 분석기', abbr: '보스', min: 0, v: [12, 27, 54, 140],   ap: pct('bossPct'),  d: v => `보스와 대형 적(육각형)에게 주는 피해 +${v}%` },
+  mob:   { name: '소탕 모듈',   abbr: '소탕', min: 0, v: [7, 14, 28, 70],   ap: pct('mobPct'),   d: v => `일반 적(보스·대형 제외)에게 주는 피해 +${v}%` },
   gold:  { name: '채굴 칩',     abbr: '재화', min: 0, v: [18, 35, 70, 180],    ap: pct('goldPct'),  d: v => `이 무기로 처치 시 재화 +${v}%` },
   exec:  { name: '처형 모듈',   abbr: '처형', min: 0, v: [20, 40, 80, 200],   ap: pct('execPct'),  d: v => `체력 50% 이하인 적에게 피해 +${v}%` },
   first: { name: '선제 타격기', abbr: '선제', min: 0, v: [6, 13, 26, 68],   ap: pct('firstPct'), d: v => `체력 70% 이상인 적에게 피해 +${v}%` },
@@ -207,6 +208,7 @@ const AUGS = {
   a_dmg:  { name: '고출력',   abbr: '출력', min: 0, for: 'all', v: [10, 21, 41, 100], ap: pct('dmgPct'),  d: v => `공격력 +${v}%` },
   a_rate: { name: '속사',     abbr: '속사', min: 0, for: 'all', v: [9, 18, 36, 72],  ap: pct('ratePct'), d: v => `공격 속도 +${v}%` },
   a_crit: { name: '정밀 타격', abbr: '정밀', min: 0, max: 2, for: 'all', v: [12, 24, 48, 48],   ap: pct('crit'),    d: v => `치명타 확률 +${v}%` },
+  a_mob:  { name: '제압 사격', abbr: '제압', min: 0, for: 'all', v: [17, 34, 68, 170], ap: pct('mobPct'),  d: v => `일반 적(보스·대형 제외)에게 주는 피해 +${v}%` },
   // 블래스터
   b_multi:  { name: '연발',   abbr: '연발', min: 2, for: 'blaster', v: [0, 0, 1, 2], w: [0, 0, 50, 62], ap: (s, v, w) => { s.shots += v; s.shotMul = Math.max(s.shotMul, w / 100); }, d: (v, w) => `탄환 ${v}발 추가 발사 (추가 탄 피해 ${w}%)` },
   b_boom:   { name: '폭발탄', abbr: '폭발', min: 2, for: 'blaster', v: [0, 0, 25, 63], ap: pct('splash'), d: v => `적중 시 주변 적에게 피해의 ${v}% 폭발` },
@@ -269,6 +271,8 @@ const AUGS = {
   h_wave:   { name: '빙결 파동',   min: 2, for: 'base', v: [0, 0, 9, 6],    ap: (s, v) => { s.wave = s.wave ? Math.min(s.wave, v) : v; }, d: v => `${v}초마다 전장의 모든 적을 1.5초간 얼림 (보스는 둔화)` },
   h_bomb:   { name: '비상 폭격',   min: 3, for: 'base', v: [0, 0, 0, 60],     ap: add('bomb'),    d: v => `기지 체력이 ${v}% 아래로 떨어지면 전장 전체를 폭격 (60초마다 1회)` },
 };
+// 공용 증강(for: 'all')의 뽑힐 무게. 공용이 4종에서 5종(제압 사격, T15b)이 되어도 공용 전체의 몫이 예전과 비슷하게 4/5
+const AUG_ALL_W = 0.8;
 const AUG_POOL = {};
 // pool: false 는 증강으로는 나오지 않는 항목 (지금은 없음)
 for (const wid of WEAPON_IDS) AUG_POOL[wid] = Object.keys(AUGS).filter(id => AUGS[id].pool !== false && (AUGS[id].for === 'all' || AUGS[id].for === wid));
@@ -713,7 +717,7 @@ function bossWavesN() { return hasPact('hunt') ? PACT.huntWaves : CFG.bossWaves;
 /* ---------- 능력치 계산 ---------- */
 function blankStats(lanes, chain) {
   return {
-    dmgPct: 0, ratePct: 0, crit: 0.10, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, goldPct: 0,
+    dmgPct: 0, ratePct: 0, crit: 0.10, critDmg: 0, rangePct: 0, areaPct: 0, bossPct: 0, mobPct: 0, goldPct: 0,
     execPct: 0, firstPct: 0, heal: 0, luck: 0, save: 0, dbl: 0,
     pierce: 0, shots: 0, shotMul: 0, splash: 0, slow: 0, burn: 0, knock: 0, stun: 0, lanes,
     chain, chainGrow: 0, closePct: 0, third: 0, lens: 0, cluster: 0, pool: 0, echo: 0,
@@ -1085,7 +1089,7 @@ function rollAugs(have, pool, lv) {
       if (!cand.length) g = Math.min(3, g + 1);
     }
     if (!cand.length) cand = pool.filter(id => !out.some(o => o.id === id));
-    const id = pick(cand, r);
+    const id = cand[wpick(cand.map(c => AUGS[c].for === 'all' ? AUG_ALL_W : 1), r)];
     out.push({ id, g: Math.min(AUGS[id].max != null ? AUGS[id].max : 3, Math.max(g, AUGS[id].min)) });
   }
   return out;
@@ -1511,7 +1515,7 @@ function hit(e, amt, st, noSplash, fixed, noFx, noFl) {   // noFl: 화염 산탄
   if (rnd() < st.crit) { d *= 2.0 + st.critDmg; crit = true; }
   if (st.gamble) d *= 0.5 + rnd() * (st.gamble - 0.5);
   if (st.farPct && e.y < H * 0.7) d *= 1 + st.farPct;
-  if (e.boss || e.type === 'heavy') d *= 1 + st.bossPct;
+  if (e.boss || e.type === 'heavy') d *= 1 + st.bossPct; else if (st.mobPct) d *= 1 + st.mobPct;   // 일반 적 추가 피해 (T15b)
   const f = e.hp / e.maxHp;
   if (st.execPct && f <= 0.5) d *= 1 + st.execPct;
   if (st.firstPct && f >= 0.7) d *= 1 + st.firstPct;
@@ -2282,7 +2286,7 @@ function acidTick(p, dt, seen) {
     if (p.slow) { e.slowT = Math.max(e.slowT, 0.25); e.slowPct = Math.max(e.slowPct, e.boss ? p.slow * 0.5 : p.slow); }
     }
     got.add(e);                            // 웅덩이가 겹쳐도 같은 무기의 지속 피해는 한 번만
-    const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1);
+    const dps = p.dps * cm * (e.boss || e.type === 'heavy' ? 1 + st.bossPct : 1 + st.mobPct);
     dot(e, dps * dt, st);
     if (!e.dead && !gh && st.dsv && !e.boss && e.hp / e.maxHp <= st.dsv) dissolve(e, st);   // 용해
   }
